@@ -1364,7 +1364,7 @@ void MPEG2_program_stream()
   } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
   if(GETBITS(32, "MPEG2_PS_PROGRAM_END_CODE") == MPEG2_PS_PROGRAM_END_CODE) {
     DPRINTF(1, "MPEG Program End\n");
-    system_header_set = 0;
+    //system_header_set = 0;
   } else {
     synced = 0;
     fprintf(stderr, "demux: *** Lost Sync\n");
@@ -1636,6 +1636,7 @@ int main(int argc, char **argv)
     }
     GETBITS(8, "resync");
     DPRINTF(1, "resyncing");
+    fprintf(stderr, "demux: resync\n");
   }
 }
 

@@ -38,6 +38,11 @@ typedef struct {
   uint16_t horizontal_size;
   uint16_t vertical_size;
   uint16_t padded_width, padded_height;
+  uint16_t display_start_x;
+  uint16_t display_start_y;
+  uint16_t display_width;
+  uint16_t display_height;
+  float SAR;
 } yuv_image_t;
 
 

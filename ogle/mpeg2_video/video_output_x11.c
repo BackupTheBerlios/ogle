@@ -102,8 +102,7 @@ static int scaled_image_height;
 static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */
 static int scalemode_change = 0;
-
-
+static double sar;
 extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
@@ -122,7 +121,6 @@ void display_init(int padded_width, int padded_height,
   XSetWindowAttributes xswa;
   unsigned long xswamask;
 
-
   mydisplay = XOpenDisplay(NULL);
 
   if (mydisplay == NULL)
@@ -136,14 +134,16 @@ void display_init(int padded_width, int padded_height,
 
   screen = DefaultScreen(mydisplay);
 
+  sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
+  xscale_factor = buf_ctrl_head->picture_infos[0].picture.sar/sar;
   hint.x = 0;
   hint.y = 0;
-  hint.width = horizontal_size;
+  hint.width = horizontal_size*xscale_factor;
   hint.height = vertical_size;
   hint.flags = PPosition | PSize;
 
   /* Scale init. */
-  scaled_image_width = horizontal_size;
+  scaled_image_width = horizontal_size*xscale_factor;
   scaled_image_height = vertical_size;
   
   /* Make the window */

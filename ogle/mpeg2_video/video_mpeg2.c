@@ -480,12 +480,12 @@ void block_non_intra(unsigned int b)
 	val = (word >> (24-(6+12+6))); left -= (6+12+6);
 	run = (val >> 12) & 0x3f;
 	val &= 0xfff;
-	
+
 	if((val & 2047) == 0) {
 	  //	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
-	
+
 	sgn = (val >= 2048);
 	if(val >= 2048)                // !!!! ?sgn? 
 	  val =  4096 - val;// - 4096;

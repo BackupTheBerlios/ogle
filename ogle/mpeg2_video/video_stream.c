@@ -827,7 +827,7 @@ void sequence_header(void)
     }
   }
 
-
+  
   
   DPRINTFI(2, "horizontal_size_value: %u\n", seq.header.horizontal_size_value);
   DPRINTFI(2, "vertical_size_value: %u\n", seq.header.vertical_size_value);
@@ -1849,7 +1849,7 @@ void picture_data(void)
   DINDENT(2);
   
 #ifdef HAVE_CLOCK_GETTIME
-
+  
   if(bepa >= FPS_FRAMES) {
     static struct timespec qot;
     struct timespec qtt;
@@ -1875,7 +1875,7 @@ void picture_data(void)
       qpt.tv_nsec += 1000000000;
     } else if((qpt.tv_sec < 0) && (qpt.tv_nsec > 0)) {
       qpt.tv_sec += 1;
-    qpt.tv_nsec -= 1000000000;
+      qpt.tv_nsec -= 1000000000;
     }
     //    timesub(&qpt, &qtt, &qot);
     
@@ -1912,7 +1912,7 @@ void picture_data(void)
       qpt.tv_usec += 1000000;
     } else if((qpt.tv_sec < 0) && (qpt.tv_usec > 0)) {
       qpt.tv_sec += 1;
-    qpt.tv_usec -= 1000000;
+      qpt.tv_usec -= 1000000;
     }
     //    timesub(&qpt, &qtt, &qot);
     
@@ -1964,8 +1964,8 @@ void picture_data(void)
 	dpy_q_put(bwd_ref_buf_id);
 	
       }
-  DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
-  DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
+      DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
+      DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
 	
 
       if(fwd_ref_buf_id != -1) {
@@ -1999,8 +1999,8 @@ void picture_data(void)
       
       break;
     }
-  DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
-  DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
+    DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
+    DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
   
     /*
      * temporal reference is incremented by 1 for every frame.
@@ -2091,9 +2091,9 @@ void picture_data(void)
 	ctrl_time[last_scr_nr].realtime_offset;
       pinfos[buf_id].scr_nr = last_scr_nr;
       /*
-      fprintf(stderr, "#%ld.%09ld\n",
-	      pinfos[buf_id].pts_time.tv_sec,
-	      pinfos[buf_id].pts_time.tv_nsec);
+	fprintf(stderr, "#%ld.%09ld\n",
+	pinfos[buf_id].pts_time.tv_sec,
+	pinfos[buf_id].pts_time.tv_nsec);
       */
     } else {
       /* Predict if we don't already have a pts for the frame. */
@@ -2243,49 +2243,90 @@ void picture_data(void)
 	fprintf(stderr, "!");
 	  
 	/*
-	fprintf(stderr, "errpts %ld.%+010ld\n\n",
-		err_time.tv_sec,
-		err_time.tv_nsec);
+	  fprintf(stderr, "errpts %ld.%+010ld\n\n",
+	  err_time.tv_sec,
+	  err_time.tv_nsec);
 	*/
 
 #else
-
-      struct timeval realtime, calc_rt, err_time;
-      
-      gettimeofday(&realtime, NULL);
-      
-      timeadd(&calc_rt,
-	      &(pinfos[buf_id].pts_time),
-	      &(pinfos[buf_id].realtime_offset));
-      timesub(&err_time, &calc_rt, &realtime);
 	
-      /* If the picture should already have been displayed then drop it. */
-      /* TODO: More investigation needed. */
-      if(((err_time.tv_usec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
-	fprintf(stderr, "!");
+	struct timeval realtime, calc_rt, err_time;
+	
+	gettimeofday(&realtime, NULL);
+      
+	timeadd(&calc_rt,
+		&(pinfos[buf_id].pts_time),
+		&(pinfos[buf_id].realtime_offset));
+	timesub(&err_time, &calc_rt, &realtime);
+	
+	/* If the picture should already have been displayed then drop it. */
+	/* TODO: More investigation needed. */
+	if(((err_time.tv_usec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
+	  fprintf(stderr, "!");
 	  
-	/*
-	fprintf(stderr, "errpts %ld.%+06ld\n\n",
-		err_time.tv_sec,
-		err_time.tv_usec);
-	*/
+	  /*
+	    fprintf(stderr, "errpts %ld.%+06ld\n\n",
+	    err_time.tv_sec,
+	    err_time.tv_usec);
+	  */
 
 #endif	  
-	/* mark the frame to be dropped */
-	drop_frame = 1;
-	  
+	  /* mark the frame to be dropped */
+	  drop_frame = 1;
+	
+	}
       }
     }
-  }
-  
-  /*
- else {
- // either this is the second field of the frame or it is an error
-    fprintf(stderr, "*** error prev_temp_ref == cur_temp_ref\n");
     
-  }
-  */
-  /* now we can decode the picture if it shouldn't be dropped */
+    /*
+      else {
+      // either this is the second field of the frame or it is an error
+      fprintf(stderr, "*** error prev_temp_ref == cur_temp_ref\n");
+    
+      }
+    */
+    {
+      double sar = 1.0;
+      uint16_t hsize,vsize;
+      
+      if(seq.dpy_ext.display_horizontal_size) {      
+	hsize = seq.dpy_ext.display_horizontal_size
+	vsize = seq.dpy_ext.display_vertical_size
+      } else {
+	hsize = seq.horizontal_size;
+	vsize = seq.vertical_size;	
+      }
+      switch(seq.header.aspect_ratio_information) {
+      case 0x0:
+	DPRINTF(2, "forbidden\n");
+	break;
+      case 0x1:
+	DPRINTF(2, "SAR = 1.0\n");
+	sar = 1.0;
+	break;
+      case 0x2:
+	DPRINTF(2, "DAR = 3/4\n");
+	sar = 3.0/4.0*(double)hsize/(double)vsize;
+	break;
+      case 0x3:
+	DPRINTF(2, "DAR = 9/16\n");
+	sar = 9.0/16.0*(double)hsize/(double)vsize;
+	break;
+      case 0x4:
+	DPRINTF(2, "DAR = 1/2.21\n");
+	sar = 1.0/2.21*(double)hsize/(double)vsize;
+	break;
+      default:
+	DPRINTF(2, "reserved\n");
+	break;
+      }
+      pinfos[bufid].picture.sar = sar;
+      
+    }
+
+
+
+    /* now we can decode the picture if it shouldn't be dropped */
   if(!drop_frame) {
     /* Decode the slices. */
     if( MPEG2 )
@@ -2708,15 +2749,15 @@ void sequence_display_extension()
   DPRINTFI(1, "sequence_display_extension()\n");
   DINDENT(2);
   
-  extension_start_code_identifier 
+  seq.dpy_ext.extension_start_code_identifier 
     = GETBITS(4,"extension_start_code_identifier");
-  video_format = GETBITS(3, "video_format");
-  colour_description = GETBITS(1, "colour_description");
+  seq.dpy_ext.video_format = GETBITS(3, "video_format");
+  seq.dpy_ext.colour_description = GETBITS(1, "colour_description");
 
 #ifdef DEBUG
   /* Table 6-6. Meaning of video_format */
   DPRINTFI(2, "video_format: ");
-  switch(video_format) {
+  switch(seq.dpy_ext.video_format) {
   case 0x0:
     DPRINTF(2, "component\n");
     break;
@@ -2742,15 +2783,15 @@ void sequence_display_extension()
 #endif
 
 
-  if(colour_description) {
-    colour_primaries = GETBITS(8, "colour_primaries");
-    transfer_characteristics = GETBITS(8, "transfer_characteristics");
-    matrix_coefficients = GETBITS(8, "matrix_coefficients");
+  if(seq.dpy_ext.colour_description) {
+    seq.dpy_ext.colour_primaries = GETBITS(8, "colour_primaries");
+    seq.dpy_ext.transfer_characteristics = GETBITS(8, "transfer_characteristics");
+    seq.dpy_ext.matrix_coefficients = GETBITS(8, "matrix_coefficients");
     
 #ifdef DEBUG
     /* Table 6-7. Colour Primaries */
     DPRINTFI(2, "colour primaries (Table 6-7): ");
-    switch(colour_primaries) {
+    switch(seq.dpy_ext.colour_primaries) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
       break;
@@ -2784,7 +2825,7 @@ void sequence_display_extension()
 #ifdef DEBUG
     /* Table 6-8. Transfer Characteristics */
     DPRINTFI(2, "transfer characteristics (Table 6-8): ");
-    switch(transfer_characteristics) {
+    switch(seq.dpy_ext.transfer_characteristics) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
       break;
@@ -2821,7 +2862,7 @@ void sequence_display_extension()
 #ifdef DEBUG
     /* Table 6-9. Matrix Coefficients */
     DPRINTFI(2, "matrix coefficients (Table 6-9): ");
-    switch(matrix_coefficients) {
+    switch(seq.dpy_ext.matrix_coefficients) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
       break;
@@ -2853,12 +2894,15 @@ void sequence_display_extension()
 #endif
   }
 
-  display_horizontal_size = GETBITS(14, "display_horizontal_size");
+  seq.dpy_ext.display_horizontal_size = GETBITS(14, "display_horizontal_size");
   marker_bit();
-  display_vertical_size = GETBITS(14, "display_vertical_size");
+  seq.dpy_ext.display_vertical_size = GETBITS(14, "display_vertical_size");
 
-  DPRINTFI(2, "display_horizontal_size: %d\n", display_horizontal_size);
-  DPRINTFI(2, "display_vertical_size: %d\n", display_vertical_size);
+  DPRINTFI(2, "display_horizontal_size: %d\n",
+	   seq.dpy_ext.display_horizontal_size);
+  DPRINTFI(2, "display_vertical_size: %d\n",
+	   seq.dpy_ext.display_vertical_size);
+
   DINDENT(-2);
   next_start_code();
 }

@@ -105,9 +105,9 @@ uint32_t getbits(unsigned int nr)
   
   bits_left -= nr;
   if(bits_left <= 32) {
-    if(offs >= buf_size)
+    if(offs >= buf_size) {
       read_buf();
-    else {
+   } else {
       uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+

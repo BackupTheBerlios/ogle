@@ -336,9 +336,25 @@ typedef struct {
 
 
 typedef struct {
+  uint8_t extension_start_code_identifier;
+
+  uint8_t video_format;
+ 
+  uint8_t colour_description;
+  uint8_t colour_primaries;
+  uint8_t transfer_characteristics;
+  uint8_t matrix_coefficients;
+  
+  uint16_t display_horizontal_size;
+  uint16_t display_vertical_size;
+
+} sequence_display_extension_t;
+
+
+typedef struct {
   sequence_header_t header;
   sequence_extension_t ext;
-
+  sequence_display_extension_t dpy_ext;
   /***/
   int16_t horizontal_size;
   int16_t vertical_size;
@@ -350,7 +366,6 @@ typedef struct {
   int16_t macroblock_address;
   
 } sequence_t;
-
 
 
 
