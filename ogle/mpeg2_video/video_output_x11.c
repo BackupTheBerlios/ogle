@@ -1353,14 +1353,6 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
-	//TODO this is just for testing, should be done from vm/ui
-	// hack
-	if(keysym == XK_i) {
-	  screenshot = 1;
-	}
-	if(keysym == XK_I) {
-	  screenshot_spu = 1;
-	}
       }
       break;
     case KeyRelease:
@@ -2060,44 +2052,48 @@ static void draw_win_x11(window_info *dwin)
 static void draw_win_xv(window_info *dwin)
 {
 #ifdef HAVE_XV
+  yuv_image_t *draw_image;
+
   int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */   
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
-  xv_image->data = dwin->image->y;
+
+  draw_image = dwin->image;
 
   if(screenshot || screenshot_spu) { 
     if(aspect_mode == AspectModeSrcVM) {
       sar_frac_n // hack
-	= aspect_new_frac_d * dwin->image->info->picture.horizontal_size;
+	= aspect_new_frac_d * draw_image->info->picture.horizontal_size;
       sar_frac_d // hack
-	= aspect_new_frac_n * dwin->image->info->picture.vertical_size;
+	= aspect_new_frac_n * draw_image->info->picture.vertical_size;
     }
     /* Use the stream aspect */ 
     else /* if(aspect_mode == AspectModeSrcMPEG) also default */ {
-      sar_frac_n = dwin->image->info->picture.sar_frac_n;
-      sar_frac_d = dwin->image->info->picture.sar_frac_d;
+      sar_frac_n = draw_image->info->picture.sar_frac_n;
+      sar_frac_d = draw_image->info->picture.sar_frac_d;
     }
   }
   
   if(screenshot) {
     screenshot = 0;
-    
-    screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
+    screenshot_yuv_jpg(draw_image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
-    
+
 #ifdef SPU
   if(msgqid != -1) {
     //ugly hack
-    if(mix_subpicture_yuv(dwin->image, cur_data_q->reserv_image)) {
-      xv_image->data = cur_data_q->reserv_image->y;
+    if(mix_subpicture_yuv(draw_image, cur_data_q->reserv_image)) {
+      draw_image = cur_data_q->reserv_image;
     }
   }
 #endif
 
+  xv_image->data = draw_image->y;
+
   if(screenshot_spu) {
     screenshot_spu = 0;
     
-    screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
+    screenshot_yuv_jpg(draw_image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
   
   window.video_area.width = scale.image_width;

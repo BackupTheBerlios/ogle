@@ -90,7 +90,7 @@ uint16_t aspect_new_frac_d;
 ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 
 static int ctrl_data_shmid;
-static ctrl_data_t *ctrl_data;
+ctrl_data_t *ctrl_data;
 ctrl_time_t *ctrl_time;
 
 int msgqid = -1;
@@ -416,7 +416,15 @@ static void redraw_screen(void)
 void screenshot_request(ScreenshotMode_t mode)
 {
   screenshot_mode(mode);
-  redraw_request();
+  if(mode == 0) {
+    if(last_image_buf) {
+      if(last_image_buf->info->is_reference || (ctrl_data->speed < 1.0)) {
+	redraw_request();
+      }
+    }
+  } else {
+    redraw_request();
+  }
 }
 
 static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)

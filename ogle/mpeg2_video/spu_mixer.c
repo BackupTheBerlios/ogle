@@ -1282,7 +1282,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
     mix_function = display_mix_function_yuv;
     
     //ugly hack
-    if(img->info->is_reference) {
+    if(img->info->is_reference || (ctrl_data->speed < 1.0)) {
       int size;
       size = width * height;
       memcpy(reserv->y, img->y, size);
