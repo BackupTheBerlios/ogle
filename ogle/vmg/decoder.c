@@ -144,7 +144,7 @@ eval_link_instruction(link_t *return_values) {
         return_values->data2 = bits(7,1,7);
         return 1;
       case 7:
-        return LinkCN;
+        return_values->command = LinkCN;
         return_values->data1 = but;
         return_values->data2 = bits(7,0,8);
         return 1;
@@ -244,27 +244,39 @@ eval_reg_or_data_2(int imm, int byte) {
 }
 
 /* Evaluate a set sytem register instruction 
-   returns 1 if successful 0 otherwise */
+   May contain a link so return the same as eval_link */
 static bool
-eval_system_set () {
+eval_system_set (int cond, link_t *return_values) {
   int i;
+  uint16_t data;
   switch(bits(0,4,4)) {
     case 1: // 1 2 3
       for(i = 1; i <= 3; i++) {
         if(bits(2+i,0,1)) {
-          state->SPRM[i] = eval_reg_or_data_2(bits(0,3,1), 2+i);
+          data = eval_reg_or_data_2(bits(0,3,1), 2+i);
+          if (cond) {
+            state->SPRM[i] = data;
+          }
         }
       }
       break;
     case 6: // 8
       if (bits(0,3,1)) { // immediate
-        state->SPRM[8] = bits(4,0,16);
+        data = bits(4,0,16);
+        if (cond) {
+          state->SPRM[8] = data;
+        }
       } else {
-        state->SPRM[8] = state->GPRM[bits(5,4,4)];
+        data = bits(5,4,4);
+        if (cond) {
+          state->SPRM[8] = state->GPRM[data];
+        }
       }
       break;
   }
-  return 0;
+  if(bits(1,4,4)) {
+    return eval_link_instruction(return_values);
+  }
 }
 
 /* Evaluate if version 3 
@@ -283,55 +295,56 @@ eval_if_version_3() {
    Sets the register given to the value given by data and operation
    Us */
 static void
-eval_set_op() {
+eval_set_op(cond) {
   uint8_t  op   = bits(0,4,4);
   uint8_t  reg  = bits(3,0,8);
-  uint8_t  reg2;
+  uint8_t  reg2 = bits(5,4,4);
   uint16_t data = eval_reg_or_data(bits(0,3,1), 4);
-  switch(op) {
-    case 1:
-      state->GPRM[reg] = data;
-      break;
-    case 2: /* SPECIAL CASE - SWAP! */
-      reg2 = bits(5,4,4);
-      state->GPRM[reg2] = state->GPRM[reg];
-      state->GPRM[reg] = data;
-      break;
-    case 3:
-      state->GPRM[reg] += data;
-      break;
-    case 4:
-      state->GPRM[reg] -= data;
-      break;
-    case 5:
-      state->GPRM[reg] *= data;
-      break;
-    case 6:
-      state->GPRM[reg] /= data;
-      break;
-    case 7:
-      state->GPRM[reg] %= data;
-      break;
-    case 8: /* SPECIAL CASE - RND! */
-      state->GPRM[reg] += data;
-      break;
-    case 9:
-      state->GPRM[reg] &= data;
-      break;
-    case 10:
-      state->GPRM[reg] |= data;
-      break;
-    case 11:
-      state->GPRM[reg] ^= data;
-      break;
+  if (cond) {
+    switch(op) {
+      case 1:
+        state->GPRM[reg] = data;
+        break;
+      case 2: /* SPECIAL CASE - SWAP! */
+        state->GPRM[reg2] = state->GPRM[reg];
+        state->GPRM[reg] = data;
+        break;
+      case 3:
+        state->GPRM[reg] += data;
+        break;
+      case 4:
+        state->GPRM[reg] -= data;
+        break;
+      case 5:
+        state->GPRM[reg] *= data;
+        break;
+      case 6:
+        state->GPRM[reg] /= data;
+        break;
+      case 7:
+        state->GPRM[reg] %= data;
+        break;
+      case 8: /* SPECIAL CASE - RND! */
+        state->GPRM[reg] += data;
+        break;
+      case 9:
+        state->GPRM[reg] &= data;
+        break;
+      case 10:
+        state->GPRM[reg] |= data;
+        break;
+      case 11:
+        state->GPRM[reg] ^= data;
+        break;
+    }
   }
 }
 
 /* Evaluate set instruction
    May contain a link, so it returns the same as the eval_link */
 static bool
-eval_set (link_t *return_values) {
-  eval_set_op();
+eval_set (int cond, link_t *return_values) {
+  eval_set_op(cond);
   if(bits(1,4,4)) {
     return eval_link_instruction(return_values);
   }
@@ -344,7 +357,7 @@ eval_set (link_t *return_values) {
 
 static int eval_command (uint8_t *bytes, link_t *return_values) {
   int i, extra_bits;
-  int res;
+  int res, cond;
 
   for(i=0;i<8;i++) {
     cmd.bits[i] = bytes[i];
@@ -353,8 +366,9 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
 
   switch(bits(0,0,3)) { /* three first bits */
     case 0: // Special instructions
-      if(eval_if_version_1()) {
-        res = eval_special_instruction();
+      cond = eval_if_version_1();
+      res = eval_special_instruction();
+      if(cond) {
         if(res == -1) {
           fprintf(stderr, "EXIT!");
           exit(0);
@@ -364,28 +378,33 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
       break;
     case 1: // Link/jump instructions
       if(bits(0,3,1)) {
-        if(eval_if_version_2()) {
-          res = eval_jump_instruction(return_values);
+        cond = eval_if_version_2();
+        res = eval_jump_instruction(return_values);
+        if(cond) {
           if(res)
             return -1;
         }
       } else {
-        if(eval_if_version_1()) {
-          res = eval_link_instruction(return_values);
+        cond = eval_if_version_1();
+        res = eval_link_instruction(return_values);
+        if(cond) {
           if (res)
             return -1;
         }
       }
       break;
     case 2: // System set instructions
-      if(eval_if_version_2())
-        eval_system_set();
+      cond = eval_if_version_2();
+      res = eval_system_set(cond, return_values);
+      if (res) {
+        return -1; 
+      }
       break;
     case 3: // Set instructions
-      if(eval_if_version_3()) {
-        res = eval_set(return_values);
-        if (res)
-         return -1; 
+      cond = eval_if_version_3();
+      res = eval_set(cond, return_values);
+      if (res) {
+        return -1; 
       }
       break;
   }
@@ -400,10 +419,10 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
     }
   if (extra_bits)
   {
-    fprintf (stderr, "[WARNING, unknown bits:");
+    printf ("[WARNING, unknown bits:");
     for (i = 0; i < 8; i++)
-      fprintf (stderr, " %02x", cmd.bits [i] & ~ cmd.examined [i]);
-    fprintf (stderr, "]");
+      printf (" %02x", cmd.bits [i] & ~ cmd.examined [i]);
+    printf ("]\n");
   }
 
   return 0;
@@ -419,7 +438,7 @@ eval (uint8_t commands[][8], int num_commands,
   int line;
   state = registers;
 
-  while(i<=num_commands && total<128) {
+  while(i<=num_commands && total<100000) {
     line=eval_command(commands[i], return_values);
     if (line>0) { // Goto command
       i=line-1;
@@ -427,8 +446,8 @@ eval (uint8_t commands[][8], int num_commands,
       return 1;
     } else {
       i++;
-      total++;
     }
+    total++;
   }
   return 0;
 }
