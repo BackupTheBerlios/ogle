@@ -165,7 +165,7 @@ static int scalemode = MLIB_BILINEAR;
 
 
 static int use_xshm = 1;
-static int use_xv = 0;
+static int use_xv = 1;
 
 
 extern int msgqid;
@@ -288,7 +288,7 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
 
 /* This section of the code looks for the Xv extension for hardware
  * yuv->rgb and scaling. If it is not found, or any suitable adapter
- * is not found, use_xv will not get set. Otherwise it allocates a
+ * is not found, use_xv will be set to 0. Otherwise it allocates a
  * xv image and returns.
  *
  * The variable use_xv tells if Xv is used */
@@ -300,6 +300,7 @@ static void display_init_xv(int picture_buffer_shmid,
 #ifdef HAVE_XV
   int i, j;
   int result;
+  int xv_found = 0;
 
   xv_port = 0; /* We have no port yet. */
   
@@ -309,6 +310,7 @@ static void display_init_xv(int picture_buffer_shmid,
 			    &xv_error_base);
   if(result != Success) {
     WARNING("%s", "Xvideo extension not found\n");
+    use_xv = 0;
     return;
   }
   
@@ -320,6 +322,7 @@ static void display_init_xv(int picture_buffer_shmid,
 			   &xv_num_adaptors, &xv_adaptor_info);
   if(result != Success) {
     WARNING("%s", "No Xv adaptors found\n");
+    use_xv = 0;
     return;
   }
       
@@ -397,13 +400,18 @@ static void display_init_xv(int picture_buffer_shmid,
 #if 0
       shmctl(shm_info.shmid, IPC_RMID, 0); // only works on Linux..
 #endif
+      
       CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
     }
-    use_xv = 1;
+    xv_found = 1;
+
     /* All set up! */
     break;
   }
 #endif /* HAVE_XV */
+  if(!xv_found) {
+    use_xv = 0;
+  }
 }
      
 
@@ -483,7 +491,6 @@ static void display_init_xshm()
   
   /* revert to the previous xerrorhandler */
   XSetErrorHandler(prev_xerrhandler);
-  
   
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   
@@ -723,8 +730,21 @@ void display_init(int padded_width, int padded_height,
       }
     }
 #endif /* HAVE_MLIB */
+    
+    {
+      char *env_val;
+      if((env_val = getenv("OGLE_USE_XV"))) {
+	if(!strcmp(env_val, "0")) {
+	  use_xv = 0;
+	}
+      }
 
-
+      if((env_val = getenv("OGLE_USE_XSHM"))) {
+	if(!strcmp(env_val, "0")) {
+	  use_xshm = 0;
+	}
+      }
+    }
     mydisplay = XOpenDisplay(NULL);
     
     if(mydisplay == NULL) {
@@ -907,9 +927,10 @@ void display_init(int padded_width, int padded_height,
   
   /* Try to use XFree86 Xv (X video) extension for display.
      Sets use_xv to true on success. */
-  display_init_xv(picture_buffer_shmid, picture_buffer_addr,
-		  padded_width, padded_height);
-
+  if(use_xv) {
+    display_init_xv(picture_buffer_shmid, picture_buffer_addr,
+		    padded_width, padded_height);
+  }
   /* Try XShm if we didn't have/couldn't use Xv. 
      This also falls back to normal X11 if XShm fails. */
   if(!use_xv) {
