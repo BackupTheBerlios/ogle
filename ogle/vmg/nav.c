@@ -25,10 +25,10 @@
 #include <ogle/msgevents.h>
 #include <ogle/dvdevents.h>
 
-#include "ifo.h" // vm_cmd_t
-#include "nav.h"
-#include "nav_read.h"
-#include "nav_print.h"
+#include <dvdread/ifo_types.h> // vm_cmd_t
+#include <dvdread/nav_types.h>
+#include <dvdread/nav_read.h>
+#include <dvdread/nav_print.h>
 #include "vm.h"
 
 extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -65,7 +65,8 @@ extern uint16_t vm_get_audio_lang(int streamN);
  */
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
-  static int audio_stream_id = -1, subp_stream_id = -1; // FIXME ??? static
+  static int audio_stream_id = -1;
+  static int subp_stream_id = -1; // FIXME ??? static
   MsgEvent_t ev;
 
 #if 1
@@ -372,16 +373,6 @@ void do_init_cell(int flush) {
 
 }
 
-void do_next_cell(void) {
-  
-  // New_cell
-  fprintf(stderr, "nav: do_next_cell(void)\n");
-  
-  vm_get_next_cell();
-  block = state.blockN; // or rsm_block??, get it from get_next_cell()!!
-
-  do_init_cell(0);
-}
 
 
 
@@ -411,7 +402,7 @@ void do_run(void) {
       int complete_video;
       
       /* Is there any video data in the next vobu? */
-      if((dsi.vobu_sri.next & 0x80000000) == 0 
+      if((dsi.vobu_sri.next_vobu & 0x80000000) == 0 
 	 && dsi.dsi_gi.vobu_1stref_ea != 0 
 	 /* &&  there were video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
@@ -421,9 +412,10 @@ void do_run(void) {
       }
       
       /* Demux/play the content of this vobu */
-      send_demux_sectors(cell->first_sector + block + 1, 
-			 dsi.dsi_gi.vobu_ea, complete_video);
-      
+      if(dsi.dsi_gi.vobu_ea != 0) {
+	send_demux_sectors(cell->first_sector + block + 1, 
+			   dsi.dsi_gi.vobu_ea, complete_video);
+      }
       
       /* The next vobu is where... (make this a function) */
       
@@ -434,7 +426,7 @@ void do_run(void) {
 	;
       } else {
 	/* .. top two bits are flags */  
-	block += dsi.vobu_sri.next & 0x3fffffff;
+	block += dsi.vobu_sri.next_vobu & 0x3fffffff;
       }
       
       
@@ -487,7 +479,9 @@ void do_run(void) {
 	
 	if(!still_time) // No more still time (or there never were any..)
 	  if(MsgCheckEvent(msgq, &ev)) { // and no more messages
-	    do_next_cell();  // ???? XXXX ???? or demux more?
+	    // Let the vm run and give us a new cell to play
+	    vm_get_next_cell();
+	    do_init_cell(/* No jump */ 0);
 	    dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
       }
@@ -499,7 +493,7 @@ void do_run(void) {
     if(!got_data) { // Then it must be a message (or error?)
       int res = 0;
       
-      printf("nav: User input, MsgEvent.type: %d\n", ev.type);
+      //printf("nav: User input, MsgEvent.type: %d\n", ev.type);
       
       /* User input events */
       
@@ -699,10 +693,10 @@ void do_run(void) {
       
       if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
 	/* XXX inte läsa till pci utan något annat minne? */
-	read_pci_packet(&pci, &buffer[1], len);
+	navRead_PCI(&pci, &buffer[1], len);
 	/* Is this the packet we are waiting for? */
 	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
-	  fprintf(stdout, "nav: Droped PCI packet\n");
+	  //fprintf(stdout, "nav: Droped PCI packet\n");
 	  pci.pci_gi.nv_pck_lbn = -1;
 	  continue;
 	}
@@ -710,7 +704,7 @@ void do_run(void) {
 	/*
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
 	  fprintf(stdout, "Menu detected\n");
-	  print_pci_packet(stdout, &pci);
+	  navPrint_PCI(&pci);
 	}
 	*/
 	/* Evaluate and Instantiate the new pci packet */
@@ -718,14 +712,14 @@ void do_run(void) {
 
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
 	/* XXX inte läsa till dsi utan något annat minne? */
-	read_dsi_packet(&dsi, &buffer[1], len);
+	navRead_DSI(&dsi, &buffer[1], len);
 	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
-	  fprintf(stdout, "nav: Droped DSI packet\n");
+	  //fprintf(stdout, "nav: Droped DSI packet\n");
 	  dsi.dsi_gi.nv_pck_lbn = -1;
 	  continue;
 	}
 	//fprintf(stdout, "nav: Got DSI packet\n");	  
-	//print_dsi_packet(stderr, &dsi);
+	//navPrint_DSI(&dsi);
 
       } else {
 	fprintf(stderr, "nav: Unknown NAV packet type");

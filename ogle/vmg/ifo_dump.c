@@ -21,29 +21,19 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "ifo.h"
-#include "ifo_read.h"
-#include "ifo_print.h"
+#include <dvdread/ifo_types.h>
+#include <dvdread/ifo_read.h>
+#include <dvdread/ifo_print.h>
 
-
-
-#define PUT(level, text...) \
-do { \
-  if(level < debug) { \
-    fprintf(stdout, ## text); \
-  } \
-} while(0)
-
-void ifoPrint(char *filename);
-
-int debug = 6;
-
+static int verbose = 0;
 static char *program_name;
 
-void usage()
+static void print_ifo(char *path, int title);
+
+void usage(void)
 {
-  fprintf(stderr, "Usage: %s  [-d <debug_level>]\n", 
-          program_name);
+  fprintf(stderr, "Usage: %s [-d <level>] <dvd path> <title number>\n", 
+	  program_name);
 }
 
 int main(int argc, char *argv[])
@@ -52,10 +42,10 @@ int main(int argc, char *argv[])
   program_name = argv[0];
   
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:h?")) != EOF) {
+  while((c = getopt(argc, argv, "d:h?")) != EOF) {
     switch (c) {
     case 'd':
-      debug = atoi(optarg);
+      verbose = atoi(argv[optind]);
       break;
     case 'h':
     case '?':
@@ -63,172 +53,129 @@ int main(int argc, char *argv[])
       return 1;
     }
   }
-
-  if(argc - optind != 1){
+  
+  if(argc - optind != 2){
     usage();
     return 1;
   }
-
-  ifoPrint(argv[optind]);
   
+  print_ifo(argv[optind], atoi(argv[optind + 1]));
+
   exit(0);
 }
 
 
-void ifoPrint(char *filename) {
-  vmgi_mat_t vmgi_mat;
-  vtsi_mat_t vtsi_mat;
+static void print_ifo(char *path, int title) {
+  dvd_reader_t *dvd;
+  ifo_handle_t *h;
   
-  if(ifoOpen_VMG(&vmgi_mat, filename) != NULL) {
-    vmg_ptt_srpt_t vmg_ptt_srpt;
-    pgc_t pgc;    
-    menu_pgci_ut_t vmgm_pgci_ut;
-    vmg_ptl_mait_t vmg_ptl_mait;
-    vmg_vts_atrt_t vmg_vts_atrt;
-    vmg_txtdt_mgi_t vmg_txtdt_mgi;
-    c_adt_t vmgm_c_adt;
-    vobu_admap_t vmgm_vobu_admap;
-     
-    
-    PUT(1, "VMG top level\n-------------\n");
-    ifoPrint_VMGI_MAT(&vmgi_mat);
-      
-    PUT(1, "\nFirst Play PGC\n--------------\n");
-    ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
-    ifoPrint_PGC(&pgc);
-      
-    PUT(1, "\nPart of Title (and Chapter) Search pointer table\n");
-    PUT(1,   "------------------------------------------------\n");
-    /* This needs to be in a IFO? */
-    if(vmgi_mat.vmg_ptt_srpt != 0) {
-      ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
-      ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
-    } else
-      PUT(5, "No PartOfTitle Searchpointer information present\n");
-      
-    PUT(1, "\nMenu PGCI Unit table\n");
-    PUT(1,   "--------------------\n");
-    if(vmgi_mat.vmgm_pgci_ut != 0) {
-      ifoRead_MENU_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
-      ifoPrint_MENU_PGCI_UT(&vmgm_pgci_ut);
-    } else
-      PUT(5, "No PGCI Unit table present\n");
-       
-      
-    PUT(1, "\nParental Manegment Information table\n");
-    PUT(1,   "------------------------------------\n");
-    if(vmgi_mat.vmg_ptl_mait != 0) {
-      ifoRead_VMG_PTL_MAIT(&vmg_ptl_mait, vmgi_mat.vmg_ptl_mait);
-      ifoPrint_VMG_PTL_MAIT(&vmg_ptl_mait);
-    } else
-      PUT(5, "No Parental Management Information present\n");
-      
-    PUT(1, "\nVideo Title Set Attribute Table\n");
-    PUT(1,   "-------------------------------\n");
-    if(vmgi_mat.vmg_vts_atrt != 0) {
-      ifoRead_VMG_VTS_ATRT(&vmg_vts_atrt, vmgi_mat.vmg_vts_atrt);
-      ifoPrint_VMG_VTS_ATRT(&vmg_vts_atrt);
-    } else
-      PUT(5, "No Video Title Set Attribute Table present\n");
-      
-    PUT(1, "\nText Data Manager Information\n");
-    PUT(1,   "-----------------------------\n");
-    if(vmgi_mat.vmg_txtdt_mgi != 0) {
-      ifoRead_VMG_TXTDT_MGI(&vmg_txtdt_mgi, vmgi_mat.vmg_txtdt_mgi);
-      //ifoPrint_VMG_TXTDT_MGI(&vmg_txtdt_mgi);
-    } else
-      PUT(5, "No Text Data Manager Information present\n");
-      
-      
-    PUT(1, "\nCell Adress table\n");
-    PUT(1,   "-----------------\n");
-    if(vmgi_mat.vmgm_c_adt != 0) {
-      ifoRead_C_ADT(&vmgm_c_adt, vmgi_mat.vmgm_c_adt);
-      ifoPrint_C_ADT(&vmgm_c_adt);
-    } else
-      PUT(5, "No Cell Adress table present\n");
-      
-    PUT(1, "\nVideo Title set Menu VOBU address map\n");
-    PUT(1,   "-----------------\n");
-    if(vmgi_mat.vmgm_vobu_admap != 0) {
-      ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
-      ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
-    } else
-      PUT(5, "No Menu VOBU address map present\n");   
-    ifoClose();
+  dvd = DVDOpen(path);
+  if(!dvd) {
+    fprintf(stderr, "Can't open disc %s!\n", path);
+    return;
   }
 
-  if(ifoOpen_VTS(&vtsi_mat, filename) != NULL) {
-    vts_ptt_srpt_t vts_ptt_srpt;
-    pgcit_t vts_pgcit;
-    menu_pgci_ut_t vtsm_pgci_ut;
-    c_adt_t vtsm_c_adt;
-    vobu_admap_t vtsm_vobu_admap;
-    c_adt_t vts_c_adt;
-    vobu_admap_t vts_vobu_admap;
+  h = ifoOpen(dvd, title);
+  if(h->vmgi_mat != NULL) {
+    
+    printf("VMG top level\n-------------\n");
+    ifoPrint_VMGI_MAT(h->vmgi_mat);
       
-    PUT(1, "VTS top level\n-------------\n");
-    ifoPrint_VTSI_MAT(&vtsi_mat);
+    printf("\nFirst Play PGC\n--------------\n");
+    ifoPrint_PGC(h->first_play_pgc);
       
-    PUT(1, "\nPart of title search pointer table information\n");
-    PUT(1,   "----------------------------------------------\n");
-    /* This needs to be in a IFO? */
-    if(vtsi_mat.vts_ptt_srpt != 0) {
-      ifoRead_VTS_PTT_SRPT(&vts_ptt_srpt, vtsi_mat.vts_ptt_srpt);
-      ifoPrint_VTS_PTT_SRPT(&vts_ptt_srpt);
+    printf("\nTitle Track search pointer table\n");
+    printf(  "------------------------------------------------\n");
+    ifoPrint_TT_SRPT(h->tt_srpt);
+      
+    printf("\nMenu PGCI Unit table\n");
+    printf(  "--------------------\n");
+    ifoPrint_MENU_PGCI_UT(h->vmgm_pgci_ut);
+      
+    printf("\nParental Manegment Information table\n");
+    printf(  "------------------------------------\n");
+    if(h->vmgi_mat->ptl_mait != 0) {
+      ifoPrint_PTL_MAIT(h->ptl_mait);
     } else
-      PUT(5, "No PGCI Unit table present\n");
+      printf("No Parental Management Information present\n");
+      
+    printf("\nVideo Title Set Attribute Table\n");
+    printf(  "-------------------------------\n");
+    ifoPrint_VTS_ATRT(h->vts_atrt);
+
+      
+    printf("\nText Data Manager Information\n");
+    printf(  "-----------------------------\n");
+    if(h->vmgi_mat->txtdt_mgi != 0) {
+      //ifoPrint_TXTDT_MGI(h->txtdt_mgi);
+      printf("Can't print Text Data Manager Information yet\n");
+    } else
+      printf("No Text Data Manager Information present\n");
+      
+    if(verbose) {
+      
+      printf("\nCell Adress table\n");
+      printf(  "-----------------\n");
+      if(h->vmgi_mat->vmgm_c_adt != 0) {
+	ifoPrint_C_ADT(h->vmgm_c_adt);
+      } else
+	printf("No Cell Adress table present\n");
+      
+      printf("\nVideo Title set Menu VOBU address map\n");
+      printf(  "-----------------\n");
+      if(h->vmgi_mat->vmgm_vobu_admap != 0) {
+	ifoPrint_VOBU_ADMAP(h->vmgm_vobu_admap);
+      } else
+	printf("No Menu VOBU address map present\n");
+    }
+  }
+
+  if(h->vtsi_mat != NULL) {
+      
+    printf("VTS top level\n-------------\n");
+    ifoPrint_VTSI_MAT(h->vtsi_mat);
+      
+    printf("\nPart of title search pointer table information\n");
+    printf(  "----------------------------------------------\n");
+    ifoPrint_VTS_PTT_SRPT(h->vts_ptt_srpt);
        
-    PUT(1, "\nPGCI Unit table\n");
-    PUT(1,   "--------------------\n");
-    if(vtsi_mat.vts_pgcit != 0) {
-      ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit * DVD_BLOCK_LEN);
-      ifoPrint_PGCIT(&vts_pgcit);
-    } else
-      PUT(5, "No PGCI Unit table present\n");
+    printf("\nPGCI Unit table\n");
+    printf(  "--------------------\n");
+    ifoPrint_PGCIT(h->vts_pgcit);
       
-    PUT(1, "\nMenu PGCI Unit table\n");
-    PUT(1,   "--------------------\n");
-    if(vtsi_mat.vtsm_pgci_ut != 0) {
-      ifoRead_MENU_PGCI_UT(&vtsm_pgci_ut, vtsi_mat.vtsm_pgci_ut);
-      ifoPrint_MENU_PGCI_UT(&vtsm_pgci_ut);
+    printf("\nMenu PGCI Unit table\n");
+    printf(  "--------------------\n");
+    if(h->vtsi_mat->vtsm_pgci_ut != 0) {
+      ifoPrint_MENU_PGCI_UT(h->vtsm_pgci_ut);
     } else
-      PUT(5, "No Menu PGCI Unit table present\n");
+      printf("No Menu PGCI Unit table present\n");
       
+    if(verbose) {
       
-    PUT(1, "\nMenu Cell Adress table\n");
-    PUT(1,   "-----------------\n");
-    if(vtsi_mat.vtsm_c_adt != 0) {
-      ifoRead_C_ADT(&vtsm_c_adt, vtsi_mat.vtsm_c_adt);
-      ifoPrint_C_ADT(&vtsm_c_adt);
-    } else
-      PUT(5, "No Cell Adress table present\n");
+      printf("\nMenu Cell Adress table\n");
+      printf(  "-----------------\n");
+      if(h->vtsi_mat->vtsm_c_adt != 0) {
+	ifoPrint_C_ADT(h->vtsm_c_adt);
+      } else
+	printf("No Cell Adress table present\n");
       
-    PUT(1, "\nVideo Title Set Menu VOBU address map\n");
-    PUT(1,   "-----------------\n");
-    if(vtsi_mat.vtsm_vobu_admap != 0) {
-      ifoRead_VOBU_ADMAP(&vtsm_vobu_admap, vtsi_mat.vtsm_vobu_admap);
-      ifoPrint_VOBU_ADMAP(&vtsm_vobu_admap);
-    } else
-      PUT(5, "No Menu VOBU address map present\n");
+      printf("\nVideo Title Set Menu VOBU address map\n");
+      printf(  "-----------------\n");
+      if(h->vtsi_mat->vtsm_vobu_admap != 0) {
+	ifoPrint_VOBU_ADMAP(h->vtsm_vobu_admap);
+      } else
+	printf("No Menu VOBU address map present\n");
       
-    PUT(1, "\nCell Adress table\n");
-    PUT(1,   "-----------------\n");
-    if(vtsi_mat.vts_c_adt != 0) {
-      ifoRead_C_ADT(&vts_c_adt, vtsi_mat.vts_c_adt);
-      ifoPrint_C_ADT(&vts_c_adt);
-    } else
-      PUT(5, "No Cell Adress table present\n");
+      printf("\nCell Adress table\n");
+      printf(  "-----------------\n");
+      ifoPrint_C_ADT(h->vts_c_adt);
       
-    PUT(1, "\nVideo Title Set VOBU address map\n");
-    PUT(1,   "-----------------\n");
-    if(vtsi_mat.vts_vobu_admap != 0) {
-      ifoRead_VOBU_ADMAP(&vts_vobu_admap, vtsi_mat.vts_vobu_admap);
-      ifoPrint_VOBU_ADMAP(&vts_vobu_admap);
-    } else
-      PUT(5, "No Menu VOBU address map present\n");  
-    ifoClose();
-  } 
+      printf("\nVideo Title Set VOBU address map\n");
+      printf(  "-----------------\n");
+      ifoPrint_VOBU_ADMAP(h->vts_vobu_admap);
+      
+    }
+  }
 
 
   /* Vob */

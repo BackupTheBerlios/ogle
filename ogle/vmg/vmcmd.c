@@ -442,3 +442,15 @@ vmcmd(uint8_t *bytes)  {
     printf ("]");
   }
 }
+
+void vmPrint_CMD(int row, vm_cmd_t *command) {
+  int i;
+
+  printf("(%03d) ", row + 1);
+  for(i = 0; i < 8; i++)
+    printf("%02x ", command->bytes[i]);
+  printf("| ");
+
+  vmcmd(&command->bytes[0]);
+  printf("\n");
+}

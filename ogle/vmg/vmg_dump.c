@@ -23,9 +23,9 @@
 #include <inttypes.h>
 #include <string.h>
 
-#include "nav.h"
-#include "nav_read.h"
-#include "nav_print.h"
+#include <dvdread/nav_types.h>
+#include <dvdread/nav_read.h>
+#include <dvdread/nav_print.h>
 
 #define BLOCK_SIZE 2048
 typedef struct
@@ -63,14 +63,14 @@ void parse_vmg_data (FILE *in)
     buffer.bit_position = 8;
     
     if(substream == PS2_PCI_SUBSTREAM_ID) {
-      read_pci_packet(&pci, &buffer.bytes[1], PCI_BYTES - 1);
+      navRead_PCI(&pci, &buffer.bytes[1], PCI_BYTES - 1);
       buffer.bit_position += 8 * (PCI_BYTES - 1);
-      print_pci_packet(stdout, &pci);
+      navPrint_PCI(&pci);
     }
     else if(substream == PS2_DSI_SUBSTREAM_ID) {
-      read_dsi_packet(&dsi, &buffer.bytes[1], DSI_BYTES - 1);
+      navRead_DSI(&dsi, &buffer.bytes[1], DSI_BYTES - 1);
       buffer.bit_position += 8 * (DSI_BYTES - 1);
-      print_dsi_packet(stdout, &dsi);
+      navPrint_DSI(&dsi);
     }
     else {
       fprintf (stdout, "ps2 packet of unknown substream 0x%02x", substream);

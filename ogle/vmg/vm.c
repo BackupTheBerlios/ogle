@@ -13,10 +13,11 @@
 #include <ogle/msgevents.h>
 #include "common.h"
 
-#include "ifo.h"
-#include "ifo_read.h"
-#include "ifo_print.h"
+#include <dvdread/ifo_types.h>
+#include <dvdread/ifo_read.h>
+
 #include "decoder.h"
+#include "vmcmd.h"
 #include "vm.h"
 
 extern void do_run(void); // nav.c 
@@ -29,47 +30,19 @@ static int msgqid = -1;
 MsgEventQ_t *msgq;
 
 
-/**
- * The following structure defines a complete VMGI file.
- */
-struct {
-  vmgi_mat_t *vmgi_mat;
-  vmg_ptt_srpt_t *vmg_ptt_srpt;
-  pgc_t *first_play_pgc;    
-  menu_pgci_ut_t *vmgm_pgci_ut;
-  vmg_ptl_mait_t *vmg_ptl_mait;
-  vmg_vts_atrt_t *vmg_vts_atrt;
-  vmg_txtdt_mgi_t *vmg_txtdt_mgi;
-  c_adt_t *vmgm_c_adt;
-  vobu_admap_t *vmgm_vobu_admap;
-} vmgi;
-
-/**
- * The following structure defines a complete VTSI file.
- */
-struct {
-  vtsi_mat_t *vtsi_mat;
-  vts_ptt_srpt_t *vts_ptt_srpt;
-  pgcit_t *vts_pgcit;
-  menu_pgci_ut_t *vtsm_pgci_ut;
-  c_adt_t *vtsm_c_adt;
-  vobu_admap_t *vtsm_vobu_admap;
-  c_adt_t *vts_c_adt;
-  vobu_admap_t *vts_vobu_admap;
-} vtsi;
-FILE *vmg_file;
-FILE *vts_file;
-
+dvd_reader_t *dvd;
+ifo_handle_t *vmgi;
+ifo_handle_t *vtsi;
 
 dvd_state_t state;
 
 
 
-int debug = 8;
+int debug = 8; // Erhum..
 
 
 
-//int start_vm(void);
+int vm_start(void);
 int vm_reset(void);
 int vm_run(void);
 int vm_eval_cmd(vm_cmd_t *cmd);
@@ -84,11 +57,10 @@ static link_t play_PGC_post(void);
 
 static link_t process_command(link_t link_values);
 
-static void ifoOpenVMGI(void);
-static void ifoOpenVTSI(int vtsN);
+static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN);
 
-static pgcit_t* get_VTS_PGCIT(int vtsN);
-static pgcit_t* get_VTSM_PGCIT(int vtsN, uint16_t lang);
+static pgcit_t* get_VTS_PGCIT();
+static pgcit_t* get_VTSM_PGCIT(uint16_t lang);
 static pgcit_t* get_VMGM_PGCIT(uint16_t lang);
 static pgcit_t* get_PGCIT(void);
 static int get_video_aspect(void);
@@ -201,6 +173,8 @@ int main(int argc, char *argv[])
     fprintf(stderr, "what?\n");
   }
   
+  dvd = DVDOpen("."); // Change me!
+  
   /*  Call start here */
   vm_reset();
 
@@ -243,7 +217,7 @@ int vm_reset(void)
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
-  ifoOpenVMGI(); // Check for error
+  vmgi = ifoOpenVMGI(dvd); // Check for error?
   
   return 0;
 }
@@ -276,7 +250,7 @@ int vm_eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
   
-  ifoPrint_COMMAND(0, cmd);
+  vmPrint_CMD(0, cmd);
   
   if(eval(cmd, 1, &state.registers, &link_values)) {
     if(link_values.command != PlayThis) {
@@ -422,7 +396,7 @@ int vm_resume(void)
   }
   
   state.domain = VTS_DOMAIN;
-  ifoOpenVTSI(state.rsm_vtsN);
+  ifoOpenNewVTSI(dvd, state.rsm_vtsN);
   get_PGC(state.rsm_pgcN);
   
   set_spu_palette(state.pgc->palette); // Erhum...
@@ -532,16 +506,13 @@ int vm_get_subp_active_stream(void)
 void vm_get_audio_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    *num_avail = vtsi.vtsi_mat->nr_of_vts_audio_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vts_audio_streams;
     *current = state.AST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    *num_avail = vtsi.vtsi_mat->nr_of_vtsm_audio_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_audio_streams;
     *current = 1;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    ifoOpenVMGI();
-    *num_avail = vmgi.vmgi_mat->nr_of_vmgm_audio_streams;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_audio_streams;
     *current = 1;
   }
 }
@@ -549,16 +520,13 @@ void vm_get_audio_info(int *num_avail, int *current)
 void vm_get_subp_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    *num_avail = vtsi.vtsi_mat->nr_of_vts_subp_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vts_subp_streams;
     *current = state.SPST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    *num_avail = vtsi.vtsi_mat->nr_of_vtsm_subp_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_subp_streams;
     *current = 0x41;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    ifoOpenVMGI();
-    *num_avail = vmgi.vmgi_mat->nr_of_vmgm_subp_streams;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams;
     *current = 0x41;
   }
 }
@@ -568,14 +536,11 @@ subp_attr_t vm_get_subp_attr(int streamN)
   subp_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    attr = vtsi.vtsi_mat->vts_subp_attributes[streamN];
+    attr = vtsi->vtsi_mat->vts_subp_attributes[streamN];
   } else if(state.domain == VTSM_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    attr = vtsi.vtsi_mat->vtsm_subp_attributes[0];
+    attr = vtsi->vtsi_mat->vtsm_subp_attributes[0];
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    ifoOpenVMGI();
-    attr = vmgi.vmgi_mat->vmgm_subp_attributes[0];
+    attr = vmgi->vmgi_mat->vmgm_subp_attributes[0];
   }
   return attr;
 }
@@ -585,14 +550,11 @@ audio_attr_t vm_get_audio_attr(int streamN)
   audio_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    attr = vtsi.vtsi_mat->vts_audio_attributes[streamN];
+    attr = vtsi->vtsi_mat->vts_audio_attributes[streamN];
   } else if(state.domain == VTSM_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    attr = vtsi.vtsi_mat->vtsm_audio_attributes[0];
+    attr = vtsi->vtsi_mat->vtsm_audio_attributes[0];
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    ifoOpenVMGI();
-    attr = vmgi.vmgi_mat->vmgm_audio_attributes[0];
+    attr = vmgi->vmgi_mat->vmgm_audio_attributes[0];
   }
   return attr;
 }
@@ -600,13 +562,13 @@ audio_attr_t vm_get_audio_attr(int streamN)
 uint16_t vm_get_subp_lang(int streamN)
 {
   subp_attr_t attr = vm_get_subp_attr(streamN);
-  return (attr.lang_code[0] << 8) | attr.lang_code[1];
+  return attr.lang_code;
 }
 
 uint16_t vm_get_audio_lang(int streamN)
 {
   audio_attr_t attr = vm_get_audio_attr(streamN);
-  return (attr.lang_code[0] << 8) | attr.lang_code[1];
+  return attr.lang_code;
 }
 
 // Must be called before domain is changed 
@@ -646,7 +608,7 @@ static link_t play_PGC(void)
     int i;
     for(i = 0; state.pgc->pgc_command_tbl &&
 	  i < state.pgc->pgc_command_tbl->nr_of_pre;i++)
-      ifoPrint_COMMAND(i, &state.pgc->pgc_command_tbl->pre_commands[i]);
+      vmPrint_CMD(i, &state.pgc->pgc_command_tbl->pre_commands[i]);
   }
 
   
@@ -766,7 +728,7 @@ static link_t play_Cell_post(void)
     
     assert(state.pgc->pgc_command_tbl != NULL);
     assert(state.pgc->pgc_command_tbl->nr_of_cell >= cell->cell_cmd_nr);
-    ifoPrint_COMMAND(0, &state.pgc->pgc_command_tbl->cell_commands[cell->cell_cmd_nr - 1]);
+    vmPrint_CMD(0, &state.pgc->pgc_command_tbl->cell_commands[cell->cell_cmd_nr - 1]);
     if(eval(&state.pgc->pgc_command_tbl->cell_commands[cell->cell_cmd_nr - 1],
 	    1, &state.registers, &link_values)) {
       return link_values;
@@ -810,7 +772,7 @@ static link_t play_PGC_post(void)
     int i;
     for(i = 0; state.pgc->pgc_command_tbl &&
 	  i < state.pgc->pgc_command_tbl->nr_of_post; i++)
-      ifoPrint_COMMAND(i, &state.pgc->pgc_command_tbl->post_commands[i]);
+      vmPrint_CMD(i, &state.pgc->pgc_command_tbl->post_commands[i]);
   }
   
   /* eval -> updates the state and returns either 
@@ -916,7 +878,7 @@ static link_t process_command(link_t link_values)
 	int i;
 	// Check and see if there is any rsm info!!
 	state.domain = VTS_DOMAIN;
-	ifoOpenVTSI(state.rsm_vtsN);
+	ifoOpenNewVTSI(dvd, state.rsm_vtsN);
 	get_PGC(state.rsm_pgcN);
 	
 	set_spu_palette(state.pgc->palette); // Erhum...
@@ -1012,7 +974,7 @@ static link_t process_command(link_t link_values)
       // To set state.TTN_REG ? or ? alien or aliens had this != 1, I think.
       assert(link_values.data2 == 1);
       state.domain = VTSM_DOMAIN;
-      ifoOpenVTSI(link_values.data1); //state.vtsN = link_values.data1;
+      ifoOpenNewVTSI(dvd, link_values.data1); //state.vtsN = link_values.data1;
       get_MENU(link_values.data3);
       link_values = play_PGC();
       break;
@@ -1092,17 +1054,15 @@ static link_t process_command(link_t link_values)
 
 static int get_TT(int tt)
 {  
-  ifoOpenVMGI();
-  if(vmgi.vmg_ptt_srpt == NULL) {
-    vmgi.vmg_ptt_srpt = malloc(sizeof(vmg_ptt_srpt_t));
-    ifoRead_VMG_PTT_SRPT(vmgi.vmg_ptt_srpt, vmgi.vmgi_mat->vmg_ptt_srpt);
+  if(vmgi->tt_srpt == NULL) {
+    ifoRead_TT_SRPT(vmgi);
   }
-  assert(tt <= vmgi.vmg_ptt_srpt->nr_of_srpts);
+  assert(tt <= vmgi->tt_srpt->nr_of_srpts);
   
   state.TTN_REG = tt;
   
-  return get_VTS_TT(vmgi.vmg_ptt_srpt->title_info[tt - 1].title_set_nr,
-		    vmgi.vmg_ptt_srpt->title_info[tt - 1].vts_ttn);
+  return get_VTS_TT(vmgi->tt_srpt->title_info[tt - 1].title_set_nr,
+		    vmgi->tt_srpt->title_info[tt - 1].vts_ttn);
 }
 
 
@@ -1111,7 +1071,8 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
   int pgcN;
   
   state.domain = VTS_DOMAIN;
-  ifoOpenVTSI(vtsN); // Also sets state.vtsN
+  if(vtsN != state.vtsN)
+    ifoOpenNewVTSI(dvd, vtsN); // Also sets state.vtsN
   
   pgcN = get_ID(vts_ttn); // This might return -1
   assert(pgcN != -1);
@@ -1129,17 +1090,18 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
   int pgcN, pgN;
   
   state.domain = VTS_DOMAIN;
-  ifoOpenVTSI(vtsN);  
-  if(vtsi.vts_ptt_srpt == NULL) {
-    vtsi.vts_ptt_srpt = malloc(sizeof(vts_ptt_srpt_t));
-    ifoRead_VTS_PTT_SRPT(vtsi.vts_ptt_srpt, vtsi.vtsi_mat->vts_ptt_srpt);
-  }
+  if(vtsN != state.vtsN)
+    ifoOpenNewVTSI(dvd, vtsN); // Also sets state.vtsN
   
-  assert(vts_ttn <= vtsi.vts_ptt_srpt->nr_of_srpts);
-  assert(part <= vtsi.vts_ptt_srpt->title_info[vts_ttn - 1].nr_of_ptts);
+  if(vtsi->vts_ptt_srpt == NULL)
+    ifoRead_VTS_PTT_SRPT(vtsi);
+
   
-  pgcN = vtsi.vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgcn;
-  pgN = vtsi.vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgn;
+  assert(vts_ttn <= vtsi->vts_ptt_srpt->nr_of_srpts);
+  assert(part <= vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].nr_of_ptts);
+  
+  pgcN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgcn;
+  pgN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgn;
   
   //state.TTN_REG = ?? 
   state.VTS_TTN_REG = vts_ttn;
@@ -1156,12 +1118,10 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
 static int get_FP_PGC(void)
 {  
   state.domain = FP_DOMAIN;
-  ifoOpenVMGI();
-  if(vmgi.first_play_pgc == NULL) {
-    vmgi.first_play_pgc = malloc(sizeof(pgc_t));
-    ifoRead_PGC(vmgi.first_play_pgc, vmgi.vmgi_mat->first_play_pgc);
-  }
-  state.pgc = vmgi.first_play_pgc;
+  if(vmgi->first_play_pgc == NULL)
+    ifoRead_FP_PGC(vmgi);
+
+  state.pgc = vmgi->first_play_pgc;
   
   return 0;
 }
@@ -1184,8 +1144,8 @@ static int get_ID(int id)
   
   /* Get menu/title */
   for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
-    if(((pgcit->pgci_srp[i].pgc_category >> 24) & 0x7f) == id) {
-      assert(((pgcit->pgci_srp[i].pgc_category >> 24) & 0x80) == 0x80);
+    if((pgcit->pgci_srp[i].entry_id & 0x7f) == id) {
+      assert((pgcit->pgci_srp[i].entry_id & 0x80) == 0x80);
       pgcN = i + 1;
       return pgcN;
     }
@@ -1239,14 +1199,11 @@ static int get_video_aspect(void)
   int aspect = 0;
   
   if(state.domain == VTS_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    aspect = vtsi.vtsi_mat->vts_video_attributes.display_aspect_ratio;  
+    aspect = vtsi->vtsi_mat->vts_video_attributes.display_aspect_ratio;  
   } else if(state.domain == VTSM_DOMAIN) {
-    ifoOpenVTSI(state.vtsN);
-    aspect = vtsi.vtsi_mat->vtsm_video_attributes.display_aspect_ratio;
+    aspect = vtsi->vtsi_mat->vtsm_video_attributes.display_aspect_ratio;
   } else if(state.domain == VMGM_DOMAIN) {
-    ifoOpenVMGI();
-    aspect = vmgi.vmgi_mat->vmgm_video_attributes.display_aspect_ratio;
+    aspect = vmgi->vmgi_mat->vmgm_video_attributes.display_aspect_ratio;
   }
   assert(aspect == 0 || aspect == 3);
   state.registers.SPRM[14] &= ~(0x3 << 10);
@@ -1257,120 +1214,72 @@ static int get_video_aspect(void)
 
 
 
-/* 
-   All those that set pgc and/or pgcit and might later fail must 
-   undo this before exiting!!
-   That or some how make sure that pgcit is correct before calling 
-   get_PGC (currently only from LinkPGCN).
-   
-*/
 
 
 
-
-
-
-
-
-static void ifoOpenVMGI(void) 
+static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN) 
 {
-  if(vmg_file == NULL) {
-    vmgi.vmgi_mat = malloc(sizeof(vmgi_mat_t));
-    vmg_file = ifoOpen_VMG(vmgi.vmgi_mat, "VIDEO_TS.IFO");
-  }
-  ifo_file = vmg_file;
-}
-
-
-static void ifoOpenVTSI(int vtsN) 
-{
-  if(vtsN != state.vtsN) {
-    char buffer[16];
-    snprintf(buffer, 15, "VTS_%02i_0.IFO", vtsN);
-    /* Free stuff too... */
-    if(vtsi.vtsi_mat != NULL)
-      free(vtsi.vtsi_mat);
-    if(vtsi.vts_ptt_srpt != NULL)
-      free(vtsi.vts_ptt_srpt);
-    if(vtsi.vts_pgcit != NULL)
-      free(vtsi.vts_pgcit);
-    if(vtsi.vtsm_pgci_ut != NULL)
-      free(vtsi.vtsm_pgci_ut);
-    if(vtsi.vtsm_c_adt != NULL)
-      free(vtsi.vtsm_c_adt);
-    if(vtsi.vtsm_vobu_admap != NULL)
-      free(vtsi.vtsm_vobu_admap);
-    if(vtsi.vts_c_adt != NULL)
-      free(vtsi.vts_c_adt);
-    if(vtsi.vts_vobu_admap != NULL)
-      free(vtsi.vts_vobu_admap);
-    memset(&vtsi, 0, sizeof(vtsi));
-    ifoClose();
-    vtsi.vtsi_mat = malloc(sizeof(vtsi_mat_t));
-    vts_file = ifoOpen_VTS(vtsi.vtsi_mat, buffer);
-    state.vtsN = vtsN;
-  }
-  ifo_file = vts_file;
-}
-
-
-
-
-static pgcit_t* get_VTS_PGCIT(int vtsN)
-{
-  ifoOpenVTSI(vtsN);
-  if(vtsi.vts_pgcit == NULL) {
-    vtsi.vts_pgcit = malloc(sizeof(pgcit_t));
-    ifoRead_PGCIT(vtsi.vts_pgcit, vtsi.vtsi_mat->vts_pgcit * DVD_BLOCK_LEN);
-  }
+  if(vtsi != NULL)
+    ifoClose(vtsi);
   
-  return vtsi.vts_pgcit;
+  vtsi = ifoOpenVTSI(dvd, vtsN);
+  
+  state.vtsN = vtsN;
 }
 
-static pgcit_t* get_VTSM_PGCIT(int vtsN, uint16_t lang)
+
+
+
+static pgcit_t* get_VTS_PGCIT()
+{
+  if(vtsi->vts_pgcit == NULL)
+    ifoRead_PGCIT(vtsi);
+  
+  return vtsi->vts_pgcit;
+}
+
+static pgcit_t* get_VTSM_PGCIT(uint16_t lang)
 {
   int i;
-  char language[2] = {(char)(lang >> 8), (char)(lang & 0xff)};
   
-  ifoOpenVTSI(vtsN);
-  if(vtsi.vtsm_pgci_ut == NULL) {
-    vtsi.vtsm_pgci_ut = malloc(sizeof(menu_pgci_ut_t));
-    ifoRead_MENU_PGCI_UT(vtsi.vtsm_pgci_ut, vtsi.vtsi_mat->vtsm_pgci_ut);
-  }
+  if(vtsi->vtsm_pgci_ut == NULL)
+    ifoRead_MENU_PGCI_UT(vtsi);
+  
+  if(vtsi->vtsm_pgci_ut == NULL)
+    return NULL;
   
   i = 0;
-  while(i < vtsi.vtsm_pgci_ut->nr_of_lang_units && 
-	memcmp(&vtsi.vtsm_pgci_ut->menu_lu[i].lang_code, language, 2))
+  while(i < vtsi->vtsm_pgci_ut->nr_of_lang_units
+	&& vtsi->vtsm_pgci_ut->menu_lu[i].lang_code != lang)
     i++;
-  if(i == vtsi.vtsm_pgci_ut->nr_of_lang_units) {
-    printf("** Wrong language\n");
+  if(i == vtsi->vtsm_pgci_ut->nr_of_lang_units) {
+    printf("** Wrong language **\n");
     i = 0; // error?
   }
   
-  return vtsi.vtsm_pgci_ut->menu_lu[i].menu_pgcit;
+  return vtsi->vtsm_pgci_ut->menu_lu[i].menu_pgcit;
 }
 
 static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
 {
   int i;
-  char language[2] = {(char)(lang >> 8), (char)(lang & 0xff)};
   
-  ifoOpenVMGI();
-  if(vmgi.vmgm_pgci_ut == NULL) {
-    vmgi.vmgm_pgci_ut = malloc(sizeof(menu_pgci_ut_t));
-    ifoRead_MENU_PGCI_UT(vmgi.vmgm_pgci_ut, vmgi.vmgi_mat->vmgm_pgci_ut);
-  }
+  if(vmgi->vmgm_pgci_ut == NULL)
+    ifoRead_MENU_PGCI_UT(vmgi);
   
+  if(vmgi->vtsm_pgci_ut == NULL)
+    return NULL;
+ 
   i = 0;
-  while(i < vmgi.vmgm_pgci_ut->nr_of_lang_units && 
-	memcmp(&vmgi.vmgm_pgci_ut->menu_lu[i].lang_code, language, 2))
+  while(i < vmgi->vmgm_pgci_ut->nr_of_lang_units
+	&& vmgi->vmgm_pgci_ut->menu_lu[i].lang_code != lang)
     i++;
-  if(i == vmgi.vmgm_pgci_ut->nr_of_lang_units) {
-    printf("** Wrong language\n");
+  if(i == vmgi->vmgm_pgci_ut->nr_of_lang_units) {
+    printf("** Wrong language **\n");
     i = 0; // error?
   }
   
-  return vmgi.vmgm_pgci_ut->menu_lu[i].menu_pgcit;
+  return vmgi->vmgm_pgci_ut->menu_lu[i].menu_pgcit;
 }
 
 /* Uses state to decide what to return */
@@ -1378,9 +1287,9 @@ static pgcit_t* get_PGCIT(void) {
   pgcit_t *pgcit;
   
   if(state.domain == VTS_DOMAIN) {
-    pgcit = get_VTS_PGCIT(state.vtsN);
+    pgcit = get_VTS_PGCIT();
   } else if(state.domain == VTSM_DOMAIN) {
-    pgcit = get_VTSM_PGCIT(state.vtsN, state.registers.SPRM[0]);
+    pgcit = get_VTSM_PGCIT(state.registers.SPRM[0]);
   } else if(state.domain == VMGM_DOMAIN) {
     pgcit = get_VMGM_PGCIT(state.registers.SPRM[0]);
   } else {

@@ -2,7 +2,7 @@
 #define DECODER_H_INCLUDED
 
 #include <inttypes.h>
-#include "ifo.h" // vm_cmd_t
+#include <dvdread/ifo_types.h> // vm_cmd_t
 
 #ifndef bool
 typedef int bool;
