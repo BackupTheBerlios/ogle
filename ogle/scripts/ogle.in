@@ -14,8 +14,17 @@ create_pipe "/tmp/ac3"
 create_pipe "/tmp/audio"
 
 ostype=`uname`
-
+d_suf="_debug"
 debug="0"
+nav_debug=""
+audio_debug=""
+vout_debug=""
+cli_debug=""
+ctrl_debug=""
+gui_debug=""
+mpeg_ps_debug=""
+mpeg_vs_debug=""
+
 check="0"
 param=""
 
@@ -32,6 +41,36 @@ for p in $*; do
     elif [ $p = "--check" ]; then
 	debug="1"
 	check="1"
+    elif [[ $p = --debug-* ]]; then
+	if [ $p = --debug-nav ]; then
+	    nav_debug=$d_suf
+	elif [ $p = --debug-audio ]; then
+	    audio_debug=$d_suf
+	elif [ $p = --debug-vout ]; then
+	    vout_debug=$d_suf
+	elif [ $p = --debug-cli ]; then
+	    cli_debug=$d_suf
+	elif [ $p = --debug-ctrl ]; then
+	    ctrl_debug=$d_suf
+	elif [ $p = --debug-gui ]; then
+	    gui_debug=$d_suf
+	elif [ $p = --debug-mpeg_ps ]; then
+	    mpeg_ps_debug=$d_suf
+	elif [ $p = --debug-mpeg_vs ]; then
+	    mpeg_vs_debug=$d_suf
+	elif [ $p = --debug-all ]; then
+	    nav_debug=$d_suf
+	    audio_debug=$d_suf
+	    vout_debug=$d_suf
+	    cli_debug=$d_suf
+	    ctrl_debug=$d_suf
+	    gui_debug=$d_suf
+	    mpeg_ps_debug=$d_suf
+	    mpeg_vs_debug=$d_suf
+	else
+	    echo "$0: invalid option $p"
+	    exit
+	fi
     else
 	param="$param $p"
     fi
@@ -290,39 +329,39 @@ exec_prefix=@exec_prefix@
 DVDP_ROOT=@libdir@/@PACKAGE@
 
 export DVDP_ROOT
-DVDP_CTRL=$DVDP_ROOT/ogle_ctrl
+DVDP_CTRL=$DVDP_ROOT/ogle_ctrl$ctrl_debug
 export DVDP_CTRL
-DVDP_DEMUX=$DVDP_ROOT/ogle_mpeg_ps
+DVDP_DEMUX=$DVDP_ROOT/ogle_mpeg_ps$mpeg_ps_debug
 export DVDP_DEMUX
-DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
+DVDP_CLI_UI=$DVDP_ROOT/ogle_cli$cli_debug
 export DVDP_CLI_UI
 if [ -z "$DVDP_UI" -o ! -x "$DVDP_UI" ]; then
-if [ -x $DVDP_ROOT/ogle_gui ]; then
-DVDP_UI=$DVDP_ROOT/ogle_gui
+if [ -x $DVDP_ROOT/ogle_gui$gui_debug ]; then
+DVDP_UI=$DVDP_ROOT/ogle_gui$gui_debug
 else
-DVDP_UI=$exec_prefix/bin/ogle_gui
+DVDP_UI=$exec_prefix/bin/ogle_gui$gui_debug
 fi
 fi
 export DVDP_UI
 #DVDP_AC3=$DVDP_ROOT/ogle_ac3_p
 #DVDP_AC3=$DVDP_ROOT/ogle_a52
-DVDP_AC3=$DVDP_ROOT/ogle_audio
+DVDP_AC3=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_AC3
-DVDP_LPCM=$DVDP_ROOT/ogle_audio
+DVDP_LPCM=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_LPCM
-DVDP_MPEGAUDIO=$DVDP_ROOT/ogle_audio
+DVDP_MPEGAUDIO=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_MPEGAUDIO
-DVDP_DTSAUDIO=$DVDP_ROOT/ogle_audio
+DVDP_DTSAUDIO=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_DTSAUDIO
-DVDP_VIDEO=$DVDP_ROOT/ogle_mpeg_vs
+DVDP_VIDEO=$DVDP_ROOT/ogle_mpeg_vs$mpeg_vs_debug
 export DVDP_VIDEO
-DVDP_VMG=$DVDP_ROOT/ogle_nav
+DVDP_VMG=$DVDP_ROOT/ogle_nav$nav_debug
 #DVDP_VMG=RUNNING
 export DVDP_VMG
 #DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
-DVDP_SPU=$DVDP_ROOT/ogle_vout
+DVDP_SPU=$DVDP_ROOT/ogle_vout$vout_debug
 export DVDP_SPU
-DVDP_VIDEO_OUT=$DVDP_ROOT/ogle_vout
+DVDP_VIDEO_OUT=$DVDP_ROOT/ogle_vout$vout_debug
 export DVDP_VIDEO_OUT
 if [ -x "$DVDP_UI" ]; then
   $DVDP_CTRL -u gui $param;
