@@ -37,28 +37,18 @@ int main(int argc, char *argv[])
   dvd_reader_t *dvd;
   program_name = argv[0];
   
-  /* Parse command line options. */
-  while ((c = getopt(argc, argv, "h?")) != EOF) {
-    switch (c) {
-    case 'h':
-    case '?':
-      usage();
-      return 1;
-    }
-  }
-
-  if(argc - optind != 2) {
+  if(argc != 3) {
     usage();
     return 1;
   }
 
-  dvd = DVDOpen( argv[optind] );
+  dvd = DVDOpen( argv[ 1 ] );
   if( !dvd ) {
-    fprintf( stderr, "Can't open disc %s!\n", argv[ optind ] );
+    fprintf( stderr, "Can't open disc %s!\n", argv[ 1 ] );
     return -1;
   }
 
-  ifoPrint( dvd, atoi( argv[ optind + 1 ] ) );
+  ifoPrint( dvd, atoi( argv[ 2 ] ) );
 
   return 0;  
 }
