@@ -820,7 +820,7 @@ static int check_for_gnome_wm_layers(Display *dpy)
   }
   
   layer_atom = XInternAtom(dpy, "_WIN_LAYER", True);
-  if(atom == None) {
+  if(layer_atom == None) {
     fprintf(stderr, "no atom: _WIN_LAYER");
     return 0;
   }
