@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Ogle 0.8.2\n"
-"POT-Creation-Date: 2001-11-29 22:20+0100\n"
+"POT-Creation-Date: 2001-12-05 00:31+0100\n"
 "PO-Revision-Date: 2001-11-29 22:20+0100\n"
 "Last-Translator: Martin Norbäck <d95mback@dtek.chalmers.se>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -20,8 +20,8 @@ msgid "Angle %d"
 msgstr "Vinkel %d"
 
 #: src/audio.c:58
-msgid "Other format"
-msgstr "Annat format"
+msgid "Other"
+msgstr "Annat"
 
 #: src/audio.c:60
 msgid "Unknown format"
@@ -38,7 +38,7 @@ msgstr "%s (%s)"
 msgid "None"
 msgstr "Inget"
 
-#: src/callbacks.c:226
+#: src/callbacks.c:217
 #, c-format
 msgid "Ogle GUI version %s"
 msgstr "Ogle användargränssnitt, version %s"
@@ -684,6 +684,7 @@ msgstr ""
 msgid "Hebrew"
 msgstr "Hebreiska"
 
+#. Withdrawn in 1989. Still used!!!
 #: src/language.c:193
 msgid "Herero"
 msgstr "Herero"
@@ -752,6 +753,7 @@ msgstr ""
 msgid "Indonesian"
 msgstr "Indonesiska"
 
+#. Withdrawn in 1989. Still used?
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "Interlingua"
@@ -800,6 +802,7 @@ msgstr "Japanska"
 msgid "Javanese"
 msgstr "Javanesiska"
 
+#. Withdrawn 2001-07-27
 #: src/language.c:225
 msgid "Judeo-Arabic"
 msgstr ""
@@ -1364,10 +1367,7 @@ msgstr ""
 msgid "Rarotongan"
 msgstr ""
 
-#: src/language.c:366
-msgid "Reserved for local use"
-msgstr ""
-
+#. { N_("Reserved for local use"), "qaa-qtz", "qaa-qtz", ""},
 #: src/language.c:367
 msgid "Romance (Other)"
 msgstr ""
@@ -1452,6 +1452,7 @@ msgstr "Serbiska"
 msgid "Serbo-Croatian"
 msgstr "Serbokroatiska"
 
+#. Withdrawn 2000-02-18. Still used?
 #: src/language.c:388
 msgid "Serer"
 msgstr ""
@@ -1792,6 +1793,7 @@ msgstr ""
 msgid "Yiddish"
 msgstr "Jiddisch"
 
+#. // Withdrawn in 1989. Still used?
 #: src/language.c:474
 msgid "Yoruba"
 msgstr ""
@@ -1829,46 +1831,56 @@ msgstr ""
 msgid "Unknown"
 msgstr "Okänt"
 
-#: src/menu.c:42
+#: src/menu.c:46
 msgid "Chapter"
 msgstr "Kapitel"
 
-#: src/menu.c:43
+#: src/menu.c:47
 msgid "Angle"
 msgstr "Vinkel"
 
-#: src/menu.c:44
+#: src/menu.c:48
 msgid "Audio"
 msgstr "Ljud"
 
-#: src/menu.c:45
+#: src/menu.c:49
 msgid "Subtitle"
 msgstr "Textremsa"
 
-#: src/menu.c:46
+#: src/menu.c:50
 msgid "Root"
 msgstr "Rot"
 
-#: src/menu.c:47
+#: src/menu.c:51
 msgid "Title"
 msgstr "Titel"
 
-#: src/menu.c:48
+#: src/menu.c:52
 msgid "Resume"
 msgstr "Återgå"
 
-#. ../pixmaps/ogle_gui.glade:187
-#: po/glade-files.c:10
+#. ogle_gui.glade:187
+#: pixmaps/glade-strings.c:10
 msgid "%P %%"
 msgstr "%P %%"
 
-#. ../pixmaps/ogle_gui.glade:1078
-#: po/glade-files.c:13
+#. ogle_gui.glade:1122
+#: pixmaps/glade-strings.c:13
 msgid "About"
 msgstr "Om"
 
-#. ../pixmaps/ogle_gui.glade:1157
-#: po/glade-files.c:16
+#. ogle_gui.glade:1069
+#: pixmaps/glade-strings.c:16
+msgid "Angle select"
+msgstr "Välj vinkel"
+
+#. ogle_gui.glade:993
+#: pixmaps/glade-strings.c:19
+msgid "Audio select"
+msgstr "Välj ljud"
+
+#. ogle_gui.glade:1201
+#: pixmaps/glade-strings.c:22
 msgid ""
 "Authors:\n"
 "\n"
@@ -1886,67 +1898,167 @@ msgstr ""
 "Martin Norbäck\n"
 "Björn Augustsson"
 
-#. ../pixmaps/ogle_gui.glade:92
-#: po/glade-files.c:26
+#. ogle_gui.glade:92
+#: pixmaps/glade-strings.c:32
 msgid "E_xit"
 msgstr "_Avsluta"
 
-#. ../pixmaps/ogle_gui.glade:1182
-#: po/glade-files.c:29
+#. ogle_gui.glade:902
+#: pixmaps/glade-strings.c:35
+msgid "Enter"
+msgstr "Enter"
+
+#. ogle_gui.glade:378
+#: pixmaps/glade-strings.c:38
+msgid "Fast forward"
+msgstr "Snabbspelning"
+
+#. ogle_gui.glade:712
+#: pixmaps/glade-strings.c:41
+msgid "Go up"
+msgstr "Gå upp"
+
+#. ogle_gui.glade:826
+#: pixmaps/glade-strings.c:44
+msgid "Move cursor down"
+msgstr "Flytta markör uppåt"
+
+#. ogle_gui.glade:750
+#: pixmaps/glade-strings.c:47
+msgid "Move cursor left"
+msgstr "Flytta markör åt vänster"
+
+#. ogle_gui.glade:864
+#: pixmaps/glade-strings.c:50
+msgid "Move cursor right"
+msgstr "Flytta markör åt höger"
+
+#. ogle_gui.glade:788
+#: pixmaps/glade-strings.c:53
+msgid "Move cursor up"
+msgstr "Flytta markör upp"
+
+#. ogle_gui.glade:1226
+#: pixmaps/glade-strings.c:56
 msgid "OK"
 msgstr "Ok"
 
-#. ../pixmaps/ogle_gui.glade:18
-#: po/glade-files.c:32
+#. ogle_gui.glade:18
+#: pixmaps/glade-strings.c:59
 msgid "Ogle"
 msgstr "Ogle"
 
-#. ../pixmaps/ogle_gui.glade:74
-#: po/glade-files.c:35
+#. ogle_gui.glade:74
+#: pixmaps/glade-strings.c:62
 msgid "Open _disc"
 msgstr "Öppna _DVD-skiva"
 
-#. ../pixmaps/ogle_gui.glade:1133
-#: po/glade-files.c:38
+#. ogle_gui.glade:492
+#: pixmaps/glade-strings.c:65
+msgid "Pause"
+msgstr "Pause"
+
+#. ogle_gui.glade:1177
+#: pixmaps/glade-strings.c:68
 msgid "Placeholder"
 msgstr "Dumruta"
 
-#. ../pixmaps/ogle_gui.glade:116
-#: po/glade-files.c:41
+#. ogle_gui.glade:340
+#: pixmaps/glade-strings.c:71
+msgid "Play"
+msgstr "Spela"
+
+#. ogle_gui.glade:621
+#: pixmaps/glade-strings.c:74
+msgid "Play fast"
+msgstr "Spela snabbt"
+
+#. ogle_gui.glade:659
+#: pixmaps/glade-strings.c:77
+msgid "Play slow"
+msgstr "Spela långsamt"
+
+#. ogle_gui.glade:116
+#: pixmaps/glade-strings.c:80
 msgid "Properties..."
 msgstr "Egenskaper..."
 
-#. ../pixmaps/ogle_gui.glade:170
-#: po/glade-files.c:44
+#. ogle_gui.glade:264
+#: pixmaps/glade-strings.c:83
+msgid "Reverse"
+msgstr "Spela baklänges"
+
+#. ogle_gui.glade:226
+#: pixmaps/glade-strings.c:86
+msgid "Rewind"
+msgstr "Snabbspelning baklänges"
+
+#. ogle_gui.glade:955
+#: pixmaps/glade-strings.c:89
+msgid "Select menu..."
+msgstr "Välj meny..."
+
+#. ogle_gui.glade:416
+#: pixmaps/glade-strings.c:92
+msgid "Skip backwards"
+msgstr "Hoppa bakåt"
+
+#. ogle_gui.glade:568
+#: pixmaps/glade-strings.c:95
+msgid "Skip forwards"
+msgstr "Hoppa framåt"
+
+#. ogle_gui.glade:530
+#: pixmaps/glade-strings.c:98
+msgid "Step forwards"
+msgstr "Stega framåt"
+
+#. ogle_gui.glade:454
+#: pixmaps/glade-strings.c:101
+msgid "Step reverse"
+msgstr "Stega bakåt"
+
+#. ogle_gui.glade:302
+#: pixmaps/glade-strings.c:104
+msgid "Stop"
+msgstr "Stopp"
+
+#. ogle_gui.glade:1031
+#: pixmaps/glade-strings.c:107
+msgid "Subtitle select"
+msgstr "Välj textning"
+
+#. ogle_gui.glade:170
+#: pixmaps/glade-strings.c:110
 msgid "_About..."
 msgstr "_Om..."
 
-#. ../pixmaps/ogle_gui.glade:101
-#: po/glade-files.c:47
+#. ogle_gui.glade:101
+#: pixmaps/glade-strings.c:113
 msgid "_Edit"
 msgstr "_Redigera"
 
-#. ../pixmaps/ogle_gui.glade:47
-#: po/glade-files.c:50
+#. ogle_gui.glade:47
+#: pixmaps/glade-strings.c:116
 msgid "_File"
 msgstr "_Arkiv"
 
-#. ../pixmaps/ogle_gui.glade:145
-#: po/glade-files.c:53
+#. ogle_gui.glade:145
+#: pixmaps/glade-strings.c:119
 msgid "_Full screen"
 msgstr "_Fullskärm"
 
-#. ../pixmaps/ogle_gui.glade:155
-#: po/glade-files.c:56
+#. ogle_gui.glade:155
+#: pixmaps/glade-strings.c:122
 msgid "_Help"
 msgstr "_Hjälp"
 
-#. ../pixmaps/ogle_gui.glade:62
-#: po/glade-files.c:59
+#. ogle_gui.glade:62
+#: pixmaps/glade-strings.c:125
 msgid "_Open..."
 msgstr "_Öppna..."
 
-#. ../pixmaps/ogle_gui.glade:125
-#: po/glade-files.c:62
+#. ogle_gui.glade:125
+#: pixmaps/glade-strings.c:128
 msgid "_View"
 msgstr "_Vy"
