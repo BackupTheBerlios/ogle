@@ -333,6 +333,54 @@ dnl end liba52
 dnl ---------------------------------------------------------
 
 dnl ---------------------------------------------------------
+dnl libmad
+dnl ---------------------------------------------------------
+
+mad_path=""
+AC_ARG_WITH(libmad, 
+  [  --with-libmad=path      specify the install prefix to libmad ], 
+  [if test "x$with_libmad" = xno; then
+     AC_MSG_ERROR([You must have/use maddec])
+   fi
+   if test "x$with_libmad" != xyes; then
+     mad_path=$with_libmad
+   fi])
+if test -z "$mad_path"; then
+  dnl We have nothing better to go on, guess that it's installed in prefix
+  if test "x$prefix" != xNONE; then
+    mad_path=$prefix
+  else
+    mad_path=$ac_default_prefix
+  fi
+fi
+
+AC_CHECK_LIB(mad, mad_frame_decode, 
+  [ 
+    MAD_LIBS="-L$mad_path/lib -R$mad_path/lib -lmad" 
+    MAD_CFLAGS=-I$mad_path/include
+  ],,[-L$mad_path/lib])
+
+AC_ARG_WITH(libmad-includes, 
+  [  --with-libmad-includes=path  specify location of libmad headers ], 
+  [MAD_CFLAGS=-I$with_libmad_includes])
+
+saved_CPPFLAGS=$CPPFLAGS
+dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+CPPFLAGS="-w $CPPFLAGS $MAD_CFLAGS"
+AC_CHECK_HEADER(mad.h,, 
+    [ AC_MSG_WARN([Can not find mad.h, need the libmad headers])
+      AC_MSG_ERROR([Install maddec(-dev) and/or specify it's location]) 
+    ])
+CPPFLAGS=$saved_CPPFLAGS
+
+AC_SUBST(MAD_CFLAGS)
+AC_SUBST(MAD_LIBS)
+
+dnl ---------------------------------------------------------
+dnl end libmad
+dnl ---------------------------------------------------------
+
+dnl ---------------------------------------------------------
 dnl our integrated audio library
 dnl ---------------------------------------------------------
 
