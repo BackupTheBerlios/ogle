@@ -971,7 +971,7 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
-#if 0
+#if 1
 	//TODO this is just for testing, should be done from vm/ui
 	if(keysym >= XK_1 && keysym <= XK_9) {
 	  m_ev.type = MsgEventQSpeed;
