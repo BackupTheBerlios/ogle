@@ -39,7 +39,7 @@ void* xsniff_mouse(void* args) {
   while(1) {
     
     if(DVDNextEvent(nav, &ev) != DVD_E_Ok)
-      exit(1);
+      continue;
     
     switch(ev.type) {
       
