@@ -260,10 +260,11 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 
   // Try to resize, place the window at correct place and on top
 
-  DpyInfoGetScreenOffset(dpy, XScreenNumberOfScreen(attrs.screen),
-			 &win_changes.x, &win_changes.y);
 
   XGetWindowAttributes(dpy, win, &attrs);
+
+  DpyInfoGetScreenOffset(dpy, XScreenNumberOfScreen(attrs.screen),
+			 &win_changes.x, &win_changes.y);
 
   DpyInfoGetResolution(dpy, XScreenNumberOfScreen(attrs.screen),
 		       &win_changes.width, &win_changes.height);
@@ -352,17 +353,16 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   //DNOTE("no more configure notify\n");
 
-  
   // ugly hack, but what can you do when the wm's not removing decorations
   //  if we don't end up at (win_changes.x, win_changes.y)
   //  try to compensate and move one more time
-  if(x != win_changes.x || y != win_changes.x) {
+  if(x != win_changes.x || y != win_changes.y) {
     XWindowChanges win_compensate;
     DNOTE("window is not at screen start trying to fix that\n");
     
-    win_compensate.x = win_changes.x-x;
-    win_compensate.y = win_changes.y-y;
-    
+    win_compensate.x = win_changes.x+win_changes.x-x;
+    win_compensate.y = win_changes.y+win_changes.y-y;
+
     XReconfigureWMWindow(dpy, win, 0, CWX | CWY,
 			 &win_compensate);
     

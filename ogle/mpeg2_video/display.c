@@ -10,7 +10,9 @@
 
 
 #include "display.h"
+#include "debug_print.h"
 
+extern char *program_name;
 
 typedef struct {
   int horizontal_pixels;
@@ -166,7 +168,7 @@ static int update_resolution_xf86vidmode(dpy_info_t *info, Display *dpy,
 					 int screen_nr)
 {
   int dotclk;
-
+  int x, y;
   XF86VidModeModeLine modeline;
 
   if(XF86VidModeGetModeLine(dpy, screen_nr, &dotclk, &modeline)) {
@@ -176,6 +178,11 @@ static int update_resolution_xf86vidmode(dpy_info_t *info, Display *dpy,
     info->resolution.horizontal_pixels = modeline.hdisplay;
     info->resolution.vertical_pixels = modeline.vdisplay;
 
+    if(XF86VidModeGetViewPort(dpy, screen_nr, &x, &y)) {
+      info->screen_offset.x = x;
+      info->screen_offset.y = y;
+    }
+    
     update_sar(info);
     
     return 1;
@@ -202,8 +209,8 @@ static int update_resolution_xinerama(dpy_info_t *info, Display *dpy,
     int n;
     for(n = 0; n < nr_xinerama_screens; n++) {
       s = &xinerama_screens[n];
-      if((s->x_org <= x) && (x < (s->xorg + s->width)) &&
-	 (s->y_org <= y) && (y < (s->yorg + s->height))) {
+      if((s->x_org <= x) && (x < (s->x_org + s->width)) &&
+	 (s->y_org <= y) && (y < (s->y_org + s->height))) {
 	// we have found our screen
 	
 	info->screen_offset.x = s->x_org;
@@ -380,13 +387,19 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 	dpyinfo.resolution_origin = DpyInfoOriginXinerama;
 	return dpyinfo.resolution_origin;
       }
+    } else {
+      NOTE("Xinerama extension not found/active\n");
     }
 #endif
 #ifdef HAVE_XF86VIDMODE
   case DpyInfoOriginXF86VidMode:
-    if(update_resolution_xf86vidmode(&dpyinfo, dpy, screen_nr)) {
-      dpyinfo.resolution_origin = DpyInfoOriginXF86VidMode;
-      return dpyinfo.resolution_origin;
+    if(XF86VidModeQueryExtension(dpy, &event_base, &error_base)) {
+      if(update_resolution_xf86vidmode(&dpyinfo, dpy, screen_nr)) {
+	dpyinfo.resolution_origin = DpyInfoOriginXF86VidMode;
+	return dpyinfo.resolution_origin;
+      }
+    } else {
+      NOTE("XF86VidMode extension not found\n");
     }
 #endif
   case DpyInfoOriginX11:

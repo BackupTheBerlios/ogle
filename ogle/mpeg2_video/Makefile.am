@@ -71,6 +71,7 @@ ogle_vout_LDADD = \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
 	@XF86VIDMODE_LIBS@ @XML_LIBS@ \
+	@XINERAMA_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 
