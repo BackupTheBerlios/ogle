@@ -1013,19 +1013,26 @@ static link_t process_command(link_t link_values)
       link_values = play_PGC();
       break;
     case JumpSS_VTSM:
-      if(link_values.data1 != 0 && link_values.data1 != state.vtsN) {
+      if(link_values.data1 == 0) {
+	// 'The Fifth Element' region 2 has data1 == 0.
+	assert(state.domain == VTSM_DOMAIN);
+      } else if(link_values.data1 == state.vtsN) {
+	// "Captain Scarlet & the Mysterons" has data1 == state.vtsN i VTSM
+	assert(state.domain == VTSM_DOMAIN || 
+	       state.domain == VMGM_DOMAIN || 
+	       state.domain == FP_DOMAIN); //??
+	state.domain = VTSM_DOMAIN;
+      } else {
+	// Normal case.
 	assert(state.domain == VMGM_DOMAIN || 
 	       state.domain == FP_DOMAIN); //??
 	state.domain = VTSM_DOMAIN;
 	ifoOpenNewVTSI(dvd, link_values.data1);  // Also sets state.vtsN
-      } else {
-	// 'The Fifth Element' region 2 has data1 == 0.
-	// "Captain Scarlet & the Mysterons" has data1 == state.vtsN
-	assert(state.domain == VTSM_DOMAIN);
       }
-      // I don't know what title is supposed to be used for.
+      // I don't really know what title is supposed to be used for.
       // Alien or Aliens has this != 1, I think.
       //assert(link_values.data2 == 1);
+      assert(link_values.data2 != 0);
       state.VTS_TTN_REG = link_values.data2;
       if(get_MENU(link_values.data3) == -1)
 	assert(0);
