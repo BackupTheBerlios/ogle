@@ -21,8 +21,8 @@ typedef enum {
   DVDCtrlMouseSelect             = 0x02000001,
   DVDCtrlMouseActivate           = 0x02000002,
 
-  DVDCtrlEventMenuCall = 1,
-  DVDCtrlEventResume,
+  DVDCtrlMenuCall = 1,
+  DVDCtrlResume,
   DVDCtrlGoUp,
 
   DVDCtrlForwardScan,
