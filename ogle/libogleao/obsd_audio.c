@@ -53,10 +53,6 @@ int obsd_init(ogle_ao_instance_t *_instance,
   audio_info_t info;
   obsd_instance_t *instance = (obsd_instance_t *)_instance;
   
-  if(instance->initialized) {
-    return -1;  // for now we must close and open the device for reinit
-  }
-
   AUDIO_INITINFO(&info);
   info.play.sample_rate = audio_info->sample_rate;
   info.play.precision   = audio_info->sample_resolution;
@@ -131,55 +127,14 @@ int obsd_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 {
   obsd_instance_t *instance = (obsd_instance_t *)_instance;
   audio_info_t info;
-  int res;
   int odelay;
-  static int e = 0;
-  u_int samples_played, seek;
-  
 
-  res = ioctl(instance->fd, AUDIO_GETINFO, &info);
-  if(res == -1) {
+  if (ioctl(instance->fd, AUDIO_GETINFO, &info) == -1) {
     perror("AUDIO_GETINFO");
     return -1;
   }
 
-  samples_played = info.play.samples;
-  seek = info.play.seek;
-  res = ioctl(instance->fd, AUDIO_WSEEK, &odelay );
-
-  /*  fprintf(stderr, ":: %d :: %d :: %d :: %d -- e: %d, %d\n", 
-	  instance->samples_written,
-	  info.play.samples,
-	  info.play.seek,
-	  odelay,
-	  info.play.error,
-	  e);*/
-  
-  if(info.play.error) {
-    e++;
-    res = ioctl(instance->fd, AUDIO_FLUSH, 0);
-    if(res == -1) {
-      perror("AUDIO_FLUSH");
-    }
-    instance->samples_written = 0;
-  }/*    if(info.play.samples != samples_played) {
-      fprintf(stderr, "underrun and more samples played: %d, %d\n",
-	      samples_played, info.play.samples);
-    }
-    info.play.samples = 0;
-  }
-  
-  if(instance->samples_written < info.play.samples) {
-    //something is wrong with the accounting
-    fprintf(stderr, "written: %d < played: %d\n",
-	    instance->samples_written, info.play.samples);
-  }
-  
-  odelay = instance->samples_written - info.play.samples;
-  */
-  odelay = seek / instance->sample_frame_size;
-  fprintf(stderr, "odelay: %d\n", odelay);
-  
+  odelay = info.play.seek / instance->sample_frame_size;
   *samples_return = odelay;
 
   return 0;
@@ -197,20 +152,9 @@ static
 int obsd_flush(ogle_ao_instance_t *_instance)
 {
   obsd_instance_t *instance = (obsd_instance_t *)_instance;
-  /*  audio_info_t info;
-  
-  AUDIO_INITINFO(&info);
-  info.play.pause = 1;
-  ioctl(instance->fd, AUDIO_SETINFO, &info);*/
 
   fprintf(stderr, "AUDIO_FLUSH called\n");
   ioctl(instance->fd, AUDIO_FLUSH, NULL);
-  
-  /*  AUDIO_INITINFO(&info);
-  info.play.pause = 0;
-  info.play.error = 0;
-  info.play.samples = 0;
-  ioctl(instance->fd, AUDIO_SETINFO, &info);*/
   
   instance->samples_written = 0;
   
