@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef C_GETBITS_H_INCLUDED
+#define C_GETBITS_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund,Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -15,9 +18,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef HAVE_C_GETBITS_H
-#define HAVE_C_GETBITS_H
 
 #include <inttypes.h>
 
@@ -306,4 +306,4 @@ void marker_bit(void)
 }
 #endif //DEBUG
 
-#endif
+#endif /* C_GETBITS_H_INCLUDED */

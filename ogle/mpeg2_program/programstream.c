@@ -1,5 +1,5 @@
-/* SKROMPF - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort, Martin Norbäck
+/* Ogle - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,7 +21,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-//#include <siginfo.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>

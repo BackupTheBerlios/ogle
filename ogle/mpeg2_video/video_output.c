@@ -1,4 +1,4 @@
-/* SKROMPF - A video player
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -146,58 +146,59 @@ static int attach_picture_buffer(int shmid)
 
   fprintf(stderr, "vo: q_shmid: %d\n", shmid);
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("video_ouput: attach_decoder_buffer(), shmat()");
-      return -1;
-    }
-    
-    //q_shmid = shmid;
-    q_shmaddr = shmaddr;
-  }    
+  if(shmid < 0) {
+    fprintf(stderr, "video_ouput: attach_decoder_buffer(), shmid < 0\n");
+    return -1;
+  }
+  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+    perror("video_ouput: attach_decoder_buffer(), shmat()");
+    return -1;
+  }
+  q_shmaddr = shmaddr;
 
   picture_q_head = (q_head_t *)q_shmaddr;
   picture_q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
 
   shmid = picture_q_head->data_buf_shmid;
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("vo: attach_data_buffer(), shmat()");
-      return -1;
-    }
+  if(shmid < 0) {
+    fprintf(stderr, "video_ouput: attach_decoder_buffer(), data_buf_shmid\n");
+    return -1;
+  }
+  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+    perror("vo: attach_data_buffer(), shmat()");
+    return -1;
+  }
     
-    //picture_buf_shmid = shmid;
-    picture_buf_base = shmaddr;
-    
-    picture_ctrl_head = (data_buf_head_t *)picture_buf_base;
-
-    data_elems = (picture_data_elem_t *)(picture_buf_base + 
-					 sizeof(data_buf_head_t));
-
-    picture_ctrl_data = data_elems;
-
-    
-    //TODO ugly hack
+  //picture_buf_shmid = shmid;
+  picture_buf_base = shmaddr;
+  
+  picture_ctrl_head = (data_buf_head_t *)picture_buf_base;
+  
+  data_elems = (picture_data_elem_t *)(picture_buf_base + 
+				       sizeof(data_buf_head_t));
+  
+  picture_ctrl_data = data_elems;
+  
+  
+  //TODO ugly hack
 #ifdef HAVE_XV
-    image_bufs = 
-      malloc((picture_ctrl_head->nr_of_dataelems+1) * sizeof(yuv_image_t));
-    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
+  image_bufs = 
+    malloc((picture_ctrl_head->nr_of_dataelems+1) * sizeof(yuv_image_t));
+  for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
 #else
-    image_bufs = 
-      malloc(picture_ctrl_head->nr_of_dataelems * sizeof(yuv_image_t));
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+  image_bufs = 
+    malloc(picture_ctrl_head->nr_of_dataelems * sizeof(yuv_image_t));
+  for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
 #endif
-      image_bufs[n].y = picture_buf_base + data_elems[n].picture.y_offset;
-      image_bufs[n].u = picture_buf_base + data_elems[n].picture.u_offset;
-      image_bufs[n].v = picture_buf_base + data_elems[n].picture.v_offset;
-      image_bufs[n].info = &data_elems[n];
-    }
-    //TODO ugly hack
+    image_bufs[n].y = picture_buf_base + data_elems[n].picture.y_offset;
+    image_bufs[n].u = picture_buf_base + data_elems[n].picture.u_offset;
+    image_bufs[n].v = picture_buf_base + data_elems[n].picture.v_offset;
+    image_bufs[n].info = &data_elems[n];
+  }
+  //TODO ugly hack
 #ifdef HAVE_XV
-    reserv_image = &image_bufs[n-1];
+  reserv_image = &image_bufs[n-1];
 #endif
-    
-  }    
 
   return 0;
 }

@@ -1,4 +1,4 @@
-/* SKROMPF - A video player
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -33,21 +33,17 @@
 #include "vm.h"
 
 
-
-dvd_reader_t *dvd;
-ifo_handle_t *vmgi;
-ifo_handle_t *vtsi;
+static dvd_reader_t *dvd;
+static ifo_handle_t *vmgi;
+static ifo_handle_t *vtsi;
 
 dvd_state_t state;
 
 
 
 
-int vm_start(void);
-int vm_reset(char *dvdroot);
-int vm_run(void);
-int vm_eval_cmd(vm_cmd_t *cmd);
-int vm_get_next_cell(void);
+
+/* Local prototypes */
 
 static void saveRSMinfo(int cellN, int blockN);
 static link_t play_PGC(void);
@@ -85,7 +81,7 @@ static int get_PGCN(void);
 
 
 
-int vm_reset(char *dvdroot)
+int vm_reset(char *dvdroot) // , register_t regs)
 { 
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
@@ -151,8 +147,6 @@ int vm_start(void)
 int vm_eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
-  
-  //vmPrint_CMD(0, cmd);
   
   if(eval(cmd, 1, &state.registers, &link_values)) {
     link_values = process_command(link_values);
@@ -532,16 +526,6 @@ static link_t play_PGC(void)
   state.pgN = 1;
   state.cellN = 0;
 
-  if(0) { //DEBUG
-    int i;
-    for(i = 0; state.pgc->pgc_command_tbl &&
-	  i < state.pgc->pgc_command_tbl->nr_of_pre;i++)
-      vmPrint_CMD(i, &state.pgc->pgc_command_tbl->pre_commands[i]);
-  }
-
-  
-  
-
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
      - just play video i.e first PG1 (also a kind of jump/link)
@@ -656,7 +640,6 @@ static link_t play_Cell_post(void)
     assert(cmd_tbl != NULL);
     assert(cmd_tbl->nr_of_cell >= cell->cell_cmd_nr);
     fprintf(stderr, "Cell command pressent, executing\n");
-    //vmPrint_CMD(0, &cmd_tbl->cell_commands[cell->cell_cmd_nr - 1]);
     if(eval(&cmd_tbl->cell_commands[cell->cell_cmd_nr - 1], 1,
 	    &state.registers, &link_values)) {
       return link_values;
@@ -718,13 +701,6 @@ static link_t play_PGC_post(void)
   
   assert(state.pgc->still_time == 0); // FIXME $$$
 
-  if(0) { //DEBUG
-    int i;
-    for(i = 0; state.pgc->pgc_command_tbl &&
-	  i < state.pgc->pgc_command_tbl->nr_of_post; i++)
-      vmPrint_CMD(i, &state.pgc->pgc_command_tbl->post_commands[i]);
-  }
-  
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
      - or a error (are there more cases?)

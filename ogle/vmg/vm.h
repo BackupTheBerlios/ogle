@@ -1,5 +1,23 @@
-#ifndef VM_H
-#define VM_H
+#ifndef VM_H_INCLUDED
+#define VM_H_INCLUDED
+
+/* Ogle - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
 #include "decoder.h"
 
@@ -55,12 +73,7 @@ typedef struct {
 // Parental Level
 #define PTL_REG      registers.SPRM[13]
 
-#endif /* VM_H */
-
-
-// vm.c
-dvd_state_t state;
-int vm_reset(char *dvdroot);
+int vm_reset(char *dvdroot); // , register_t regs);
 int vm_start(void);
 int vm_eval_cmd(vm_cmd_t *cmd);
 int vm_get_next_cell();
@@ -77,3 +90,6 @@ void vm_get_audio_info(int *num_avail, int *current);
 void vm_get_subp_info(int *num_avail, int *current);
 subp_attr_t vm_get_subp_attr(int streamN);
 audio_attr_t vm_get_audio_attr(int streamN);
+
+#endif /* VM_HV_INCLUDED */
+

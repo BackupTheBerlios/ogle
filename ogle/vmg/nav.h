@@ -1,5 +1,5 @@
-#ifndef __NAV_H__
-#define __NAV_H__
+#ifndef NAV_H_INCLUDED
+#define NAV_H_INCLUDED
 
 /* 
  * Copyright (C) 2000 Håkan Hjort <d95hjort@dtek.chalmers.se>
@@ -252,4 +252,4 @@ typedef struct {
 } __attribute__ ((packed)) dsi_t;
 
 
-#endif /* __NAV_H__ */
+#endif /* NAV_H_INCLUDED */

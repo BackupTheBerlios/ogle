@@ -1,3 +1,6 @@
+#ifndef YUV2RGB_MMX_H_INCLUDED
+#define YUV2RGB_MMX_H_INCLUDED
+
 /* 
  *  yuv2rgb_mmx.h, YUV to RGB coverter using MMX.
  *
@@ -26,3 +29,5 @@
  */
 
 yuv2rgb_fun yuv2rgb_mmx_init(int bpp, int mode);
+
+#endif /* YUV2RGB_MMX_H_INCLUDED */

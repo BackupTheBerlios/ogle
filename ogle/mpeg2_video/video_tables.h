@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef VIDEO_TABLES_H_INCLUDED
+#define VIDEO_TABLES_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,21 +19,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
-#ifndef HAVE_VIDEO_TABLES_H
-#define HAVE_VIDEO_TABLES_H
-
 #include "video_types.h"
 
 /* previously used by B-14 */
 #define DCT_DC_FIRST          0
 #define DCT_DC_SUBSEQUENT     1
 
-#if 1
 #define VLC_FAIL           0x8000
-#else
-#define VLC_FAIL           0
-#endif
 #define VLC_ESCAPE         255
 #define VLC_END_OF_BLOCK   254 
 
@@ -48,6 +43,7 @@ extern const vlc_rl_table table_b14[];
 extern const vlc_rl_table table_b15[];
 
 
+/* Used by Table B-2/3/4 */
 #define MACROBLOCK_QUANT                    0x20
 #define MACROBLOCK_MOTION_FORWARD           0x10
 #define MACROBLOCK_MOTION_BACKWARD          0x08
@@ -94,7 +90,6 @@ extern const uint8_t q_scale[2][32];
 extern const int8_t default_intra_inverse_quantiser_matrix[8][8];
 
 extern const int8_t default_non_intra_inverse_quantiser_matrix[8][8];
-
 
 
 
@@ -154,4 +149,4 @@ extern const DCTtab DCTtab5[16];
  */
 extern const DCTtab DCTtab6[16];
 
-#endif
+#endif /* VIDEO_TABLES_H_INCLUDED */

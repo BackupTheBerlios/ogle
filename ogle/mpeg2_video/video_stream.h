@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef VIDEO_STREAM_H_INCLUDED
+#define VIDEO_STREAM_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,7 +19,4 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef HAVE_VIDEO_STREAM_H
-#define HAVE_VIDEO_STREAM_H
-
-#endif 
+#endif /* VIDEO_TABLES_H_INCLUDED */

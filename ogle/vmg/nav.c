@@ -1,4 +1,4 @@
-/* SKROMPF - A video player
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -38,6 +38,8 @@ extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern char *get_dvdroot(void);
+
+extern dvd_state_t state;
 
 static void do_run(void);
 

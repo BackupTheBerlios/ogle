@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef YUV2RGB_MLIB_H_INCLUDED
+#define YUV2RGB_MLIB_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,9 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef HAVE_YUV2RGB_MLIB_H
-#define HAVE_YUV2RGB_MLIB_H
-
 yuv2rgb_fun yuv2rgb_mlib_init(int bpp, int mode);
 
-#endif /* HAVE_YUV2RGB_MLIB_H */
+#endif /* YUV2RGB_MLIB_H_INCLUDED */

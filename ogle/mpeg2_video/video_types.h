@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef VIDEO_TYPES_H_INCLUDED
+#define VIDEO_TYPES_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
@@ -16,13 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-
-
-#ifndef HAVE_VIDEO_TYPES_H
-#define HAVE_VIDEO_TYPES_H
-
 #include <inttypes.h>
 #include "mpeg.h"
+
 
 /* Table 6-3. aspect_ratio_information TODO */
 /* Table 6-4 --- frame_rate_value TODO */
@@ -110,13 +109,6 @@ if(debug >= level) \
 
 
 
-
-
-
-
-
-
-
 typedef struct { 
 	int numberofbits;
 	int vlc;
@@ -148,9 +140,6 @@ typedef struct {
 } DCTtab;
 
 
-
-
-
 typedef struct {
   uint16_t macroblock_type; // 6 bits
   uint8_t spatial_temporal_weight_code; // 2 bits
@@ -166,7 +155,6 @@ typedef struct {
   uint8_t spatial_temporal_weight_code_flag; // 1 bit
   
 } macroblock_modes_t;
-
 
 
 typedef struct {
@@ -337,17 +325,10 @@ typedef struct {
 
 
 
-
-
-
 extern sequence_t seq;
 extern picture_t pic;
 extern slice_t slice_data;
 extern macroblock_t mb;
 
 
-
-
-
-
-#endif
+#endif /* VIDEO_TYPES_H_INCLUDED */

@@ -1,4 +1,4 @@
-/* SKROMPF - A video player
+/* Ogle - A video player
  * Copyright (C) 2000 Martin Norbäck
  *
  * This program is free software; you can redistribute it and/or modify

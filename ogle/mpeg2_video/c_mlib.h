@@ -1,4 +1,7 @@
-/* SKROMPF - A video player
+#ifndef C_MLIB_H_INCLUDED
+#define C_MLIB_H_INCLUDED
+
+/* Ogle - A video player
  * Copyright (C) 2000 Martin Norbäck
  *
  * This program is free software; you can redistribute it and/or modify
@@ -228,3 +231,5 @@ void
 mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
 			 int16_t *coeffs,
 			 int32_t stride);
+
+#endif /* C_MLIB_H_INCLUDED */

@@ -1,3 +1,21 @@
+/* Ogle - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -36,7 +54,7 @@ typedef void (*mc_function_t)(uint8_t *curr_block, uint8_t *ref_block,
 			      int32_t frm_stride, int32_t fld_stride);
 #endif
 
-/* [normal/Ave] [size] [half-pell-modes] */
+/* [replace/average] [size] [half-pell-mode] */
 static const mc_function_t motion[2][4][4] = {
   { 
     { 
@@ -97,7 +115,6 @@ void motion_comp()
 {
   const unsigned int padded_width = seq.mb_width * 16;
 
-  
   DPRINTF(5, "dct_type: %d\n", mb.modes.dct_type);
   
   if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
@@ -105,8 +122,8 @@ void motion_comp()
     //exit(-1);
   }
   if(mb.prediction_type == PRED_TYPE_16x8_MC) {
-    fprintf(stderr, "**** 16x8 MC remove this and check if working\n");
-    exit(-1);
+    fprintf(stderr, "**** 16x8 MC remove this? check if working first.\n");
+    //exit(-1);
   }
 
   
@@ -256,7 +273,7 @@ void motion_comp()
 	// Is this right for 16x8 MC... 
 	dst_y += 8 * 2 * padded_width;
 	dst_u += 8 * 2 * padded_width/2;
-	  //dst_v += 8 * 2 * padded_width/2;
+	//dst_v += 8 * 2 * padded_width/2;
       } else {
 	dst_y += padded_width;
 	dst_u += padded_width/2;
