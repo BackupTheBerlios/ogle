@@ -370,8 +370,9 @@ int main(int argc, char **argv)
 
   // get_next_packet(); // Really, open and mmap the FILE
 
-  packet.offset = 0;
-  packet.length = 0;  
+  packet_offset = 0;
+  packet_length = 0;  
+
   buf = (uint32_t *)mmap_base;
   buf_size = 0;
   offs = 0;

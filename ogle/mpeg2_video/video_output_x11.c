@@ -110,6 +110,8 @@ static double xscale_factor;
 
 static int use_xshm = 1;
 
+static int manually_resized = 0;
+
 extern int msgqid;
 extern yuv_image_t *image_bufs;
 
@@ -142,10 +144,7 @@ int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
   }
 }
 
-void display_init(int padded_width, int padded_height,
-		  int horizontal_size, int vertical_size,
-		  picture_data_elem_t *pinfo,
-		  yuv_image_t *picture_data,
+void display_init(yuv_image_t *picture_data,
 		  data_buf_head_t *picture_data_head,
 		  char *picture_buf_base)
 {
@@ -176,27 +175,29 @@ void display_init(int padded_width, int padded_height,
   screen = DefaultScreen(mydisplay);
 
   sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
-  xscale_factor = sar/pinfo->picture.sar;
+  xscale_factor = sar/picture_data->info->sar;
   fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
 	  DisplayHeightMM(mydisplay, screen),
 	  DisplayWidthMM(mydisplay, screen),
 	  DisplayHeight(mydisplay, screen),
 	  DisplayWidth(mydisplay, screen));
   fprintf(stderr, "*** src_sar: %f, dst_sar: %f, xscale: %f\n",
-	  pinfo->picture.sar,
+	  picture_data->info->sar,
 	  sar, xscale_factor);
 
 
   /* Scale init. */
   if(xscale_factor > 1) {
-    scaled_image_width = (int)(((double)horizontal_size)*xscale_factor);
-    scaled_image_height = vertical_size;
-    if(scaled_image_width != horizontal_size)
+    scaled_image_width = (int)(((double)picture_data->info->horizontal_size)*
+			       xscale_factor);
+    scaled_image_height = picture_data->info->vertical_size;
+    if(scaled_image_width != picture_data->info->horizontal_size)
        scaled_image_width &= ~1;
   } else {
-    scaled_image_width = horizontal_size;
-    scaled_image_height = (int)(((double)vertical_size)/xscale_factor);
-    if(scaled_image_height != vertical_size)
+    scaled_image_width = picture_data->info->horizontal_size;
+    scaled_image_height = (int)(((double)picture_data->info->vertical_size)/
+				xscale_factor);
+    if(scaled_image_height != picture_data->info->vertical_size)
       scaled_image_height &= ~1;
   }
   
@@ -311,7 +312,8 @@ void display_init(int padded_width, int padded_height,
             xv_formats = XvListImageFormats (mydisplay, xv_port, 
                                              &xv_num_formats);
             for (j = 0; j < xv_num_formats; j++) {
-	      if (xv_formats[j].id == 0x32315659) { /* where is this from? */
+	      if (xv_formats[j].id == 0x32315659) { /* YV12 */
+	      //if (xv_formats[j].id == 0x30323449) { /* I420 */
                 fprintf (stderr, "Found image format \"%s\", using it\n", 
                        xv_formats[j].guid);
                 xv_id = xv_formats[j].id;
@@ -322,7 +324,8 @@ void display_init(int padded_width, int padded_height,
               fprintf (stderr, "Using Xvideo port %li for hw scaling\n", xv_port);
               /* allocate XvImages */
               xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
-                                            padded_width, padded_height, 
+					   picture_data->info->padded_width,
+					   picture_data->info->padded_height, 
 					   &shm_info);
               shm_info.shmid = picture_data_head->shmid;
 
@@ -372,11 +375,12 @@ void display_init(int padded_width, int padded_height,
 #endif /* HAVE_XV */
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   /* Create shared memory image */
-  if(scaled_image_width * scaled_image_height < padded_width * padded_height) {
+  if(scaled_image_width * scaled_image_height < 
+     picture_data->info->padded_width * picture_data->info->padded_height) {
     windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
-					padded_width,
-					padded_height);
+					picture_data->info->padded_width,
+					picture_data->info->padded_height);
   } else {
     windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
@@ -661,6 +665,16 @@ void display(yuv_image_t *current_image)
 {
   XEvent ev;
   int nextframe = 0;  
+  
+  static int sar_x, sar_y;
+  
+
+  if(current_image->info->sar_x != sar_x ||
+     current_image->info->sar_y != sar_y) {
+    
+    //resize...
+    
+  }
   
   windows[0].image = current_image;
   
@@ -966,7 +980,7 @@ void draw_win(debug_win *dwin)
 		     dwin->image->info->padded_height, 1);
     }
 #endif
-    
+    XDrawLine(mydisplay, dwin->win, mygc, 20, 20, 200, 200);
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
                   dwin->image->info->horizontal_size, dwin->image->info->vertical_size,

@@ -41,10 +41,7 @@
 #endif
 
 extern void display(yuv_image_t *current_image);
-extern void display_init(int padded_width, int padded_height,
-			 int horizontal_size, int vertical_size,
-			 picture_data_elem_t *pinfo,
-			 yuv_image_t *picture_data,
+extern void display_init(yuv_image_t *picture_data,
 			 data_buf_head_t *picture_data_head,
 			 char *picture_buf_base);
 
@@ -328,7 +325,7 @@ void int_handler()
   display_exit();
 }
 
-//#define LINUX
+#define LINUX
 static void display_process()
 {
   clocktime_t real_time, prefered_time, frame_interval;
@@ -402,12 +399,7 @@ static void display_process()
 
     if(first) {
       first = 0;
-      display_init(pinfos[buf_id].picture.padded_width,
-		   pinfos[buf_id].picture.padded_height,
-		   pinfos[buf_id].picture.horizontal_size,
-		   pinfos[buf_id].picture.vertical_size,
-		   &pinfos[buf_id],
-		   &image_bufs[buf_id],
+      display_init(&image_bufs[buf_id],
 		   picture_ctrl_head,
 		   picture_buf_base);
       //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
@@ -505,29 +497,7 @@ static void display_process()
 	    TIME_S(prefered_time), TIME_SS(prefered_time),
 	    TIME_S(diff), TIME_SS(diff));
     */
-    /*
-    if(drop) {
-      if(wait_time.tv_nsec > -10000000 && wait_time.tv_sec > -1) {
 
-	//	fprintf(stderr, "$ %ld.%+09ld \n",
-	//	wait_time.tv_sec,
-	//	wait_time.tv_nsec);
-	drop = 0;
-      } else {
-	//fprintf(stderr, "# %ld.%+09ld \n",
-	//	wait_timetv_sec,
-	//	wait_time.tv_nsec);
-      }
-    }
-    */
-#if 0
-    if(!drop) {
-      display(&(buf_ctrl_head->picture_infos[buf_id].picture));
-    } else {
-      fprintf(stderr, "*");
-      drop = 0;
-    }
-#else
     if(!drop) {
       display(&image_bufs[buf_id]);
       redraw_done();
@@ -535,14 +505,7 @@ static void display_process()
       fprintf(stderr, "#");
       drop = 0;
     }
-#endif
 
-      //timeadd(&prefered_time, &prefered_time, &frame_interval);
-    /*
-    if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
-      drop = 1;
-    }
-    */
     //    fprintf(stderr, "display: done with buf %d\n", buf_id);
     release_picture_buf(buf_id);
   }

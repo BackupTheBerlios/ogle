@@ -36,7 +36,8 @@ void setup_mmap(char *);
 void get_next_packet();
 extern uint32_t *buf;
 extern uint32_t buf_size;
-extern struct off_len_packet packet;
+extern uint32_t packet_offset;
+extern uint32_t packet_length;
 extern uint8_t *mmap_base;
 
 #else // Normal i/o

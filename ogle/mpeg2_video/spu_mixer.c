@@ -955,50 +955,51 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       } 
     } else {
       int n;
-      
+
       /* if total transparency do nothing */
       if(contrast != 0) {
-	uint8_t y,u,v;
+	uint8_t yl,u,v;
 	uint8_t *y_pixel;
 	uint8_t *u_pixel;
 	uint8_t *v_pixel;
 	int even;
-	y = color&0xff;
+	yl = (color>>16)&0xff;
 	u = (color>>8) & 0xff;
-	v = (color>>16) & 0xff;
+	v = (color) & 0xff;
 	
-	
-	pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
-				    +(x+spu_info->x_start)]);
 	y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
 				     +(x+spu_info->x_start)]);
-	even = !((int)y_pixel & 1);
 	
-	if(even) {
-	  u_pixel = &(((uint8_t *)data)[width*height+
-				       (y+spu_info->y_start)*width/2
-				       +(x+spu_info->x_start)/2]);
-	  v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
-				       (y+spu_info->y_start)*width/2
-				       +(x+spu_info->x_start)/2]);
-	}
+	u_pixel = &(((uint8_t *)data)[width*height+
+				     (y+spu_info->y_start)*width/4
+				     +(x+spu_info->x_start)/2]);
+	v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
+				     (y+spu_info->y_start)*width/4
+				     +(x+spu_info->x_start)/2]);
 	
-	for(n = 0; n < length; n++,pixel++) {
+	for(n = 0; n < length; n++, y_pixel++) {
+	  
 	  
 	  /* if no transparancy just overwrite */
 	  if(contrast == (0xf<<4)) {
-	    *y_pixel = y;
-	    if(even) {
+	    *y_pixel = yl;
+	    
+	    /* only write uv on even columns and rows */
+	    if(!((x+spu_info->x_start+n) & 1) &&
+	       !((y+spu_info->y_start)&1)) {
 	      *u_pixel = u;
 	      *v_pixel = v;
 	    }
+	    
 	  } else {
 	    uint32_t py,pu,pv;
 	    py = *y_pixel;
-	    py = (py*(invcontrast)+y*contrast)>>8;
-	    *y_pixel = py;
-	
-	    if(even) {
+	    py = (py*(invcontrast)+yl*contrast)>>8;
+	    *y_pixel = (py & 0xff);
+	    
+	    /* only write uv on even columns and rows */
+	    if(!((x+spu_info->x_start+n) & 1) &&
+	       !((y+spu_info->y_start) & 1)) {
 	      pu = *u_pixel;
 	      pu = (pu*(invcontrast)+u*contrast)>>8;
 	      *u_pixel = pu;
@@ -1008,11 +1009,18 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	    }
 	    
 	  }
+	  
+	  
+	  if((x+spu_info->x_start+n) & 1) {
+	    u_pixel++;
+	    v_pixel++;
+	  }
+	  
 	}
-
+	
       }
     }
-
+    
     x = x+length;
     
     if(x >= spu_info->width) {

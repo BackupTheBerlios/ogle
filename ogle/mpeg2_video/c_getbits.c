@@ -74,7 +74,10 @@ char *infilename;
 #ifdef GETBITSMMAP // Mmap i/o
 uint32_t *buf;
 uint32_t buf_size;
-struct off_len_packet packet;
+
+uint32_t packet_offset;
+uint32_t packet_length;
+
 uint8_t *mmap_base = NULL;
 uint8_t *data_buffer = NULL;
 
@@ -168,8 +171,8 @@ void get_next_packet()
       static clocktime_t time_offset = { 0, 0 };
 
       change_file(infilename);
-      packet.offset = 0;
-      packet.length = 1000000000;
+      packet_offset = 0;
+      packet_length = 1000000000;
 
       ctrl_time = malloc(sizeof(ctrl_time_t));
       scr_nr = 0;
@@ -177,7 +180,7 @@ void get_next_packet()
       set_time_base(PTS, ctrl_time, scr_nr, time_offset);
 
     } else {
-      packet.length = 1000000000;
+      packet_length = 1000000000;
 
 
     }
@@ -193,19 +196,19 @@ void get_next_packet()
 
 void read_buf()
 {
-  //  uint8_t *packet_base = &mmap_base[packet.offset];
-  uint8_t *packet_base = &data_buffer[packet.offset];
+  //  uint8_t *packet_base = &mmap_base[packet_offset];
+  uint8_t *packet_base = &data_buffer[packet_offset];
   int end_bytes;
   int i, j;
   
   /* How many bytes are there left? (0, 1, 2 or 3). */
-  end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
+  end_bytes = &packet_base[packet_length] - (uint8_t *)&buf[buf_size];
   
   /* Read them, as we have at least 32 bits free they will fit. */
   i = 0;
   while( i < end_bytes ) {
-    //cur_word=cur_word|(((uint64_t)packet_base[packet.length-end_bytes+i++])<<(56-bits_left)); //+
-    cur_word=(cur_word << 8) | packet_base[packet.length - end_bytes + i++];
+    //cur_word=cur_word|(((uint64_t)packet_base[packet_length-end_bytes+i++])<<(56-bits_left)); //+
+    cur_word=(cur_word << 8) | packet_base[packet_length - end_bytes + i++];
     bits_left += 8;
   }
    
@@ -214,14 +217,14 @@ void read_buf()
   if( (64-bits_left) >= 24 ) {
     int start_bytes;
     get_next_packet(); // Get new packet struct
-    // packet_base = &mmap_base[packet.offset];
-    packet_base = &data_buffer[packet.offset];
+    // packet_base = &mmap_base[packet_offset];
+    packet_base = &data_buffer[packet_offset];
     
     /* How many bytes to the next 4 byte boundary? (0, 1, 2 or 3). */
     start_bytes = (4 - ((long)packet_base % 4)) % 4; 
     
     /* Do we have that many bytes in the packet? */
-    j = start_bytes < packet.length ? start_bytes : packet.length;
+    j = start_bytes < packet_length ? start_bytes : packet_length;
     
     /* Read them, as we have at least 24 bits free they will fit. */
     i = 0;
@@ -232,15 +235,15 @@ void read_buf()
     }
      
     buf = (uint32_t *)&packet_base[start_bytes];
-    buf_size = (packet.length - start_bytes) / 4; // Number of 32 bit words
+    buf_size = (packet_length - start_bytes) / 4; // Number of 32 bit words
     offs = 0;
     
     /* If there were fewer bytes than needed to get to the first 4 byte boundary,
        then we need to make this inte a valid 'empty' packet. */
-    if( start_bytes > packet.length ) {
+    if( start_bytes > packet_length ) {
       /* This make the computation of end_bytes come 0 and 
 	 forces us to call read_buff() the next time get/dropbits are used. */
-      packet.length = start_bytes;
+      packet_length = start_bytes;
       buf_size = 0;
     }
     
@@ -265,7 +268,7 @@ void read_buf()
        Fake it so that we still are at the end of the packet but make
        sure that we don't read the last bytes again. */
     
-    packet.length -= end_bytes;
+    packet_length -= end_bytes;
   }
 
 }
@@ -536,11 +539,11 @@ int get_q()
     break;
   }
   
-  packet.offset = off;
-  packet.length = len;
+  packet_offset = off;
+  packet_length = len;
   /*
   fprintf(stderr, "video_dec: got q off: %d, len: %d\n",
-	  packet.offset, packet.length);
+	  packet_offset, packet_length);
   
   fprintf(stderr, "ac3: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
 	  PTS_DTS_flags, PTS, DTS, off, len);
