@@ -51,7 +51,7 @@
 #include "yuv2rgb.h"
 #include "screenshot.h"
 #include "wm_state.h"
-
+#include "display.h"
 #include "ffb_asm.h"
 
 #define SPU
@@ -122,16 +122,10 @@ typedef struct {
 
 static window_info window;
 
-struct {
-  int width;
-  int height;
-  int horizontal_pixels;
-  int vertical_pixels;
-} dpy_size;
-
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
 static Display *mydisplay = NULL;
+static int screen_nr;
 static GC mygc;
 static char title[100];
 static int color_depth, pixel_stride, mode;
@@ -141,8 +135,7 @@ static int screenshot = 0;
 static int screenshot_spu = 0;
 
 
-static int dpy_sar_frac_n;  /* Display (i.e. monitor) aspect. */
-static int dpy_sar_frac_d;  /*(set in display_init) */
+
 
 static struct {
   int zoom_n;              /* Zoom factor. */
@@ -506,9 +499,7 @@ void display_init(yuv_image_t *picture_data,
 		  data_buf_head_t *picture_data_head,
 		  char *picture_buf_base)
 {
-  int screen;
   Screen *scr;
-  
   XSizeHints hint;
   XEvent xev;
   XGCValues xgcv;
@@ -516,7 +507,7 @@ void display_init(yuv_image_t *picture_data,
   XWindowAttributes attribs;
   XSetWindowAttributes xswa;
   unsigned long xswamask;
-
+  DpyInfoOrigin_t orig;
   if(getenv("USE_FFB2_YUV2RGB")) {
     use_ffb2_yuv2rgb = 1;
   }
@@ -527,34 +518,76 @@ void display_init(yuv_image_t *picture_data,
     exit(1);
   }
   
-  screen = DefaultScreen(mydisplay);
+  screen_nr = DefaultScreen(mydisplay);
   scr = XDefaultScreenOfDisplay(mydisplay);
   
+  DpyInfoInit(mydisplay, screen_nr);
+  
+  orig = DpyInfoSetUpdateGeometry(mydisplay, screen_nr, DpyInfoOriginX11);
+  {
+    char *orig_str;
+    switch(orig) {
+    case DpyInfoOriginX11:
+      orig_str = "X11";
+      break;
+    case DpyInfoOriginUser:
+      orig_str = "User";
+      break;
+    default:
+      orig_str = "";
+    }
+    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for geometry\n",
+	    orig_str);
+  }
+
+  orig = DpyInfoSetUpdateResolution(mydisplay, screen_nr, DpyInfoOriginXF86VidMode);
+  {
+    char *orig_str;
+    switch(orig) {
+    case DpyInfoOriginX11:
+      orig_str = "X11";
+      break;
+    case DpyInfoOriginXF86VidMode:
+      orig_str = "XF86Vidmode";
+      break;
+    case DpyInfoOriginUser:
+      orig_str = "User setting";
+      break;
+    default:
+      orig_str = "";
+    }
+    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for resolution\n",
+	    orig_str);
+  }
+  
+  DpyInfoUpdateGeometry(mydisplay, screen_nr);
+  DpyInfoUpdateResolution(mydisplay, screen_nr);
   
   /* Query and calculate the displays aspect rate. */
-  dpy_size.width = DisplayWidthMM(mydisplay, screen);
-  dpy_size.height = DisplayHeightMM(mydisplay, screen);
+ 
+  {
+    int width, height;
+    int horizontal_pixels, vertical_pixels;
+    int dpy_sar_frac_n, dpy_sar_frac_d;
+
+    DpyInfoGetGeometry(mydisplay, screen_nr, &width, &height);
+    DpyInfoGetResolution(mydisplay, screen_nr, &horizontal_pixels, &vertical_pixels);
+    DpyInfoGetSAR(mydisplay, screen_nr, &dpy_sar_frac_n, &dpy_sar_frac_d);
+    
+    fprintf(stderr, "NOTE[ogle_vo]: Display w: %d, h: %d, hp: %d, vp: %d\n",
+	    width, height, horizontal_pixels, vertical_pixels);
+    fprintf(stderr, "NOTE[ogle_vo]:  Display sar: %d/%d = %f\n",
+	    dpy_sar_frac_n, dpy_sar_frac_d,
+	    (double)dpy_sar_frac_n/(double)dpy_sar_frac_d);
+  }
   
-  dpy_size.horizontal_pixels = DisplayWidth(mydisplay, screen);
-  dpy_size.vertical_pixels = DisplayHeight(mydisplay, screen);
-  
-  dpy_sar_frac_n = dpy_size.height * dpy_size.horizontal_pixels;
-  dpy_sar_frac_d = dpy_size.width * dpy_size.vertical_pixels;
-  
-  fprintf(stderr, "*d* h: %d, w: %d, hp: %d, wp: %d\n",
-	  dpy_size.height, dpy_size.width,
-	  dpy_size.vertical_pixels, dpy_size.horizontal_pixels);
-  fprintf(stderr, "*s* h: %d, w: %d, hp: %d, wp: %d\n",
-	  XHeightMMOfScreen(scr), XWidthMMOfScreen(scr),
-	  XHeightOfScreen(scr), XWidthOfScreen(scr));
-  fprintf(stderr, "*** display_sar: %d/%d\n", dpy_sar_frac_n, dpy_sar_frac_d);
   
   
   /* Assume (for now) that the window will be the same size as the source. */
   scale.image_width = picture_data->info->picture.horizontal_size;
   scale.image_height = picture_data->info->picture.vertical_size;
   
-  
+  /* TODO search for correct visual ... */
   /* Make the window */
   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
   color_depth = attribs.depth;
@@ -564,7 +597,7 @@ void display_init(yuv_image_t *picture_data,
     color_depth = 24;
   }
   
-  XMatchVisualInfo(mydisplay, screen, color_depth, TrueColor, &vinfo);
+  XMatchVisualInfo(mydisplay, screen_nr, color_depth, TrueColor, &vinfo);
   fprintf(stderr, "vo: X11 visual id is %lx\n", vinfo.visualid);
 
   hint.x = 0;
@@ -573,7 +606,7 @@ void display_init(yuv_image_t *picture_data,
   hint.height = scale.image_height;
   hint.flags = PPosition | PSize;
   
-  theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
+  theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen_nr), 
 			      vinfo.visual, AllocNone);
   
   xswa.background_pixel = 0;
@@ -583,7 +616,7 @@ void display_init(yuv_image_t *picture_data,
 
   window.win_state = WINDOW_STATE_NORMAL;
 
-  window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+  window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen_nr),
 			     hint.x, hint.y, hint.width, hint.height, 
 			     4, color_depth, CopyFromParent, vinfo.visual, 
 			     xswamask, &xswa);
@@ -663,7 +696,7 @@ void display_init(yuv_image_t *picture_data,
     display_init_xshm();
   }
   
-  /*** sun ffb2 ***/
+  /*** sun ffb2+ ***/
   
   if(use_ffb2_yuv2rgb) {  
     fb_fd = open("/dev/fb", O_RDWR);
@@ -681,7 +714,7 @@ void display_init(yuv_image_t *picture_data,
       exit(-1);
     }
   }
-  /*** end sun ffb2 ***/
+  /*** end sun ffb2+ ***/
 
   /* Let the user know what mode we are running in. */
   snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
@@ -701,7 +734,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
   int padded_height = img->info->picture.padded_height;
   //int alloc_width, alloc_height;
   int alloc_size;
-  fprintf(stderr, "vo resize: %d, %d\n", new_width, new_height);
+  fprintf(stderr, "DEBUG[ogle_vo] resize: %d, %d\n", new_width, new_height);
   
   
   /* If we cant scale (i.e no Xv or mediaLib) exit give up now. */
@@ -731,11 +764,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
     XDestroyImage(window.ximage);
     shmdt(shm_info.shmaddr);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "vo: Shared memory: Couldn't detach segment\n");
+      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't detach segment\n");
       exit(1);
     }
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-      perror("vo: shmctl ipc_rmid");
+      perror("FATAL[ogle_vo]: shmctl ipc_rmid");
       exit(1);
     }
     
@@ -751,7 +784,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				    new_height);
 
     if(window.ximage == NULL) {
-      fprintf(stderr, "vo: Shared memory: couldn't create Shm image\n");
+      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: couldn't create Shm image\n");
       exit(1);
     }
 
@@ -770,14 +803,14 @@ static void display_change_size(yuv_image_t *img, int new_width,
 
 
     if(shm_info.shmid < 0) {
-      fprintf(stderr, "vo: Shared memory: Couldn't get segment\n");
+      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't get segment\n");
       exit(1);
     }
   
     /* Attach shared memory segment */
     shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "vo: Shared memory: Couldn't attach segment\n");
+      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't attach segment\n");
       exit(1);
     }
     
@@ -804,6 +837,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 
 static void display_adjust_size(yuv_image_t *current_image,
 				int given_width, int given_height) {
+  int dpy_sar_frac_n, dpy_sar_frac_d;
   int sar_frac_n, sar_frac_d; 
   int64_t scale_frac_n, scale_frac_d;
   int base_width, base_height, max_width, max_height;
@@ -820,7 +854,9 @@ static void display_adjust_size(yuv_image_t *current_image,
     sar_frac_n = current_image->info->picture.sar_frac_n;
     sar_frac_d = current_image->info->picture.sar_frac_d;
   }
-  
+
+  DpyInfoGetSAR(mydisplay, screen_nr, &dpy_sar_frac_n, &dpy_sar_frac_d);
+
   // TODO replace image->sar.. with image->dar
   scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
   scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
@@ -850,8 +886,7 @@ static void display_adjust_size(yuv_image_t *current_image,
   } else {
     if(!scale.lock_window_size) {
       /* Never make the window bigger than the screen. */
-      max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
-      max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
+      DpyInfoGetResolution(mydisplay, screen_nr, &max_width, &max_height);
     } else {
       max_width = window.window_area.width;
       max_height = window.window_area.height;
@@ -895,7 +930,7 @@ static void display_adjust_size(yuv_image_t *current_image,
       scale.zoom_n = new_height;
       scale.zoom_d = base_height;
     }
-    fprintf(stderr, "vo: zoom2 %d / %d\n", scale.zoom_n, scale.zoom_d);
+    fprintf(stderr, "DEBUG[ogle_vo]: zoom2 %d / %d\n", scale.zoom_n, scale.zoom_d);
   }
   
   /* Don't care about aspect and can't change the window size, use it all. */
@@ -917,9 +952,10 @@ static void display_adjust_size(yuv_image_t *current_image,
 
 
 static void display_toggle_fullscreen(yuv_image_t *current_image) {
+
+  DpyInfoUpdateResolution(mydisplay, screen_nr);
   
   if(window.win_state != WINDOW_STATE_FULLSCREEN) {
-    
     ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN);
     window.win_state = WINDOW_STATE_FULLSCREEN;
   } else {
@@ -1242,7 +1278,7 @@ void display_exit(void)
       shmdt(shm_info.shmaddr);
     if(shm_info.shmid > 0) {
       shmctl(shm_info.shmid, IPC_RMID, 0);
-      fprintf(stderr, "vo: removed shm segment\n");
+      fprintf(stderr, "DEBUG[ogle_vo]: removed shm segment\n");
     }
   }
   display_process_exit();
@@ -1334,8 +1370,9 @@ static void draw_win_x11(window_info *dwin)
     
     clip_rect.x0 = 0;
     clip_rect.y0 = 0;
-    clip_rect.x1 = dpy_size.horizontal_pixels;
-    clip_rect.y1 = dpy_size.vertical_pixels;
+
+    DpyInfoGetResolution(mydisplay, screen_nr,
+			 &clip_rect.x1, &clip_rect.y1);
 
     fb_rect = clip(&fb_rect, &clip_rect);
     
@@ -1588,8 +1625,4 @@ static void draw_win_xv(window_info *dwin)
   }
 #endif /* HAVE_XV */
 }
-
-
-
-
 

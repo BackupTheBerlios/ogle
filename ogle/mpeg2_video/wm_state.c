@@ -11,6 +11,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "display.h"
 #include "wm_state.h"
 
 
@@ -207,14 +208,18 @@ static void restore_normal_geometry(Display *dpy, Window win)
 
 }
 
+
+
+
 static void switch_to_fullscreen_state(Display *dpy, Window win)
 {
   XEvent ev;
   XEvent ret_ev;
+  XWindowAttributes attrs;
   XWindowChanges win_changes;
   int x, y;
   XSizeHints *sizehints;
-
+  
   // We don't want to have to replace the window manually when remapping it
   sizehints = XAllocSizeHints();
   sizehints->flags = USPosition;
@@ -254,8 +259,9 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   // Try to resize, place the window at 0,0 and on top
   win_changes.x = 0;
   win_changes.y = 0;
-  win_changes.width = DisplayWidth(dpy, 0);
-  win_changes.height = DisplayHeight(dpy, 0);
+  XGetWindowAttributes(dpy, win, &attrs);
+  DpyInfoGetResolution(dpy, XScreenNumberOfScreen(attrs.screen),
+		       &win_changes.width, &win_changes.height);
   win_changes.stack_mode = Above;
   XReconfigureWMWindow(dpy, win, 0, CWX | CWY |
 		       CWWidth | CWHeight |

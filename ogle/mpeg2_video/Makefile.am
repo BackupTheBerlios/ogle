@@ -63,9 +63,12 @@ ogle_vout_SOURCES = \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
+	display.c display.h \
 	$(MLIBSOURCES) $(ALTIVECSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 ogle_vout_LDADD = \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
+	@XF86VIDMODE_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
+
