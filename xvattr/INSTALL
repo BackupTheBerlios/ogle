@@ -1,6 +1,11 @@
-Just type 'make' and you will get the binary 'xvattr' that you can copy
-to /usr/bin or /usr/local/bin or wherever you want it.
 
 
-You might need to change the path for the X libraries in the Makefile.
+./configure
 
+make
+
+make install
+
+
+For more options:
+./configure --help 
