@@ -32,10 +32,12 @@
 #include <X11/Xlib.h>
 
 #include <ogle/msgevents.h>
+
 #include "common.h"
-#include "timemath.h"
 #include "video_types.h"
+#include "timemath.h"
 #include "sync.h"
+#include "spu_mixer.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -79,6 +81,8 @@ yuv_image_t *image_bufs;
 yuv_image_t *reserv_image = NULL;
 #endif
 
+static MsgEventClient_t gui_client = 0;
+
 
 typedef struct _event_handler_t {
   int(*eh)(MsgEventQ_t *, MsgEvent_t *);
@@ -96,8 +100,7 @@ int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *))
   eh_ptr->next = eh_head;
   eh_ptr->eh = eh;
   eh_head = eh_ptr;
-
-
+  
   return 0;
 }
 
@@ -106,7 +109,7 @@ int event_handler(MsgEventQ_t *q, MsgEvent_t *ev)
   event_handler_t *eh_ptr;
   
   eh_ptr = eh_head;
-
+  
   while(eh_ptr != NULL) {
     if(eh_ptr->eh(q, ev)) {
       return 1;
@@ -225,6 +228,13 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQCtrlData:
     attach_ctrl_shm(ev->ctrldata.shmid);
     break;
+  case MsgEventQGntCapability:
+    if((ev->gntcapability.capability & UI_DVD_GUI) == UI_DVD_GUI)
+      gui_client = ev->gntcapability.capclient;
+    else
+      fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
+              ev->gntcapability.capability);
+    break;
   default:
     //fprintf(stderr, "vo: unrecognized event type: %d\n", ev->type);
     return 0;
@@ -333,12 +343,22 @@ static void release_picture_buf(int id)
 
 }
 
+static void send_windowid(Window win)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQXWindowID;
+  ev.xwindowid.window = (unsigned long)win;
+  if(MsgSendEvent(msgq, gui_client, &ev, 0) == -1) {
+    fprintf(stderr, "vo: failed to send XWindowID\n");
+    exit(-1);
+  }
+}
 
 /* Erhum test... */
 clocktime_t first_time;
 int frame_nr = 0;
 
-void int_handler()
+static void int_handler()
 {
   display_exit();
 }
@@ -361,10 +381,6 @@ static void display_process()
   static int prev_scr_nr = 0;
   static clocktime_t time_offset = { 0, 0 };
 
-  TIME_S(frame_interval) = 0;
-  //TIME_(frame_interval) = 28571428; //35 fps
-  //TIME_(frame_interval) = 33366700; // 29.97 fps
-  TIME_SS(frame_interval) = 41666666; //24 fps
   TIME_S(prefered_time) = 0;
   
   pinfos = picture_ctrl_data;
@@ -387,8 +403,6 @@ static void display_process()
       }
     }
     
-    //#ifdef SYNCMASTER
-    
     if(ctrl_time[pinfos[buf_id].scr_nr].sync_master <= SYNC_VIDEO) {
       ctrl_time[pinfos[buf_id].scr_nr].sync_master = SYNC_VIDEO;
       
@@ -409,16 +423,17 @@ static void display_process()
       */
       prev_scr_nr = pinfos[buf_id].scr_nr;
     }
-    //#endif
     
 
     PTS_TO_CLOCKTIME(frame_interval, pinfos[buf_id].frame_interval);
 
     if(first) {
+      Window win;
       first = 0;
-      display_init(&image_bufs[buf_id],
-		   picture_ctrl_head,
-		   picture_buf_base);
+      win = display_init(&image_bufs[buf_id],
+			 picture_ctrl_head,
+			 picture_buf_base);
+      send_windowid(win);
       //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       clocktime_get(&first_time);      
@@ -633,17 +648,19 @@ int main(int argc, char **argv)
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = VIDEO_OUTPUT | DECODE_DVD_SPU;
     
-    msg_sent = 0;
-    do {
-      if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-	  DPRINTF(1, "vo: register capabilities\n");
-	  exit(-1); //TODO clean up and exit
-      } else {
-	msg_sent = 1;
-      }
-    } while(!msg_sent);
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+      DPRINTF(1, "vo: register capabilities\n");
+      exit(-1); //TODO clean up and exit
+    }
     
     fprintf(stderr, "vo: sent caps\n");
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = UI_DVD_GUI;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+      fprintf(stderr, "nav: didn't get dvd_gui cap\n");
+      exit(-1); //TODO clean up and exit
+    }
     
     fprintf(stderr, "vo: waiting for attachq\n");
     
