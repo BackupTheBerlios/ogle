@@ -685,6 +685,10 @@ else
 	dnl The pragma pack(0) parts are not sticky, so we need to give this
 	dnl 'noalign' flag to cc for parts that access the ifo and nav structs.
 	DVDREAD_ALIGN_CFLAGS="-xmemalign"
+    ;;
+    alpha*)
+        dnl Compaq cc
+        CFLAGS="$CFLAGS -fast"
     esac
 fi
 
@@ -728,6 +732,13 @@ dnl should be a try compile on this line..
 	  XCFLAGS="-Wa,-m7400"
 dnl that sets USE_ALTIVEC depending on the success
 	  USE_ALTIVEC=yes
+	fi
+        ;;
+alphaev6|alphaev67|alphaev68|alphaev7)
+	if test "x$GCC" = xyes; then
+	  CFLAGS="$CFLAGS -mcpu=ev6"
+        else  dnl Probably compaq cc
+          CFLAGS="$CFLAGS -mcpu=ev6"
 	fi
 esac
 
