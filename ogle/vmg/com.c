@@ -68,7 +68,7 @@ static unsigned char *data_buf_shmaddr;
 
 static MsgEventClient_t demux_client = 0;
 static MsgEventClient_t spu_client = 0;
-static char *dvdroot;
+static char *dvdroot = NULL;
 //MsgEventClient_t ui_client;
 
 extern MsgEvent_t dvdroot_return_ev;
@@ -85,6 +85,13 @@ int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
 char *get_dvdroot(void) {
   return dvdroot;
 }
+
+void free_dvdroot(void) {
+  if (dvdroot)
+    free(dvdroot);
+  dvdroot = NULL;
+}
+
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 {

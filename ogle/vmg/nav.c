@@ -42,6 +42,7 @@ extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern char *get_dvdroot(void);
+extern void free_dvdroot(void);
 
 extern dvd_state_t state;
 extern unsigned char discid[16];
@@ -135,17 +136,24 @@ int main(int argc, char *argv[])
 
     interpret_config();
 
-    wait_for_init(msgq);
+    while(1) {
+      wait_for_init(msgq);
     
-    /*  Call start here */
-    // hack placed here because it calls DVDOpen...
-    DNOTE("Opening DVD at \"%s\"\n", get_dvdroot());
-    if(vm_init(get_dvdroot()) == -1)
-      exit(1);
-
-    // send ok 
-    dvdroot_return_ev.dvdctrl.cmd.retval.val = DVD_E_Ok;
-    MsgSendEvent(msgq, dvdroot_return_client, &dvdroot_return_ev, 0);
+      /*  Call start here */
+      // hack placed here because it calls DVDOpen...
+      DNOTE("Opening DVD at \"%s\"\n", get_dvdroot());
+      if(vm_init(get_dvdroot()) == -1) {
+	// Failure, don't quit... just let the app know we didn't succeed
+	dvdroot_return_ev.dvdctrl.cmd.retval.val = DVD_E_RootNotSet;
+	MsgSendEvent(msgq, dvdroot_return_client, &dvdroot_return_ev, 0);
+	free_dvdroot();
+      } else {
+	// Success, send ok and breakout of loop
+	dvdroot_return_ev.dvdctrl.cmd.retval.val = DVD_E_Ok;
+	MsgSendEvent(msgq, dvdroot_return_client, &dvdroot_return_ev, 0);
+	break;
+      }
+    }
     
     ev.type = MsgEventQDemuxDVDRoot;
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
