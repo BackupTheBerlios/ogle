@@ -18,7 +18,9 @@
 #include "decoder.h"
 
 extern int demux_data(char *file_name, int start_sector, 
-		      int last_sector, command_data_t *cmd);
+		      int last_sector, command_data_t *cmd); // nav.c
+extern void set_spu_palette(uint32_t palette[16]); // nav.c
+extern int msgqid;
 
 
 #define PUT(level, text...) \
@@ -78,16 +80,11 @@ void get_PGC(int pgcN);
 
 
 
-
-
-
-
-
 char *program_name;
 
 void usage()
 {
-  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-v <vob>] [-i <ifo>]\n", 
+  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-m <msgqid>]\n", 
           program_name);
 }
 
@@ -98,10 +95,13 @@ int main(int argc, char *argv[])
   program_name = argv[0];
   
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "d:m:h?")) != EOF) {
     switch (c) {
     case 'd':
       debug = atoi(optarg);
+      break;
+    case 'm':
+      msgqid = atoi(optarg);
       break;
     case 'h':
     case '?':
@@ -109,7 +109,6 @@ int main(int argc, char *argv[])
       return 1;
     }
   }
-  
   
   // Setup State
   state.registers.SPRM[13] = 8; // Parental Level
@@ -139,6 +138,9 @@ int main(int argc, char *argv[])
 	  i<pgc.pgc_command_tbl->nr_of_pre;i++)
       ifoPrint_COMMAND(i, pgc.pgc_command_tbl->pre_commands[i]);
   }
+  /* Send the palette to the spu. */
+  set_spu_palette(pgc.palette);
+  
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
      - just play video i.e first PG1 (also a kind of jump/link)
@@ -422,7 +424,7 @@ int main(int argc, char *argv[])
   
   }
     
-  return 0;
+  return;
 }
 
 
@@ -466,9 +468,9 @@ void get_VTS_PTT(int tt, int part) {
   state.registers.SPRM[6] = state.pgcN;
   //ifoFree_VTS_PTT_SRPT(&vts_ptt_srpt);
   
-  pgcit = malloc( sizeof(pgcit) );
+  pgcit = malloc(sizeof(pgcit_t));
   ifoRead_PGCIT(pgcit, vtsi_mat.vts_pgcit * DVD_BLOCK_LEN);
-  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
   //ifoFree_PGCIT(&pgcit);
 }
 
@@ -511,7 +513,7 @@ void get_VMGM_MENU(int menu) {
   state.pgN = 0;
   state.cellN = 0;
   
-  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
   //ifoFree_PGCIT(&pgcit);
 }
 
@@ -524,7 +526,7 @@ void get_VMGM_PGC(int pgcN) {
   state.pgN = 0;
   state.cellN = 0;
   
-  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
   //ifoFree_PGCIT(&pgcit);
 }
 
@@ -563,7 +565,7 @@ void get_VTSM(int vts, int title, int menu) {
   state.pgN = 0;
   state.cellN = 0;
   
-  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
   //ifoFree_MENU_PGCI_UT(&pgci_ut);
 }
 
@@ -573,5 +575,5 @@ void get_PGC(int pgcN) {
   state.pgN = 0;
   state.cellN = 0;
   
-  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
 }

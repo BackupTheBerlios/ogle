@@ -19,11 +19,14 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: nav.c,v 1.4 2001/02/23 10:19:28 d95hjort Exp $
+ * $Id: nav.c,v 1.5 2001/03/29 23:39:01 d95hjort Exp $
  */
 
 #include <stdio.h>
 #include <inttypes.h>
+#include <assert.h>
+
+#include "msgtypes.h"
 
 #include "ifo.h" // command_data_t
 #include "nav.h"
@@ -256,6 +259,79 @@ void parse_pack (FILE *out, buffer_t *buffer, pci_t *pci, dsi_t *dsi)
   //fprintf (out, "\n");
 }
 
+int get_q();
+int send_msg(msg_t *msg, int mtext_size);
+int wait_init_msg(void);
+
+void get_next_nav_packet(char *buffer) {
+  static int init_done = 0;
+  if(!init_done) {
+    wait_init_msg();
+    init_done = 1;
+  }
+  get_q(buffer);
+}
+
+void send_demux_sectors(int start_sector, int nr_sectors) {
+  msg_t msg;
+  cmd_t *sendcmd;
+  
+  sendcmd = (cmd_t *)&msg.mtext;
+  msg.mtype = MTYPE_CTL;
+  sendcmd->cmdtype = CMD_CTRL_CMD;
+  sendcmd->cmd.ctrl_cmd.ctrlcmd = CTRLCMD_PLAY_FROM_TO;
+  sendcmd->cmd.ctrl_cmd.off_from = start_sector * 2048;
+  sendcmd->cmd.ctrl_cmd.off_to = (start_sector + nr_sectors) * 2048;
+  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_ctrl_cmd_t));
+}
+
+void send_use_file(char *file_name) {
+  msg_t msg;
+  cmd_t *sendcmd;
+  
+  sendcmd = (cmd_t *)&msg.mtext;
+  msg.mtype = MTYPE_DEMUX;
+  sendcmd->cmdtype = CMD_FILE_OPEN;
+  strcpy(&sendcmd->cmd.file_open.file[0], file_name);
+  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_file_open_t));
+}
+
+void set_spu_palette(uint32_t palette[16]) {
+  msg_t msg;
+  cmd_t *sendcmd;
+  int n;
+  
+  sendcmd = (cmd_t *)&msg.mtext;
+  msg.mtype = MTYPE_SPU_DECODE;
+  sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
+  for(n = 0; n < 16; n++) {
+    sendcmd->cmd.spu_palette.colors[n] = palette[n];
+  }
+  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_spu_palette_t));
+}
+
+void send_highlight_button(int x_start, int y_start, 
+			   int x_end, int y_end, uint32_t btn_coli) {
+  msg_t msg;
+  cmd_t *sendcmd;
+  int n;
+  
+  msg.mtype = MTYPE_SPU_DECODE;
+  sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
+  sendcmd->cmd.spu_highlight.x_start = x_start;
+  sendcmd->cmd.spu_highlight.y_start = y_start;
+  sendcmd->cmd.spu_highlight.x_end = x_end;
+  sendcmd->cmd.spu_highlight.y_end = y_end;
+  // Ingen aning om det är färg eller kontrast.. eller om de är rätt ordning..
+  for(n = 0; n < 4; n++) {
+    sendcmd->cmd.spu_highlight.color[n] = 0xf & btn_coli>>(16+4*n);
+  }
+  for(n = 0; n < 4; n++) {
+    sendcmd->cmd.spu_highlight.contrast[n] = 0xf & btn_coli>>(4*n);
+  }
+  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_spu_highlight_t));
+}
+
 int demux_data(char *file_name, int start_sector, 
 	       int last_sector, command_data_t *cmd) {
   FILE *vobfile;
@@ -268,6 +344,64 @@ int demux_data(char *file_name, int start_sector,
   memset(&pci, 0, sizeof(pci_t));
   memset(&dsi, 0, sizeof(dsi_t));
   
+  //if(strcmp(file_name, last_file_name) != 0)
+    send_use_file(file_name);
+ 
+  block = 0;
+  while (start_sector + block <= last_sector) {
+    /* Get the pci/dsi data, always fist in a vobu. */
+    send_demux_sectors(start_sector + block, 1); 
+    block++;
+    
+    get_next_nav_packet(&buffer.bytes [0]);
+    assert(buffer.bytes[0] == PS2_PCI_SUBSTREAM_ID);
+    buffer.bit_position = 8; // First byte is SUBSTREAM_ID
+    read_pci_packet (&pci, stdout, &buffer);
+    
+    get_next_nav_packet(&buffer.bytes [0]);
+    assert(buffer.bytes[0] == PS2_DSI_SUBSTREAM_ID);
+    buffer.bit_position = 8; // First byte is SUBSTREAM_ID
+    read_dsi_packet (&dsi, stdout, &buffer);
+    
+    if (pci.hli.hl_gi.hli_ss & 0x03) {
+      btni_t *button;
+      print_pci_packet (stdout, &pci);
+      
+      fprintf (stdout, "Menu detected\n");
+      /*
+	send stuff about subpicture and buttons to spu mixer
+	...
+	For now just pretend that the first button is selected.
+      */
+      button = &pci.hli.btnit[1 - 1];
+      send_highlight_button(button->x_start, button->y_start, 
+			    button->x_end, button->y_end, 
+			    pci.hli.btn_colit.btn_coli[button->btn_coln-1][0]);
+    }
+    
+    /* Demux/play the content of this vobu */
+    /* Assume that the vobus are packed and continue after each other,
+       this isn't correct. Certanly not for multiangle at least. */
+    send_demux_sectors(start_sector + block, dsi.dsi_gi.vobu_ea);
+    block += dsi.dsi_gi.vobu_ea;
+    
+#if 0
+    /* Check for any messages */
+    poll_message_queue();
+    if(status_jump || status_exit) {
+      /* ... */
+      return action_button;
+    }
+#endif
+  }
+  /* any command to be executed should be placed in cmd */
+  return 0; // No button activate
+  
+  return res;
+}
+
+
+  /*
   vobfile = fopen (file_name, "rb");
   if (!vobfile) {
     fprintf (stderr, "error opening file\n");
@@ -277,7 +411,9 @@ int demux_data(char *file_name, int start_sector,
     fprintf (stderr, "error seeking in file\n");
     return 0;
   }
-  
+  */
+   
+  /*
   while (start_sector + block <= last_sector && 
 	BLOCK_SIZE == fread (&buffer.bytes [0], 1, BLOCK_SIZE, vobfile)) {
     buffer.bit_position = 0;
@@ -303,7 +439,5 @@ int demux_data(char *file_name, int start_sector,
     print_dsi_packet (stdout, &dsi);
     res = 0;
   }
-
-  return res;
-}
-
+  */
+  

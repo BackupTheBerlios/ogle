@@ -106,8 +106,8 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
   uint32_t result;
   
   Y  = (yuv_color >> 8)  & 0xff00;
-  Cb = (yuv_color)       & 0xff00;
-  Cr = (yuv_color << 8)  & 0xff00;
+  Cb = (yuv_color << 8)  & 0xff00;
+  Cr = (yuv_color     )  & 0xff00;
   
   Ey  = (Y-(16<<8));
   Epb = (Cb-(128<<8));
@@ -171,7 +171,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
   }    
   
-  initialized |= 2;
+  initialized |= 1;
 
   return 0;
   
@@ -192,7 +192,7 @@ static int attach_ctrl_shm(int shmid)
     ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
 
   }    
-  initialized |= 4;
+  initialized |= 2;
   return 0;
   
 }
@@ -237,7 +237,6 @@ static void change_file(char *new_filename)
     perror("mmap");
     exit(1);
   }
-  initialized |= 1;
 
   
 #ifdef HAVE_MADVISE
@@ -361,10 +360,6 @@ static int eval_msg(cmd_t *cmd)
   sendcmd = (cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
-  case CMD_FILE_OPEN:
-    fprintf(stderr, "spu_mixer: CMD_FILE_OPEN\n");
-    change_file(cmd->cmd.file_open.file);
-    break;
   case CMD_CTRL_DATA:
     fprintf(stderr, "spu_mixer: CMD_CTRL_DATA\n");
     attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);

@@ -239,7 +239,7 @@ void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cmd_tbl, PGC_COMMAND_TBL_SIZE, 1, ifo_file) != 1) {
-    perror("PGC - Command Table");
+    perror("ifoRead PGC - Command Table");
     exit(1);
   }
   B2N_16(cmd_tbl->nr_of_pre);
@@ -254,7 +254,7 @@ void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
     int pre_cmd_size  = cmd_tbl->nr_of_pre * COMMAND_DATA_SIZE;
     cmd_tbl->pre_commands = malloc(pre_cmd_size);
     if(fread(cmd_tbl->pre_commands, pre_cmd_size, 1, ifo_file) != 1) {
-      perror("PGC - Command Table, Pre comands");
+      perror("ifoRead PGC - Command Table, Pre comands");
       exit(1);
     }
   }
@@ -263,7 +263,7 @@ void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
     int post_cmd_size = cmd_tbl->nr_of_post * COMMAND_DATA_SIZE;
     cmd_tbl->post_commands = malloc(post_cmd_size);
     if(fread(cmd_tbl->post_commands, post_cmd_size, 1, ifo_file) != 1) {
-      perror("PGC - Command Table, Post commands");
+      perror("ifoRead PGC - Command Table, Post commands");
       exit(1);
     }
   }
@@ -272,7 +272,7 @@ void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
     int cell_cmd_size = cmd_tbl->nr_of_cell * COMMAND_DATA_SIZE;
     cmd_tbl->cell_commands = malloc(cell_cmd_size);
     if(fread(cmd_tbl->cell_commands, cell_cmd_size, 1, ifo_file) != 1) {
-      perror("PGC - Command Table, Cell commands");
+      perror("ifoRead PGC - Command Table, Cell commands");
       exit(1);
     }
   }
@@ -288,7 +288,7 @@ void ifoRead_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr, int offset)
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(program_map, size, 1, ifo_file) != 1) {
-    perror("PGC - Program Map");
+    perror("ifoRead PGC - Program Map");
     exit(1);
   }
 }
@@ -300,7 +300,7 @@ void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int o
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_playback, size, 1, ifo_file) != 1) {
-    perror("PGC - Cell Playback info");
+    perror("ifoRead PGC - Cell Playback info");
     exit(1);
   }
   for(i = 0; i < nr; i++) {
@@ -327,7 +327,7 @@ void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int o
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_position, size, 1, ifo_file) != 1) {
-    perror("PGC - Cell Position info");
+    perror("ifoRead PGC - Cell Position info");
     exit(1);
   }
   for(i = 0; i < nr; i++) {
@@ -346,8 +346,10 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   int i;
   
   fseek(ifo_file, offset, SEEK_SET);
-  if(fread(pgc, PGC_SIZE, 1, ifo_file) != 1) {
-    perror("First Play PGC");
+  fprintf(stderr, "ferror = %d, feof = %d\n", ferror(ifo_file), feof(ifo_file));  if((i = fread(pgc, PGC_SIZE, 1, ifo_file)) != 1) {
+    perror("ifoRead PGC");
+    fprintf(stderr, "ferror = %d, feof = %d\n", ferror(ifo_file), feof(ifo_file));
+    fprintf(stderr, "retval = %d, offset = %d\n", i, offset);
     exit(1);
   }
   B2N_32(pgc->prohibited_ops);
@@ -432,7 +434,7 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vmg_ptt_srpt, VMG_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_PTT_SRPT");
+    perror("ifoRead VMG_PTT_SRPT");
     exit(1);
   }
   B2N_16(vmg_ptt_srpt->nr_of_srpts);
@@ -442,7 +444,7 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
   
   vmg_ptt_srpt->title_info = malloc(info_length); 
   if(fread(vmg_ptt_srpt->title_info, info_length, 1, ifo_file) != 1) {
-    perror("VMG_PTT_SRPT");
+    perror("ifoRead VMG_PTT_SRPT");
     exit(1);
   }
   for(i =  0; i < vmg_ptt_srpt->nr_of_srpts; i++) {
@@ -491,7 +493,7 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vts_ptt_srpt, VTS_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
-    perror("VTS_PTT_SRPT");
+    perror("ifoRead VTS_PTT_SRPT");
     exit(1);
   }
   B2N_16(vts_ptt_srpt->nr_of_srpts);
@@ -506,7 +508,7 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
   info_length = vts_ptt_srpt->last_byte + 1 - VTS_PTT_SRPT_SIZE;
   data = malloc(info_length); 
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("VTS_PTT_SRPT");
+    perror("ifoRead VTS_PTT_SRPT");
     exit(1);
   }
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++)
@@ -563,7 +565,7 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(ptl_mait, VMG_PTL_MAIT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_PTL_MAIT");
+    perror("ifoRead VMG_PTL_MAIT");
     exit(1);
   }
   B2N_16(ptl_mait->nr_of_countries);
@@ -584,7 +586,7 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
      I.e don't read so much here */
   ptl_mait->countries = malloc(info_length);
   if(fread(ptl_mait->countries, info_length, 1, ifo_file) != 1) {
-    perror("VMG_PTL_MAIT info");
+    perror("ifoRead VMG_PTL_MAIT info");
     exit(1);
   }
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
@@ -607,7 +609,7 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(c_adt, C_ADT_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_C_ADT");
+    perror("ifoRead VMGM_C_ADT");
     exit(1);
   }
   B2N_16(c_adt->nr_of_vobs);
@@ -624,7 +626,7 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
   
   c_adt->cell_adr_table = malloc(info_length); 
   if(fread(c_adt->cell_adr_table, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_C_ADT info");
+    perror("ifoRead VMGM_C_ADT info");
     exit(1);
   }
   for(i = 0; i < info_length/sizeof(c_adt_t); i++) {
@@ -651,7 +653,7 @@ void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vobu_admap, VOBU_ADMAP_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_VOBU_ADMAP");
+    perror("ifoRead VMGM_VOBU_ADMAP");
     exit(1);
   }
   B2N_32(vobu_admap->last_byte);
@@ -662,7 +664,7 @@ void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector) {
   
   vobu_admap->vobu_start_sectors = malloc(info_length); 
   if(fread(vobu_admap->vobu_start_sectors, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_VOBU_ADMAP info");
+    perror("ifoRead VMGM_VOBU_ADMAP info");
     exit(1);
   }
   for(i = 0; i < info_length/sizeof(int32_t); i++) {
@@ -677,7 +679,7 @@ void ifoRead_PGCIT(pgcit_t *pgcit, int offset) {
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(pgcit, PGCIT_SIZE, 1, ifo_file) != 1) {
-    perror("PGCIT");
+    perror("ifoRead PGCIT");
     exit(1);
   }
   B2N_16(pgcit->nr_of_pgci_srp);
@@ -692,14 +694,14 @@ void ifoRead_PGCIT(pgcit_t *pgcit, int offset) {
   info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("PGCIT info");
+    perror("ifoRead PGCIT info");
     exit(1);
   }
   pgcit->pgci_srp = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
   ptr = data;
   for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
-    memcpy(&pgcit->pgci_srp[i], ptr, MENU_PGCI_LU_SIZE);
-    ptr += MENU_PGCI_LU_SIZE;
+    memcpy(&pgcit->pgci_srp[i], ptr, PGCI_SRP_SIZE);
+    ptr += PGCI_SRP_SIZE;
     B2N_32(pgcit->pgci_srp[i].pgc_category);
     B2N_32(pgcit->pgci_srp[i].pgc_start_byte);
   }
@@ -724,7 +726,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(pgci_ut, MENU_PGCI_UT_SIZE, 1, ifo_file) != 1) {
-    perror("MENU_PGCI_UT");
+    perror("ifoRead MENU_PGCI_UT");
     exit(1);
   }
   B2N_16(pgci_ut->nr_of_lang_units);
@@ -740,7 +742,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("MENU_PGCI_UT info");
+    perror("ifoRead MENU_PGCI_UT info");
     exit(1);
   }
   pgci_ut->menu_lu 
@@ -784,7 +786,7 @@ void ifoRead_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes, int offset) {
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(vts_attributes, VMG_VTS_ATTRIBUTES_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATTRIBUTES");
+    perror("ifoRead VMG_VTS_ATTRIBUTES");
     exit(1);
   }
   B2N_32(vts_attributes->last_byte);
@@ -831,7 +833,7 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vts_atrt, VMG_VTS_ATRT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATRT");
+    perror("ifoRead VMG_VTS_ATRT");
     exit(1);
   }
   B2N_16(vts_atrt->nr_of_vtss);
@@ -848,7 +850,7 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   info_length = vts_atrt->nr_of_vtss * sizeof(uint32_t);
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATRT offsets");
+    perror("ifoRead VMG_VTS_ATRT offsets");
     exit(1);
   }
   for(i = 0; i < vts_atrt->nr_of_vtss; i++)
@@ -880,7 +882,7 @@ void ifoRead_VMG_TXTDT_MGI(vmg_txtdt_mgi_t *vmg_txtdt_mgi, int sector) {
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vmg_txtdt_mgi, VMG_TXTDT_MGI_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_TXTDT_MGI");
+    perror("ifoRead VMG_TXTDT_MGI");
     exit(1);
   }
   fprintf(stdout, "-- Not done yet --\n");

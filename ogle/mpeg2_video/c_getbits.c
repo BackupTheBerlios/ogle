@@ -407,13 +407,13 @@ int eval_msg(cmd_t *cmd)
   sendcmd = (cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
-  case CMD_CTRL_DATA:
-    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
-    break;
   case CMD_FILE_OPEN:
     //fprintf(stderr, "video_dec: got file open '%s'\n",
     //    cmd->cmd.file_open.file);
     change_file(cmd->cmd.file_open.file);
+    break;
+  case CMD_CTRL_DATA:
+    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
     break;
   case CMD_DECODE_STREAM_BUFFER:
     //fprintf(stderr, "video_dec: got stream %x, %x buffer \n",

@@ -33,8 +33,7 @@ if [ -h "$DVDP_CMD" ]; then
     fi;
 fi;
 
-cd `dirname "$DVDP_CMD"`
-DVDP_ROOT=`pwd`
+DVDP_ROOT=`dirname "$DVDP_CMD"`
 export DVDP_ROOT
 DVDP_CTRL=$DVDP_ROOT/ctrl/ctrl
 export DVDP_CTRL
@@ -48,7 +47,8 @@ DVDP_MPEGAUDIO=$DVDP_ROOT/mpeg_audio/mpg123_wrap
 export DVDP_MPEGAUDIO
 DVDP_VIDEO=$DVDP_ROOT/mpeg2_video/video_stream
 export DVDP_VIDEO
-DVDP_VMG=$DVDP_ROOT/vmg/vmg
+#DVDP_VMG=$DVDP_ROOT/vmg/vmg
+DVDP_VMG=RUNNING
 export DVDP_VMG
 #DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
 DVDP_SPU=RUNNING

@@ -11,6 +11,44 @@
 #include "nav_print.h"
 #include "vmcmd.h"
 
+typedef struct {
+  uint8_t hour;
+  uint8_t minute;
+  uint8_t second;
+  uint8_t frame_u; // The two high bits are the frame rate.
+}  __attribute__ ((packed)) dvd_time_t;
+
+void print_time(FILE *out, dvd_time_t *time) {
+  char *rate = NULL;
+  assert((time->hour >> 4) <= 9 && (time->hour & 0xf) <= 9);
+  assert((time->minute >> 4) <= 6 && (time->minute & 0xf) <= 9);
+  assert((time->second >> 4) <= 6 && (time->second & 0xf) <= 9);
+  assert((time->frame_u & 0xf) <= 9);
+  
+  fprintf (out, "%02x:%02x:%02x.%02x", 
+      time->hour,
+      time->minute,
+      time->second,
+      time->frame_u & 0x3f);
+  switch((time->frame_u >> 6) & 0x03) {
+  case 0: 
+    rate = "(please send a bug report)";
+    break;
+  case 1:
+    rate = "25.00";
+    break;
+  case 2:
+    rate = "(please send a bug report)";
+    break;
+  case 3:
+    rate = "29.97";
+    break;
+  } 
+  fprintf (out, " @ %s fps", rate);
+}
+
+
+
 void print_pci_gi (FILE *out, pci_gi_t *pci_gi)
 {
   int i;
@@ -24,7 +62,10 @@ void print_pci_gi (FILE *out, pci_gi_t *pci_gi)
   fprintf (out, "vobu_s_ptm    0x%08x\n", pci_gi->vobu_s_ptm);
   fprintf (out, "vobu_e_ptm    0x%08x\n", pci_gi->vobu_e_ptm);
   fprintf (out, "vobu_se_e_ptm 0x%08x\n", pci_gi->vobu_se_e_ptm);
-  fprintf (out, "e_eltm        0x%08x\n", pci_gi->e_eltm);
+  fprintf (out, "e_eltm        ");
+  print_time (out, (dvd_time_t *)&pci_gi->e_eltm);
+  fprintf (out, "\n");
+  
   fprintf (out, "vobu_isrc     \"");
   for (i = 0; i < 32; i++)
     {
@@ -81,12 +122,12 @@ void print_hl_gi (FILE *out, hl_gi_t *hl_gi, int *btngr_ns, int *btn_ns)
   fprintf (out, "btngr%d_dsp_ty    0x%02x\n", 3, hl_gi->btngr3_dsp_ty);
 #endif
   
-  fprintf (out, "btn_ofn       0x%02x\n", hl_gi->btn_ofn);
+  fprintf (out, "btn_ofn       %d\n", hl_gi->btn_ofn);
   (* btn_ns) = hl_gi->btn_ns;
-  fprintf (out, "btn_ns        0x%02x\n", hl_gi->btn_ns);
-  fprintf (out, "nsl_btn_ns    0x%02x\n", hl_gi->nsl_btn_ns);
-  fprintf (out, "fosl_btnn     0x%02x\n", hl_gi->fosl_btnn);
-  fprintf (out, "foac_btnn     0x%02x\n", hl_gi->foac_btnn);
+  fprintf (out, "btn_ns        %d\n", hl_gi->btn_ns);
+  fprintf (out, "nsl_btn_ns    %d\n", hl_gi->nsl_btn_ns);
+  fprintf (out, "fosl_btnn     %d\n", hl_gi->fosl_btnn);
+  fprintf (out, "foac_btnn     %d\n", hl_gi->foac_btnn);
 }
 
 void print_btn_colit (FILE *out, btn_colit_t *btn_colit)
@@ -137,7 +178,7 @@ void print_btnit (FILE *out, btni_t *btni_table, int btngr_ns, int btn_ns)
 	  fprintf (out, "group %d btni %d:  ", i+1, j+1);
 	  fprintf (out, "btn_coln %d, auto_action_mode %d\n",
 		   btni->btn_coln, btni->auto_action_mode);
-	  fprintf (out, "coords   (0x%03x, 0x%03x) .. (0x%03x, 0x%03x)\n",
+	  fprintf (out, "coords   (%d, %d) .. (%d, %d)\n",
 		   btni->x_start, btni->y_start, btni->x_end, btni->y_end);
 
 	  fprintf (out, "up %d, ", btni->up);
@@ -183,7 +224,9 @@ void print_dsi_gi (FILE *out, dsi_gi_t *dsi_gi)
   fprintf (out, "vobu_3rdref_ea 0x%08x\n", dsi_gi->vobu_3rdref_ea);
   fprintf (out, "vobu_vob_idn   0x%04x\n", dsi_gi->vobu_vob_idn);
   fprintf (out, "vobu_c_idn     0x%02x\n", dsi_gi->vobu_c_idn);
-  fprintf (out, "c_eltm         0x%08x\n", dsi_gi->c_eltm);
+  fprintf (out, "c_eltm         ");
+  print_time (out, (dvd_time_t *)&dsi_gi->c_eltm);
+  fprintf (out, "\n");
 }
 
 void print_sml_pbi (FILE *out, sml_pbi_t *sml_pbi)

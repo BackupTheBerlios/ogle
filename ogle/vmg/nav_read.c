@@ -89,52 +89,19 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
   assert (pci->hli.hl_gi.zero3 == 0);
   assert (pci->hli.hl_gi.zero4 == 0);
   assert (pci->hli.hl_gi.zero5 == 0);
-  if ((pci->hli.hl_gi.hli_ss & 0x03) == 0) {
-    //assert (pci->hli.hl_gi.hli_s_ptm == 0); // These we set on the 
-    //assert (pci->hli.hl_gi.hli_e_ptm == 0); // Beastieboys Antology DVD
-    //assert (pci->hli.hl_gi.btn_se_e_ptm == 0);
-    assert (pci->hli.hl_gi.btngr_ns == 0);
-    assert (pci->hli.hl_gi.btngr1_dsp_ty == 0);
-    assert (pci->hli.hl_gi.btngr2_dsp_ty == 0);
-    assert (pci->hli.hl_gi.btngr3_dsp_ty == 0);
-    assert (pci->hli.hl_gi.btn_ofn == 0);
-    assert (pci->hli.hl_gi.btn_ns == 0);
-    assert (pci->hli.hl_gi.nsl_btn_ns == 0);
-    assert (pci->hli.hl_gi.fosl_btnn == 0);
-    assert (pci->hli.hl_gi.foac_btnn == 0);
-    
-    /* pci hli btn_colit */
-    for (i = 0; i < 3; i++)
-      for (j = 0; j < 2; j++)
-	assert (pci->hli.btn_colit.btn_coli[i][j] == 0);
-    
-    /* pci hli btnit */
-    for (i = 0; i < 36; i++) {
-      assert (pci->hli.btnit[i].zero1 == 0);
-      assert (pci->hli.btnit[i].zero2 == 0);
-      assert (pci->hli.btnit[i].zero3 == 0);
-      assert (pci->hli.btnit[i].zero4 == 0);
-      assert (pci->hli.btnit[i].zero5 == 0);
-      assert (pci->hli.btnit[i].zero6 == 0);
-      assert (pci->hli.btnit[i].btn_coln == 0);
-      assert (pci->hli.btnit[i].auto_action_mode == 0);
-      assert (pci->hli.btnit[i].x_start == 0);
-      assert (pci->hli.btnit[i].y_start == 0);
-      assert (pci->hli.btnit[i].x_end == 0);
-      assert (pci->hli.btnit[i].y_end == 0);
-      assert (pci->hli.btnit[i].up == 0);
-      assert (pci->hli.btnit[i].down == 0);
-      assert (pci->hli.btnit[i].left == 0);
-      assert (pci->hli.btnit[i].right == 0);
-      for (j = 0; j < 8; j++)
-      	assert (pci->hli.btnit[i].cmd[j] == 0);
-    }
-  } else {
-    
-    /* pci hli btnit */
+  
+  /* Is there a menu defined here? */
+  if ((pci->hli.hl_gi.hli_ss & 0x03) != 0) {
     assert (pci->hli.hl_gi.btn_ns != 0); 
     assert (pci->hli.hl_gi.btngr_ns != 0); 
-    for (i = 0; i < pci->hli.hl_gi.btngr_ns; i++)
+  } else {
+    assert ((pci->hli.hl_gi.btn_ns != 0 && pci->hli.hl_gi.btngr_ns != 0) 
+	    || (pci->hli.hl_gi.btn_ns == 0 && pci->hli.hl_gi.btngr_ns == 0));
+  }
+  
+  /* pci hli btnit */
+  if(pci->hli.hl_gi.btn_ns != 0) {
+    for (i = 0; i < pci->hli.hl_gi.btngr_ns; i++) {
       for (j = 0; j < (36 / pci->hli.hl_gi.btngr_ns); j++) {
 	int n = (36 / pci->hli.hl_gi.btngr_ns) * i + j;
 	assert (pci->hli.btnit[n].zero1 == 0);
@@ -166,7 +133,7 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
 	    assert (pci->hli.btnit[n].cmd[k] == 0); //CHECK_ZERO?
 	}
       }
-
+    }
   }
 #endif
   
@@ -174,7 +141,6 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
 
 void read_dsi_packet (dsi_t *dsi, FILE *out, buffer_t *buffer)
 {
-  //  fprintf (out, "sizeof() == %i\n", sizeof());
   assert (sizeof(dsi_t) == DSI_BYTES - 1); // -1 for substream id
   
   if (buffer->bit_position & 7)

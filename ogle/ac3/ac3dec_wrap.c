@@ -1,3 +1,4 @@
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,14 +23,20 @@
 #include "sync.h"
 #include "ip_sem.h"
 
+int send_msg(msg_t *msg, int mtext_size);
 int wait_for_msg(cmdtype_t cmdtype);
 int eval_msg(cmd_t *cmd);
-int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
+
+int file_open(char *infile);
 int attach_ctrl_shm(int shmid);
+int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 
 char *program_name;
+
+static char *mmap_base;
+static FILE *outfile;
 
 static int ctrl_data_shmid;
 static ctrl_data_t *ctrl_data;
@@ -49,10 +56,6 @@ void usage()
 	  program_name);
 }
 
-int filefd;
-char *mmap_base;
-FILE *outfile;
-struct stat statbuf;
 int main(int argc, char *argv[])
 {
   int c; 
@@ -97,14 +100,6 @@ int main(int argc, char *argv[])
   return 0;
 }
 
-int file_open(char *infile)
-{
-  filefd = open(infile, O_RDONLY);
-  fstat(filefd, &statbuf);
-  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
-			   PROT_READ, MAP_SHARED, filefd,0);
-  return 0;
-}
 
 
 int send_msg(msg_t *msg, int mtext_size)
@@ -177,6 +172,35 @@ int eval_msg(cmd_t *cmd)
   return 0;
 }
 
+int file_open(char *infile)
+{
+  int filefd;
+  struct stat statbuf;
+  
+  filefd = open(infile, O_RDONLY);
+  fstat(filefd, &statbuf);
+  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
+			   PROT_READ, MAP_SHARED, filefd, 0);
+  return 0;
+}
+
+int attach_ctrl_shm(int shmid)
+{
+  char *shmaddr;
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("attach_ctrl_data(), shmat()");
+      return -1;
+    }
+    
+    ctrl_data_shmid = shmid;
+    ctrl_data = (ctrl_data_t*)shmaddr;
+    ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
+  }    
+  
+  return 0;
+}
 
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
@@ -193,7 +217,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
     stream_shmid = shmid;
     stream_shmaddr = shmaddr;
-    
   }    
 
   q_head = (q_head_t *)stream_shmaddr;
@@ -207,13 +230,13 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
     data_buf_shmid = shmid;
     data_buf_shmaddr = shmaddr;
-    
   }    
-  
 
   return 0;
-  
 }
+
+
+
 
 int get_q()
 {
@@ -239,7 +262,7 @@ int get_q()
   
   if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
     perror("ac3: get_q(), sem_wait()");
-    exit(1);
+    exit(1);  // XXX 
   }
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -284,6 +307,9 @@ int get_q()
       set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
+  if(PTS_DTS_flags & 0x2) {
+    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+  }
 
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
@@ -300,23 +326,4 @@ int get_q()
   return 0;
 }
 
-
-int attach_ctrl_shm(int shmid)
-{
-  char *shmaddr;
-  
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_ctrl_data(), shmat()");
-      return -1;
-    }
-    
-    ctrl_data_shmid = shmid;
-    ctrl_data = (ctrl_data_t*)shmaddr;
-    ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
-
-  }    
-  return 0;
-  
-}
 

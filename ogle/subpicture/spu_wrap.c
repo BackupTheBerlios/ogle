@@ -253,16 +253,17 @@ int get_q()
   scr_nr = data_elem->scr_nr;
   off = data_elem->off;
   len = data_elem->len;
-
   
-    
+  // Get time info...
+  
   prev_scr_nr = scr_nr;
-  
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
   fwrite(mmap_base+off, len, 1, outfile);
   fflush(outfile);
+  
+  
   // release elem
   data_elem->in_use = 0;
   

@@ -654,6 +654,8 @@ void push_stream_data(uint8_t stream_id, int len,
     register_id(stream_id, subtype);
   }
   
+  //fprintf(stderr, "Packet id: %02x, %02x\n", stream_id, subtype);
+  
   if(id_stat(stream_id, subtype) == STREAM_DECODE) {
     //  if(stream_id == MPEG2_PRIVATE_STREAM_1) { 
     /*
