@@ -774,6 +774,10 @@ void display_init(int padded_width, int padded_height,
 	  }
 	}
       }
+      if(n == vinfo_nitems) {
+	NOTE("%s", "No visual with adjustable gamma\n");
+	n = 0;
+      }
 #endif
       NOTE("Found %d matching visuals, using visual id: %x\n",
 	   vinfo_nitems, (unsigned)vinfo_list[n].visualid);
@@ -789,8 +793,16 @@ void display_init(int padded_width, int padded_height,
     size_hints->height = scale.image_height;
     size_hints->flags = /*PPosition |*/ PSize;
     
-    theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen_nr), 
+    /* If the chosen visual is the default, use the default Colormap,
+     * otherwise it needs a colormap allocated. */
+    if (vinfo.visual == DefaultVisual(mydisplay, screen_nr) 
+	/* && !installColormap */ ) 
+      theCmap = DefaultColormap(mydisplay, screen_nr);
+    else {
+      theCmap = XCreateColormap(mydisplay, RootWindow(mydisplay, screen_nr),
 				vinfo.visual, AllocNone);
+      /* ?? XInstallColormap(display, cachedColormap); */
+    }
     
     xswa.background_pixel = 0;
     xswa.border_pixel     = 1;
