@@ -178,7 +178,7 @@ static void ifoPrint_video_attributes(int level, video_attr_t *attr) {
   }
 
   if(attr->letterboxed) {
-    printf("letterboxed ");
+    printf("source letterboxed ");
   }
   
   if(attr->film_mode) {
@@ -236,7 +236,7 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   switch(attr->lang_type) {
   case 0:
     // not specified
-    assert(attr->lang_code == 0);
+    assert(attr->lang_code == 0 || attr->lang_code == 0xffff);
     break;
   case 1:
     printf("%c%c ", attr->lang_code>>8, attr->lang_code & 0xff);
@@ -280,8 +280,12 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   case 0:
     printf("48kHz ");
     break;
+  case 1:
+    printf("??kHz ");
+    break;
   default:
-    printf("(please send a bug report) ");
+    printf("sample_frequency %i (please send a bug report) ", 
+	   attr->sample_frequency);
   }
   
   printf("%dCh ", attr->channels + 1);
