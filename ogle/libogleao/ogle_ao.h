@@ -24,7 +24,8 @@
 
 typedef enum {
   OGLE_AO_ENCODING_NONE,
-  OGLE_AO_ENCODING_LINEAR
+  OGLE_AO_ENCODING_LINEAR,
+  OGLE_AO_ENCODING_IEC958
 } ogle_ao_encoding_t;
 
 typedef enum {

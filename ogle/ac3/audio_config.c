@@ -125,16 +125,27 @@ int audio_config(audio_config_t *aconf,
   // free_config should be called when config not needed more
   config = get_config(src_chtypemask);
   if(config) {
-    output_channels = config->nr_ch;
-    if(aconf->dst_format.nr_channels != output_channels) {
+    if(1 /*ac3 -> spdif*/) {
+      aconf->dst_format.sample_resolution = 2;
+      aconf->dst_format.nr_channels = 2;
       aconf->dst_format.ch_array = 
 	realloc(aconf->dst_format.ch_array, 
-		sizeof(ChannelType_t) * output_channels);
-    }
-    aconf->dst_format.sample_resolution = 2;
-    aconf->dst_format.nr_channels = output_channels;
-    for(n = 0; n < output_channels; n++) {
-      aconf->dst_format.ch_array[n] = config->chtype[n];
+		sizeof(ChannelType_t) * 2);
+      aconf->dst_format.ch_array[0] = ChannelType_Left;
+      aconf->dst_format.ch_array[1] = ChannelType_Right;
+    
+    } else {
+      output_channels = config->nr_ch;
+      if(aconf->dst_format.nr_channels != output_channels) {
+	aconf->dst_format.ch_array = 
+	  realloc(aconf->dst_format.ch_array, 
+		  sizeof(ChannelType_t) * output_channels);
+      }
+      aconf->dst_format.sample_resolution = 2;
+      aconf->dst_format.nr_channels = output_channels;
+      for(n = 0; n < output_channels; n++) {
+	aconf->dst_format.ch_array[n] = config->chtype[n];
+      }
     }
   }
   
@@ -185,47 +196,58 @@ int audio_config(audio_config_t *aconf,
     aconf->ainfo = malloc(sizeof(ogle_ao_audio_info_t));
     aconf->ainfo->chlist = NULL;
   }
-  
-  aconf->ainfo->sample_rate = sample_rate;
-  aconf->ainfo->sample_resolution = sample_resolution;
-  aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
-  aconf->ainfo->channels = aconf->dst_format.nr_channels;
-  aconf->ainfo->encoding = OGLE_AO_ENCODING_LINEAR;
-  aconf->ainfo->fragment_size = frag_size;
-  aconf->ainfo->fragments = -1;  // don't limit
-  if(config) {
-    aconf->ainfo->chtypes = OGLE_AO_CHTYPE_UNSPECIFIED;
-  } else {
-    ogle_ao_chtype_t ao_chmask = 0;
-    if(src_chtypemask & ChannelType_Left) {
-      ao_chmask |= OGLE_AO_CHTYPE_LEFT;
-    }
-    if(src_chtypemask & ChannelType_Right) {
-      ao_chmask |= OGLE_AO_CHTYPE_RIGHT;
-    }
-    if(src_chtypemask & ChannelType_Center) {
-      ao_chmask |= OGLE_AO_CHTYPE_CENTER;
-    }
-    if(src_chtypemask & ChannelType_LeftSurround) {
-      ao_chmask |= OGLE_AO_CHTYPE_REARLEFT;
-    }
-    if(src_chtypemask & ChannelType_RightSurround) {
-      ao_chmask |= OGLE_AO_CHTYPE_REARRIGHT;
-    }
-    if(src_chtypemask & ChannelType_LFE) {
-      ao_chmask |= OGLE_AO_CHTYPE_LFE;
-    }
-    if(src_chtypemask & ChannelType_Mono) {
-      ao_chmask |= OGLE_AO_CHTYPE_MONO;
-    }
-    if(src_chtypemask & ChannelType_Surround) {
-      ao_chmask |= OGLE_AO_CHTYPE_REARMONO;
-    }
-    if(src_chtypemask & ChannelType_CenterSurround) {
-      ao_chmask |= OGLE_AO_CHTYPE_REARCENTER;
-    }
 
-    aconf->ainfo->chtypes = ao_chmask;
+  if(1 /* ac3 -> spdif*/ ) {
+    aconf->ainfo->sample_rate = sample_rate;
+    aconf->ainfo->sample_resolution = sample_resolution;
+    aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
+    aconf->ainfo->channels = aconf->dst_format.nr_channels;
+    aconf->ainfo->encoding = OGLE_AO_ENCODING_IEC958;
+    aconf->ainfo->fragment_size = frag_size;
+    aconf->ainfo->fragments = -1;  // don't limit
+  } else {
+
+    aconf->ainfo->sample_rate = sample_rate;
+    aconf->ainfo->sample_resolution = sample_resolution;
+    aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
+    aconf->ainfo->channels = aconf->dst_format.nr_channels;
+    aconf->ainfo->encoding = OGLE_AO_ENCODING_LINEAR;
+    aconf->ainfo->fragment_size = frag_size;
+    aconf->ainfo->fragments = -1;  // don't limit
+    if(config) {
+      aconf->ainfo->chtypes = OGLE_AO_CHTYPE_UNSPECIFIED;
+    } else {
+      ogle_ao_chtype_t ao_chmask = 0;
+      if(src_chtypemask & ChannelType_Left) {
+	ao_chmask |= OGLE_AO_CHTYPE_LEFT;
+      }
+      if(src_chtypemask & ChannelType_Right) {
+	ao_chmask |= OGLE_AO_CHTYPE_RIGHT;
+      }
+      if(src_chtypemask & ChannelType_Center) {
+	ao_chmask |= OGLE_AO_CHTYPE_CENTER;
+      }
+      if(src_chtypemask & ChannelType_LeftSurround) {
+	ao_chmask |= OGLE_AO_CHTYPE_REARLEFT;
+      }
+      if(src_chtypemask & ChannelType_RightSurround) {
+	ao_chmask |= OGLE_AO_CHTYPE_REARRIGHT;
+      }
+      if(src_chtypemask & ChannelType_LFE) {
+	ao_chmask |= OGLE_AO_CHTYPE_LFE;
+      }
+      if(src_chtypemask & ChannelType_Mono) {
+	ao_chmask |= OGLE_AO_CHTYPE_MONO;
+      }
+      if(src_chtypemask & ChannelType_Surround) {
+	ao_chmask |= OGLE_AO_CHTYPE_REARMONO;
+      }
+      if(src_chtypemask & ChannelType_CenterSurround) {
+	ao_chmask |= OGLE_AO_CHTYPE_REARCENTER;
+      }
+      
+      aconf->ainfo->chtypes = ao_chmask;
+    }
   }
   // check return value
   if(ogle_ao_init(aconf->adev_handle, aconf->ainfo) == -1) {

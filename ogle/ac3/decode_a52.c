@@ -276,7 +276,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	}
 	
       }
-    } else {
+    } else if(0 /*analog*/){
       int i;
       int flags;
       sample_t level; // Hack for the float_to_int function
@@ -378,10 +378,58 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       //make space for next frame
       handle->buf_ptr = handle->coded_buf;
       handle->bytes_needed = 7;
+
+    } else if(1 /*iec958*/) {
+      int i;
+      int flags;
+      sample_t level; // Hack for the float_to_int function
+      int bias = 384;
+      //we have a whole frame to decode
+      //fprintf(stderr, "decode frame\n");
+      //decode
+      
+      
+      flags = handle->output_flags;
+
+
+      if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
+	fprintf(stderr, "a52_frame error\n");
+	//DNOTE("a52_frame() error\n");
+	goto error2;
+      }
+
+      if(handle->decoding_flags != flags) {
+	//new set of channels decoded
+	//change into config format
+	audio_format_t new_format;
+
+	handle->decoding_flags = flags;
+	
+	new_format.sample_rate = handle->sample_rate;
+	new_format.sample_resolution = 16;
+	new_format.sample_format = SampleFormat_AC3frame;
+	init_sample_conversion((adec_handle_t *)handle, &new_format, 256*6);
+      }
+
+      convert_samples_start((adec_handle_t *)handle);
+
+
+      convert_samples((adec_handle_t *)handle, handle->coded_buf, 
+		      0 /*_framesize*/);
+
+  
+      play_samples((adec_handle_t *)handle, handle->scr_nr, 
+		   handle->PTS, handle->pts_valid);
+      handle->pts_valid = 0;
+
+    error2:
+
+      //make space for next frame
+      handle->buf_ptr = handle->coded_buf;
+      handle->bytes_needed = 7;
     }
     
-    //fprintf(stderr, "bytes_left: %d\n", bytes_left);
-  }
+  } 
   //fprintf(stderr, "bytes_needed: %d\n", handle->bytes_needed);
   return handle->bytes_needed;
 }

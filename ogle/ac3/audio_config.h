@@ -29,7 +29,8 @@ typedef enum {
   SampleFormat_Unsigned,
   SampleFormat_Signed,
   SampleFormat_A52float,
-  SampleFormat_MadFixed
+  SampleFormat_MadFixed,
+  SampleFormat_AC3frame
 } SampleFormat_t;
 
 typedef struct {

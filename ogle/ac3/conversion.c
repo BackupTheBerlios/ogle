@@ -68,37 +68,49 @@ int init_sample_conversion(adec_handle_t *h,
   int n;
   int output_frame_size = h->config->dst_format.sample_frame_size;
 
-  if(h->output_buf_size < nr_samples * output_frame_size) {
-    h->output_buf_size = nr_samples * output_frame_size;
-    h->output_buf = realloc(h->output_buf, h->output_buf_size);
-    if(h->output_buf == NULL) {
-      FATAL("init_sample_conversion, realloc failed\n");
-      exit(1); // ?
-    }
-  }
-  //fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
-  //fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
-  h->output_buf_ptr = h->output_buf;
-
-  dst_ch = h->config->dst_format.nr_channels;
-  src_ch = src_format->nr_channels;
-  if(dst_ch > 10) {
-    FATAL("*** more than 10 channels\n");
-    exit(1);
-  }
-  for(n = 0; n < h->config->dst_format.nr_channels; n++) {
-    for(m = 0; m < src_format->nr_channels; m++) {
-      if(h->config->dst_format.ch_array[n] == src_format->ch_array[m]) {
-	ch_transform[n] = m;
-	break;
+  if(src_format->sample_format == SampleFormat_AC3frame) {
+    
+    if(h->output_buf_size < 6144 + 8) {
+      h->output_buf_size = 6144 + 8;
+      h->output_buf = realloc(h->output_buf, h->output_buf_size);
+      if(h->output_buf == NULL) {
+	FATAL("init_sample_conversion2, realloc failed\n");
+	exit(1); // ?
       }
     }
-    if(m == src_format->nr_channels) {
-      //type not in src
-      ch_transform[n] = -1;
+    
+  } else {
+    if(h->output_buf_size < nr_samples * output_frame_size) {
+      h->output_buf_size = nr_samples * output_frame_size;
+      h->output_buf = realloc(h->output_buf, h->output_buf_size);
+      if(h->output_buf == NULL) {
+	FATAL("init_sample_conversion, realloc failed\n");
+	exit(1); // ?
+      }
+    }
+    //fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
+    //fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
+    h->output_buf_ptr = h->output_buf;
+    
+    dst_ch = h->config->dst_format.nr_channels;
+    src_ch = src_format->nr_channels;
+    if(dst_ch > 10) {
+      FATAL("*** more than 10 channels\n");
+      exit(1);
+    }
+    for(n = 0; n < h->config->dst_format.nr_channels; n++) {
+      for(m = 0; m < src_format->nr_channels; m++) {
+	if(h->config->dst_format.ch_array[n] == src_format->ch_array[m]) {
+	  ch_transform[n] = m;
+	  break;
+	}
+      }
+      if(m == src_format->nr_channels) {
+	//type not in src
+	ch_transform[n] = -1;
+      }
     }
   }
-
   // setup the conversion functions
   // from the sample buffer format to the output buffer format
   switch(src_format->sample_format) {
@@ -110,6 +122,9 @@ int init_sample_conversion(adec_handle_t *h,
     break;
   case SampleFormat_MadFixed:
     conversion_routine = 2;
+    break;
+  case SampleFormat_AC3frame:
+    conversion_routine = 3;
     break;
   case SampleFormat_Unsigned:
   default:
@@ -210,6 +225,85 @@ static int convert_s16be_to_s16ne(int16_t *s16be, int16_t *s16ne,
   return 0;
 }
 
+struct frmsize_s
+{
+  uint16_t bit_rate;
+  uint16_t frm_size[3];
+};
+
+static const struct frmsize_s frmsizecod_tbl[64] =
+{
+  { 32  ,{64   ,69   ,96   } },
+  { 32  ,{64   ,70   ,96   } },
+  { 40  ,{80   ,87   ,120  } },
+  { 40  ,{80   ,88   ,120  } },
+  { 48  ,{96   ,104  ,144  } },
+  { 48  ,{96   ,105  ,144  } },
+  { 56  ,{112  ,121  ,168  } },
+  { 56  ,{112  ,122  ,168  } },
+  { 64  ,{128  ,139  ,192  } },
+  { 64  ,{128  ,140  ,192  } },
+  { 80  ,{160  ,174  ,240  } },
+  { 80  ,{160  ,175  ,240  } },
+  { 96  ,{192  ,208  ,288  } },
+  { 96  ,{192  ,209  ,288  } },
+  { 112 ,{224  ,243  ,336  } },
+  { 112 ,{224  ,244  ,336  } },
+  { 128 ,{256  ,278  ,384  } },
+  { 128 ,{256  ,279  ,384  } },
+  { 160 ,{320  ,348  ,480  } },
+  { 160 ,{320  ,349  ,480  } },
+  { 192 ,{384  ,417  ,576  } },
+  { 192 ,{384  ,418  ,576  } },
+  { 224 ,{448  ,487  ,672  } },
+  { 224 ,{448  ,488  ,672  } },
+  { 256 ,{512  ,557  ,768  } },
+  { 256 ,{512  ,558  ,768  } },
+  { 320 ,{640  ,696  ,960  } },
+  { 320 ,{640  ,697  ,960  } },
+  { 384 ,{768  ,835  ,1152 } },
+  { 384 ,{768  ,836  ,1152 } },
+  { 448 ,{896  ,975  ,1344 } },
+  { 448 ,{896  ,976  ,1344 } },
+  { 512 ,{1024 ,1114 ,1536 } },
+  { 512 ,{1024 ,1115 ,1536 } },
+  { 576 ,{1152 ,1253 ,1728 } },
+  { 576 ,{1152 ,1254 ,1728 } },
+  { 640 ,{1280 ,1393 ,1920 } },
+  { 640 ,{1280 ,1394 ,1920 } }
+};
+
+static int convert_ac3frame_to_iec958frame(uint16_t *ac3, uint16_t *iec958,
+					   int nr_samples)
+{
+  int i;
+  
+  uint32_t syncword, crc1, fscod,frmsizecod,bsid,bsmod,frame_size;
+  uint8_t *data_out = (uint8_t *)iec958;
+  uint8_t *data_in = (uint8_t *)ac3;
+  int frame_bytes;
+  
+  if (ac3[0] != 0x770b) {
+    fprintf(stderr, "SYNC/////////\n");
+  }
+  fscod = (data_in[4] >> 6) & 0x3;
+  frmsizecod = data_in[4] & 0x3f;
+  bsmod = data_in[5] & 0x7;		// bsmod, stream = 0
+  frame_size = frmsizecod_tbl[frmsizecod].frm_size[fscod] ;
+  
+  data_out[0] = 0x72; data_out[1] = 0xf8;	/* spdif syncword    */
+  data_out[2] = 0x1f; data_out[3] = 0x4e;	/* ..............    */
+  data_out[4] = 0x01;			/* AC3 data          */
+  data_out[5] = bsmod;			/* bsmod, stream = 0 */
+  data_out[6] = (frame_size << 4) & 0xff;   /* frame_size * 16   */
+  data_out[7] = ((frame_size ) >> 4) & 0xff;
+  swab(data_in, &data_out[8], frame_size * 2 );
+  //  fprintf(stderr, "frame_size: %d\n", frame_size);
+  frame_bytes = frame_size * 2 + 8;
+  memset(&data_out[frame_bytes], 0, 6144+8 - frame_bytes);
+
+  return 0;
+}
 
 int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 {
@@ -234,6 +328,13 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 			     (int16_t *)h->output_buf_ptr, 
 			     nr_samples, 2, NULL);
     h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
+    break;
+  case 3:
+    convert_ac3frame_to_iec958frame(samples,
+				    h->output_buf_ptr, 
+				    nr_samples);
+    h->output_buf_ptr += 6144; // 2ch 2byte
+    
     break;
   }
    return 0;
