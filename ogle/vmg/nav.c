@@ -363,7 +363,11 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   case 0:
     break;
   case 1:
-    if(ce->type != DVDCtrlMouseSelect) {
+    if(ce->type == DVDCtrlMouseSelect) {
+      /* auto_action buttons can't be select if they are not activated
+	 keep the previous selected button */
+      button_nr = (*btn_reg) >> 10;
+    } else {
       fprintf(stderr, "nav: auto_action_mode set!\n");
       is_action = 1;
     }
