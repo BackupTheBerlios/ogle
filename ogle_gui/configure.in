@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(configure.in)
-AM_INIT_AUTOMAKE(ogle, 0.1)
+AM_INIT_AUTOMAKE(ogle_gui, 0.1)
 AM_CONFIG_HEADER(config.h)
 
 
@@ -35,13 +35,36 @@ PACKAGE_PIXMAPS_DIR="`gnome-config --datadir`/pixmaps/${PACKAGE}"
 AC_SUBST(PACKAGE_PIXMAPS_DIR)
 
 
-AC_ARG_WITH(dvd-includes, [  --with-dvd-includes=DIR Specify location of DVD headers], DVD_INCLUDEDIR=$with_dvd_includes, AC_CHECK_HEADER(ogle/dvdcontrol.h,,AC_MSG_ERROR("Must have path to DVD includes")))
-AC_SUBST(DVD_INCLUDEDIR)
 
-AC_ARG_WITH(dvd-libs, [  --with-dvd-libs=DIR     Specify location of DVD libs], DVD_LIBDIR=$with_dvd_libs, AC_CHECK_LIB(dvdcontrol, DVDOpenNav,, AC_MSG_ERROR("Must have path to DVD libs")))
-AC_SUBST(DVD_LIBDIR)
-DVDLIBS="-L$DVD_LIBDIR -ldvdcontrol"
+dvd_path=""
+AC_ARG_WITH(dvdcontrol, 
+  [  --with-dvdcontol=DIR    Specify prefix to the dvdcontrol lib ], 
+  if test x$withval = xno; then
+    AC_MSG_ERROR([You must have/use libdvdcontrol])
+  fi
+  if test x$withval != xyes; then
+    dvd_path=$withval
+  fi)
+if test -z "$dvd_path"; then
+  dnl We have nothing better to go on, guess that it's installed in /usr/local
+  dvd_path=/usr/local
+fi
+
+AC_CHECK_LIB(dvdcontrol, DVDOpenNav, 
+  [ DVDLIBS="-L$dvd_path/lib/ogle -rpath $dvd_path/lib/ogle -ldvdcontrol" 
+    DVD_INCLUDEDIR=-I$dvd_path/include
+  ],, 
+  -L$dvd_path/lib/ogle)
+if test -z "$DVDLIBS"; then
+  AC_MSG_ERROR([Needs libdvdcontrol, install it and/or specify the location])
+fi
+
+AC_ARG_WITH(dvd-includes, 
+  [  --with-dvd-includes=DIR Specify location of DVD headers ], 
+  DVD_INCLUDEDIR=-I$with_dvd_includes)
+
 AC_SUBST(DVDLIBS)
+AC_SUBST(DVD_INCLUDEDIR)
 
 
 

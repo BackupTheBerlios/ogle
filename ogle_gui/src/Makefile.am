@@ -3,11 +3,11 @@
 INCLUDES = \
 	-I$(top_srcdir)/intl \
 	$(GNOME_INCLUDEDIR) \
-	-I$(DVD_INCLUDEDIR)
+	$(DVD_INCLUDEDIR)
 
-bin_PROGRAMS = ogle
+bin_PROGRAMS = ogle_gui
 
-ogle_SOURCES = \
+ogle_gui_SOURCES = \
 	main.c \
 	support.c support.h \
 	interface.c interface.h \
@@ -21,5 +21,5 @@ ogle_SOURCES = \
 	fileselector.c fileselector.h
 
 
-ogle_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVDLIBS) \
+ogle_gui_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVDLIBS) \
 	$(PTHREAD_LIB)
