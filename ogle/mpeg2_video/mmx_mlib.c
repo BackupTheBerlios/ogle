@@ -41,7 +41,7 @@ static inline void
 mmx_average_2_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2)
 {
    //
-   // *dst = clip_to_u8((*src1 + *src2 + 1)/2);
+   // *dst = (*src1 + *src2 + 1)/2;
    //
 
    //pxor_r2r(mm0,mm0);         // load 0 into mm0
@@ -74,7 +74,7 @@ static inline void
 mmx_interp_average_2_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2)
 {
    //
-   // *dst = clip_to_u8((*dst + (*src1 + *src2 + 1)/2 + 1)/2);
+   // *dst = (*dst + (*src1 + *src2 + 1)/2 + 1)/2;
    //
 
    //pxor_r2r(mm0,mm0);             // load 0 into mm0
@@ -121,7 +121,7 @@ static inline void
 mmx_average_4_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2, uint8_t *src3, uint8_t *src4)
 {
    //
-   // *dst = clip_to_u8((*src1 + *src2 + *src3 + *src4 + 2)/4);
+   // *dst = (*src1 + *src2 + *src3 + *src4 + 2)/4;
    //
 
    //pxor_r2r(mm0,mm0);                  // load 0 into mm0
@@ -176,7 +176,7 @@ static inline void
 mmx_interp_average_4_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2, uint8_t *src3, uint8_t *src4)
 {
    //
-   // *dst = clip_to_u8((*dst + (*src1 + *src2 + *src3 + *src4 + 2)/4 + 1)/2);
+   // *dst = (*dst + (*src1 + *src2 + *src3 + *src4 + 2)/4 + 1)/2;
    //
 
    //pxor_r2r(mm0,mm0);                  // load 0 into mm0
@@ -310,7 +310,7 @@ mlib_VideoCopyRefAve_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*curr_block + *ref_block++ + 1)/2);
+         *curr_block++ = (*curr_block + *ref_block++ + 1)/2;
       ref_block += jump;
       curr_block += jump;
    }
@@ -452,12 +452,6 @@ mlib_VideoCopyRef_U8_U8_MxN(
    int x,y;
    const int step = 8;
    const int jump = stride - m;
-#ifdef MC_MMX_verify
-   uint8_t *old_curr_block = curr_block;
-   uint8_t *old_ref_block = ref_block;
-   printf("before\n");
-   print_U8_U8_MxN(n,old_curr_block,old_ref_block,stride);
-#endif
 
    pxor_r2r(mm0,mm0);             // load 0 into mm0
 
@@ -468,18 +462,10 @@ mlib_VideoCopyRef_U8_U8_MxN(
 
          curr_block += step;
          ref_block  += step;
-         //printf("iter n=%d x=%d y=%d curr=%x ref=%x\n",n,x,y,(uint32_t)curr_block,(uint32_t)ref_block);
-         //print_U8_U8_MxN(n,old_curr_block,old_ref_block,stride);
-         //getchar();
       }
       curr_block += jump;
       ref_block  += jump;
    }
-#ifdef MC_MMX_verify
-   printf("after\n");
-   print_U8_U8_MxN(n,old_curr_block,old_ref_block,stride);
-   getchar();
-#endif
 #endif
 }
 
@@ -553,7 +539,7 @@ mlib_VideoInterpAveX_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*curr_block + (*ref_block++ + *(ref_block + 1) + 1)/2 + 1)/2);
+         *curr_block++ = (*curr_block + (*ref_block++ + *(ref_block + 1) + 1)/2 + 1)/2;
       ref_block += jump;
       curr_block += jump;
    }
@@ -653,7 +639,7 @@ mlib_VideoInterpX_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*ref_block++ + *(ref_block + 1) + 1)/2);
+         *curr_block++ = (*ref_block++ + *(ref_block + 1) + 1)/2;
       ref_block += jump;
       curr_block += jump;
    }
@@ -756,7 +742,7 @@ mlib_VideoInterpAveXY_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*curr_block + (*ref_block++ + *(ref_block + 1) + *ref_block_next++ + *(ref_block_next + 1) + 2)/4 + 1)/2);
+         *curr_block++ = (*curr_block + (*ref_block++ + *(ref_block + 1) + *ref_block_next++ + *(ref_block_next + 1) + 2)/4 + 1)/2;
       curr_block     += jump;
       ref_block      += jump;
       ref_block_next += jump;
@@ -861,7 +847,7 @@ mlib_VideoInterpXY_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*ref_block++ + *(ref_block + 1) + *ref_block_next++ + *(ref_block_next + 1) + 2)/4);
+         *curr_block++ = (*ref_block++ + *(ref_block + 1) + *ref_block_next++ + *(ref_block_next + 1) + 2)/4;
       curr_block += jump;
       ref_block += jump;
       ref_block_next += jump;
@@ -968,7 +954,7 @@ mlib_VideoInterpAveY_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*curr_block + (*ref_block++ + *ref_block_next++ + 1)/2 + 1)/2);
+         *curr_block++ = (*curr_block + (*ref_block++ + *ref_block_next++ + 1)/2 + 1)/2;
       curr_block     += jump;
       ref_block      += jump;
       ref_block_next += jump;
@@ -1073,7 +1059,7 @@ mlib_VideoInterpY_U8_U8_MxN(
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
-         *curr_block++ = clip_to_u8((*ref_block++ + *ref_block_next++ + 1)/2);
+         *curr_block++ = (*ref_block++ + *ref_block_next++ + 1)/2;
       curr_block     += jump;
       ref_block      += jump;
       ref_block_next += jump;
