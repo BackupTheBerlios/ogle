@@ -63,22 +63,26 @@ void ifoClose(void) {
 }
 
 
-int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
+FILE *ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   int i;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
     perror(filename);
-    return -1;
+    return NULL;
   }
   
   if(fread(vmgi_mat, sizeof(vmgi_mat_t), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
-    return -1;
+    return NULL;
   }
-  if(strncmp("DVDVIDEO-VMG", vmgi_mat->vmg_identifier, 12))
-    return -1;
+  
+  if(strncmp("DVDVIDEO-VMG", vmgi_mat->vmg_identifier, 12)) {
+    fclose(ifo_file);
+    ifo_file = NULL;
+    return NULL;
+  }
   
   B2N_32(vmgi_mat->vmg_last_sector);
   B2N_32(vmgi_mat->vmgi_last_sector);
@@ -141,26 +145,30 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
     CHECK_ZERO(vmgi_mat->vmgm_subp_attributes[i]);      
 #endif
   
-  return 0;
+  return ifo_file;
 }
 
 
-int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
+FILE *ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   int i;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
     perror(filename);
-    return -1;
+    return NULL;
   }
   
   if(fread(vtsi_mat, sizeof(vtsi_mat_t), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
-    return -1;
+    return NULL;
   }
-  if(strncmp("DVDVIDEO-VTS", vtsi_mat->vts_identifier, 12))
-    return -1;
+  
+  if(strncmp("DVDVIDEO-VTS", vtsi_mat->vts_identifier, 12)) {
+    fclose(ifo_file);
+    ifo_file = NULL;
+    return NULL;
+  }
   
   B2N_32(vtsi_mat->vts_last_sector);
   B2N_32(vtsi_mat->vtsi_last_sector);
@@ -230,8 +238,9 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   assert(vtsi_mat->nr_of_vts_subp_streams <= 32);
   for(i = vtsi_mat->nr_of_vts_subp_streams; i < 32; i++)
     CHECK_ZERO(vtsi_mat->vts_subp_attributes[i]);      
-#endif  
-  return 0;
+#endif
+  
+  return ifo_file;
 }
 
 
@@ -361,9 +370,9 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   B2N_16(pgc->cell_playback_tbl_offset);
   B2N_16(pgc->cell_position_tbl_offset);
   for(i = 0; i < 8; i++)
-    B2N_16(pgc->audio_status[i]);
+    B2N_16(pgc->audio_control[i]);
   for(i = 0; i < 32; i++)
-    B2N_32(pgc->subp_status[i]);
+    B2N_32(pgc->subp_control[i]);
   for(i = 0; i < 16; i++)
     B2N_32(pgc->palette[i]);
   
@@ -372,11 +381,11 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   assert(pgc->nr_of_programs <= pgc->nr_of_cells);
   // verify time (look at print_time)
   for(i = 0; i < 8; i++)
-    if(!pgc->audio_status[i] & 0x8000) /* The 'is present' bit */
-      CHECK_ZERO(pgc->audio_status[i]);
+    if(!pgc->audio_control[i] & 0x8000) /* The 'is present' bit */
+      CHECK_ZERO(pgc->audio_control[i]);
   for(i = 0; i < 32; i++)
-    if(!pgc->subp_status[i] & 0x80000000) /* The 'is present' bit */
-      CHECK_ZERO(pgc->subp_status[i]);
+    if(!pgc->subp_control[i] & 0x80000000) /* The 'is present' bit */
+      CHECK_ZERO(pgc->subp_control[i]);
   
   /* Check that time is 0:0:0:0 also if nr_of_programs == 0 */
   if(pgc->nr_of_programs == 0) {

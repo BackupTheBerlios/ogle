@@ -79,7 +79,7 @@ void ifoPrint(char *filename) {
   vmgi_mat_t vmgi_mat;
   vtsi_mat_t vtsi_mat;
   
-  if(!ifoOpen_VMG(&vmgi_mat, filename)) {
+  if(ifoOpen_VMG(&vmgi_mat, filename) != NULL) {
     vmg_ptt_srpt_t vmg_ptt_srpt;
     pgc_t pgc;    
     menu_pgci_ut_t vmgm_pgci_ut;
@@ -158,7 +158,7 @@ void ifoPrint(char *filename) {
     ifoClose();
   }
 
-  if(!ifoOpen_VTS(&vtsi_mat, filename)) {
+  if(ifoOpen_VTS(&vtsi_mat, filename) != NULL) {
     vts_ptt_srpt_t vts_ptt_srpt;
     pgcit_t vts_pgcit;
     menu_pgci_ut_t vtsm_pgci_ut;

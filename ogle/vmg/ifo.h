@@ -266,8 +266,11 @@ typedef struct { // Program Chain Information
   uint8_t  nr_of_cells;
   dvd_time_t playback_time;
   uint32_t prohibited_ops; // New type?
-  uint16_t audio_status[8]; // New type
-  uint32_t subp_status[32]; // New type
+  //Y--- -XXX ---- ----     Y = availability, XXX = audio stream (sub)id
+  //  for linear pcm, ac3, dts or sdds it's the sub_stream_id number
+  //  for mpeg1/mpeg2 it's the stream_id number
+  uint16_t audio_control[8]; // New type
+  uint32_t subp_control[32]; // New type // 0x80,4:3,wide,letterbox,pan-scan
   uint16_t next_pgc_nr;
   uint16_t prev_pgc_nr;
   uint16_t goup_pgc_nr;

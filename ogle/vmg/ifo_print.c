@@ -122,6 +122,7 @@ void ifoPrint_video_attributes(int level, video_attr_t *attr) {
     PUT(0, "(please send a bug report) ");
   }
   
+  // Wide is allways allowed..!!!
   switch(attr->permitted_df) {
   case 0:
     PUT(level,"pan&scan+letterboxed ");
@@ -570,14 +571,14 @@ void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
       char *s;
       switch(cell_playback[i].block_mode) {
       case 0:
-	s = "not a "; break;
+	s = "not a"; break;
       case 1:
-	s = "the first "; break;
+	s = "the first"; break;
       case 2:
       default:
 	s = ""; break;
       case 3:
-	s = "last "; break;
+	s = "last"; break;
       }
       PUT(5, "%s cell in the block ", s);
       
@@ -645,14 +646,14 @@ void ifoPrint_PGC(pgc_t *pgc) {
   PUT(5, "Prohibited user operations: %08x\n", pgc->prohibited_ops);
   
   for(i = 0; i < 8; i++) {
-    if(pgc->audio_status[i] & 0x8000) { /* The 'is present' bit */
-      PUT(5, "Audio stream %i status: %04x\n", i+1, pgc->audio_status[i]);
+    if(pgc->audio_control[i] & 0x8000) { /* The 'is present' bit */
+      PUT(5, "Audio %i control: %04x\n", i+1, pgc->audio_control[i]);
     }
   }
   
   for(i = 0; i < 32; i++) {
-    if(pgc->subp_status[i] & 0x80000000) { /* The 'is present' bit */
-      PUT(5, "Subpicture stream %2i status: %08x\n", i+1, pgc->subp_status[i]);
+    if(pgc->subp_control[i] & 0x80000000) { /* The 'is present' bit */
+      PUT(5, "Subpicture %2i control: %08x\n", i+1, pgc->subp_control[i]);
     }
   }
   

@@ -22,9 +22,10 @@
 
 #include "ifo.h"
 
+extern FILE *ifo_file;
 //void ifoOpen_DVD?(unsigned int *sector);
-int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename);
-int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename);
+FILE *ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename);
+FILE *ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename);
 void ifoClose();
 
 void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector);
