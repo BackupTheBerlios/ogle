@@ -403,8 +403,13 @@ int get_q()
   PTS = data_elem->PTS;
   DTS = data_elem->DTS;
   scr_nr = data_elem->scr_nr;
-  off = data_elem->off;
-  len = data_elem->len;
+  /*
+    p[0] is the number of frames of audio which have a sync code in this pack
+    p[1]<<8 | p[2] is the starting index of the frame which 
+      the PTS value belong to
+  */
+  off = data_elem->off + 3;
+  len = data_elem->len - 3;
 
   if(flush_to_scrid != -1) {
     if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {
