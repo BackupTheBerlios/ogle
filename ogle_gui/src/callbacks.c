@@ -29,6 +29,7 @@
 
 #include "menu.h"
 #include "audio.h"
+#include "angle.h"
 #include "subpicture.h"
 #include "fileselector.h"
 
