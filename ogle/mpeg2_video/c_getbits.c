@@ -725,11 +725,11 @@ int get_q()
   }
   
   if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
-    if(PTS_DTS_flags && 0x2) {
+    if(PTS_DTS_flags & 0x2) {
       set_time_base(PTS, scr_nr, time_offset);
     }
   }
-  if(PTS_DTS_flags && 0x2) {
+  if(PTS_DTS_flags & 0x2) {
     time_offset = get_time_base_offset(PTS, scr_nr);
   }
   prev_scr_nr = scr_nr;
