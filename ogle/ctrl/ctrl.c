@@ -1296,11 +1296,14 @@ int create_q(int nr_of_elems, int buf_shmid,
   add_q_shmid(shmid);
   
   q_head = (q_head_t *)shmaddr;
+  
+  /*
   {
     int init_nr[2] = { 0, nr_of_elems };
     if(ip_sem_init(&q_head->queue, init_nr) == -1)
       exit(1); // XXX 
   }
+  */
   q_head->data_buf_shmid = buf_shmid;
   q_head->nr_of_qelems = nr_of_elems;
   q_head->write_nr = 0;
@@ -1309,7 +1312,8 @@ int create_q(int nr_of_elems, int buf_shmid,
   q_head->reader = reader;
   q_head->writer_requests_notification = 0;
   q_head->reader_requests_notification = 0;
-  
+  q_head->qid = shmid; /* to get a unique id for the q */
+
   q_elems = (q_elem_t *)(shmaddr+sizeof(q_head_t));
   
   for(n = 0; n < nr_of_elems; n++) {

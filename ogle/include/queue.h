@@ -75,7 +75,8 @@ typedef struct {
 #define BUFS_FULL 0
 #define BUFS_EMPTY 1
 typedef struct {
-  ip_sem_t queue;
+  int qid;
+  //  ip_sem_t queue;
   int data_buf_shmid;
   int nr_of_qelems;
   int write_nr;

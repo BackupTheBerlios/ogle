@@ -2088,6 +2088,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   if(q_head->reader_requests_notification) {
     q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
+    ev.notify.qid = q_head->qid;
     if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
       fprintf(stderr, "demux: couldn't send notification\n");
     }

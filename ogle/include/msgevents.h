@@ -237,6 +237,7 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  int qid;             /* id of the q this notification belongs to */
   int action;           /* DataReleased, DataAvailable, ... ?*/
 } MsgQNotifyEvent_t;
 
