@@ -12,22 +12,8 @@ an image file or as copy on you harddrive.
 Keyboard commands for navigation in both player modes, if you have 
 input foucus in the video window.
 
-  '>', skips to the next chapter
-  '<', skips to the previous chapter
-  't', jumps to the Title menu
-  'r', jumps to the Root menu
-  'a', jumps to the Audio menu
-  's', jumps to the Subpicture menu
-  'g', jumps to the Angle menu
-  'p', jumps to the PTT (Chapter) menu
-  'c', resume the movie if you have jumped to a menu
-  'i', save a screen shoot
-  'I', save a screen shoot with the subpicture overlay
-  'f', toggle between fullscreen and window mode
-  '1'-'4' slow-motion, without sound
-  '5' normal playback speed
-  '6'-'9' fast-forward, without sound
-  'q', exit the player
+See the oglerc file for keybindings.
+
 .br
 Screen shoots are saved in the Ogles current working directory as 
 screenshoot.jpg.
@@ -50,6 +36,8 @@ environment variable USE_FFB2_YUV2RGB.
 .SH FILES
 @CONFIG_FILE@
 $HOME/.oglerc
+.SH "SEE ALSO"
+oglerc(5)
 .SH NOTE
 For more information please visit http://www.dtek.chalmers.se/~dvd/
 .SH AUTHORS
