@@ -271,8 +271,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQSPUState:
     spu_state = ev->spustate.state;
-    DNOTE("spustate: %02x\n", spu_state);
-    //      redraw_request();
+    redraw_request();
     break;
   default:
     /* DNOTE("spu_mixer: ignoring event type (%d)\n", ev->type); */
@@ -596,11 +595,11 @@ static void decode_dcsq(spu_handle_t *spu_info)
     switch (command) {
     case 0x00: /* forced display start (often a menu) */
       DPRINTF(3, "\t\t\t\tforced display start\n");
-      spu_info->display_start = 1; // spu_info->menu = 1;
+      spu_info->display_start = 0x1; // spu_info->menu = 1;
       break;
     case 0x01: /* display start */
       DPRINTF(3, "\t\t\t\tdisplay start\n");
-      spu_info->display_start = 0x40;
+      spu_info->display_start = 0x2;
       break;
     case 0x02: /* display stop */
       DPRINTF(3, "\t\t\t\tdisplay stop\n");
@@ -1277,8 +1276,7 @@ void mix_subpicture_rgb(char *data, int width, int height)
   }
 
 
-  if(spu_info.display_start == 1 ||
-     spu_info.display_start & spu_state) {
+  if(spu_info.display_start & spu_state) {
     
     palette = palette_rgb;
 
@@ -1321,8 +1319,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
   }
 
 
-  if(spu_info.display_start == 1 ||
-     spu_info.display_start & spu_state) {
+  if(spu_info.display_start & spu_state) {
     
     int width = img->info->picture.padded_width;
     int height = img->info->picture.padded_height;

@@ -134,18 +134,47 @@ void actionSubpictureToggle(void *data)
   DVDResult_t res;
   int spu_nr;
   DVDStream_t spu_this;
-  DVDBool_t spu_shown;
+  DVDSubpictureState_t spu_state;
+  static DVDSubpictureState_t off_state = DVD_SUBPICTURE_STATE_OFF;
 
-  res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_shown);
+  struct action_number *user = (struct action_number *)data;
 
-  if(res != DVD_E_Ok) {
-    return;
-  }
+  if(user && user->nr >= 0 && user->nr < 4) {
 
-  if(spu_shown == DVDTrue) {
-    DVDSetSubpictureState(nav, DVDFalse);
+    switch(user->nr) {
+    case 0:
+      spu_state = DVD_SUBPICTURE_STATE_OFF;
+      off_state = spu_state;
+      break;
+    case 1:
+      spu_state = DVD_SUBPICTURE_STATE_ON;
+      break;
+    case 2:
+      spu_state = DVD_SUBPICTURE_STATE_FORCEDOFF;
+      off_state = spu_state;
+      break;
+    case 3:
+      spu_state = DVD_SUBPICTURE_STATE_DISABLED;
+      off_state = spu_state;
+      break;
+    default:
+      break;
+    }
+
+    DVDSetSubpictureState(nav, spu_state);
+
   } else {
-    DVDSetSubpictureState(nav, DVDTrue);
+    res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_state);
+    
+    if(res != DVD_E_Ok) {
+      return;
+    }
+    
+    if(spu_state != DVD_SUBPICTURE_STATE_ON) {
+      DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_ON);
+    } else {
+      DVDSetSubpictureState(nav, off_state);
+    }
   }
 }
 
@@ -570,6 +599,89 @@ void actionSaveScreenshotWithSPU(void *data)
 }
 
 
+static void printAudioAttributes(DVDAudioAttributes_t *attr)
+{
+  char *t_str;
+  switch(attr->AudioFormat) {
+  case DVD_AUDIO_FORMAT_AC3:
+    t_str = "AC-3";
+    break;
+  case DVD_AUDIO_FORMAT_MPEG1:    
+    t_str = "MPEG-1"; //MPEG-1 (or MPEG-2 without extension stream)
+    break;
+  case DVD_AUDIO_FORMAT_MPEG1_DRC:
+    t_str = "MPEG-1 DRC";
+    break;
+  case DVD_AUDIO_FORMAT_MPEG2:
+    t_str = "MPEG-2"; // MPEG-2 with extension stream
+    break;
+  case DVD_AUDIO_FORMAT_MPEG2_DRC:
+    t_str = "MPEG-2 DRC";
+    break;
+  case DVD_AUDIO_FORMAT_LPCM:
+    t_str = "LPCM";
+    break;
+  case DVD_AUDIO_FORMAT_DTS:
+    t_str = "DTS";
+    break;
+  case DVD_AUDIO_FORMAT_SDDS:
+    t_str = "SDDS";
+    break;
+  case DVD_AUDIO_FORMAT_Other:
+  default:
+    t_str = "Other";
+    break;
+  }
+  DNOTE("%s", t_str);
+  
+  if(attr->AudioFormat == DVD_AUDIO_FORMAT_LPCM) {
+    DNOTEC(" %d bits %d Hz", 
+	   attr->SampleQuantization,
+	   attr->SampleFrequency);
+  }
+  DNOTEC(" %dch", attr->NumberOfChannels);
+  
+  if(attr->AudioType == DVD_AUDIO_TYPE_Language) {
+    DNOTEC(" %c%c", attr->Language >> 8, attr->Language & 0xff);
+  }
+  
+  switch(attr->LanguageExtension) {
+  case DVD_AUDIO_LANG_EXT_NotSpecified:
+    t_str = "";
+    break;
+  case DVD_AUDIO_LANG_EXT_NormalCaptions:
+    t_str = "Normal Captions";
+    break;
+  case DVD_AUDIO_LANG_EXT_VisuallyImpaired:
+    t_str = "Captions for visually impaired";
+    break;
+  case DVD_AUDIO_LANG_EXT_DirectorsComments1:
+    t_str = "Director's comments 1";
+    break;
+  case DVD_AUDIO_LANG_EXT_DirectorsComments2:
+    t_str = "Director's comments 2";
+    break;
+  }
+  DNOTEC(" %s", t_str);
+  
+  switch(attr->AppMode) {
+  case DVD_AUDIO_APP_MODE_None:
+    t_str = "";
+    break;
+  case DVD_AUDIO_APP_MODE_Karaoke:
+    t_str = "Karaoke Mode";
+    break;
+  case DVD_AUDIO_APP_MODE_Surround:
+    t_str = "Surround Mode";
+    break;
+  case DVD_AUDIO_APP_MODE_Other:
+    t_str = "Other Mode";
+    break;
+  }
+  DNOTEC(" %s\n", t_str);
+}
+
+
 void actionAudioStreamChange(void *data)
 {
   int res;
@@ -597,94 +709,92 @@ void actionAudioStreamChange(void *data)
       if(res != DVD_E_Ok) {
 	DVDPerror("DVDAudioStreamChange: ", res);
       }
-      
+      DNOTE("get audioattr snr %d\n", new_stream);
       res = DVDGetAudioAttributes(nav, new_stream, &au_attr);
       if(res != DVD_E_Ok) {
 	ERROR("DVDGetAudioAttributes: %s\n", DVDStrerror(res));
       } else {
-	char *t_str;
-	switch(au_attr.AudioFormat) {
-	case DVD_AUDIO_FORMAT_AC3:
-	  t_str = "AC-3";
-	  break;
-	case DVD_AUDIO_FORMAT_MPEG1:    
-	  t_str = "MPEG-1"; //MPEG-1 (or MPEG-2 without extension stream)
-	  break;
-	case DVD_AUDIO_FORMAT_MPEG1_DRC:
-	  t_str = "MPEG-1 DRC";
-	  break;
-	case DVD_AUDIO_FORMAT_MPEG2:
-	  t_str = "MPEG-2"; // MPEG-2 with extension stream
-	  break;
-	case DVD_AUDIO_FORMAT_MPEG2_DRC:
-	  t_str = "MPEG-2 DRC";
-	  break;
-	case DVD_AUDIO_FORMAT_LPCM:
-	  t_str = "LPCM";
-	  break;
-	case DVD_AUDIO_FORMAT_DTS:
-	  t_str = "DTS";
-	  break;
-	case DVD_AUDIO_FORMAT_SDDS:
-	  t_str = "SDDS";
-	  break;
-	case DVD_AUDIO_FORMAT_Other:
-	default:
-	  t_str = "Other";
-	  break;
-	}
-	DNOTE("Audio Coding Mode: %s", t_str);
-	
-	if(au_attr.AudioFormat == DVD_AUDIO_FORMAT_LPCM) {
-	  DNOTEC(" %d bits %d Hz", 
-		 au_attr.SampleQuantization,
-		 au_attr.SampleFrequency);
-	}
-	DNOTEC(" %dch", au_attr.NumberOfChannels);
-	
-	if(au_attr.AudioType == DVD_AUDIO_TYPE_Language) {
-	  DNOTEC(" %c%c", au_attr.Language >> 8, au_attr.Language & 0xff);
-	}
-	
-	switch(au_attr.LanguageExtension) {
-	case DVD_AUDIO_LANG_EXT_NotSpecified:
-	  t_str = "";
-	  break;
-	case DVD_AUDIO_LANG_EXT_NormalCaptions:
-	  t_str = "Normal Captions";
-	  break;
-	case DVD_AUDIO_LANG_EXT_VisuallyImpaired:
-	  t_str = "Captions for visually impaired";
-	  break;
-	case DVD_AUDIO_LANG_EXT_DirectorsComments1:
-	  t_str = "Director's comments 1";
-	  break;
-	case DVD_AUDIO_LANG_EXT_DirectorsComments2:
-	  t_str = "Director's comments 2";
-	  break;
-	}
-	DNOTEC(" %s", t_str);
-	
-	switch(au_attr.AppMode) {
-	case DVD_AUDIO_APP_MODE_None:
-	  t_str = "";
-	  break;
-	case DVD_AUDIO_APP_MODE_Karaoke:
-	  t_str = "Karaoke Mode";
-	  break;
-	case DVD_AUDIO_APP_MODE_Surround:
-	  t_str = "Surround Mode";
-	  break;
-	case DVD_AUDIO_APP_MODE_Other:
-	  t_str = "Other Mode";
-	  break;
-	}
-	DNOTEC(" %s\n", t_str);
+	printAudioAttributes(&au_attr);
       }
     }
   } else {
     DVDPerror("DVDGetCurrentAudio: ", res);
   }
+}
+
+
+static void printSubpictureAttributes(DVDSubpictureAttributes_t *attr)
+{
+  char *t_str;
+  switch(attr->Type) {
+  case   DVD_SUBPICTURE_TYPE_NotSpecified:
+    t_str = "Not Specified";
+    break;
+  case   DVD_SUBPICTURE_TYPE_Language:
+    t_str = "Language";
+    break;
+  case   DVD_SUBPICTURE_TYPE_Other:
+    t_str = "Other";
+    break;
+  }
+  DNOTE("sp_attr: type: %s", t_str);
+  
+  switch(attr->CodingMode) {
+  case DVD_SUBPICTURE_CODING_RunLength:
+    t_str = "RLE";
+    break;
+  case DVD_SUBPICTURE_CODING_Extended:
+    t_str = "Extended";
+    break;
+  case DVD_SUBPICTURE_CODING_Other:
+    t_str = "Other";
+    break;
+  }	
+  DNOTEC(" codemode: %s", t_str);
+  
+  if(attr->Type == DVD_SUBPICTURE_TYPE_Language) {
+    DNOTEC(" lang: %c%c", 
+	   attr->Language >> 8,
+	   attr->Language & 0xff);
+    
+    switch(attr->LanguageExtension) {
+    case DVD_SUBPICTURE_LANG_EXT_NotSpecified:
+      t_str = "Not Specified";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_NormalCaptions:
+      t_str = "Normal Captions";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_BigCaptions:
+      t_str = "Big Captions";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_ChildrensCaptions:
+      t_str = "Childrend Captions";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_NormalCC:
+      t_str = "Normal CC";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_BigCC:
+      t_str = "Big CC";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_ChildrensCC:
+      t_str = "Childrens CC";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_Forced:
+      t_str = "Forced";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_NormalDirectorsComments:
+      t_str = "Normal Directors Comments";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_BigDirectorsComments:
+      t_str = "Big Directors Comments";
+      break;
+    case DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments:
+      t_str = "Childrens Directors Comments";
+      break;
+    }	    
+    DNOTEC(" lang_ext: %s", t_str);
+  }
+  DNOTEC("%s", "\n");
 }
 
 
@@ -694,7 +804,7 @@ void actionSubtitleStreamChange(void *data)
   int streams_avail;
   DVDSubpictureStream_t cur_stream;
   DVDSubpictureStream_t new_stream;
-  DVDBool_t subp_on;
+  DVDSubpictureState_t spu_state;
   DVDSubpictureAttributes_t sp_attr;
 
   struct action_number *user = (struct action_number *)data;
@@ -702,10 +812,10 @@ void actionSubtitleStreamChange(void *data)
   
   
   res = DVDGetCurrentSubpicture(nav, &streams_avail,
-				&cur_stream, &subp_on);
+				&cur_stream, &spu_state);
   if(res == DVD_E_Ok) {
     if(streams_avail > 0) {
-      if(subp_on == DVDTrue) {
+      if(spu_state == DVD_SUBPICTURE_STATE_ON) {
 	if(user != NULL && user->nr >=0 && user->nr < streams_avail) {
 	  new_stream = user->nr;
 	} else {
@@ -715,7 +825,7 @@ void actionSubtitleStreamChange(void *data)
 	if(new_stream >= streams_avail) {
 	  new_stream = 0;
 	  // if we are at the last stream, turn off subtitles
-	  res = DVDSetSubpictureState(nav, DVDFalse);
+	  res = DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_OFF);
 	  if(res != DVD_E_Ok) {
 	    DVDPerror("DVDSetSubpictureState: ", res);
 	  }
@@ -738,7 +848,7 @@ void actionSubtitleStreamChange(void *data)
 	  new_stream = cur_stream;
 	}
 
-	res = DVDSetSubpictureState(nav, DVDTrue);
+	res = DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_ON);
 	if(res != DVD_E_Ok) {
 	  DVDPerror("DVDSetSubpictureState: ", res);
 	}
@@ -749,76 +859,7 @@ void actionSubtitleStreamChange(void *data)
 	ERROR("DVDGetSubpictureAttributes: %s\n", DVDStrerror(res));
 	//DVDPerror("DVDGetSubpictureAttributes: ", res);
       } else {
-	char *t_str;
-	switch(sp_attr.Type) {
-	case   DVD_SUBPICTURE_TYPE_NotSpecified:
-	  t_str = "Not Specified";
-	  break;
-	case   DVD_SUBPICTURE_TYPE_Language:
-	  t_str = "Language";
-	  break;
-	case   DVD_SUBPICTURE_TYPE_Other:
-	  t_str = "Other";
-	  break;
-	}
-	DNOTE("sp_attr: type: %s", t_str);
-	
-	switch(sp_attr.CodingMode) {
-	case DVD_SUBPICTURE_CODING_RunLength:
-	  t_str = "RLE";
-	  break;
-	case DVD_SUBPICTURE_CODING_Extended:
-	  t_str = "Extended";
-	  break;
-	case DVD_SUBPICTURE_CODING_Other:
-	  t_str = "Other";
-	  break;
-	}	
-	DNOTEC(" codemode: %s", t_str);
-
-	if(sp_attr.Type == DVD_SUBPICTURE_TYPE_Language) {
-	  DNOTEC(" lang: %c%c", 
-	    sp_attr.Language >> 8,
-	    sp_attr.Language & 0xff);
-	  
-	  switch(sp_attr.LanguageExtension) {
-	  case DVD_SUBPICTURE_LANG_EXT_NotSpecified:
-	    t_str = "Not Specified";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_NormalCaptions:
-	    t_str = "Normal Captions";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_BigCaptions:
-	    t_str = "Big Captions";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_ChildrensCaptions:
-	    t_str = "Childrend Captions";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_NormalCC:
-	    t_str = "Normal CC";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_BigCC:
-	    t_str = "Big CC";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_ChildrensCC:
-	    t_str = "Childrens CC";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_Forced:
-	    t_str = "Forced";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_NormalDirectorsComments:
-	    t_str = "Normal Directors Comments";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_BigDirectorsComments:
-	    t_str = "Big Directors Comments";
-	    break;
-	  case DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments:
-	    t_str = "Childrens Directors Comments";
-	    break;
-	  }	    
-	DNOTEC(" lang_ext: %s", t_str);
-	}
-	DNOTEC("%s", "\n");
+	printSubpictureAttributes(&sp_attr);
       }
     }   
   } else {
@@ -913,7 +954,7 @@ static action_mapping_t actions[] = {
   { "SubtitleMenu", do_action, actionMenuCallSubpicture },
   { "Resume", do_action, actionResume },
   { "FullScreenToggle", do_action, actionFullScreenToggle },
-  { "SubtitleToggle", do_action, actionSubpictureToggle },
+  { "SubtitleToggle", do_number_action, actionSubpictureToggle },
   { "Quit", do_action, actionQuit },
   { "BookmarkAdd", do_action, actionBookmarkAdd },
   { "BookmarkRemove", do_number_action, actionBookmarkRemove },

@@ -63,6 +63,7 @@ static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
   dest->Frames  = bcd2int(source->frame_u & 0x3f);
 }
 
+static DVDSubpictureState_t subpicture_state = DVD_SUBPICTURE_STATE_OFF;
 
 MsgEventQ_t *msgq;
 
@@ -217,7 +218,68 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+/**
+ * returns the spustate (a mask telling the spu which types of subpictures
+ * to show (forced / normal)
+ */
+static uint32_t get_spustate(void)
+{
+  uint32_t spu_on;
+  int sN = vm_get_subp_active_stream();
+  
+  if(sN != -1) {
+    spu_on = sN & 0x40;
+  } else {
+    spu_on = 0;
+  }
+  
+  switch(subpicture_state) {
+  case DVD_SUBPICTURE_STATE_OFF:
+  case DVD_SUBPICTURE_STATE_ON:
+    if(spu_on) {
+      spu_on = 0x3;
+    } else {
+      spu_on = 0x1;
+    }
+    break;
+  case DVD_SUBPICTURE_STATE_FORCEDOFF:
+    if(state.domain == VTS_DOMAIN) {
+      spu_on = 0x0;
+    } else {
+      spu_on = 0x1;
+    }
+    break;
+  case DVD_SUBPICTURE_STATE_DISABLED:
+    spu_on = 0x0;
+    break;
+  }
+  
+  return spu_on;
+}
 
+/**
+ * Send spustate to the spu (only if it has changed)
+ */
+static int send_spustate(uint32_t spustate)
+{
+  MsgEvent_t ev;
+  static uint32_t prev_spustate = -1;
+
+  if(spustate != prev_spustate) {
+    prev_spustate = spustate;
+    
+    //send spu state to spumixer
+    //fprintf(stderr, "nav: spustate: %02x\n", spustate);
+    ev.type = MsgEventQSPUState;;
+    ev.spustate.state = spustate;
+    
+    if(send_spu(msgq, &ev) == -1) {
+      ERROR("%s", "faild sending highlight info\n");
+      return -1;
+    }
+  }
+  return 0;
+}
 
 /**
  * Update any info the demuxer needs, and then tell the demuxer
@@ -255,7 +317,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   }
   /* Tell the demuxer which audio stream to demux */ 
   {
-    int sN = vm_get_audio_stream(state.AST_REG);
+    int sN = vm_get_audio_active_stream();
     if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
     {
       static uint8_t old_id = 0xbd;
@@ -322,23 +384,18 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 
   /* Tell the demuxer which subpicture stream to demux */ 
   {
-    static int prev_spu_on = -1;
-    uint32_t spu_on;
     int sN = vm_get_subp_active_stream();
     
     if(sN != -1) {
-      spu_on = sN & 0x40;
       sN = sN & ~0x40;
-    } else {
-      spu_on = 0;
     }
-
+  
     if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
     if(sN != subp_stream_id) {
       subp_stream_id = sN;
       
       DNOTE("sending subp demuxstream %d\n", sN);
-    
+      
       ev.type = MsgEventQDemuxStreamChange;
       ev.demuxstreamchange.stream_id = 0xbd; // SPU
       ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
@@ -346,18 +403,8 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	ERROR("%s", "failed to send Subpicture demuxstream\n");
       }
     }
-    if(spu_on != prev_spu_on) {
-      prev_spu_on = spu_on;
 
-      //send spu state to spumixer
-      //fprintf(stderr, "nav: spu_on: %02x\n", spu_on);
-      ev.type = MsgEventQSPUState;;
-      ev.spustate.state = spu_on;
-
-      if(send_spu(msgq, &ev) == -1) {
-        ERROR("%s", "faild sending highlight info\n");
-      }
-    }
+    send_spustate(get_spustate());
     
   }
 
@@ -849,11 +896,20 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
     NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
     break;
   case DVDCtrlSetSubpictureState:
-    if(ev.dvdctrl.cmd.subpicturestate.display == DVDTrue)
+    subpicture_state = ev.dvdctrl.cmd.subpicturestate.display;
+
+    switch(subpicture_state) {
+    case DVD_SUBPICTURE_STATE_ON:
       state.SPST_REG |= 0x40; // Turn it on
-    else
+      break;
+    case DVD_SUBPICTURE_STATE_OFF:
+    case DVD_SUBPICTURE_STATE_FORCEDOFF:
+    case DVD_SUBPICTURE_STATE_DISABLED:
       state.SPST_REG &= ~0x40; // Turn it off
-    //NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
+      break;
+    }
+    
+    send_spustate(get_spustate());
     break;
   case DVDCtrlGetCurrentDomain:
     {
@@ -1076,8 +1132,16 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
       send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
       send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS & ~0x40;
-      send_ev.dvdctrl.cmd.currentsubpicture.display 
-	= (cS & 0x40) ? DVDTrue : DVDFalse;
+      switch(subpicture_state) {
+      case DVD_SUBPICTURE_STATE_FORCEDOFF:
+      case DVD_SUBPICTURE_STATE_DISABLED:
+	send_ev.dvdctrl.cmd.currentsubpicture.display = subpicture_state;
+	break;
+      default:
+	send_ev.dvdctrl.cmd.currentsubpicture.display 
+	  = (cS & 0x40) ? DVD_SUBPICTURE_STATE_ON : DVD_SUBPICTURE_STATE_OFF;
+	break;
+      }
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
     break;

@@ -151,6 +151,17 @@ typedef struct {
   uint8_t Frames;
 } DVDTimecode_t;
 
+
+/**
+ * Subpicture state
+ */
+typedef enum {
+  DVD_SUBPICTURE_STATE_OFF       = 0, /**< normal subpictures off */
+  DVD_SUBPICTURE_STATE_ON        = 1, /**< normal subpictures on  */
+  DVD_SUBPICTURE_STATE_FORCEDOFF = 2, /**< normal/forced subp off (vts dom) */
+  DVD_SUBPICTURE_STATE_DISABLED  = 3  /**< subpicture overlay off (all dom) */
+} DVDSubpictureState_t;
+
 /** 
  * Subpicture stream number (0-31,62,63)
  */

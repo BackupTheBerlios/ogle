@@ -856,7 +856,7 @@ DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
 				    DVDSubpictureStream_t *const CurrentStream,
-				    DVDBool_t *const Display)
+				    DVDSubpictureState_t *const State)
 {
   MsgEvent_t ev;
   int32_t serial;
@@ -882,7 +882,7 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentSubpicture)) {
       *StreamsAvailable = ev.dvdctrl.cmd.currentsubpicture.nrofstreams;
       *CurrentStream = ev.dvdctrl.cmd.currentsubpicture.currentstream;
-      *Display = ev.dvdctrl.cmd.currentsubpicture.display;
+      *State = ev.dvdctrl.cmd.currentsubpicture.display;
       return DVD_E_Ok;
     }
   } 
@@ -2491,13 +2491,13 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_FailedToSend Failed to send the request.
  */
-DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
+DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDSubpictureState_t State)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
   ev.dvdctrl.cmd.type = DVDCtrlSetSubpictureState;
-  ev.dvdctrl.cmd.subpicturestate.display = Display;
+  ev.dvdctrl.cmd.subpicturestate.display = State;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
     return DVD_E_FailedToSend;

@@ -327,7 +327,7 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
   int32_t serial;
-  DVDBool_t display;
+  DVDSubpictureState_t display;
 } DVDCtrlSubpictureStateEvent_t;
 
 typedef struct {
@@ -335,7 +335,7 @@ typedef struct {
   int32_t serial;
   int nrofstreams;
   DVDSubpictureStream_t currentstream;
-  DVDBool_t display;
+  DVDSubpictureState_t display;
 } DVDCtrlCurrentSubpictureEvent_t;
 
 typedef struct {

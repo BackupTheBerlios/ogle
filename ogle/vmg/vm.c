@@ -522,6 +522,25 @@ int vm_get_audio_stream(int audioN)
   return streamN;
 }
 
+int vm_get_audio_active_stream(void)
+{
+  int audioN = state.AST_REG;
+  int streamN = vm_get_audio_stream(audioN);
+  
+  /* If no such stream, then select the first one that exists. */
+  if(streamN == -1) {
+    for(audioN = 0; audioN < 8; audioN++) {
+      if(state.pgc->audio_control[audioN] & (1<<15)) {
+	streamN = vm_get_audio_stream(audioN);
+	break;
+      }
+    }
+  }
+
+  return streamN;
+}
+
+
 /**
  * Return the substream id for 'logical' subpicture stream subpN.
  * 0 <= subpN < 32

@@ -71,7 +71,7 @@ DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title,
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
 				    DVDSubpictureStream_t *const CurrentStream,
-				    DVDBool_t *const Enabled);
+				    DVDSubpictureState_t *const State);
 DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
 					 DVDSubpictureStream_t StreamNr,
 					 DVDBool_t *const Enabled);
@@ -170,7 +170,7 @@ DVDResult_t DVDVideoPresentationModeChange(DVDNav_t *nav,
 
 DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
 				      DVDSubpictureStream_t SubpictureNr);
-DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display);
+DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDSubpictureState_t state);
 DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav,
 					       DVDLangID_t Lang);
 

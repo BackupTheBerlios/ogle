@@ -104,6 +104,7 @@ int vm_jump_title_ptt(int titleN, int pttN);
 int vm_jump_title(int titleN);
 int vm_time_play(dvd_time_t *time, unsigned int offset);
 int vm_get_audio_stream(int audioN);
+int vm_get_audio_active_stream(void);
 int vm_get_subp_stream(int subpN);
 int vm_get_subp_active_stream(void);
 void vm_get_angle_info(int *num_avail, int *current);
