@@ -32,7 +32,8 @@
 
 #define MODE_RGB  0x1
 #define MODE_BGR  0x2
-
+#define MODE_RGB_ALIEN 0x5
+#define MODE_BGR_ALIEN 0x6
 typedef void (*yuv2rgb_fun)(uint8_t* image,
 			    const uint8_t* py,
 			    const uint8_t* pu,

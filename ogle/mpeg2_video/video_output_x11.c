@@ -493,19 +493,20 @@ static void display_init_xshm()
   fprintf(stderr, "red_mask: %08x\n", window.ximage->red_mask);
   fprintf(stderr, "blue_mask: %08x\n", window.ximage->blue_mask);
   fprintf(stderr, "green_mask: %08x\n", window.ximage->green_mask);
- 
-  mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
-  /*
-    #ifdef WORDS_BIGENDIAN 
-    if (window.ximage->byte_order != MSBFirst)
-    #else
-    if (window.ximage->byte_order != LSBFirst) 
-    #endif
-    {
-    FATAL("No support for non-native XImage byte order!\n" );
-    exit(1);
+  mode = ((window.ximage->blue_mask & 0x01) != 0) ? MODE_RGB : MODE_BGR;
+  
+#ifdef WORDS_BIGENDIAN 
+  if (window.ximage->byte_order != MSBFirst) {
+#else
+  if (window.ximage->byte_order != LSBFirst) {
+#endif
+    if(mode == MODE_RGB) {
+      mode = MODE_RGB_ALIEN;
+    } else {
+      mode = MODE_BGR_ALIEN;
     }
-  */
+  }
+  
   yuv2rgb_init(pixel_stride, mode);
   mix_subpicture_init(pixel_stride, mode);
 }

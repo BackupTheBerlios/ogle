@@ -125,7 +125,9 @@ static int rgbmode,pixelstride;
 #define MAX_BUF_SIZE 65536
 #define MODE_RGB  0x1
 #define MODE_BGR  0x2
-
+#define MODE_RGB_ALIEN 0x5
+#define MODE_BGR_ALIEN 0x6
+#define MODE_ALIEN_MASK 0x4
 
 extern void redraw_request(void);
 extern int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
@@ -170,7 +172,7 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
   if(Er < 0)
     Er = 0;
 
-  if( rgbmode == MODE_BGR ) {
+  if( rgbmode == MODE_BGR || rgbmode == MODE_RGB_ALIEN) {
     result = (Eb << 16) | (Eg << 8) | Er;
   } else {
     result = (Er << 16) | (Eg << 8) | Eb;  
@@ -828,22 +830,44 @@ static void display_mix_function_bgr32(uint32_t color, uint32_t contrast,
     
     /* if no transparancy just overwrite */
     if(contrast == (0xf<<4)) {
-      for(n = 0; n < length; n++, pixel++) {
-	*pixel = color;
+      if(rgbmode & MODE_ALIEN_MASK) {
+	for(n = 0; n < length; n++, pixel++) {
+	  *pixel = color<<8;
+	}
+      } else {
+	for(n = 0; n < length; n++, pixel++) {
+	  *pixel = color;
+	}
       }
     } else {
-      for(n = 0; n < length; n++, pixel++) {
-	unsigned int pr, pg, pb;
-	uint32_t source = *pixel;
-	pr = source & 0xff;
-	pg = (source >> 8) & 0xff;
-	pb = (source >> 16) & 0xff;
-	
-	pr = (pr * invcontrast + r * contrast) >> 8;
-	pg = (pg * invcontrast + g * contrast) >> 8;
-	pb = (pb * invcontrast + b * contrast) >> 8;
-	
-	*pixel = (pb << 16) | (pg << 8) | pr;
+      if(rgbmode & MODE_ALIEN_MASK) {
+	for(n = 0; n < length; n++, pixel++) {
+	  unsigned int pr, pg, pb;
+	  uint32_t source = *pixel;
+	  pr = (source >> 8)  & 0xff;
+	  pg = (source >> 16) & 0xff;
+	  pb = (source >> 24) & 0xff;
+	  
+	  pr = (pr * invcontrast + r * contrast) >> 8;
+	  pg = (pg * invcontrast + g * contrast) >> 8;
+	  pb = (pb * invcontrast + b * contrast) >> 8;
+	  
+	  *pixel = (pb << 24) | (pg << 16) | (pr << 8);
+	}
+      } else {
+	for(n = 0; n < length; n++, pixel++) {
+	  unsigned int pr, pg, pb;
+	  uint32_t source = *pixel;
+	  pr = source & 0xff;
+	  pg = (source >> 8) & 0xff;
+	  pb = (source >> 16) & 0xff;
+	  
+	  pr = (pr * invcontrast + r * contrast) >> 8;
+	  pg = (pg * invcontrast + g * contrast) >> 8;
+	  pb = (pb * invcontrast + b * contrast) >> 8;
+	  
+	  *pixel = (pb << 16) | (pg << 8) | pr;
+	}
       }
     }
   }

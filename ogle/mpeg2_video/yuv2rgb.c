@@ -239,6 +239,176 @@ static void YUV2ABGR420_32(uint8_t* image, const uint8_t* py,
     }
 }
 
+
+static void YUV2RGBA420_32(uint8_t* image, const uint8_t* py, 
+			   const uint8_t* pu, const uint8_t* pv, 
+			   const uint32_t h_size, const uint32_t v_size, 
+			   const uint32_t rgb_stride, const uint32_t y_stride,
+			   const uint32_t uv_stride) 
+{
+  int Y,U,V;
+  int  g_common,b_common,r_common;
+  unsigned int x,y;
+  
+  uint32_t *dst_line_1;
+  uint32_t *dst_line_2;
+  const uint8_t* py_line_1;
+  const uint8_t* py_line_2;
+  
+  /* matrix coefficients */
+  const int cy  = 76310;  /* 1.1644 << 16 */
+  const int crv = 104635; /* 1.5966 << 16 */
+  const int cbu = 132278; /* 2.0184 << 16 */
+  const int cgu = 25690;  /* 0.3920 << 16 */
+  const int cgv = 53294;  /* 0.8132 << 16 */
+	
+  dst_line_1 = (uint32_t *)(image);
+  dst_line_2 = (uint32_t *)(image + rgb_stride);
+  
+  py_line_1 = py;
+  py_line_2 = py + y_stride;
+  
+  for (y = 0; y < v_size / 2; y++) 
+    {
+      for (x = 0; x < h_size / 2; x++) 
+	{
+	  uint32_t pixel1,pixel2,pixel3,pixel4;
+
+	  //Common to all four pixels
+	  U = (*pu++) - 128;
+	  V = (*pv++) - 128;
+
+	  r_common = crv * V + 32768;
+	  g_common = cgu * U + cgv * V - 32768;
+	  b_common = cbu * U + 32768;
+
+	  //Pixel I
+	  Y = cy * ((*py_line_1++) - 16);
+	  pixel1 = 
+	    clip[(Y+r_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+b_common)>>16]<<8;
+	  *dst_line_1++ = pixel1;
+		  
+	  //Pixel II
+	  Y = cy * ((*py_line_1++) - 16);
+	  pixel2 = 
+	    clip[(Y+r_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+b_common)>>16]<<8;
+	  *dst_line_1++ = pixel2;
+
+	  //Pixel III
+	  Y = cy * ((*py_line_2++) - 16);
+	  pixel3 = 
+	    clip[(Y+r_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+b_common)>>16]<<8;
+	  *dst_line_2++ = pixel3;
+
+	  //Pixel IV
+	  Y = cy * ((*py_line_2++) - 16);
+	  pixel4 = 
+	    clip[(Y+r_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16|
+	    clip[(Y+b_common)>>16]<<8;
+	  *dst_line_2++ = pixel4;
+	}
+
+      py_line_1 += y_stride;
+      py_line_2 += y_stride;
+      pu += uv_stride - h_size/2;
+      pv += uv_stride - h_size/2;
+      dst_line_1 += rgb_stride/4;
+      dst_line_2 += rgb_stride/4;
+    }
+}
+
+static void YUV2BGRA420_32(uint8_t* image, const uint8_t* py, 
+			   const uint8_t* pu, const uint8_t* pv, 
+			   const uint32_t h_size, const uint32_t v_size, 
+			   const uint32_t rgb_stride, const uint32_t y_stride, 
+			   const uint32_t uv_stride)
+{
+  int Y,U,V;
+  int g_common,b_common,r_common;
+  unsigned int x,y;
+  
+  uint32_t *dst_line_1;
+  uint32_t *dst_line_2;
+  const uint8_t* py_line_1;
+  const uint8_t* py_line_2;
+  
+  /* matrix coefficients */
+  const int cy  = 76310;  /* 1.1644 << 16 */
+  const int crv = 104635; /* 1.5966 << 16 */
+  const int cbu = 132278; /* 2.0184 << 16 */
+  const int cgu = 25690;  /* 0.3920 << 16 */
+  const int cgv = 53294;  /* 0.8132 << 16 */
+	
+  dst_line_1 = (uint32_t *)(image);
+  dst_line_2 = (uint32_t *)(image + rgb_stride);
+  
+  py_line_1 = py;
+  py_line_2 = py + y_stride;
+  
+  for (y = 0; y < v_size / 2; y++) 
+    {
+      for (x = 0; x < h_size / 2; x++) 
+	{
+	  uint32_t pixel1,pixel2,pixel3,pixel4;
+
+	  //Common to all four pixels
+	  U = (*pu++) - 128;
+	  V = (*pv++) - 128;
+
+	  r_common = crv * V + 32768;
+	  g_common = cgu * U + cgv * V - 32768;
+	  b_common = cbu * U + 32768;
+
+	  //Pixel I
+	  Y = cy * ((*py_line_1++) - 16);
+	  pixel1 = 
+	    clip[(Y+b_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+r_common)>>16]<<8;
+	  *dst_line_1++ = pixel1;
+		  
+	  //Pixel II
+	  Y = cy * ((*py_line_1++) - 16);
+	  pixel2 = 
+	    clip[(Y+b_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+r_common)>>16]<<8;
+	  *dst_line_1++ = pixel2;
+
+	  //Pixel III
+	  Y = cy * ((*py_line_2++) - 16);
+	  pixel3 = 
+	    clip[(Y+b_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16 |
+	    clip[(Y+r_common)>>16]<<8;
+	  *dst_line_2++ = pixel3;
+
+	  //Pixel IV
+	  Y = cy * ((*py_line_2++) - 16);
+	  pixel4 = 
+	    clip[(Y+b_common)>>16]<<24 |
+	    clip[(Y-g_common)>>16]<<16|
+	    clip[(Y+r_common)>>16]<<8;
+	  *dst_line_2++ = pixel4;
+	}
+
+      py_line_1 += y_stride;
+      py_line_2 += y_stride;
+      pu += uv_stride - h_size/2;
+      pv += uv_stride - h_size/2;
+      dst_line_1 += rgb_stride/4;
+      dst_line_2 += rgb_stride/4;
+    }
+}
+
+
 static void YUV2RGB420_24(uint8_t* image, const uint8_t* py, 
 			  const uint8_t* pu, const uint8_t* pv, 
 			  const uint32_t h_size, const uint32_t v_size, 
@@ -509,16 +679,16 @@ static yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode)
   
   if( bpp == 15 || bpp == 16 ) {
     createCLUT( bpp, mode );
-    if( mode == MODE_RGB )
+    if( mode == MODE_RGB || mode == MODE_BGR_ALIEN )
       return YUV2RGB420_16;
-    else if( mode == MODE_BGR )
+    else if( mode == MODE_BGR || mode == MODE_RGB_ALIEN)
       return YUV2BGR420_16;
   }
   
   if( bpp == 24 ) {
-    if( mode == MODE_RGB )
+    if( mode == MODE_RGB || mode == MODE_BGR_ALIEN)
       return YUV2RGB420_24;
-    else if( mode == MODE_BGR )
+    else if( mode == MODE_BGR || mode == MODE_RGB_ALIEN)
       return YUV2BGR420_24;
   }
   
@@ -527,6 +697,10 @@ static yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode)
       return YUV2ARGB420_32;
     else if( mode == MODE_BGR )
       return YUV2ABGR420_32;
+    else if( mode == MODE_RGB_ALIEN )
+      return YUV2BGRA420_32;
+    else if( mode == MODE_BGR_ALIEN )
+      return YUV2RGBA420_32;
   }
   
   fprintf( stderr, "%ibpp not supported by yuv2rgb\n", bpp );
