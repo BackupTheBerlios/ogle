@@ -489,7 +489,7 @@ void motion_vector(int r, int s)
   
     // Get the predictor
     if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) && 
-       (pic.coding_ext.picture_structure ==  0x3))
+       (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
       prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
     else
       prediction = pic.PMV[r][s][t];
@@ -509,7 +509,7 @@ void motion_vector(int r, int s)
     
     // Update predictors
     if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) && 
-       (pic.coding_ext.picture_structure ==  0x3))
+       (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
       pic.PMV[r][s][t] = vector * 2;
     else
       pic.PMV[r][s][t] = vector;
@@ -543,13 +543,13 @@ int macroblock_modes(void)
 {
   DPRINTF(3, "macroblock_modes\n");
 
-  if(pic.header.picture_coding_type == 0x01) {           /* I-picture */
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_I) {
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
 
-  } else if(pic.header.picture_coding_type == 0x02) {    /* P-picture */
+  } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
 
-  } else if(pic.header.picture_coding_type == 0x03) {    /* B-picture */
+  } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
   } else {
@@ -580,7 +580,7 @@ int macroblock_modes(void)
 
   if(mb.modes.macroblock_motion_forward ||
      mb.modes.macroblock_motion_backward) {
-    if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
       if(pic.coding_ext.frame_pred_frame_dct == 0) {
 	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
       } else {
@@ -593,7 +593,7 @@ int macroblock_modes(void)
   }
 
   /* if(decode_dct_type) */
-  if((pic.coding_ext.picture_structure == 0x03 /*frame*/) &&
+  if((pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) &&
      (pic.coding_ext.frame_pred_frame_dct == 0) &&
      (mb.modes.macroblock_intra || mb.modes.macroblock_pattern)) {
     
@@ -666,11 +666,11 @@ int macroblock(void)
     /* There is plenty of room to optimize this */
     switch(pic.header.picture_coding_type) {
     
-    case 0x1:
+    case PIC_CODING_TYPE_I:
       fprintf(stderr, "*** skipped blocks in I-picture\n");
       return -1; // Error parsing bitstream
     
-    case 0x2:
+    case PIC_CODING_TYPE_P:
       DPRINTF(3,"in P-picture\n");
       /* Assume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
@@ -678,7 +678,7 @@ int macroblock(void)
       reset_vectors(); // Instead of explicit set to zero.
       break;
     
-    case 0x3:
+    case PIC_CODING_TYPE_B:
       DPRINTF(3,"in B-frame\n");
       break;
     }
@@ -716,7 +716,7 @@ int macroblock(void)
   // Reset predictors: when a macroblock is skipped in a P-picture. */
   if(mb.macroblock_address_increment > 1) {
     reset_dc_dct_pred(); // Could be moved but fitts fine here
-    if(pic.header.picture_coding_type == 0x2)
+    if(pic.header.picture_coding_type == PIC_CODING_TYPE_P)
       reset_PMV();
   }
   
@@ -733,10 +733,10 @@ int macroblock(void)
  
   switch (pic.header.picture_coding_type) {
   
-  case 0x01: /* I-picture */
+  case PIC_CODING_TYPE_I: /* I-picture */
     break;
   
-  case 0x02: /* P-picture */
+  case PIC_CODING_TYPE_P: /* P-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
       reset_vectors();
@@ -750,7 +750,7 @@ int macroblock(void)
     }
     break;
   
-  case 0x03: /* B-picture */
+  case PIC_CODING_TYPE_B: /* B-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
       reset_vectors();
