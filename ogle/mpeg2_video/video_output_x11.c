@@ -332,6 +332,7 @@ void display_init(int padded_width, int padded_height,
   exit(1);
 
 }
+
 void display_change_size(int new_width, int new_height) {
   int padded_width = windows[0].image->padded_width;
   int padded_height = windows[0].image->padded_height;
@@ -585,51 +586,46 @@ void display(yuv_image_t *current_image)
 	  display_exit();
 	  exit_program(0);
 	  break;
-#ifdef HAVE_MLIB
 	case 's':
 	  scalemode_change = 1;
 	  break;
 	case '1':
-	  if(!debug_change && !scalemode_change) {
-	    display_change_size( windows[0].image->horizontal_size, 
-				windows[0].image->vertical_size);
-	  }
-	  break;
 	case '2':
-	  if(!debug_change && !scalemode_change) {
-	    display_change_size( windows[0].image->horizontal_size * 2, 
-				windows[0].image->vertical_size * 2);
-	  }
-	  break;
 	case '3':
-	  if(!debug_change && !scalemode_change) {
-	    display_change_size( windows[0].image->horizontal_size * 3,
-				windows[0].image->vertical_size * 3);
+	  if(debug_change) 
+	    break; /* Handled below the switch */
+	  else if(scalemode_change) {
+#ifdef HAVE_MLIB
+	    switch(atoi(&buff[0])) {
+	    case 1:
+	      scalemode = MLIB_NEAREST;
+	      break;
+	    case 2:
+	      scalemode = MLIB_BILINEAR;
+	      break;
+	    case 3:
+	      scalemode = MLIB_BICUBIC;
+	      break;
+	    case 4:
+	      scalemode = MLIB_BICUBIC2;
+	      break;
+	    default:
+	      break;
+	    }
+#endif
+	    scalemode_change = 0;	  
+	  }
+	  else { /* Scale size */
+#ifdef HAVE_MLIB
+	    int x = atoi(&buff[0]);
+	    display_change_size(windows[0].image->horizontal_size * x, 
+				windows[0].image->vertical_size * x);
+#endif
 	  }
 	  break;
 	default:
 	  break;
-	} /* end case */
-	if(scalemode_change && buff[0] != 's') {
-	  switch(atoi(&buff[0])) {
-	  case 1:
-	    scalemode = MLIB_NEAREST;
-	    break;
-	  case 2:
-	    scalemode = MLIB_BILINEAR;
-	    break;
-	  case 3:
-	    scalemode = MLIB_BICUBIC;
-	    break;
-	  case 4:
-	    scalemode = MLIB_BICUBIC2;
-	    break;
-	  }
-	  scalemode_change = 0;	  
-	}
-#else
-        } /* end case */
-#endif /* HAVE_MLIB */
+	} /* end case KeyPress */
 	if(debug_change && buff[0] != 'd') {
 	  debug = atoi(&buff[0]);
 	  debug_change = 0;
@@ -645,8 +641,7 @@ void display(yuv_image_t *current_image)
 }
 
 void draw_win_x11(debug_win *dwin)
-{             
-              
+{ 
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
           dwin->image->padded_width,
           dwin->image->padded_height,
@@ -662,17 +657,17 @@ void draw_win_x11(debug_win *dwin)
   }       
 
   if(screenshot) {
-    screenshot=0;
-    //    screenshot_jpg(dwin->data, dwin->ximage);
+    screenshot = 0;
+    screenshot_jpg(dwin->data, dwin->ximage);
   }
 
-  //Display_Image(dwin->win, dwin->ximage, dwin->data, dwin->image);
   XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
 	       0, 0, 0, 0, 
                dwin->image->horizontal_size, dwin->image->vertical_size, 1);
-
-  return;
+  // XSync(mydisplay, False); or
+  // XFlushmydisplay);
 }
+
 #ifdef HAVE_MLIB
 void draw_win(debug_win *dwin)
 {
@@ -689,9 +684,9 @@ void draw_win(debug_win *dwin)
   if( offs > 0 )
     address += offs;
     
-  // Because mlib_YUV* reads outofbounds we need to make sure that the end
+  // Because mlib_YUV* reads out of bounds we need to make sure that the end
   // of the picture isn't on the pageboundary for in the last page allocated
-  // There is also something strange with the mlib_ImageZoom in nearest mode.
+  // There is also something strange with the mlib_ImageZoom in NEAREST mode.
 			      
   /* We must some how guarantee that the ximage isn't used by X11. 
      Rigth now it's done by the XSync call at the bottom... */
@@ -703,51 +698,52 @@ void draw_win(debug_win *dwin)
 	  dwin->image->padded_width, dwin->image->padded_width/2 );
   
   if(dwin->grid) {
-    add_grid(dwin->data, dwin->ximage);
-  }
+    if(dwin->color_grid) {
+      add_color_grid(dwin);
+    } else {  
+      add_grid(dwin->data, dwin->ximage);
+    }       
+  }       
   
   if( (scaled_image_width != dwin->image->horizontal_size) ||
       (scaled_image_height != dwin->image->vertical_size )) {
-    /*
-    mylib_VideoScaleABGR( dwin->data,
-			  address,
-			  scaled_image_width,
-			  scaled_image_height,
-			  dwin->image->horizontal_size,
-			  dwin->image->vertical_size,
-			  MAX(dwin->image->padded_width, scaled_image_width)
-			  * (pixel_stride/8),
-			  dwin->image->padded_width*(pixel_stride/8));
-    */
-    mimage_d 
-      = mlib_ImageCreateStruct(MLIB_BYTE, 4,
-			       scaled_image_width, scaled_image_height,
-			       dwin->ximage->bytes_per_line, dwin->data);
-  
+    /* Destination image */
+    mimage_d = mlib_ImageCreateStruct(MLIB_BYTE, 4,
+				      scaled_image_width, 
+				      scaled_image_height,
+				      dwin->ximage->bytes_per_line, 
+				      dwin->data);
+    /* Source image */
     mimage_s = mlib_ImageCreateStruct(MLIB_BYTE, 4, 
 				      dwin->image->horizontal_size, 
 				      dwin->image->vertical_size,
 				      dwin->image->padded_width*4, address);
-    
-    mlib_ImageZoom (mimage_d, mimage_s,
-		    (double)scaled_image_width/(double)dwin->image->horizontal_size, 
-		    (double)scaled_image_height/(double)dwin->image->vertical_size,
-		    scalemode, MLIB_EDGE_DST_FILL_ZERO);
-  
+    /* Extra fast 2x Zoom */
+    if((scaled_image_width == 2 * dwin->image->horizontal_size) &&
+       (scaled_image_height == 2 * dwin->image->vertical_size)) {
+      mlib_ImageZoomIn2X(mimage_d, mimage_s, 
+			 scalemode, MLIB_EDGE_DST_FILL_ZERO);
+    } else {
+      mlib_ImageZoom 
+	(mimage_d, mimage_s,
+	 (double)scaled_image_width/(double)dwin->image->horizontal_size, 
+	 (double)scaled_image_height/(double)dwin->image->vertical_size,
+	 scalemode, MLIB_EDGE_DST_FILL_ZERO);
+    }
     mlib_ImageDelete(mimage_s);
     mlib_ImageDelete(mimage_d);
   }
   
   if(screenshot) {
-    screenshot=0;
+    screenshot = 0;
     screenshot_jpg(dwin->data, dwin->ximage);
   }
   
   XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0, 
 	       scaled_image_width, scaled_image_height, 1);
-
+  
+  //TEST
   XSync(mydisplay, False);
-  return;
 }
 #endif /* HAVE_MLIB */
 
@@ -757,7 +753,7 @@ void draw_win(debug_win *dwin)
   unsigned char *dst;
   int size;
 
-  if (xv_port == 0) { /* NO xv found */
+  if (xv_port == 0) { /* No xv found */
     draw_win_x11(dwin);
   } else {
     dst = xv_image->data;
@@ -783,11 +779,9 @@ void draw_win(debug_win *dwin)
 #endif /* HAVE_XV */
 
 #if !defined(HAVE_MLIB) && !defined(HAVE_XV)
-
 void draw_win(debug_win *dwin)
 {
    draw_win_x11(dwin);
 }
-
 #endif /* Neither HAVE_MLIB or HAVE_XV */
 
