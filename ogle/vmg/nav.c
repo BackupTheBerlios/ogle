@@ -405,7 +405,7 @@ void do_run(void) {
       
       /* Is there any video data in the next vobu? */
       if((dsi.vobu_sri.next & 0x80000000) == 0 
-	 && dsi.vobu_gi.vobu_1stref_ea != 0 
+	 && dsi.dsi_gi.vobu_1stref_ea != 0 
 	 /* &&  there were video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
 	fprintf(stderr, "flush_video = 1;\n");
