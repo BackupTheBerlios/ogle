@@ -203,30 +203,30 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
   
   if((capability & DECODE_AC3_AUDIO) == capability) {
     name = getenv("DVDP_AC3");
-    ret_capability = DECODE_AC3_AUDIO;
+    *ret_capability = DECODE_AC3_AUDIO;
   } else if((capability & (DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO))
 	    == capability) {
     name = getenv("DVDP_MPEGAUDIO");
-    ret_capability = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
+    *ret_capability = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
   } else if((capability & DECODE_DVD_SPU) == capability) {
     name = getenv("DVDP_SPU");
-    ret_capability = DECODE_DVD_SPU;
+    *ret_capability = DECODE_DVD_SPU;
   } else if((capability & (DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO))
 	    == capability) {
     name = getenv("DVDP_VIDEO");
-    ret_capability = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
+    *ret_capability = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
   } else if((capability & (DEMUX_MPEG1 | DEMUX_MPEG2_PS))
 	    == capability) {
     name = getenv("DVDP_DEMUX");
-    ret_capability = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
+    *ret_capability = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
   } else if((capability & (UI_MPEG_CLI | UI_DVD_CLI))
 	    == capability) {
     name = getenv("DVDP_UI");
-    ret_capability = UI_MPEG_CLI | UI_DVD_CLI;
+    *ret_capability = UI_MPEG_CLI | UI_DVD_CLI;
   } else if((capability & (DECODE_DVD_NAV))
 	    == capability) {
     name = getenv("DVDP_VMG");
-    ret_capability = DECODE_DVD_NAV;
+    *ret_capability = DECODE_DVD_NAV;
   }
 
   return name;
@@ -255,15 +255,15 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQReqCapability:
     {
-      int found;
       char *decodername;
+      MsgEvent_t retev;
       cap_state_t state = 0;
       fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
-      ev->type = MsgEventQGntCapability;
+      retev.type = MsgEventQGntCapability;
       
       if(!search_capabilities(ev->reqcapability.capability,
-			      &ev->gntcapability.capclient,
-			      &ev->reqcapability.capability,
+			      &retev.gntcapability.capclient,
+			      &retev.gntcapability.capability,
 			      &state)) {
 	int fullcap;
 	
@@ -284,8 +284,8 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       
       while(search_capabilities(ev->reqcapability.capability,
-				&ev->gntcapability.capclient,
-				&ev->reqcapability.capability,
+				&retev.gntcapability.capclient,
+				&retev.gntcapability.capability,
 				&state) &&
 	    (state != CAP_running)) {
 	MsgNextEvent(q, &r_ev);
@@ -293,10 +293,11 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       
       if(state == CAP_running) {
-	MsgSendEvent(q, ev->gntcapability.client, ev);
+	MsgSendEvent(q, ev->reqcapability.client, ev);
       } else {
 	fprintf(stderr, "ctrl: didn't find capability\n");
-	MsgSendEvent(q, ev->gntcapability.client, ev);
+	retev.gntcapability.client = CLIENT_NONE;
+	MsgSendEvent(q, ev->reqcapability.client, ev);
       }
     }
     break;
