@@ -434,7 +434,7 @@ int get_q()
     }
 #else
     
-    clocktime_t apa = {0, 100000000};
+    clocktime_t apa = {0, 20000000};
     timesub(&apa, &time_offset, &apa);
     
     if(TIME_SS(apa) > 10000000 || TIME_S(apa) > 0) {
