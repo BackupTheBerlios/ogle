@@ -335,37 +335,37 @@ int input() {
       sendev.changefile.filename[PATH_MAX] = '\0';
       
     } else if(strcmp(tok, "btn") == 0) {
-      sendev.type = MsgEventQUserInput;
+      sendev.type = MsgEventQDVDCtrl;
       if(!nav_client) {
 	request_nav();
       }
       rcpt = nav_client;
       tok = strtok(NULL, " ");
       if(strcmp(tok, "up") == 0) {
-	sendev.userinput.cmd = InputCmdButtonUp;
+	sendev.dvdctrl.cmd.type = DVDCtrlUpperButtonSelect;
       } else if(strcmp(tok, "down") == 0) {
-	sendev.userinput.cmd = InputCmdButtonDown;
+	sendev.dvdctrl.cmd.type = DVDCtrlLowerButtonSelect;
       } else if(strcmp(tok, "left") == 0) {
-	sendev.userinput.cmd = InputCmdButtonLeft;
+	sendev.dvdctrl.cmd.type = DVDCtrlLeftButtonSelect;
       } else if(strcmp(tok, "right") == 0) {
-	sendev.userinput.cmd = InputCmdButtonRight;
+	sendev.dvdctrl.cmd.type = DVDCtrlRightButtonSelect;
       } else if(strcmp(tok, "activate") == 0) {
-	sendev.userinput.cmd = InputCmdButtonActivate;
+	sendev.dvdctrl.cmd.type = DVDCtrlButtonActivate;
       }
     } else if(strcmp(tok, "btnnr") == 0) {
-      sendev.type = MsgEventQUserInput;
+      sendev.type = MsgEventQDVDCtrl;
       if(!nav_client) {
 	request_nav();
       }
       rcpt = nav_client;
       tok = strtok(NULL, " ");
       if(strcmp(tok, "activate") == 0) {
-	sendev.userinput.cmd = InputCmdButtonActivateNr;
+	sendev.dvdctrl.cmd.type = DVDCtrlButtonSelectAndActivate;
       } else if(strcmp(tok, "select") == 0) {
-	sendev.userinput.cmd = InputCmdButtonSelectNr;
+	sendev.dvdctrl.cmd.type = DVDCtrlButtonSelect;
       }
       tok = strtok(NULL, " ");
-      sendev.userinput.button_nr = strtol(tok, NULL, 0);	
+      sendev.dvdctrl.cmd.button.nr = strtol(tok, NULL, 0);	
 
     } else if(strcmp(tok, "speed") == 0) {
       rcpt = CLIENT_RESOURCE_MANAGER;
