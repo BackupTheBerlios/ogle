@@ -72,6 +72,7 @@ int vm_prev_pg(void);
 int vm_get_audio_stream(int audioN);
 int vm_get_subp_stream(int subpN);
 int vm_get_subp_active_stream(void);
+void vm_get_angle_info(int *num_avail, int *current);
 void vm_get_audio_info(int *num_avail, int *current);
 void vm_get_subp_info(int *num_avail, int *current);
 subp_attr_t vm_get_subp_attr(int streamN);

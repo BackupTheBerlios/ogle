@@ -382,6 +382,18 @@ int vm_get_subp_active_stream(void)
   }
 }
 
+void vm_get_angle_info(int *num_avail, int *current)
+{
+  if(state.domain == VTS_DOMAIN) {
+    *num_avail = vmgi->tt_srpt->title_info[state.TTN_REG].nr_of_angles;
+    *current = state.AGL_REG;
+  } else {
+    *num_avail = 1;
+    *current = 1;
+  }
+}
+
+
 void vm_get_audio_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {

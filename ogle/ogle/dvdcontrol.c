@@ -372,10 +372,29 @@ DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
-DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, const int *AnglesAvailable,
-			       const DVDAngle_t *CurrentAngle)
+DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
+			       DVDAngle_t *const CurrentAngle)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAngle;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentAngle)) {
+      *AnglesAvailable = ev.dvdctrl.cmd.currentangle.anglesavailable;
+      *CurrentAngle = ev.dvdctrl.cmd.currentangle.anglenr;
+      return DVD_E_Ok;
+    }
+  } 
+
 }
 
 
@@ -1394,7 +1413,16 @@ DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask
  */
 DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlAngleChange;
+  ev.dvdctrl.cmd.anglechange.anglenr = AngleNr;
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
 
 

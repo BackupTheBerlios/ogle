@@ -671,6 +671,9 @@ void do_run(void) {
 	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);
 	  break;
+	case DVDCtrlAngleChange:
+	  state.AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
+	  break;
 	case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
 	  state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
 	  break;
@@ -771,6 +774,18 @@ void do_run(void) {
 	    }
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }	  
+	  break;
+	case DVDCtrlGetCurrentAngle:
+	  {
+	    MsgEvent_t send_ev;
+	    int nS, cS;
+	    vm_get_angle_info(&nS, &cS);
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAngle;
+	    send_ev.dvdctrl.cmd.currentangle.anglesavailable = nS;
+	    send_ev.dvdctrl.cmd.currentangle.anglenr = cS;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+	  }
 	  break;
 	default:
 	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
