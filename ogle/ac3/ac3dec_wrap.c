@@ -372,6 +372,7 @@ int get_q()
     if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
       if(PTS_DTS_flags & 0x2) {
 	// time_offset is our guess to how much is in the output q
+	fprintf(stderr, "ac3wrap: initializing offset\n");
 	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
       }
     }
@@ -387,7 +388,7 @@ int get_q()
     if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
       TIME_S(time_offset) = 0;
       TIME_SS(time_offset) = 0;
-      fprintf(stderr, "ac3wrap: setting offset\n");
+      fprintf(stderr, "ac3wrap: resetting offset\n");
       set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
@@ -405,7 +406,7 @@ int get_q()
   {
     clocktime_t apa = {0, 100000000};
     timesub(&apa, &time_offset, &apa);
-    if(TIME_SS(apa) > 0 || TIME_S(apa) > 0) {
+    if(TIME_SS(apa) > 10000000 || TIME_S(apa) > 0) {
       nanosleep(&apa, NULL);
     }
   }
