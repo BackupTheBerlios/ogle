@@ -58,6 +58,34 @@
 #include "../include/common.h"
 #include "c_getbits.h"
 
+
+
+void timeadd(struct timespec *d, struct timespec *s1, struct timespec *s2);
+void timesub(struct timespec *d, struct timespec *s1, struct timespec *s2);
+
+
+
+int ctrl_data_shmid;
+ctrl_data_t *ctrl_data;
+ctrl_time_t *ctrl_time;
+
+uint8_t PTS_DTS_flags;
+uint64_t PTS;
+uint64_t DTS;
+int scr_nr;
+
+uint64_t last_pts;
+int last_scr_nr;
+int prev_scr_nr;
+int last_pts_valid;
+uint64_t last_pts_to_dpy;
+
+
+int dctstat[128];
+int total_pos = 0;
+int total_calls = 0;
+
+
 unsigned int debug = 0;
 int shm_ready = 0;
 static int shmem_flag = 1;
@@ -87,6 +115,9 @@ uint8_t intra_inverse_quantiser_matrix_changed = 1;
 uint8_t non_intra_inverse_quantiser_matrix_changed = 1;
 
 
+uint32_t stats_block_intra_nr = 0;
+uint32_t stats_f_intra_compute_subseq_nr = 0;
+uint32_t stats_f_intra_compute_first_nr = 0;
 
 #ifdef TIMESTAT
 
@@ -248,7 +279,7 @@ int get_vlc(const vlc_table_t *table, char *func) {
     }
     numberofbits++;
   }
-  fprintf(stderr, "*** get_vlc(vlc_table *table): no matching bitstream found.\nnext 32 bits: %08x, ", nextbits(32));
+  fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
   fprintbits(stderr, 32, nextbits(32));
   fprintf(stderr, "\n");
   exit_program(-1);
@@ -289,12 +320,14 @@ void init_program()
 
 }
 
+int msgqid = -1;
+
 int main(int argc, char **argv)
 {
   int c;
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:r:f:hs")) != EOF) {
+  while ((c = getopt(argc, argv, "d:r:f:m:hs")) != EOF) {
     switch (c) {
     case 'd':
       debug = atoi(optarg);
@@ -307,6 +340,9 @@ int main(int argc, char **argv)
       break;
     case 's':
       shmem_flag = 0;
+      break;
+    case 'm':
+      msgqid = atoi(optarg);
       break;
     case 'h':
     case '?':
@@ -323,13 +359,14 @@ int main(int argc, char **argv)
   
   init_out_q(nr_of_buffers);
   
-  
-  if(optind < argc) {
-    infile = fopen(argv[optind], "r");
-  } else {
-    infile = stdin;
+  if(msgqid == -1) {
+    if(optind < argc) {
+      infile = fopen(argv[optind], "r");
+    } else {
+      infile = stdin;
+    }
   }
-    
+  
 #ifdef GETBITSMMAP
   get_next_packet(); // Realy, open and mmap the FILE
   packet.offset = 0;
@@ -341,6 +378,7 @@ int main(int argc, char **argv)
   read_buf(); // Read first data packet and fill 'curent_word'.
   while( 1 ) {
     DPRINTF(1, "Looking for new Video Sequence\n");
+    fprintf(stderr, "*** NEW SEQ\n");
     video_sequence();
   }  
 #else
@@ -583,7 +621,7 @@ void sequence_header(void)
     }
   }
 
-  
+
   
   DPRINTF(1, "vertical: %u\n", seq.header.horizontal_size_value);
   DPRINTF(1, "horisontal: %u\n", seq.header.vertical_size_value);
@@ -633,8 +671,14 @@ void sequence_header(void)
   
   if(forced_frame_rate == -1) { /* No forced frame rate */
     buf_ctrl_head->frame_interval = frame_interval_nsec;
+  } else {
+    if(forced_frame_rate == 0) {
+      buf_ctrl_head->frame_interval = 1;
+    } else {
+      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+    }
   }
-  
+
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
   
@@ -643,6 +687,7 @@ void sequence_header(void)
 }
 
 
+#define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
 
 void init_out_q(int nr_of_bufs)
 { 
@@ -669,11 +714,11 @@ void init_out_q(int nr_of_bufs)
 
   // Number of pictures
   buf_ctrl_head->nr_of_buffers = nr_of_bufs;
-
+  
   // Set up the pointer to the picture_info array
   buf_ctrl_head->picture_infos = (picture_info_t *)(((char *)buf_ctrl_head) +
 						    sizeof(buf_ctrl_head_t));
-
+  
   // Setup the pointer to the dpy_q
   buf_ctrl_head->dpy_q = (int *)(((char *)buf_ctrl_head) +
 				 sizeof(buf_ctrl_head_t) +
@@ -929,9 +974,15 @@ void sequence_extension(void) {
     //TODO: frame_interval_nsec = ?
     break;
   }
-  
+
   if(forced_frame_rate == -1) { /* No forced frame rate */
     buf_ctrl_head->frame_interval = frame_interval_nsec;
+  } else {
+    if(forced_frame_rate == 0) {
+      buf_ctrl_head->frame_interval = 1;
+    } else {
+      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+    }
   }
 }
 
@@ -1102,7 +1153,6 @@ void group_of_pictures_header(void)
   closed_gop = GETBITS(1, "closed_gop");
   broken_link = GETBITS(1, "broken_link");
   next_start_code();
-  
 }
 
 
@@ -1115,7 +1165,19 @@ void picture_header(void)
 
   seq.mb_row = 0;
   picture_start_code = GETBITS(32, "picture_start_code");
+  
+  //TODO better check if pts really is for this picture
+  if(PTS_DTS_flags & 0x02) {
+    last_pts = PTS;
+    prev_scr_nr = last_scr_nr;
+    last_scr_nr = scr_nr;
+    last_pts_valid = 1;
+  } else {
+    last_pts_valid = 0;
+  }
 
+  //  print_time_offset(PTS);
+  
   if(picture_start_code != MPEG2_VS_PICTURE_START_CODE) {
     fprintf(stderr, "wrong start_code picture_start_code: %08x\n",
 	    picture_start_code);
@@ -1123,6 +1185,7 @@ void picture_header(void)
 
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
+
 
 #ifdef DEBUG
   /* Table 6-12 --- picture_coding_type */
@@ -1262,12 +1325,11 @@ void dpy_q_put(int id)
 
   if(forced_frame_rate != -1) {
     if(forced_frame_rate == 0) {
-      buf_ctrl_head->frame_interval = 0;
+      buf_ctrl_head->frame_interval = 1;
     } else {
       buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
     }
   }
-  
   if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
     perror("sempost pictures_ready");
   }
@@ -1283,22 +1345,14 @@ void picture_data(void)
   static int prev_ref_buf_id = -1;
   static int old_ref_buf_id  = -1;
   
-  static struct timeval tv;
-  static struct timeval otv;
-
   DPRINTF(3, "picture_data\n");
 
-  
-  gettimeofday(&tv, NULL); // End time (previous picture).
 
 
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
     //I,P picture
-    
-    /* We are about to decode a new reference picture, so 
-       we no longer requier the old backwards reference picture. */
     if(old_ref_buf_id != -1) {
       buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
     }
@@ -1306,13 +1360,231 @@ void picture_data(void)
   default:
     break;
   }
-  
-  /* Allocate a new buffer to decode into. */
+
   buf_id = get_picture_buf();
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
+  //  fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  //fprintf(stderr, "reserved_image->y: %u\n", reserved_image->y);
+  buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = -1;
+
+  //TODO fix sync
+  if(last_pts_valid) {
+    buf_ctrl_head->picture_infos[buf_id].PTS = last_pts;
+    buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = last_pts/90000;
+    buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
+      (last_pts%90000)*(1000000000/90000);
+    buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+      ctrl_time[last_scr_nr].realtime_offset;
+    
+    
+  }
   
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+    if(last_pts_valid) {
+      /*
+      fprintf(stderr, "\n\nI-picture: valid pts %lld.%09lld\n\n",
+	      last_pts/90000,
+	      (last_pts%90000)*(1000000000/90000));
+      */
+    } else {
+      // fprintf(stderr, "\n\nI-picture: no valid pts\n\n");
+      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	ctrl_time[last_scr_nr].realtime_offset;
+    }
+    break;
+  case 0x2:
+    if(last_pts_valid) {
+      /*
+      fprintf(stderr, "\n\nP-picture: valid pts %lld.%09lld\n\n",
+	      last_pts/90000,
+	      (last_pts%90000)*(1000000000/90000));
+      */
+    } else {
+      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	ctrl_time[last_scr_nr].realtime_offset;
+      /*
+      fprintf(stderr, "\n\nP-picture: no valid pts\n\n");
+      */
+    }
+    break;
+  case 0x3:
+    if(last_pts_valid) {
+      /*
+      fprintf(stderr, "\n\nB-picture: valid pts %lld.%09lld\n\n",
+	      last_pts/90000,
+	      (last_pts%90000)*(1000000000/90000));
+      */
+    } else {
+      uint64_t calc_pts;
+      calc_pts = last_pts_to_dpy+90000/(1000000000/buf_ctrl_head->frame_interval);
+      /*
+      fprintf(stderr, "\n\nB-picture: no valid pts\n");
+      fprintf(stderr, "B-picture: calculatedpts %lld.%09lld\n\n",
+	      calc_pts/90000,
+	      (calc_pts%90000)*(1000000000/90000));
+      */
+      buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
+      buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
+      buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
+	(calc_pts%90000)*(1000000000/90000);
+
+      if(last_scr_nr != prev_scr_nr) {
+
+	fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
+		last_scr_nr, prev_scr_nr);
+	fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
+		ctrl_time[last_scr_nr].realtime_offset.tv_sec,
+		ctrl_time[last_scr_nr].realtime_offset.tv_nsec,
+		ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
+		ctrl_time[prev_scr_nr].realtime_offset.tv_nsec);
+
+	if(last_pts < buf_ctrl_head->picture_infos[buf_id].PTS) {
+	  fprintf(stderr, "+++ last_pts: %lld, buf_pts: %lld\n",
+		  last_pts,
+		  buf_ctrl_head->picture_infos[buf_id].PTS);
+	  
+	  buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	    ctrl_time[prev_scr_nr].realtime_offset;
+	} else {
+	  if(last_pts < buf_ctrl_head->picture_infos[buf_id].PTS) {
+	    fprintf(stderr, "+*+*+ last_pts: %lld, buf_pts: %lld\n",
+		    last_pts,
+		    buf_ctrl_head->picture_infos[buf_id].PTS);
+	  }
+
+	  buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	    ctrl_time[last_scr_nr].realtime_offset;
+	}
+      } else {
+	buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	  ctrl_time[last_scr_nr].realtime_offset;
+      }
+    }
+    break;
+  }
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    //I,P picture
+    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
+    //    fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
+    ref_image1 = ref_image2;
+
+    ref_image2 = reserved_image;
+    dst_image = reserved_image;
+    
+    if(prev_ref_buf_id != -1) {
+      
+      if(buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec != -1) {
+	/*
+	fprintf(stderr, "\n\nI/P-picture: valid pts %lld.%09lld\n\n",
+		buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS/90000,
+		(buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS%90000)*(1000000000/90000));
+	*/
+      } else {
+	uint64_t calc_pts;
+	calc_pts = last_pts_to_dpy+90000/(1000000000/buf_ctrl_head->frame_interval);
+	/*	
+	fprintf(stderr, "\n\nI/P-picture: no valid pts\n");
+	fprintf(stderr, "I/P-picture: calculatedpts %lld.%09lld\n\n",
+		calc_pts/90000,
+		(calc_pts%90000)*(1000000000/90000));
+	*/
+	buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS = calc_pts;
+	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec = calc_pts/90000;
+	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_nsec =
+	  (calc_pts%90000)*(1000000000/90000);
+	//	buf_ctrl_head->picture_infos[prev_ref_buf_id].realtime_offset =
+	//  ctrl_time[last_scr_nr].realtime_offset;
+	
+      }
+      
+      
+      
+      last_pts_to_dpy = buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS;
+      dpy_q_put(prev_ref_buf_id);
+      old_ref_buf_id = prev_ref_buf_id;
+    }
+    prev_ref_buf_id = buf_id;
+    
+
+    break;
+  case 0x3:
+    // B-picture
+    //    fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
+    dst_image = reserved_image;
+
+    // check if in time
+    {
+      struct timespec realtime, calc_rt, err_time;
+      
+      clock_gettime(CLOCK_REALTIME, &realtime);
+      
+      
+      timeadd(&calc_rt,
+	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
+	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
+      timesub(&err_time, &calc_rt, &realtime);
+
+      if(err_time.tv_nsec < 0) {
+	//drop frame
+	fprintf(stderr, "***Drop B-frame in decoder\n\n");
+	fprintf(stderr, "errpts %ld.%+010ld\n\n",
+		err_time.tv_sec,
+		err_time.tv_nsec);
+	buf_ctrl_head->picture_infos[buf_id].in_use = 0;
+	buf_ctrl_head->picture_infos[buf_id].displayed = 1;
+	last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
+	do {
+	  GETBITS(8, "drop");
+	  next_start_code();
+	} while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
+		(nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
+	return;
+      }
+
+    }
+    break;
+  }
   
-  /* Make some statistics on numer of images and time taken to decode them. */
+  DPRINTF(2," switching buffers\n");
+  
+
+  if( MPEG2 )
+    do {
+      mpeg2_slice();
+    } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
+	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
+  else {
+    do {
+      mpeg1_slice();
+    } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
+	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
+  }
+  
+  //  fprintf(stderr, "decode: decoding finished buf %d\n", buf_id);
+  // Picture decoded
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    break;
+  case 0x3:
+    // B-picture
+    if(prev_ref_buf_id == -1) {
+      fprintf(stderr, "decode: B-frame before reference frame\n");
+    }
+    last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
+    dpy_q_put(buf_id);
+    break;
+  default:
+    fprintf(stderr, "Invalid frame type halting...\n");
+    break;
+  }
+
+
+#if 0  
+
   {
     static int first = 1;
     static int frame_nr = 0;
@@ -1324,7 +1596,8 @@ void picture_data(void)
 #ifdef HAVE_MMX
     emms();
 #endif
-  
+
+
     // The time for the lastframe 
     diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
 	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
@@ -1374,12 +1647,20 @@ void picture_data(void)
 	time_min[3] = diff;
       }
       
-      if(frame_nr == 0) {  
-        fprintf(stderr, "decode: frame rate: %f fps\n",
-                24.0/(time_pic[3] - old_time) );
+      if(frame_nr == 0) {
 	
-	frame_nr = 24;
-        old_time = time_pic[3];
+	frame_nr = 25;
+	otva.tv_sec = tva.tv_sec;
+	otva.tv_usec = tva.tv_usec;
+	gettimeofday(&tva, NULL);
+	
+	fprintf(stderr, "decode: frame rate: %f fps\t",
+		25.0/(((double)tva.tv_sec+
+		       (double)(tva.tv_usec)/1000000.0)-
+		      ((double)otva.tv_sec+
+		       (double)(otva.tv_usec)/1000000.0))
+		);
+	
       }
       
       frame_nr--;
@@ -1388,68 +1669,8 @@ void picture_data(void)
     previous_picture_type = pic.header.picture_coding_type;
     gettimeofday(&otv, NULL); // Start time (for this frame) 
   }
+#endif
   
-  
-  /* Switch the pictures. */
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    //I,P picture
-  
-    ref_image1 = ref_image2;
-    ref_image2 = reserved_image;
-    
-    dst_image = reserved_image;
-    
-    /* Mark the new forward reference picture as 'in use'. */
-    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
-    
-    /* Send the backwards (old forwards) reference picture to the display. */
-    if(prev_ref_buf_id != -1) {
-      dpy_q_put(prev_ref_buf_id);
-      old_ref_buf_id = prev_ref_buf_id;
-    }
-    prev_ref_buf_id = buf_id;
-    
-    break;
-  case 0x3:
-    // B-picture
-    
-    dst_image = reserved_image;
-    break;
-  }
-  
-  /* The actual decoding work */
-  if( MPEG2 )
-    do {
-      mpeg2_slice();
-    } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
-	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
-  else {
-    do {
-      mpeg1_slice();
-    } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
-	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
-  }
-  
-  
-  /* Picture decoded. */
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    // I,P picture
-    /* Already handled before we began the decoding of the current picture. */ 
-    break;
-  case 0x3:
-    // B-picture
-    if(prev_ref_buf_id == -1) {
-      fprintf(stderr, "decode: B-frame before reference frame\n");
-    }
-    /* Send the just decoded picture to the display. */
-    dpy_q_put(buf_id);
-    break;
-  }
-
 
   next_start_code();
 }
@@ -1561,6 +1782,7 @@ void motion_comp()
 
   
   if(mb.modes.macroblock_motion_forward) {
+
     int vcount, i;
     
     DPRINTF(2, "forward_motion_comp\n");
@@ -1586,6 +1808,7 @@ void motion_comp()
       half_flag_y[1]  = (mb.vector[i][0][1] & 1);
       half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
       half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
+
       int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + x * 16;
       int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*vcount + y * 16;
       int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + x * 8;
@@ -1603,6 +1826,8 @@ void motion_comp()
       pred_y = &ref_image1->y[int_vec_y[0] + int_vec_y[1] * padded_width];
       pred_u = &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       pred_v = &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
+      DPRINTF(3, "x: %d, y: %d\n", x, y);
       
       
       if (half_flag_y[0] && half_flag_y[1]) {
@@ -1731,6 +1956,7 @@ void motion_comp()
       half_flag_y[1]  = (mb.vector[i][1][1] & 1);
       half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
       half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
+
       int_vec_y[0]  = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
       int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*vcount + (signed int)y * 16;
       int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
@@ -1742,13 +1968,14 @@ void motion_comp()
 	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
 	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.mb_height - 1) * 8) ) { 
 	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
-		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
+               int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
 
       pred_y = &ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
       pred_u = &ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       pred_v = &ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       
+ 
       
       if(mb.modes.macroblock_motion_forward) {
 	if (half_flag_y[0] && half_flag_y[1]) {
@@ -2338,15 +2565,28 @@ void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
   // d = s1-s2
-  //  s1 is greater than s2
-  
+
   d->tv_sec = s1->tv_sec - s2->tv_sec;
   d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  if(d->tv_nsec < 0) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
+  
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
   }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+
 }  
+
 
 void timeadd(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
@@ -2358,6 +2598,17 @@ void timeadd(struct timespec *d,
   if(d->tv_nsec >= 1000000000) {
     d->tv_nsec -=1000000000;
     d->tv_sec +=1;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_nsec +=1000000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
   }
 }  
 
@@ -2784,3 +3035,23 @@ void timestat_print()
 
 
 #endif
+
+
+void print_time_offset(uint64_t PTS)
+{
+  struct timespec curtime;
+  struct timespec ptstime;
+  struct timespec predtime;
+  struct timespec offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+
+  clock_gettime(CLOCK_REALTIME, &curtime);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  fprintf(stderr, "video: offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
+}
+

@@ -899,25 +899,28 @@ void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
   // d = s1-s2
-  //  s1 is greater than s2
-  if(timecompare(s1, s2) > 0) {
-    d->tv_sec = s1->tv_sec - s2->tv_sec;
-    d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-    if(d->tv_nsec < 0) {
-      d->tv_nsec +=1000000000;
-      d->tv_sec -=1;
-    }
-  } else {
-    d->tv_sec = s2->tv_sec - s1->tv_sec;
-    d->tv_nsec = s2->tv_nsec - s1->tv_nsec;
-    if(d->tv_nsec < 0) {
-      d->tv_nsec +=1000000000;
-      d->tv_sec -=1;
-    }
-    d->tv_sec = -d->tv_sec;
-    d->tv_nsec = -d->tv_nsec;
-  }    
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+  
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+
 }  
+
 
 void timeadd(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
@@ -929,6 +932,17 @@ void timeadd(struct timespec *d,
   if(d->tv_nsec >= 1000000000) {
     d->tv_nsec -=1000000000;
     d->tv_sec +=1;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_nsec +=1000000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
   }
 }  
 
@@ -937,6 +951,7 @@ void display_process()
 {
   struct timespec real_time, prefered_time, wait_time, frame_interval;
   struct timespec real_time2, diff, avg_time, oavg_time;
+  struct timespec calc_rt, err_time;
   int buf_id;
   int drop = 0;
   int frame_nr = 0;
@@ -961,8 +976,27 @@ void display_process()
       display(buf_id);
     }
     clock_gettime(CLOCK_REALTIME, &real_time);
-    if((prefered_time.tv_sec == 0) || (frame_interval.tv_nsec == 0)) {
+    if((prefered_time.tv_sec == 0) || (frame_interval.tv_nsec == 1)) {
       prefered_time = real_time;
+    } else if(buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec != -1) {
+      struct timespec buftime;
+      buftime.tv_sec = 0;
+      buftime.tv_nsec = 00000000;
+      /*
+      fprintf(stderr, "realtime_offset: %ld.%09ld\n",
+	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_sec,
+	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_nsec);
+      fprintf(stderr, "pts: %lld\n",
+	      buf_ctrl_head->picture_infos[buf_id].PTS);
+      */
+      
+      timeadd(&calc_rt,
+	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
+	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
+      timeadd(&calc_rt, &calc_rt, &buftime);
+      timesub(&err_time, &calc_rt, &real_time);
+      prefered_time = calc_rt;
+      //      fprintf(stderr, "%ld.%+010ld\n", err_time.tv_sec, err_time.tv_nsec);
     }
     timesub(&wait_time, &prefered_time, &real_time);
     /*
@@ -1004,32 +1038,43 @@ void display_process()
 	    diff.tv_sec, diff.tv_nsec);
     */
     /*
-    fprintf(stderr, "rt: %d.%09ld, pt: %d.%09ld, diff: %d.%+010ld\n",
+    fprintf(stderr, "rt: %d.%09ld, pt: %d.%09ld, diff: %d.%+09ld\n",
 	    real_time2.tv_sec, real_time2.tv_nsec,
 	    prefered_time.tv_sec, prefered_time.tv_nsec,
 	    diff.tv_sec, diff.tv_nsec);
     */
+    /*
     if(drop) {
-      if(wait_time.tv_nsec > -5000000) {
-	fprintf(stderr, "$ %+010ld \n", wait_time.tv_nsec);
+      if((wait_time.tv_nsec > -10000000) && (wait_time.tv_sec > -1)) {
+
+	//	fprintf(stderr, "$ %ld.%+09ld \n",
+	//	wait_time.tv_sec,
+	//	wait_time.tv_nsec);
 	drop = 0;
       } else {
-	fprintf(stderr, "# %+010ld \n", wait_time.tv_nsec);
+	//fprintf(stderr, "# %ld.%+09ld \n",
+	//	wait_time.tv_sec,
+	//	wait_time.tv_nsec);
       }
     }
-
+    */
+#if 0
     if(!drop) {
       display(buf_id);
     } else {
-      fprintf(stderr, "* \n");
+      fprintf(stderr, "*");
       drop = 0;
     }
+#else
+      display(buf_id);
+#endif
 
     timeadd(&prefered_time, &prefered_time, &frame_interval);
-
-    if(wait_time.tv_nsec < 0) {
+    /*
+    if((wait_time.tv_nsec < 0) || (wait_time.tv_sec < 0)) {
       drop = 1;
     }
+    */
     //    fprintf(stderr, "display: done with buf %d\n", buf_id);
     release_picture_buf(buf_id);
   }

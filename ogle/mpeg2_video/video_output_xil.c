@@ -266,24 +266,26 @@ void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
   // d = s1-s2
-  //  s1 is greater than s2
-  if(timecompare(s1, s2) > 0) {
-    d->tv_sec = s1->tv_sec - s2->tv_sec;
-    d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-    if(d->tv_nsec < 0) {
-      d->tv_nsec +=1000000000;
-      d->tv_sec -=1;
-    }
-  } else {
-    d->tv_sec = s2->tv_sec - s1->tv_sec;
-    d->tv_nsec = s2->tv_nsec - s1->tv_nsec;
-    if(d->tv_nsec < 0) {
-      d->tv_nsec +=1000000000;
-      d->tv_sec -=1;
-    }
-    d->tv_sec = -d->tv_sec;
-    d->tv_nsec = -d->tv_nsec;
-  }    
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+  
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+
 }  
 
 void timeadd(struct timespec *d,
@@ -293,9 +295,21 @@ void timeadd(struct timespec *d,
   
   d->tv_sec = s1->tv_sec + s2->tv_sec;
   d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
+
   if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
     d->tv_sec +=1;
+    d->tv_nsec -=1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -=1;
+    d->tv_nsec +=1000000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
   }
 }  
 

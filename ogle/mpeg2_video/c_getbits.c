@@ -23,10 +23,33 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/shm.h>
+#include <sys/msg.h>
+#include <errno.h>
 
 #include "c_getbits.h"
 #include "../include/common.h"
+#include "../include/msgtypes.h"
+#include "../include/queue.h"
 
+extern ctrl_data_shmid;
+extern ctrl_data_t *ctrl_data;
+extern ctrl_time_t *ctrl_time;
+
+extern uint8_t PTS_DTS_flags;
+extern uint64_t PTS;
+extern uint64_t DTS;
+extern int scr_nr;
+
+extern int msgqid;
+int stream_shmid = -1;
+char *stream_shmaddr;
+
+int wait_for_msg(cmdtype_t cmdtype);
+int chk_for_msg();
+int get_q();
+int eval_msg(cmd_t *cmd);
+int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 
 
@@ -36,7 +59,7 @@ FILE *infile;
 uint32_t *buf;
 uint32_t buf_size;
 struct off_len_packet packet;
-uint8_t *mmap_base;
+uint8_t *mmap_base = NULL;
 
 #else // Normal i/o
 uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
@@ -92,11 +115,13 @@ void setup_mmap(char *filename) {
 
 void get_next_packet()
 {
+  /*
   struct { 
     uint32_t type;
     uint32_t offset;
     uint32_t length;
   } ol_packet;
+
   
   if(!fread(&ol_packet, 4+4+4, 1, infile)) {
     if(feof(infile))
@@ -105,11 +130,33 @@ void get_next_packet()
       fprintf(stderr, "**[get_next_packet] File error\n");
     exit_program(0);
   }   
+  */
+
+
+  if(stream_shmid != -1) {
+  // msg
+  while(chk_for_msg() != -1)
+    ;
+
+  // Q
+  get_q();
+  } 
   
+  while(mmap_base == NULL) {
+    wait_for_msg(CMD_FILE_OPEN);
+  }
+  while(stream_shmid == -1) {
+    wait_for_msg(CMD_DECODE_STREAM_BUFFER);
+  }
+
+  
+  /*
   if(ol_packet.type == PACK_TYPE_OFF_LEN) {
     packet.offset = ol_packet.offset;
     packet.length = ol_packet.length;
   }
+  
+  
   else if( ol_packet.type == PACK_TYPE_LOAD_FILE ) {
     char filename[200];
     int length = ol_packet.offset;           // Use lots of trickery here...
@@ -119,11 +166,13 @@ void get_next_packet()
 
     setup_mmap( filename );
   } 
-  else { /* Unknown packet */
+  else { // Unknown packet
     fprintf(stderr, "[get_next_packet] Received a packet on unknown type\n");
     exit_program(-1);
-  }
+    }
+  */
 }  
+
 
 void read_buf()
 {
@@ -249,3 +298,205 @@ void next_word(void)
 
 
 
+
+
+int send_msg(msg_t *msg, int mtext_size)
+{
+  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
+    perror("video_dec: msgsnd1");
+    return -1;
+  }
+  return 0;
+}
+
+
+int wait_for_msg(cmdtype_t cmdtype)
+{
+  msg_t msg;
+  cmd_t *cmd;
+  cmd = (cmd_t *)(msg.mtext);
+  cmd->cmdtype = CMD_NONE;
+  
+  while(cmd->cmdtype != cmdtype) {
+    if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
+	      MTYPE_VIDEO_DECODE_MPEG, 0) == -1) {
+      perror("msgrcv");
+      return -1;
+    } else {
+      //fprintf(stderr, "video_decode: got msg\n");
+      eval_msg(cmd);
+    }
+    if(cmdtype == CMD_ALL) {
+      break;
+    }
+  }
+  return 0;
+}
+
+int chk_for_msg()
+{
+  msg_t msg;
+  cmd_t *cmd;
+  cmd = (cmd_t *)(msg.mtext);
+  cmd->cmdtype = CMD_NONE;
+  
+  if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
+	    MTYPE_VIDEO_DECODE_MPEG, IPC_NOWAIT) == -1) {
+    if(errno != ENOMSG) {
+      perror("msgrcv");
+    }
+    return -1;
+  } else {
+    //fprintf(stderr, "video_decode: got msg\n");
+    eval_msg(cmd);
+  }
+  return 0;
+}
+
+
+
+
+int eval_msg(cmd_t *cmd)
+{
+  msg_t sendmsg;
+  cmd_t *sendcmd;
+  
+  sendcmd = (cmd_t *)&sendmsg.mtext;
+  
+  switch(cmd->cmdtype) {
+  case CMD_CTRL_DATA:
+    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
+    break;
+  case CMD_FILE_OPEN:
+    //fprintf(stderr, "video_dec: got file open '%s'\n",
+    //    cmd->cmd.file_open.file);
+    setup_mmap(cmd->cmd.file_open.file);
+    break;
+  case CMD_DECODE_STREAM_BUFFER:
+    //fprintf(stderr, "video_dec: got stream %x, %x buffer \n",
+    //	    cmd->cmd.stream_buffer.stream_id,
+    //    cmd->cmd.stream_buffer.subtype);
+    attach_stream_buffer(cmd->cmd.stream_buffer.stream_id,
+			 cmd->cmd.stream_buffer.subtype,
+			 cmd->cmd.stream_buffer.q_shmid);
+    
+    
+    break;
+  default:
+    fprintf(stderr, "video_dec: unrecognized command cmdtype: %x\n",
+	    cmd->cmdtype);
+    return -1;
+    break;
+  }
+  
+  return 0;
+}
+
+
+int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
+{
+  char *shmaddr;
+
+  fprintf(stderr, "video_dec: shmid: %d\n", shmid);
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+      perror("attach_decoder_buffer(), shmat()");
+      return -1;
+    }
+    
+    stream_shmid = shmid;
+    stream_shmaddr = shmaddr;
+    
+  }    
+  return 0;
+  
+}
+
+
+int get_q()
+{
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  int elem;
+  
+  //  uint8_t PTS_DTS_flags;
+  //  uint64_t PTS;
+  //  uint64_t DTS;
+
+  int off;
+  int len;
+  static int have_buf = 0;
+
+  //fprintf(stderr, "video_dec: get_q()\n");
+  
+  q_head = (q_head_t *)stream_shmaddr;
+  q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
+  elem = q_head->read_nr;
+
+
+  // release prev elem
+
+  if(have_buf) {
+    if(sem_post(&q_head->bufs_empty) == -1) {
+      perror("video_decode: get_q(), sem_post()");
+      return -1;
+    }
+  }
+  
+  if(sem_wait(&q_head->bufs_full) == -1) {
+    perror("video_decode: get_q(), sem_wait()");
+    return -1;
+  }
+
+  have_buf = 1;
+
+  
+  PTS_DTS_flags = q_elems[elem].PTS_DTS_flags;
+  if(PTS_DTS_flags & 0x2) {
+    PTS = q_elems[elem].PTS;
+    scr_nr = q_elems[elem].scr_nr;
+  }
+  if(PTS_DTS_flags & 0x1) {
+    DTS = q_elems[elem].DTS;
+  }
+  
+
+  
+  off = q_elems[elem].off;
+  len = q_elems[elem].len;
+  
+  packet.offset = off;
+  packet.length = len;
+
+  //fprintf(stderr, "video_dec: got q off: %d, len: %d\n",
+  //  packet.offset, packet.length);
+  /*
+  fprintf(stderr, "ac3: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
+	  PTS_DTS_flags, PTS, DTS, off, len);
+  */
+  q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+
+
+
+  return 0;
+}
+
+
+int attach_ctrl_shm(int shmid)
+{
+  char *shmaddr;
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+      perror("attach_ctrl_data(), shmat()");
+      return -1;
+    }
+    
+    ctrl_data_shmid = shmid;
+    ctrl_data = (ctrl_data_t*)shmaddr;
+    ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
+  }    
+  return 0;
+  
+}

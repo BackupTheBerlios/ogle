@@ -224,7 +224,7 @@ void block_intra(unsigned int i)
       exit_program(1);
     }
 
-#ifdef DEBUG
+#if 0    //#ifdef DEBUG
     if(tab->run != 64 /*VLC_END_OF_BLOCK*/) {
       DPRINTF(4, "coeff run: %d, level: %d\n",
 	      tab->run, tab->level);

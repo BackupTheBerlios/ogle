@@ -25,7 +25,7 @@ CC=gcc
 
 
 DFLAGS= -g -Wall -O6 `glib-config --cflags` \
-	-DHAVE_MADVICE -DDEBUG \
+	-DHAVE_MADVICE \
 	-mcpu=ultrasparc -mvis -DHAVE_MLIB -I/opt/SUNWmlib/include -I/usr/pd/include
 LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lposix4 
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
