@@ -17,6 +17,7 @@ AC_C_CONST
 AC_C_ALWAYS_INLINE
 AC_CHECK_GENERATE_INTTYPES([include])
 
+MANDATORY_MISSING_LIBS=""
 
 dnl Checks for header files.
 AC_CHECK_HEADERS([byteswap.h sys/bswap.h sys/endian.h sys/param.h stropts.h])
@@ -101,7 +102,8 @@ AC_CHECK_LIB(jpeg, main,
   [ JPEG_LIBS="-L$jpeg_path/lib -R$jpeg_path/lib -ljpeg"
     JPEG_CPPFLAGS=-I$jpeg_path/include
   ],
-  [AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])], 
+  [AC_MSG_WARN([Need libjpeg, install it and/or specify it's location])
+    MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libjpeg, " ], 
   -L$jpeg_path/lib)
 
 CFLAGS=$TMPCFLAGS
@@ -123,7 +125,8 @@ dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
 CPPFLAGS="-w $CPPFLAGS $JPEG_CPPFLAGS"
 AC_CHECK_HEADER(jpeglib.h,, 
   [ AC_MSG_WARN([Can not find jpeglib.h, need the libjpeg headers])
-    AC_MSG_ERROR([Install the headers and/or specify their location]) 
+    AC_MSG_WARN([Install the headers and/or specify their location])
+    MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libjpeg headers, " 
   ])
 CPPFLAGS=$saved_CPPFLAGS
 
@@ -182,15 +185,16 @@ fi
 
 TMPCFLAGS=$CFLAGS
 CFLAGS="-L$dvd_path/lib"
-
 AC_CHECK_LIB(dvdread, DVDDiscID, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
     DVDREAD_CPPFLAGS=-I$dvd_path/include
   ],
   [
     AC_CHECK_LIB(dvdread, DVDOpen, 
-      [ AC_MSG_ERROR([Upgrade libdvdread to 0.9.4 or later]) ],
-      [ AC_MSG_ERROR([Need libdvdread, install it or specify it's location])],
+      [ AC_MSG_WARN([Upgrade libdvdread to 0.9.4 or later]) 
+      MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libdvdread >= 0.9.4, " ],
+      [ AC_MSG_WARN([Need libdvdread, install it or specify it's location])
+      MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libdvdread, " ],
       -L$dvd_path/lib)
   ], -L$dvd_path/lib)
 
@@ -217,7 +221,8 @@ dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
 CPPFLAGS="-w $CPPFLAGS $DVDREAD_CPPFLAGS"
 AC_CHECK_HEADER(dvdread/dvd_reader.h,, 
   [ AC_MSG_WARN([Can not find dvd_reader.h, need the libdvdread headers])
-    AC_MSG_ERROR([Install the headers and/or specify their location]) 
+    AC_MSG_WARN([Install the headers and/or specify their location])
+    MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libdvdread headers, " 
   ])
 CPPFLAGS=$saved_CPPFLAGS
 
@@ -293,7 +298,7 @@ AC_ARG_WITH(liba52,
   AC_HELP_STRING([--with-liba52=path],
                  [specify the install prefix to liba52 (a52dec)]), 
   [if test "x$with_liba52" = xno; then
-     AC_MSG_ERROR([You must have/use a52dec])
+     AC_MSG_WARN([You must have/use a52dec])
    fi
    if test "x$with_liba52" != xyes; then
      a52_path=$with_liba52
@@ -309,7 +314,6 @@ fi
 
 TMPCFLAGS=$CFLAGS
 CFLAGS="-L$a52_path/lib"
-
 dnl a52_free is a new function in 0.7.3
 AC_CHECK_LIB(a52, a52_free, 
   [ 
@@ -319,16 +323,18 @@ AC_CHECK_LIB(a52, a52_free,
   [
     if test "x$have_mlib" = xyes; then
       AC_CHECK_LIB(a52, a52_init, 
-        [ AC_MSG_ERROR([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
-        ],
-        [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
-        ], -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
+        [ AC_MSG_WARN([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
+	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 >= 0.7.3, " ],
+	[ AC_MSG_WARN([Need liba52, install a52dec or specify it's location])
+	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52, " ],
+	-L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
     else
       AC_CHECK_LIB(a52, a52_init, 
-        [ AC_MSG_ERROR([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
-        ],
+        [ AC_MSG_WARN([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
+          MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 >= 0.7.3, " ],
         [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
-        ], -L$a52_path/lib -lm)
+	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52, " ],
+	-L$a52_path/lib -lm)
     fi
   ], [-L$a52_path/lib -lm])
 
@@ -353,8 +359,8 @@ dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
 CPPFLAGS="-w $CPPFLAGS $A52_CPPFLAGS"
 AC_CHECK_HEADER(a52dec/a52.h,, 
     [ AC_MSG_WARN([Can not find a52dec/a52.h, need the liba52 headers])
-      AC_MSG_ERROR([Install a52dec(-dev) and/or specify it's location]) 
-    ])
+      AC_MSG_WARN([Install a52dec(-dev) and/or specify it's location]) 
+      MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 headers, " ])
 CPPFLAGS=$saved_CPPFLAGS
 
 AC_SUBST(A52_CPPFLAGS)
@@ -373,7 +379,7 @@ AC_ARG_WITH(libmad,
   AC_HELP_STRING([--with-libmad=path],
                  [specify the install prefix to libmad]), 
   [if test "x$with_libmad" = xno; then
-     AC_MSG_ERROR([You must have/use libmad])
+     AC_MSG_WARN([You must have/use libmad])
    fi
    if test "x$with_libmad" != xyes; then
      mad_path=$with_libmad
@@ -389,12 +395,12 @@ fi
 
 TMPCFLAGS=$CFLAGS
 CFLAGS="-L$mad_path/lib"
-
 AC_CHECK_LIB(mad, mad_frame_decode, 
   [ 
     MAD_LIBS="-L$mad_path/lib -R$mad_path/lib -lmad" 
     MAD_CPPFLAGS=-I$mad_path/include
-  ],[AC_MSG_ERROR([Need libmad, install it or specify it's location])],
+  ],[AC_MSG_WARN([Need libmad, install it or specify it's location])
+     MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libmad, " ],
     [-L$mad_path/lib])
 
 CFLAGS=$TMPCFLAGS
@@ -409,8 +415,8 @@ dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
 CPPFLAGS="-w $CPPFLAGS $MAD_CPPFLAGS"
 AC_CHECK_HEADER(mad.h,, 
     [ AC_MSG_WARN([Can not find mad.h, need the libmad headers])
-      AC_MSG_ERROR([Install libmad and/or specify it's location]) 
-    ])
+      AC_MSG_WARN([Install libmad and/or specify it's location]) 
+      MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libmad headers, " ])
 CPPFLAGS=$saved_CPPFLAGS
 
 AC_SUBST(MAD_CPPFLAGS)
@@ -549,7 +555,8 @@ dnl libxml
 dnl ---------------------------------------------------------
 
 AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
-  [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
+  [ AC_MSG_WARN([Install libxml2(-dev) and/or specify it's location])
+  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libxml2 and/or headers, " ])
 
 dnl ---------------------------------------------------------
 dnl end libxml
@@ -887,3 +894,11 @@ else
    echo "  obsd audio:    No"
 fi
 
+if test "x$MANDATORY_MISSING_LIBS" != x; then
+   AC_MSG_ERROR([
+The following *mandatory* libraries/headers are *not* installed
+or couldn't be located. See earlier output for more info.
+$MANDATORY_MISSING_LIBS 
+These libraries are needed to build ogle.
+])
+fi
