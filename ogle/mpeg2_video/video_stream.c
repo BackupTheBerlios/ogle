@@ -216,8 +216,6 @@ void motion_vector(int r, int s);
 void reset_to_default_intra_quantiser_matrix();
 void reset_to_default_non_intra_quantiser_matrix();
 void reset_to_default_quantiser_matrix();
-int sign(int16_t num);
-
 
 void display_init();
 void Display_Image(Window win, XImage *myximage, unsigned char *ImageData);
@@ -3566,20 +3564,6 @@ void reset_to_default_non_intra_quantiser_matrix()
 	 default_non_intra_inverse_quantiser_matrix,
 	 sizeof(seq.header.non_intra_inverse_quantiser_matrix));
 }
-
-
-int sign(int16_t num)
-{
-  if(num > 0) {
-    return 1;
-  } else if(num < 0) {
-    return -1;
-  } else {
-    return 0;
-  }
-
-}
-
 
 #define WORDS_BIGENDIAN 
 
