@@ -275,12 +275,12 @@ eval_system_set (int cond, link_t *return_values) {
       if (bits(5,0,1)) {
 	printf ("Detected SetMODE Counter!");
 	if (cond) {
-	  null;
+	  ;
 	}
 	exit(-1);
       } else {
 	if (cond) {
-	  null;
+	  ;
 	}
       }
       if (cond) {

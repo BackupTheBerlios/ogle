@@ -1,6 +1,11 @@
 #include <inttypes.h>
 #include <semaphore.h>
 /* Packettypes. */
+#ifdef HAVE_CLOCK_GETTIME
+#include <time.h>
+#else
+#include <sys/time.h>
+#endif
 
 enum {
       PACK_TYPE_OFF_LEN, 
@@ -35,6 +40,8 @@ typedef struct {
   uint16_t padded_width, padded_height;
 } yuv_image_t;
 
+#ifdef HAVE_CLOCK_GETTIME
+
 typedef struct {
   yuv_image_t picture;
   int is_ref;
@@ -45,9 +52,31 @@ typedef struct {
   int scr_nr;
 } picture_info_t;
 
+#else
+
 typedef struct {
+  yuv_image_t picture;
+  int is_ref;
+  int displayed;
+  struct timeval pts_time;
+  struct timeval realtime_offset;
+  uint64_t PTS;
+  int scr_nr;
+} picture_info_t;
+
+#endif
+
+typedef struct {
+#if defined USE_POSIX_SEM
   sem_t pictures_ready_to_display;
   sem_t pictures_displayed;
+#elif defined USE_SYSV_SEM
+#define PICTURES_READY_TO_DISPLAY 0
+#define PICTURES_DISPLAYED 1
+  int semid_pics;
+#else
+#error No semaphore type set
+#endif
   int nr_of_buffers;
   picture_info_t *picture_infos;
   int *dpy_q;
@@ -66,10 +95,21 @@ typedef enum {
   OFFSET_VALID
 } offset_valid_t;
 
+#ifdef HAVE_CLOCK_GETTIME
+
 typedef struct {
   struct timespec realtime_offset;
   offset_valid_t offset_valid;
 } ctrl_time_t;
+
+#else
+
+typedef struct {
+  struct timeval realtime_offset;
+  offset_valid_t offset_valid;
+} ctrl_time_t;
+
+#endif
 
 typedef struct {
   playmode_t mode;

@@ -32,11 +32,22 @@
 #include <sys/msg.h>
 #include <semaphore.h>
 #include <errno.h>
+
+#if defined USE_SYSV_SEM
+#include <sys/sem.h>
+#endif
+
+
 #include "programstream.h"
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
 
+
+
+#ifndef HAVE_SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
 
 typedef enum {
   STREAM_NOT_REGISTERED = 0,
@@ -1993,11 +2004,25 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     
     q_head = (q_head_t *)data_elems[data_elem_nr].q_addr;
     
+#if defined USE_POSIX_SEM
     if(sem_wait(&q_head->bufs_empty) == -1) {
       perror("demux: put_in_q(), sem_wait()");
       return -1;
     }
+#elif defined USE_SYSV_SEM
+    {
+      struct sembuf sops;
+      sops.sem_num = BUFS_EMPTY;
+      sops.sem_op = -1;
+      sops.sem_flg = 0;
 
+      if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+	perror("demux: put_in_q(), semop() wait");
+      }
+    }
+#else
+#error No semaphore type set
+#endif
     
   }
 
@@ -2018,10 +2043,26 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
   for(n = 0; n < nr_waits; n++) {
     /* We must increase the semaphore we waited on */
+#if defined USE_POSIX_SEM
     if(sem_post(&q_head->bufs_empty) == -1) {
       perror("demux: put_in_q(), sem_post()");
       return -1;
     }
+#elif defined USE_SYSV_SEM
+    {
+      struct sembuf sops;
+      sops.sem_num = BUFS_EMPTY;
+      sops.sem_op = 1;
+      sops.sem_flg = 0;
+
+      if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+	perror("demux: put_in_q(), semop() post");
+      }
+    }
+
+#else
+#error No sempahore type set
+#endif
   }
 
     
@@ -2057,11 +2098,25 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   elem = q_head->write_nr;
   
 
-
+#if defined USE_POSIX_SEM
   if(sem_wait(&q_head->bufs_empty) == -1) {
     perror("demux: put_in_q(), sem_wait()");
     return -1;
   }
+#elif USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_EMPTY;
+    sops.sem_op = -1;
+    sops.sem_flg = 0;
+
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("demux: put_in_q(), semop() wait");
+    }
+  }
+#else
+#error No semaphore type set
+#endif
 
   q_elem[elem].data_elem_index = data_elem_nr;
   /*
@@ -2078,11 +2133,26 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
+#if defined USE_POSIX_SEM
   if(sem_post(&q_head->bufs_full) == -1) {
     perror("demux: put_in_q(), sem_post()");
     return -1;
   }
-  
+#elif USE_SYSV_SEM
+ {
+    struct sembuf sops;
+    sops.sem_num = BUFS_FULL;
+    sops.sem_op = 1;
+    sops.sem_flg = 0;
+
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("demux: put_in_q(), semop() post");
+    }
+  }
+
+#else
+#error No semaphore type set
+#endif
   
   return 0;
 }

@@ -50,8 +50,16 @@ typedef struct {
 
 
 typedef struct {
+#if defined USE_POSIX_SEM
   sem_t bufs_full;
   sem_t bufs_empty;
+#elif defined USE_SYSV_SEM
+  int semid_bufs;
+#define BUFS_FULL 0
+#define BUFS_EMPTY 1
+#else
+#error No semaphore type set
+#endif
   int data_buf_shmid;
   int nr_of_qelems;
   int write_nr;

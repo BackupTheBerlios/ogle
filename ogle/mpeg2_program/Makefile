@@ -16,8 +16,27 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 CC=gcc
-CFLAGS=  -g -Wall -O6 `glib-config --cflags` -DHAVE_MADVISE -lposix4
-LDFLAGS= 
+
+
+# __sun__
+DFLAGS= -g -Wall -O2 `glib-config --cflags` \
+	-DHAVE_MADVISE -DHAVE_SHARE_MMU -DHAVE_CLOCK_GETTIME -DHAVE_MLIB \
+	-DUSE_POSIX_SEM \
+	-mcpu=ultrasparc -mvis -I/opt/SUNWmlib/include -I/usr/pd/include
+LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lposix4 
+
+# __linux__
+
+#DFLAGS= -Wall -O2 -fomit-frame-pointer -funroll-loops -malign-double \
+#	`glib-config --cflags` \
+#	-DHAVE_MMX -DHAVE_XV\
+#	-DUSE_SYSV_SEM \
+#	-mcpu=pentiumpro -march=pentiumpro -I/usr/pd/include
+#LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib  -lX11 -lXext -lnsl -lrt  -lXv
+
+
+CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
+
 
 all:	programstream play_pes
 

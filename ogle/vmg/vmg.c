@@ -11,6 +11,14 @@
 #include <unistd.h>
 #include <sys/msg.h>
 
+#ifdef USE_SYSV_SEM
+#include <sys/sem.h>
+#endif
+
+#ifndef HAVE_SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
+
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
@@ -23,9 +31,13 @@ int get_q();
 int attach_ctrl_shm(int shmid);
 
 void print_time_base_offset(uint64_t PTS, int scr_nr);
+#ifdef HAVE_CLOCK_GETTIME
 int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
 struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
-
+#else
+int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset);
+struct timeval get_time_base_offset(uint64_t PTS, int scr_nr);
+#endif
 
 char *program_name;
 
@@ -239,10 +251,25 @@ int get_q()
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
+#if defined USE_POSIX_SEM  
   if(sem_wait(&q_head->bufs_full) == -1) {
     perror("vmg: get_q(), sem_wait()");
     return -1;
   }
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_FULL;
+    sops.sem_op = -1;
+    sops.sem_flg = 0;
+
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("vmg: get_q(), semop() wait");
+    }
+  }
+#else
+#error No semaphore type set
+#endif
 
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -311,15 +338,32 @@ int get_q()
   
   data_elem->in_use = 0;
   // release elem
+
+#if defined USE_POSIX_SEM
   if(sem_post(&q_head->bufs_empty) == -1) {
     perror("vmg: get_q(), sem_post()");
     return -1;
   }
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_EMPTY;
+    sops.sem_op = 1;
+    sops.sem_flg = 0;
+    
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("vmg: get_q(), semop() post");
+    }
+  }
+#else
+#error No semaphore type set
+#endif
 
   return 0;
 }
 
 
+#ifdef HAVE_CLOCK_GETTIME
 
 int timecompare(struct timespec *s1, struct timespec *s2) {
 
@@ -450,6 +494,138 @@ struct timespec get_time_base_offset(uint64_t PTS, int scr_nr)
   return offset;
 }
 
+#else
+
+int timecompare(struct timeval *s1, struct timeval *s2) {
+
+  if(s1->tv_sec > s2->tv_sec) {
+    return 1;
+  } else if(s1->tv_sec < s2->tv_sec) {
+    return -1;
+  }
+
+  if(s1->tv_usec > s2->tv_usec) {
+    return 1;
+  } else if(s1->tv_usec < s2->tv_usec) {
+    return -1;
+  }
+  
+  return 0;
+}
+
+void timesub(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1-s2
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_usec = s1->tv_usec - s2->tv_usec;
+  
+  if(d->tv_usec >= 1000000) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+
+}  
+
+void timeadd(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_usec = s1->tv_usec + s2->tv_usec;
+  if(d->tv_usec >= 1000000) {
+    d->tv_usec -=1000000;
+    d->tv_sec +=1;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_usec +=1000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+}  
+
+
+int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval modtime;
+  
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&modtime, &curtime, &offset);
+  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
+  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+  
+  fprintf(stderr, "vmg: setting offset[%d]: %ld.%06ld\n",
+	  scr_nr,
+	  ctrl_time[scr_nr].realtime_offset.tv_sec,
+	  ctrl_time[scr_nr].realtime_offset.tv_usec);
+  
+  return 0;
+}
+  
+
+void print_time_base_offset(uint64_t PTS, int scr_nr)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval predtime;
+  struct timeval offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  //fprintf(stderr, "\nvmg: offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
+}
+
+struct timeval get_time_base_offset(uint64_t PTS, int scr_nr)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval predtime;
+  struct timeval offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  //fprintf(stderr, "\nvmg: get offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
+
+  return offset;
+}
+
+#endif
 
 int attach_ctrl_shm(int shmid)
 {

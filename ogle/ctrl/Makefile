@@ -19,9 +19,16 @@ CC=gcc
 
 # To build a clean software/only C, do nothing
 
+# solaris
+DFLAGS= -g -Wall -O6 -mcpu=ultrasparc -DHAVE_SHM_SHARE_MMU
+LDFLAGS= -lrt 
 
-DFLAGS= -g -Wall -O6 -mcpu=ultrasparc
-LDFLAGS= -lposix4 
+# linux
+#DFLAGS= -g -Wall -O6 -mcpu=pentiumpro -march=pentiumpro \
+#	-DUSE_SYSV_SEM
+#LDFLAGS= -lrt
+
+
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 

@@ -28,6 +28,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <signal.h>
+#include <semaphore.h>
 
 #include "video_stream.h"
 #include "video_types.h"
@@ -52,12 +53,31 @@
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-
+#if defined USE_SYSV_SEM
+#include <sys/sem.h>
+#endif
 #include <glib.h>
 
 #include "../include/common.h"
 #include "c_getbits.h"
 
+#ifndef HAVE_SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
+
+#if defined USE_SYSV_SEM
+#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
+/* union semun is defined by including <sys/sem.h> */
+#else
+/* according to X/OPEN we have to define it ourselves */
+union semun {
+  int val;                    /* value for SETVAL */
+  struct semid_ds *buf;       /* buffer for IPC_STAT, IPC_SET */
+  unsigned short int *array;  /* array for GETALL, SETALL */
+  struct seminfo *__buf;      /* buffer for IPC_INFO */
+};
+#endif
+#endif
 
 /*
 void timeadd(struct timespec *d, struct timespec *s1, struct timespec *s2);
@@ -251,6 +271,8 @@ void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
 
+#ifdef HAVE_CLOCK_GETTIME
+
 
 static void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
@@ -318,6 +340,79 @@ static int timecompare(struct timespec *s1, struct timespec *s2) {
   
   return 0;
 }
+
+#else
+
+
+static void timesub(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1-s2
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_usec = s1->tv_usec - s2->tv_usec;
+  
+  if(d->tv_usec >= 1000000) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+
+}  
+
+static void timeadd(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_usec = s1->tv_usec + s2->tv_usec;
+  if(d->tv_usec >= 1000000) {
+    d->tv_usec -=1000000;
+    d->tv_sec +=1;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_usec +=1000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+}  
+
+static int timecompare(struct timeval *s1, struct timeval *s2) {
+
+  if(s1->tv_sec > s2->tv_sec) {
+    return 1;
+  } else if(s1->tv_sec < s2->tv_sec) {
+    return -1;
+  }
+
+  if(s1->tv_usec > s2->tv_usec) {
+    return 1;
+  } else if(s1->tv_usec < s2->tv_usec) {
+    return -1;
+  }
+  
+  return 0;
+}
+
+#endif
+
 
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
@@ -648,8 +743,12 @@ void video_sequence(void) {
 void sequence_header(void)
 {
   uint32_t sequence_header_code;
+#ifdef HAVE_CLOCK_GETTIME
   long int frame_interval_nsec;
-  
+#else
+    long int frame_interval_usec;
+#endif
+
   DPRINTF(0, "sequence_header\n");
   
   sequence_header_code = GETBITS(32, "sequence header code");
@@ -737,35 +836,67 @@ void sequence_header(void)
     break;
   case 0x1:
     DPRINTF(1, "24000/1001 (23.976)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41708333;
+#else
+    frame_interval_usec = 41708;
+#endif
     break;
   case 0x2:
     DPRINTF(1, "24\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41666667;
+#else
+    frame_interval_usec = 41667;
+#endif
     break;
   case 0x3:
     DPRINTF(1, "25\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 40000000;
+#else
+    frame_interval_usec = 40000;
+#endif
     break;
   case 0x4:
     DPRINTF(1, "30000/1001 (29.97)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33366667;
+#else
+    frame_interval_usec = 33367;
+#endif
     break;
   case 0x5:
     DPRINTF(1, "30\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33333333;
+#else
+    frame_interval_usec = 33333;
+#endif
     break;
   case 0x6:
     DPRINTF(1, "50\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 20000000;
+#else
+    frame_interval_usec = 20000;
+#endif
     break;
   case 0x7:
     DPRINTF(1, "60000/1001 (59.94)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16683333;
+#else
+    frame_interval_usec = 16683;
+#endif
     break;
   case 0x8:
     DPRINTF(1, "60\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16666667;
+#else
+    frame_interval_usec = 16667;
+#endif
     break;
   default:
     DPRINTF(1, "Reserved\n");
@@ -774,12 +905,20 @@ void sequence_header(void)
   
   
   if(forced_frame_rate == -1) { /* No forced frame rate */
+#ifdef HAVE_CLOCK_GETTIME
     buf_ctrl_head->frame_interval = frame_interval_nsec;
+#else
+    buf_ctrl_head->frame_interval = frame_interval_usec;
+#endif
   } else {
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
+#ifdef HAVE_CLOCK_GETTIME
       buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+#else
+      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
+#endif
     }
   }
 
@@ -828,7 +967,8 @@ void init_out_q(int nr_of_bufs)
 				 sizeof(buf_ctrl_head_t) +
 				 nr_of_bufs * sizeof(picture_info_t));
   
-  
+#if defined USE_POSIX_SEM
+
   // Set the semaphores to the correct starting values
   if(sem_init(&(buf_ctrl_head->pictures_ready_to_display), 1, 0) == -1){
     perror("sem_init ready_to_display");
@@ -836,6 +976,30 @@ void init_out_q(int nr_of_bufs)
   if(sem_init(&(buf_ctrl_head->pictures_displayed), 1, 0) == -1) {
     perror("sem_init displayed");
   }
+
+#elif defined USE_SYSV_SEM
+
+  if((buf_ctrl_head->semid_pics =
+      semget(IPC_PRIVATE, 2, (IPC_CREAT | IPC_EXCL | 0700))) == -1) {
+    perror("init_out_q(), semget(semid_pics)");
+  } else {
+    union semun arg;
+    
+    arg.val = 0;
+    if(semctl(buf_ctrl_head->semid_pics, PICTURES_READY_TO_DISPLAY, SETVAL, arg) == -1) {
+      perror("semctl() semid_pics");
+    }
+    
+    arg.val = 0;
+    if(semctl(buf_ctrl_head->semid_pics, PICTURES_DISPLAYED, SETVAL, arg) == -1) {
+      perror("semctl() semid_pics");
+    }
+  }
+  
+  
+#else
+#error No semaphore type set
+#endif
   
 }
 
@@ -944,7 +1108,11 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
 
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
+#ifdef HAVE_CLOCK_GETTIME
   long int frame_interval_nsec;
+#else
+  long int frame_interval_usec;
+#endif
   uint32_t extension_start_code;
   
   extension_start_code = GETBITS(32, "extension_start_code");
@@ -1039,35 +1207,67 @@ void sequence_extension(void) {
     break;
   case 0x1:
     DPRINTF(1, "24000/1001 (23.976)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41708333;
+#else
+    frame_interval_usec = 41708;
+#endif
     break;
   case 0x2:
     DPRINTF(1, "24\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41666667;
+#else
+    frame_interval_usec = 41667;
+#endif
     break;
   case 0x3:
     DPRINTF(1, "25\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 40000000;
+#else
+    frame_interval_usec = 40000;
+#endif
     break;
   case 0x4:
     DPRINTF(1, "30000/1001 (29.97)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33366667;
+#else
+    frame_interval_usec = 33367;
+#endif
     break;
   case 0x5:
     DPRINTF(1, "30\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33333333;
+#else
+    frame_interval_usec = 33333;
+#endif
     break;
   case 0x6:
     DPRINTF(1, "50\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 20000000;
+#else
+    frame_interval_usec = 20000;
+#endif
     break;
   case 0x7:
     DPRINTF(1, "60000/1001 (59.94)\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16683333;
+#else
+    frame_interval_usec = 16683;
+#endif
     break;
   case 0x8:
     DPRINTF(1, "60\n");
+#ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16666667;
+#else
+    frame_interval_usec = 16667;
+#endif
     break;
   default:
     DPRINTF(1, "%f (computed)\n",
@@ -1079,12 +1279,20 @@ void sequence_extension(void) {
   }
 
   if(forced_frame_rate == -1) { /* No forced frame rate */
+#ifdef HAVE_CLOCK_GETTIME
     buf_ctrl_head->frame_interval = frame_interval_nsec;
+#else
+    buf_ctrl_head->frame_interval = frame_interval_usec;
+#endif
   } else {
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
+#ifdef HAVE_CLOCK_GETTIME
       buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+#else
+      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
+#endif
     }
   }
 }
@@ -1297,12 +1505,26 @@ void picture_header(void)
     if(last_scr_nr != prev_scr_nr) {   
       fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
 	      last_scr_nr, prev_scr_nr);
+#ifdef HAVE_CLOCK_GETTIME
+
       fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
 	      ctrl_time[last_scr_nr].realtime_offset.tv_sec,
 	      ctrl_time[last_scr_nr].realtime_offset.tv_nsec,
 	      ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
 	      ctrl_time[prev_scr_nr].realtime_offset.tv_nsec);
+#else
+
+      fprintf(stderr, "--- last_scr: %ld.%06ld, prev_scr: %ld.%06ld\n",
+	      ctrl_time[last_scr_nr].realtime_offset.tv_sec,
+	      ctrl_time[last_scr_nr].realtime_offset.tv_usec,
+	      ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
+	      ctrl_time[prev_scr_nr].realtime_offset.tv_usec);
+
+#endif
+
       fprintf(stderr, "+++ last_pts: %lld\n", last_pts);
+
+
     }
   }
 
@@ -1391,9 +1613,25 @@ int get_picture_buf()
   }
 
   // didn't find empty buffer, wait for a picture to display
+#if defined USE_POSIX_SEM
   if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
     perror("sem_wait get_picture_buf");
   }
+#elif USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = PICTURES_DISPLAYED;
+    sops.sem_op = -1;
+    sops.sem_flg = 0;
+    
+    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
+      perror("video_decode: semop() wait");
+    }
+  }
+
+#else
+#error No semaphore type set
+#endif
   id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
   buf_ctrl_head->picture_infos[id].displayed = 1;
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
@@ -1412,10 +1650,25 @@ int get_picture_buf()
   }
 
   //  fprintf(stderr, "decode: *** get_picture_buf\n");
-
+#if defined USE_POSIX_SEM
   if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
     perror("sem_wait get_picture_buf");
   }
+#elif USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = PICTURES_DISPLAYED;
+    sops.sem_op = -1;
+    sops.sem_flg = 0;
+    
+    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
+      perror("video_decode: semop() wait");
+    }
+  }
+
+#else
+#error No semaphore type set
+#endif
   id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
   buf_ctrl_head->picture_infos[id].displayed = 1;
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
@@ -1451,13 +1704,32 @@ void dpy_q_put(int id)
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
+#ifdef HAVE_CLOCK_GETTIME
       buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+#else
+      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
+#endif
     }
   }
+#if defined USE_POSIX_SEM
   if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
     perror("sempost pictures_ready");
   }
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = PICTURES_READY_TO_DISPLAY;
+    sops.sem_op =  1;
+    sops.sem_flg = 0;
+
+    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
+      perror("video_decode: semop() post");
+    }
+  }
   
+#else
+#error No semaphore type set
+#endif
 }
 
 #define FPS_FRAMES 480
@@ -1479,6 +1751,8 @@ void picture_data(void)
 
   //fprintf(stderr, ".");
   
+#ifdef HAVE_CLOCK_GETTIME
+
   if(bepa >= FPS_FRAMES) {
     static struct timespec qot;
     struct timespec qtt;
@@ -1513,6 +1787,45 @@ void picture_data(void)
     fprintf(stderr, "decode fps: %.3f\n",
 	    FPS_FRAMES/((double)qpt.tv_sec+(double)qpt.tv_nsec/1000000000.0));
   }
+
+#else
+
+  if(bepa >= FPS_FRAMES) {
+    static struct timeval qot;
+    struct timeval qtt;
+    struct timeval qpt;
+    
+    bepa = 0; 
+    
+    gettimeofday(&qtt, NULL);
+    // d = s1-s2
+    qpt.tv_sec = qtt.tv_sec - qot.tv_sec;
+    qpt.tv_usec = qtt.tv_usec - qot.tv_usec;
+    
+    if(qpt.tv_usec >= 1000000) {
+      qpt.tv_sec += 1;
+      qpt.tv_usec -= 1000000;
+    } else if(qpt.tv_usec <= -1000000) {
+      qpt.tv_sec -= 1;
+      qpt.tv_usec += 1000000;
+    }
+    
+    if((qpt.tv_sec > 0) && (qpt.tv_usec < 0)) {
+      qpt.tv_sec -= 1;
+      qpt.tv_usec += 1000000;
+    } else if((qpt.tv_sec < 0) && (qpt.tv_usec > 0)) {
+      qpt.tv_sec += 1;
+    qpt.tv_usec -= 1000000;
+    }
+    //    timesub(&qpt, &qtt, &qot);
+    
+    qot = qtt;
+
+    fprintf(stderr, "decode fps: %.3f\n",
+	    FPS_FRAMES/((double)qpt.tv_sec+(double)qpt.tv_usec/1000000.0));
+  }
+
+#endif
   
   bepa++;
 
@@ -1643,8 +1956,13 @@ void picture_data(void)
       last_timestamped_temp_ref = pic.header.temporal_reference;
       pinfos[buf_id].PTS = last_pts;
       pinfos[buf_id].pts_time.tv_sec = last_pts/90000;
+#ifdef HAVE_CLOCK_GETTIME
       pinfos[buf_id].pts_time.tv_nsec =
 	(last_pts%90000)*(1000000000/90000);
+#else
+      pinfos[buf_id].pts_time.tv_usec =
+	(last_pts%90000)*(1000000/90000);
+#endif
       pinfos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr].realtime_offset;
       pinfos[buf_id].scr_nr = last_scr_nr;
@@ -1680,7 +1998,8 @@ void picture_data(void)
 	 * In this case we can look at the previous temporal ref
 	 */
 	
-	
+#ifdef HAVE_CLOCK_GETTIME
+
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
@@ -1695,7 +2014,23 @@ void picture_data(void)
 	pinfos[buf_id].realtime_offset =
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
-	
+#else
+
+	calc_pts = last_pts +
+	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
+	  90000/(1000000/buf_ctrl_head->frame_interval);
+	/*
+	  calc_pts = last_pts_to_dpy +
+	  90000/(1000000/buf_ctrl_head->frame_interval);
+	*/
+	pinfos[buf_id].PTS = calc_pts;
+	pinfos[buf_id].pts_time.tv_sec = calc_pts/90000;
+	pinfos[buf_id].pts_time.tv_usec =
+	  (calc_pts%90000)*(1000000/90000);
+	pinfos[buf_id].realtime_offset =
+	  ctrl_time[last_scr_nr].realtime_offset;
+	pinfos[buf_id].scr_nr = last_scr_nr;
+#endif	
 	
 	break;
       case PIC_CODING_TYPE_B:
@@ -1718,6 +2053,9 @@ void picture_data(void)
 	 * from the last decoded picture which had a timestamp
 	 */
 	/* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from.*/
+
+#ifdef HAVE_CLOCK_GETTIME
+
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
@@ -1732,12 +2070,30 @@ void picture_data(void)
 	pinfos[buf_id].realtime_offset =
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
-	
+
+#else
+
+	calc_pts = last_pts +
+	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
+	  90000/(1000000/buf_ctrl_head->frame_interval);
+	/*
+	  calc_pts = last_pts_to_dpy + 
+	  90000/(1000000/buf_ctrl_head->frame_interval);
+	*/
+	buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
+	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
+	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_usec =
+	  (calc_pts%90000)*(1000000/90000);
+	pinfos[buf_id].realtime_offset =
+	  ctrl_time[last_scr_nr].realtime_offset;
+	pinfos[buf_id].scr_nr = last_scr_nr;
+
+#endif	
 	break;
       }
     }
     
-    /* When it is a B-picture we are decoding we now that it is
+    /* When it is a B-picture we are decoding we know that it is
      * the picture that is going to be displayed next.
      * We check to see if we are lagging behind the desired time
      * and in that case we don't decode/show this picture
@@ -1745,6 +2101,8 @@ void picture_data(void)
     
     /* Calculate the time remaining until this picture shall be viewed. */
     if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
+
+#ifdef HAVE_CLOCK_GETTIME
       
       struct timespec realtime, calc_rt, err_time;
       
@@ -1765,7 +2123,30 @@ void picture_data(void)
 		err_time.tv_sec,
 		err_time.tv_nsec);
 	*/
+
+#else
+
+      struct timeval realtime, calc_rt, err_time;
+      
+      gettimeofday(&realtime, NULL);
+      
+      timeadd(&calc_rt,
+	      &(pinfos[buf_id].pts_time),
+	      &(pinfos[buf_id].realtime_offset));
+      timesub(&err_time, &calc_rt, &realtime);
+	
+      /* If the picture should already have been displayed then drop it. */
+      /* TODO: More investigation needed. */
+      if(((err_time.tv_usec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
+	fprintf(stderr, "!");
 	  
+	/*
+	fprintf(stderr, "errpts %ld.%+06ld\n\n",
+		err_time.tv_sec,
+		err_time.tv_usec);
+	*/
+
+#endif	  
 	/* mark the frame to be dropped */
 	drop_frame = 1;
 	  
@@ -2787,6 +3168,7 @@ void timestat_print()
 
 #endif
 
+#ifdef HAVE_CLOCK_GETTIME
 
 void print_time_offset(uint64_t PTS)
 {
@@ -2806,3 +3188,24 @@ void print_time_offset(uint64_t PTS)
   fprintf(stderr, "video: offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
 }
 
+#else
+
+void print_time_offset(uint64_t PTS)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval predtime;
+  struct timeval offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  fprintf(stderr, "video: offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
+}
+
+#endif

@@ -1,3 +1,6 @@
+
+SUBDIRS         = ctrl mpeg2_video mpeg2_program ac3 mpeg_audio vmg ui
+
 all:
 	cd ctrl && $(MAKE)
 	cd mpeg2_video && ${MAKE}
@@ -6,3 +9,10 @@ all:
 	cd mpeg_audio && ${MAKE}
 	cd vmg && ${MAKE}
 	cd ui && ${MAKE}
+
+
+clean: 
+	SUBDIRS='$(SUBDIRS)'; \
+	for i in $$SUBDIRS; \
+	do (cd $$i && $(MAKE) $(MFLAGS) $@) || exit 1; done
+

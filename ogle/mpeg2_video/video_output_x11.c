@@ -96,8 +96,8 @@ static int scaled_image_width;
 static int scaled_image_height;
 #ifdef HAVE_MLIB
 static int scalemode = MLIB_BILINEAR;
-static int scalemode_change = 0;
 #endif /* HAVE_MLIB */
+static int scalemode_change = 0;
 
 
 extern void display_process_exit(void);
@@ -238,7 +238,7 @@ void display_init(int padded_width, int padded_height,
             xv_formats = XvListImageFormats (mydisplay, xv_port, 
                                              &xv_num_formats);
             for (j = 0; j < xv_num_formats; j++) {
-              if (xv_formats[j].id == 0x32315659) { /* where is this from? */
+	      if (xv_formats[j].id == 0x32315659) { /* where is this from? */
                 fprintf (stderr, "Found image format \"%s\", using it\n", 
                        xv_formats[j].guid);
                 xv_id = xv_formats[j].id;
@@ -755,6 +755,7 @@ void draw_win(debug_win *dwin)
     draw_win_x11(dwin);
   } else {
     dst = xv_image->data;
+#if 1
     /* Copy Y data */
     size = dwin->image->padded_width*dwin->image->padded_height;
     memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
@@ -764,7 +765,9 @@ void draw_win(debug_win *dwin)
     /* Copy V data */
     size = dwin->image->padded_width*dwin->image->padded_height/4;
     memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
-
+#else
+    //    xv_image->data = dwin->image->y;
+#endif
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
                   dwin->image->horizontal_size, dwin->image->vertical_size,

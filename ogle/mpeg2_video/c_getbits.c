@@ -22,15 +22,31 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/time.h>
 #include <unistd.h>
+
+#if defined USE_SYSV_SEM
+#include <sys/sem.h>
+#elif defined USE_POSIX_SEM
+#include <semaphore.h>
+#endif
+
+
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <errno.h>
+
 
 #include "c_getbits.h"
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
+
+
+#ifndef HAVE_SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
+
 
 extern int ctrl_data_shmid;
 extern ctrl_data_t *ctrl_data;
@@ -53,7 +69,11 @@ int chk_for_msg();
 int get_q();
 int eval_msg(cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
+#ifdef HAVE_CLOCK_GETTIME
 int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
+#else
+int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset);
+#endif
 int attach_ctrl_shm(int shmid);
 
 
@@ -119,6 +139,8 @@ void setup_mmap(char *filename) {
   DPRINTF(1, "All mmap systems ok!\n");
 }
 
+#ifdef HAVE_CLOCK_GETTIME
+
 static void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
@@ -169,12 +191,71 @@ static void timeadd(struct timespec *d,
   }
 }  
 
+#else
+
+static void timesub(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1-s2
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_usec = s1->tv_usec - s2->tv_usec;
+  
+  if(d->tv_usec >= 1000000) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+
+}  
+
+static void timeadd(struct timeval *d,
+	     struct timeval *s1, struct timeval *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_usec = s1->tv_usec + s2->tv_usec;
+  if(d->tv_usec >= 1000000) {
+    d->tv_usec -=1000000;
+    d->tv_sec +=1;
+  } else if(d->tv_usec <= -1000000) {
+    d->tv_usec +=1000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_usec += 1000000;
+  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
+    d->tv_sec += 1;
+    d->tv_usec -= 1000000;
+  }
+}  
+
+#endif
+
+
 void get_next_packet()
 {
 
   if(msgqid == -1) {
     if(mmap_base == NULL) {
+#ifdef HAVE_CLOCK_GETTIME
       static struct timespec time_offset = { 0, 0 };
+#else
+      static struct timeval time_offset = { 0, 0 };
+#endif
       setup_mmap(infilename);
       packet.offset = 0;
       packet.length = 1000000000;
@@ -534,15 +615,36 @@ int get_q()
    
     data_elem->in_use = 0;
     
-    
+#if defined USE_POSIX_SEM
     sem_getvalue(&q_head->bufs_full, &sval);
-    
+#elif defined USE_SYSV_SEM
+    if((sval = semctl(q_head->semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
+      perror("semctl getval");
+      exit(-1);
+    }
+#else
+#error No semaphore type set
+#endif
+
     if(sval < 50) {
       for(n = 0; n < delayed_posts+1; n++) {
+#if defined USE_POSIX_SEM
 	if(sem_post(&q_head->bufs_empty) == -1) {
 	  perror("video_decode: get_q(), sem_post()");
 	  return -1;
 	}
+#elif defined USE_SYSV_SEM
+	struct sembuf sops;
+	sops.sem_num = BUFS_EMPTY;
+	sops.sem_op = 1;
+	sops.sem_flg = 0;
+	if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+	  perror("video_decode: get_q(), semop() post");
+	  return -1;
+	}
+#else
+#error No semaphore type set
+#endif
       }
       delayed_posts = 0;
     } else {
@@ -552,18 +654,41 @@ int get_q()
   
   {
     int sval;
+#if defined USE_POSIX_SEM
     sem_getvalue(&q_head->bufs_full, &sval);
-    
+#elif defined USE_SYSV_SEM
+    if((sval = semctl(q_head->semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
+      perror("semctl getval");
+      exit(-1);
+    }
+#else
+#error No semaphore type set
+#endif
+
     if(sval < 50) {
       fprintf(stderr, "* Q %d\n", sval);
     }
   }
 
+#if defined USE_POSIX_SEM
   if(sem_wait(&q_head->bufs_full) == -1) {
     perror("video_decode: get_q(), sem_wait()");
     return -1;
   }
-
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_FULL;
+    sops.sem_op = -1;
+    sops.sem_flg = 0;
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("video_decode: get_q(), semop() wait");
+      return -1;
+    }
+  }
+#else
+#error No semaphore type set
+#endif
   have_buf = 1;
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -636,6 +761,7 @@ int attach_ctrl_shm(int shmid)
   
 }
 
+#ifdef HAVE_CLOCK_GETTIME
 
 int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
 {
@@ -659,3 +785,37 @@ int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
   return 0;
 }
   
+#else
+
+int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval modtime;
+  
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&modtime, &curtime, &offset);
+  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
+  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+  
+  fprintf(stderr, "video_stream: setting offset[%d]: %ld.%09ld\n",
+	  scr_nr,
+	  ctrl_time[scr_nr].realtime_offset.tv_sec,
+	  ctrl_time[scr_nr].realtime_offset.tv_usec);
+  
+  return 0;
+}
+  
+#endif
+
+
+
+
+
+
+
+
+

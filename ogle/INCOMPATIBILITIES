@@ -1,0 +1,13 @@
+SHM_SHARE_MMU (shmat): SOLARIS has it, LINUX does not
+
+sem_init: SOLARIS needs -lrt or -lposix4, LINUX needs -lrt or -lpthread
+sem_init: so use -lrt
+
+clock_gettime: SOLARIS has it, LINUX has not (fallback to gettimeofday?)
+clock_gettiem: <time.h>, gettimeofday <sys/time.h>
+
+
+getopt: SOLARIS in <stdlib.h>, LINUX in <unistd.h>
+
+getsubopt: SOLARIS in <stdlib.h>, LINUX in <stdlib.h> but #ifdef __USE_XOPEN_EXTENDED
+
