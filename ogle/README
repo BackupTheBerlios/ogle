@@ -6,17 +6,6 @@ To play a dvd you start ogle.
   where you can change /dev/dvd to point to your dvd reader or a director
   containing the files of a dvd. (see ogle_gui examples below)
 
-  then you start ac3dec
-  ac3dec /tmp/ac3 &
-
-  *attention*
-
-  don't forget to start ac3dec, we really mean it,
-  ac3dec /tmp/ac3 &
-
-  or if you don't want any audio
-  cat /tmp/ac3 >/dev/null & 
-
 Navigation in _both_ players if you have the mouse in the _video window_
   '>', skips to the next chapter
   '<', skips to the previous chapter
@@ -30,6 +19,9 @@ Navigation in _both_ players if you have the mouse in the _video window_
   'i', saves a screen shoot (as screenshoot.jpg in pwd)
   'I', saves a screen shoot with the subpicture overlay intact
   'f', toggle between fullscreen and window mode
+  '1'-'4' slow-motion, without sound
+  '5' normal playback speed
+  '6'-'9' fast-forward, without sound
   'q', exit the player
 
 
@@ -50,13 +42,7 @@ Ogle GUI
   or choose open disc in the menu
   which will open /dev/dvd which should point to your dvd device.
 
-  then you start ac3dec
-  ac3dec /tmp/ac3 &
-
-  *attention*
-
   At the moment you have to exit ogle and restart to play another dvd.
-
 
 Solaris
 
