@@ -129,36 +129,36 @@ typedef struct {
 
 
 typedef struct {
-  uint32_t vmgm_pgc_category;
-  uint32_t start_byte_of_vmgm_pgc;
+  uint32_t pgc_category;
+  uint32_t start_byte_of_pgc;
   pgc_t *pgc;
-} __attribute__ ((packed)) vmgm_pgci_srp_t;
-#define VMGM_PGCI_SRP_SIZE 8
+} __attribute__ ((packed)) pgci_srp_t;
+#define PGCI_SRP_SIZE 8
 
 typedef struct {
-  uint16_t nr_of_vmgm_pgci_srp;
+  uint16_t nr_of_pgci_srp;
   uint16_t zero_1;
   uint32_t last_byte;
-  vmgm_pgci_srp_t *vmgm_pgci_srp;
-} __attribute__ ((packed)) vmgm_pgciti_t;
-#define VMGM_PGCITI_SIZE 8
+  pgci_srp_t *pgci_srp;
+} __attribute__ ((packed)) pgcit_t;
+#define PGCIT_SIZE 8
 
 typedef struct {
   uint16_t lang_code;
   uint8_t  zero_1;
   uint8_t  exists;
   uint32_t lang_start_byte; // prt
-  vmgm_pgciti_t *menu_pgciti;
-} __attribute__ ((packed)) vmgm_pgci_lu_t;
-#define VMGM_PGCI_LU_SIZE 8
+  pgcit_t *menu_pgcit;
+} __attribute__ ((packed)) menu_pgci_lu_t;
+#define MENU_PGCI_LU_SIZE 8
 
 typedef struct {
   uint16_t nr_of_lang_units;
   uint16_t zero_1;
   uint32_t last_byte;
-  vmgm_pgci_lu_t *menu_lu;
-} __attribute__ ((packed)) vmgm_pgci_ut_t;
-#define VMGM_PGCI_UT_SIZE 8
+  menu_pgci_lu_t *menu_lu;
+} __attribute__ ((packed)) menu_pgci_ut_t;
+#define MENU_PGCI_UT_SIZE 8
 
 
 typedef struct {

@@ -22,8 +22,11 @@ void ifoPrint_PGC(pgc_t *pgc);
 void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
 void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
 
-void ifoRead_VMGM_PGCI_UT(vmgm_pgci_ut_t *vmgm_pgci_ut, int sector);
-void ifoPrint_VMGM_PGCI_UT(vmgm_pgci_ut_t *vmgm_pgci_ut);
+void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset);
+void ifoPrint_PGCIT(pgcit_t *pgcit);
+
+void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut, int sector);
+void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut);
 
 void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector);
 void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait);
@@ -93,7 +96,7 @@ char *program_name;
 
 void usage()
 {
-  fprintf(stderr, "Usage: %s  [-v <vob>] [-i <ifo>]\n", 
+  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-v <vob>] [-i <ifo>]\n", 
           program_name);
 }
 
@@ -103,7 +106,7 @@ int main(int argc, char *argv[])
   program_name = argv[0];
   
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "v:i:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "d:v:i:h?")) != EOF) {
     switch (c) {
     case 'v':
       vob_file = fopen(optarg,"r");
@@ -120,7 +123,10 @@ int main(int argc, char *argv[])
           exit(1);
         }
       ifo_mode=1;
-      break;    
+      break;
+    case 'd':
+      debug = atoi(optarg);
+      break;
     case 'h':
     case '?':
       usage();
@@ -145,7 +151,7 @@ int main(int argc, char *argv[])
     if(strncmp("DVDVIDEO-VMG",data, 12) == 0) {
       vmgi_mat_t vmgi_mat;
       vmg_ptt_srpt_t vmg_ptt_srpt;
-      vmgm_pgci_ut_t vmgm_pgci_ut;
+      menu_pgci_ut_t vmgm_pgci_ut;
       vmg_ptl_mait_t vmg_ptl_mait;
       vmg_vts_atrt_t vmg_vts_atrt;
       c_adt_t vmgm_c_adt;
@@ -172,8 +178,8 @@ int main(int argc, char *argv[])
       PUT(1, "\nMenu PGCI Unit table\n");
       PUT(1,   "--------------------\n");
       if(vmgi_mat.vmgm_pgci_ut != 0) {
-	ifoRead_VMGM_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
-	ifoPrint_VMGM_PGCI_UT(&vmgm_pgci_ut);
+	ifoRead_MENU_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
+	ifoPrint_MENU_PGCI_UT(&vmgm_pgci_ut);
       } else
 	PUT(5, "No PGCI Unit table present\n");
        
@@ -199,7 +205,7 @@ int main(int argc, char *argv[])
       PUT(1,   "-----------------\n");
       if(vmgi_mat.vmgm_c_adt != 0) {
 	ifoRead_C_ADT(&vmgm_c_adt, vmgi_mat.vmgm_c_adt);
-	//ifoPrint_C_ADT(&vmgm_c_adt);
+	ifoPrint_C_ADT(&vmgm_c_adt);
       } else
 	PUT(5, "No Cell Adress table present\n");
       
@@ -207,22 +213,42 @@ int main(int argc, char *argv[])
       PUT(1,   "-----------------\n");
       if(vmgi_mat.vmgm_vobu_admap != 0) {
 	ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
-	//ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
+	ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
       } else
 	PUT(5, "No Menu VOBU address map present\n");
       
     } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
       vtsi_mat_t vtsi_mat;
+      pgcit_t vts_pgcit;
+      menu_pgci_ut_t vtsm_pgci_ut;
       c_adt_t vtsm_c_adt;
       vobu_admap_t vtsm_vobu_admap;
+      c_adt_t vts_c_adt;
+      vobu_admap_t vts_vobu_admap;
       
       PUT(1, "VTS top level\n-------------\n");
       memcpy(&vtsi_mat, data, sizeof(vtsi_mat));
       ifoPrint_VTSI_MAT(&vtsi_mat);
       
       
+      PUT(1, "\nPGCI Unit table\n");
+      PUT(1,   "--------------------\n");
+      if(vtsi_mat.vts_pgcit != 0) {
+	ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit, 0);
+	ifoPrint_PGCIT(&vts_pgcit);
+      } else
+	PUT(5, "No PGCI Unit table present\n");
       
-      PUT(1, "\nCell Adress table\n");
+      PUT(1, "\nMenu PGCI Unit table\n");
+      PUT(1,   "--------------------\n");
+      if(vtsi_mat.vtsm_pgci_ut != 0) {
+	ifoRead_MENU_PGCI_UT(&vtsm_pgci_ut, vtsi_mat.vtsm_pgci_ut);
+	ifoPrint_MENU_PGCI_UT(&vtsm_pgci_ut);
+      } else
+	PUT(5, "No Menu PGCI Unit table present\n");
+      
+      
+      PUT(1, "\nMenu Cell Adress table\n");
       PUT(1,   "-----------------\n");
       if(vtsi_mat.vtsm_c_adt != 0) {
 	ifoRead_C_ADT(&vtsm_c_adt, vtsi_mat.vtsm_c_adt);
@@ -230,11 +256,27 @@ int main(int argc, char *argv[])
       } else
 	PUT(5, "No Cell Adress table present\n");
       
-      PUT(1, "\nVideo Title set Menu VOBU address map\n");
+      PUT(1, "\nVideo Title Set Menu VOBU address map\n");
       PUT(1,   "-----------------\n");
       if(vtsi_mat.vtsm_vobu_admap != 0) {
 	ifoRead_VOBU_ADMAP(&vtsm_vobu_admap, vtsi_mat.vtsm_vobu_admap);
 	ifoPrint_VOBU_ADMAP(&vtsm_vobu_admap);
+      } else
+	PUT(5, "No Menu VOBU address map present\n");
+      
+      PUT(1, "\nCell Adress table\n");
+      PUT(1,   "-----------------\n");
+      if(vtsi_mat.vts_c_adt != 0) {
+	ifoRead_C_ADT(&vts_c_adt, vtsi_mat.vts_c_adt);
+	ifoPrint_C_ADT(&vts_c_adt);
+      } else
+	PUT(5, "No Cell Adress table present\n");
+      
+      PUT(1, "\nVideo Title Set VOBU address map\n");
+      PUT(1,   "-----------------\n");
+      if(vtsi_mat.vts_vobu_admap != 0) {
+	ifoRead_VOBU_ADMAP(&vts_vobu_admap, vtsi_mat.vts_vobu_admap);
+	ifoPrint_VOBU_ADMAP(&vts_vobu_admap);
       } else
 	PUT(5, "No Menu VOBU address map present\n");
     } 
@@ -248,12 +290,27 @@ int main(int argc, char *argv[])
 }
 
 void ifoPrint_time(int level, dvd_time_t *time) {
-  PUT(level, "%02x:%02x:%02x.%02x @ %s", 
+  char *rate;
+  PUT(level, "%02x:%02x:%02x.%02x", 
       time->hour,
       time->minute,
       time->second,
-      time->frame_u & 0x3f,
-      time->frame_u & 0xc0 ? "30fps" : "25fps");
+      time->frame_u & 0x3f);
+  switch((time->frame_u & 0xc0) >> 6) {
+  case 0: 
+    rate = "25.00";
+    break;
+  case 1:
+    rate = "30.00";
+    break;
+  case 2:
+    rate = "(please send a bug report)"; //Or is this 25fps?
+    break;
+  case 3:
+    rate = "29.97";
+    break;
+  } 
+  PUT(level, " @ %s fps", rate);
 }
 
 
@@ -324,16 +381,16 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
       vtsi_mat->specification_version>>4, vtsi_mat->specification_version&0xf);
   PUT(5, "VTS Category: %08x\n", vtsi_mat->vts_category);
   PUT(5, "End byte of VTSI_MAT: %08x\n", vtsi_mat->vtsi_last_byte);
-  PUT(5, "Start sector of VTSM_VOBS: %08x\n", vtsi_mat->vtsm_vobs);
+  PUT(5, "Start sector of VTSM_VOBS:  %08x\n", vtsi_mat->vtsm_vobs);
   PUT(5, "Start sector of VTSTT_VOBS: %08x\n", vtsi_mat->vtstt_vobs);
   PUT(5, "Start sector of VTS_PTT_SRPT: %08x\n", vtsi_mat->vts_ptt_srpt);
-  PUT(5, "Start sector of VTS_PGCIT: %08x\n", vtsi_mat->vts_pgcit);
+  PUT(5, "Start sector of VTS_PGCIT:    %08x\n", vtsi_mat->vts_pgcit);
   PUT(5, "Start sector of VTSM_PGCI_UT: %08x\n", vtsi_mat->vtsm_pgci_ut);
-  PUT(5, "Start sector of VTS_TMAPT: %08x\n", vtsi_mat->vts_tmapt);
-  PUT(5, "Start sector of VTSM_C_ADT: %08x\n", vtsi_mat->vtsm_c_adt);
+  PUT(5, "Start sector of VTS_TMAPT:    %08x\n", vtsi_mat->vts_tmapt);
+  PUT(5, "Start sector of VTSM_C_ADT:      %08x\n", vtsi_mat->vtsm_c_adt);
   PUT(5, "Start sector of VTSM_VOBU_ADMAP: %08x\n",vtsi_mat->vtsm_vobu_admap);
-  PUT(5, "Start sector of VTS_C_ADT: %08x\n", vtsi_mat->vts_c_adt);
-  PUT(5, "Start sector of VTS_VOBU_ADMAP: %08x\n", vtsi_mat->vts_vobu_admap);
+  PUT(5, "Start sector of VTS_C_ADT:       %08x\n", vtsi_mat->vts_c_adt);
+  PUT(5, "Start sector of VTS_VOBU_ADMAP:  %08x\n", vtsi_mat->vts_vobu_admap);
   
   PUT(5, "Video attributes of VTSM_VOBS: %04x\n", 
       vtsi_mat->vtsm_video_attributes);
@@ -469,6 +526,14 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   }  
 }  
 
+void ifoPrint_PGC_COMMAND_TBL(uint8_t *command) {
+  int i;
+  for(i=0;i<8;i++) {
+    PUT(5, "%02x ", command[i]);
+  }
+  PUT(5, "\n");
+}
+
 void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   if(cmd_tbl == NULL) {
     PUT(5, "No Command table present\n");
@@ -477,32 +542,22 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   
   PUT(5, "Number of Pre commands: %i\n", cmd_tbl->nr_of_pre);
   {
-    int i, j;
-    for(i=0;i<cmd_tbl->nr_of_pre;i++) {
-      for(j=0;j<8;j++) {
-	PUT(5, "%02x ", cmd_tbl->pre_commands[i][j]);
-      }
-      PUT(5, "\n");
+    int i;
+    for(i=0;i<cmd_tbl->nr_of_post;i++) {
+      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->pre_commands[i]);
     }
-  }
   PUT(5, "Number of Post commands: %i\n", cmd_tbl->nr_of_post);
   {
-    int i, j;
+    int i;
     for(i=0;i<cmd_tbl->nr_of_post;i++) {
-      for(j=0;j<8;j++) {
-	PUT(5, "%02x ", cmd_tbl->post_commands[i][j]);
-      }
-      PUT(5, "\n");
+      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->post_commands[i]);
     }
   }
   PUT(5, "Number of Cell commands: %i\n", cmd_tbl->nr_of_cell);
   {
-    int i, j;
+    int i;
     for(i=0;i<cmd_tbl->nr_of_cell;i++) {
-      for(j=0;j<8;j++) {
-	PUT(5, "%02x ", cmd_tbl->cell_commands[i][j]);
-      }
-      PUT(5, "\n");
+      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->cell_commands[i]);
     }
   }
 }
@@ -557,7 +612,7 @@ void ifoPrint_PGC(pgc_t *pgc) {
   
   PUT(5, "Number of Programs: %i\n", pgc->nr_of_programs);
   PUT(5, "Number of Cells: %i\n", pgc->nr_of_cells);
-  assert(pgc->nr_of_cells <= pgc->nr_of_programs);
+  assert(pgc->nr_of_programs <= pgc->nr_of_cells);
   /* Check that time is 0:0:0:0 also if nr_of_programs==0 */
   PUT(5, "Playback time: ");
   ifoPrint_time(5, &pgc->playback_time); PUT(5, "\n");
@@ -737,9 +792,9 @@ void ifoPrint_C_ADT(c_adt_t *c_adt) {
   
   for(i=0;i<entries;i++) {
     CHECK_ZERO(c_adt->cell_adr_table[i].zero_1);
-    PUT(5, "VOB ID: %3i, Cell ID: %3i   ", 
+    PUT(7, "VOB ID: %3i, Cell ID: %3i   ", 
 	c_adt->cell_adr_table[i].vob_id, c_adt->cell_adr_table[i].cell_id);
-    PUT(5, "Sector (first): 0x%08x   (last): 0x%08x\n",
+    PUT(7, "Sector (first): 0x%08x   (last): 0x%08x\n",
 	c_adt->cell_adr_table[i].start_sector, 
 	c_adt->cell_adr_table[i].last_sector);
     assert(c_adt->cell_adr_table[i].last_sector
@@ -768,104 +823,111 @@ void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap) {
   int i, entries;
   entries = (vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE)/4;
   for(i=0;i<entries;i++) {
-    PUT(5, "VOBU %5i  First sector: 0x%08x\n", i+1,
+    PUT(9, "VOBU %5i  First sector: 0x%08x\n", i+1,
 	vobu_admap->vobu_start_sectors[i]);
   }
 }
 
 
-void ifoRead_VMGM_PGCITI(vmgm_pgciti_t *vmgm_pgciti, int sector, int offset) {
+void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset) {
   int i, info_length;
   uint8_t *data, *ptr;
   
   fseek(ifo_file, offset + sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vmgm_pgciti, VMGM_PGCITI_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_PGCITI");
+  if(fread(pgcit, PGCIT_SIZE, 1, ifo_file) != 1) {
+    perror("PGCIT");
     exit(1);
   }
   
-  info_length = vmgm_pgciti->nr_of_vmgm_pgci_srp * VMGM_PGCI_SRP_SIZE;
+  info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_PGCI_UT info");
+    perror("PGCIT info");
     exit(1);
   }
   
-  vmgm_pgciti->vmgm_pgci_srp 
-    = malloc(vmgm_pgciti->nr_of_vmgm_pgci_srp * sizeof(vmgm_pgci_srp_t));
+  pgcit->pgci_srp 
+    = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
   ptr = data;
-  for(i=0;i<vmgm_pgciti->nr_of_vmgm_pgci_srp;i++) {
-    memcpy(&vmgm_pgciti->vmgm_pgci_srp[i], ptr, VMGM_PGCI_LU_SIZE);
-    ptr += VMGM_PGCI_LU_SIZE;
+  for(i=0;i<pgcit->nr_of_pgci_srp;i++) {
+    memcpy(&pgcit->pgci_srp[i], ptr, MENU_PGCI_LU_SIZE);
+    ptr += MENU_PGCI_LU_SIZE;
     
-    vmgm_pgciti->vmgm_pgci_srp[i].pgc = malloc(sizeof(pgc_t));
-    ifoRead_PGC(vmgm_pgciti->vmgm_pgci_srp[i].pgc, 
+    pgcit->pgci_srp[i].pgc = malloc(sizeof(pgc_t));
+    ifoRead_PGC(pgcit->pgci_srp[i].pgc, 
 		sector * DVD_BLOCK_LEN + offset
-		+ vmgm_pgciti->vmgm_pgci_srp[i].start_byte_of_vmgm_pgc);
+		+ pgcit->pgci_srp[i].start_byte_of_pgc);
   }
   free(data);
 }
 
-void ifoRead_VMGM_PGCI_UT(vmgm_pgci_ut_t *vmgm_pgci_ut, int sector) {
+void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   int i, info_length;
   uint8_t *data, *ptr;
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vmgm_pgci_ut, VMGM_PGCI_UT_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_PGCI_UT");
+  if(fread(pgci_ut, MENU_PGCI_UT_SIZE, 1, ifo_file) != 1) {
+    perror("MENU_PGCI_UT");
     exit(1);
   }
-  info_length = vmgm_pgci_ut->nr_of_lang_units * VMGM_PGCI_LU_SIZE;
+  info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_PGCI_UT info");
+    perror("MENU_PGCI_UT info");
     exit(1);
   }
   
-  vmgm_pgci_ut->menu_lu 
-    = malloc(vmgm_pgci_ut->nr_of_lang_units * sizeof(vmgm_pgci_lu_t));
+  pgci_ut->menu_lu 
+    = malloc(pgci_ut->nr_of_lang_units * sizeof(menu_pgci_lu_t));
   ptr = data;
-  for(i=0;i<vmgm_pgci_ut->nr_of_lang_units;i++) {
-    memcpy(&vmgm_pgci_ut->menu_lu[i], ptr, VMGM_PGCI_LU_SIZE);
-    ptr += VMGM_PGCI_LU_SIZE;
+  for(i=0;i<pgci_ut->nr_of_lang_units;i++) {
+    memcpy(&pgci_ut->menu_lu[i], ptr, MENU_PGCI_LU_SIZE);
+    ptr += MENU_PGCI_LU_SIZE;
     
     /* vmgm_pgci_ut->menu_lu[i].exists doesn't seem to indicate 
-       the presens of the PGCITI but rather some thing else.
+       the presens of the PGCIT but rather some thing else.
        Maybe only defined in v1.1? */
-    vmgm_pgci_ut->menu_lu[i].menu_pgciti = malloc(sizeof(vmgm_pgciti_t));
-    ifoRead_VMGM_PGCITI(vmgm_pgci_ut->menu_lu[i].menu_pgciti,
-			sector,
-			vmgm_pgci_ut->menu_lu[i].lang_start_byte);
+    /* If the bita are enumerated abcd efgh then:
+            VTS_x_yy.IFO	VIDEO_TS.IFO
+       a == 0x83 "Root"		0x82 "Title (VTS menu)"
+       b == 0x84 "Sub-Picture"
+       c == 0x85 "Audio"
+       d == 0x86 "Angle"
+       e == 0x87 "Part of Title"
+    */
+    pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
+    ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit,
+		   sector,
+		   pgci_ut->menu_lu[i].lang_start_byte);
   }
   free(data);
 }
 
 
-void ifoPrint_VMGM_PGCITI(vmgm_pgciti_t *vmgm_pgciti) {
+void ifoPrint_PGCIT(pgcit_t *pgcit) {
   int i;
-  CHECK_ZERO(vmgm_pgciti->zero_1);
-  for(i=0;i<vmgm_pgciti->nr_of_vmgm_pgci_srp;i++) {
-    PUT(5, "\nProgram (PGC): %3i\t", i);
+  CHECK_ZERO(pgcit->zero_1);
+  for(i=0;i<pgcit->nr_of_pgci_srp;i++) {
+    PUT(5, "\nProgram (PGC): %3i\t", i+1);
     /* low 16 == ?Parental control mask? 
        highest byte menu type? 82 == root? */
-    PUT(5, "VMGM PGC Category: 0x%08x\n",
-	vmgm_pgciti->vmgm_pgci_srp[i].vmgm_pgc_category);
-    ifoPrint_PGC(vmgm_pgciti->vmgm_pgci_srp[i].pgc);
+    PUT(5, "PGC Category: 0x%08x\n", pgcit->pgci_srp[i].pgc_category);
+    ifoPrint_PGC(pgcit->pgci_srp[i].pgc);
   }
 }
 
-void ifoPrint_VMGM_PGCI_UT(vmgm_pgci_ut_t *vmgm_pgci_ut) {
+void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut) {
   int i;
-  CHECK_ZERO(vmgm_pgci_ut->zero_1);
+  CHECK_ZERO(pgci_ut->zero_1);
   PUT(5, "Number of Menu Language Units (PGCI_LU): %3i\n", 
-      vmgm_pgci_ut->nr_of_lang_units);
-  for(i=0;i<vmgm_pgci_ut->nr_of_lang_units;i++) {
-    CHECK_ZERO(vmgm_pgci_ut->menu_lu[i].zero_1);
+      pgci_ut->nr_of_lang_units);
+  for(i=0;i<pgci_ut->nr_of_lang_units;i++) {
+    CHECK_ZERO(pgci_ut->menu_lu[i].zero_1);
     PUT(5, "Menu Language Code: %c%c\n",
-	vmgm_pgci_ut->menu_lu[i].lang_code>>8,
-	vmgm_pgci_ut->menu_lu[i].lang_code&0xff);
-    PUT(5, "Menu Existence: %02x\n", vmgm_pgci_ut->menu_lu[i].exists);
-    ifoPrint_VMGM_PGCITI(vmgm_pgci_ut->menu_lu[i].menu_pgciti);
+	pgci_ut->menu_lu[i].lang_code>>8,
+	pgci_ut->menu_lu[i].lang_code&0xff);
+    PUT(5, "Menu Existence: %02x\n", pgci_ut->menu_lu[i].exists);
+    ifoPrint_PGCIT(pgci_ut->menu_lu[i].menu_pgcit);
   }
 }
 
@@ -888,6 +950,7 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
     perror("VMG_VTS_ATRT");
     exit(1);
   }
+  
   info_length = vts_atrt->nr_of_vtss * 4; /* Fix? */
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
@@ -920,7 +983,7 @@ void ifoPrint_VTS_ATRIBUTES(vts_atributes_t *vts_atributes) {
   CHECK_ZERO(vts_atributes->zero_7);
   PUT(5, "VTS_CAT Application type: %08x\n", vts_atributes->vts_cat);
   
-  PUT(5, "Attributes of VTSM_VOBS: %04x\n", 
+  PUT(5, "Video Attributes of VTSM_VOBS: %04x\n", 
       vts_atributes->vtsm_vobs_attributes);  
   PUT(5, "Number of Audio streams: %i\n", 
       vts_atributes->nr_of_vtsm_audio_streams);
@@ -950,7 +1013,7 @@ void ifoPrint_VTS_ATRIBUTES(vts_atributes_t *vts_atributes) {
   }
    
    
-  PUT(5, "Attributes of VTSTT_VOBS: %04x\n", 
+  PUT(5, "Video Attributes of VTSTT_VOBS: %04x\n", 
       vts_atributes->vtstt_vobs_video_attributes);  
   PUT(5, "Number of Audio streams: %i\n", 
       vts_atributes->nr_of_vtstt_audio_streams);
@@ -981,7 +1044,9 @@ void ifoPrint_VTS_ATRIBUTES(vts_atributes_t *vts_atributes) {
     } else
       for(j=0;j<6;j++)
 	CHECK_ZERO(vts_atributes->vtstt_subp_attributes[i][j]);
-   }
+  }
+  assert(350 + 6*vts_atributes->nr_of_vtstt_subp_streams <=
+	 vts_atributes->last_byte + 1);
 }
 
 void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
@@ -990,7 +1055,7 @@ void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
   PUT(5, "Number of Video Title Sets: %3i\n", 
      vts_atrt->nr_of_vtss);
   for(i=0;i<vts_atrt->nr_of_vtss;i++) {
-    PUT(5, "\nVideo Title Set %i\n", i);
+    PUT(5, "\nVideo Title Set %i\n", i+1);
     ifoPrint_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i]);
   }
 }
