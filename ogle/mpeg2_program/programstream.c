@@ -1,6 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "programstream.h"
+
 
 #define READ_SIZE 2048
 #define ALLOC_SIZE 2048
@@ -29,6 +34,8 @@ FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
 FILE *infile;
+int   infilefd;
+void* infileaddr;
 
 usage()
 {
@@ -46,18 +53,30 @@ main(int argc, char **argv)
     switch (c) {
     case 'v':
       video_file = fopen(optarg,"w");
+      if(!video_file) {
+	  perror(optarg);
+	  exit(1);
+	}
       video=1;
       break;
     case 'a':
       audio_file = fopen(optarg,"w");
+      if(!audio_file) {
+	  perror(optarg);
+	  exit(1);
+	}
       audio=1;
       break;
     case 's':
       subtitle_file = fopen(optarg,"w");
+      if(!subtitle_file) {
+	  perror(optarg);
+	  exit(1);
+	}
       subtitle=1;
       break;
     case 'i':
-      subtitle_id =atoi(optarg);
+      subtitle_id = atoi(optarg);
       if(! (subtitle_id>=0x20 && subtitle_id<=0x2f)) {
 	fprintf(stderr, "Invalid subtitle_id range.\n");
 	exit(1);
@@ -74,11 +93,33 @@ main(int argc, char **argv)
     usage();
     return 1;
   }
-  if(!strcmp(argv[optind], "-"))
+  if(!strcmp(argv[optind], "-")) {
     infile = stdin;
-  else
-    infile = fopen(argv[optind],"r");
+  } else {
+    struct stat statbuf;
+    int rv;
 
+    infilefd = open(argv[optind], O_RDONLY);
+    if(infilefd == -1) {
+      perror(argv[optind]);
+      exit(1);
+    }
+    rv = fstat(infilefd, &statbuf);
+    if (rv == -1) {
+      perror("fstat");
+      exit(1);
+    }
+    infileaddr = mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
+    if(infileaddr == MAP_FAILED) {
+      perror("mmap");
+      exit(1);
+    }
+    rv = madvise(infileaddr, statbuf.st_size, MADV_SEQUENTIAL);
+    if(rv == -1) {
+      perror("madvise");
+      exit(1);
+    }
+  }
   //  printf("infile: %s\n",argv[optind]);
 
   if(subtitle ^ !!subtitle_id) {  // both arguments needed.
@@ -105,7 +146,6 @@ resync() {
   fprintf(stderr, "Resyncing\n");
   buf_start = 0;
   buf_fill = 0;
-
 }
 
 get_data()
