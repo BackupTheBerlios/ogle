@@ -1403,7 +1403,6 @@ void picture_header(void)
     }
   }
 
-  //  print_time_offset(PTS);
 
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");

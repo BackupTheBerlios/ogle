@@ -555,6 +555,7 @@ int get_q()
     perror("video_decode: get_q(), sem_wait()");
     exit(1); // XXX 
   }
+
   have_buf = 1;
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -625,20 +626,6 @@ int attach_ctrl_shm(int shmid)
   return 0;  
 }
 
-
-
-void print_time_offset(uint64_t PTS)
-{
-  clocktime_t ptstime, curtime, offset;
-
-  PTS_TO_CLOCKTIME(ptstime, PTS);
-  timeadd(&ptstime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  clocktime_get(&curtime);
-  timesub(&offset, &ptstime, &curtime);
-
-  fprintf(stderr, "video: offset: %ld.%09ld\n",TIME_S(offset),TIME_SS(offset));
-}
 
 
 

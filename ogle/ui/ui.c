@@ -23,10 +23,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
 
-void print_time_base_offset(uint64_t PTS, int scr_nr);
-int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
-struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
-
 
 char *program_name;
 

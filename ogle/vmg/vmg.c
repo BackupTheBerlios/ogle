@@ -27,9 +27,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
 
-void print_time_base_offset(uint64_t PTS, int scr_nr);
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
-
 
 char *program_name;
 
@@ -289,7 +286,7 @@ int get_q()
   
   if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
     if(PTS_DTS_flags && 0x2) {
-      set_time_base(PTS, scr_nr, time_offset);
+      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
   if(PTS_DTS_flags && 0x2) {
@@ -299,12 +296,7 @@ int get_q()
   */
 
 
-  /*
-  if((packnr % 10) == 0) {
-    print_time_base_offset(PTS, scr_nr);
-  }
-  packnr++;
-  */
+
   /*
   fprintf(stderr, "vmg: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
 	  PTS_DTS_flags, PTS, DTS, off, len);
@@ -325,28 +317,6 @@ int get_q()
 }
 
 
-
-
-
-
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
-{
-  clocktime_t curtime, ptstime, modtime;
-  
-  PTS_TO_CLOCKTIME(ptstime, PTS)
-
-  clocktime_get(&curtime);
-  timeadd(&modtime, &curtime, &offset);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
-  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-  
-  fprintf(stderr, "vmg: setting offset[%d]: %ld.%09ld\n",
-	  scr_nr,
-	  TIME_S(ctrl_time[scr_nr].realtime_offset),
-	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
-  
-  return 0;
-}
 
 
 int attach_ctrl_shm(int shmid)

@@ -271,13 +271,6 @@ int get_q()
   prev_scr_nr = scr_nr;
   
   /*
-  if((packnr % 100) == 0) {
-    print_time_base_offset(PTS, scr_nr);
-  }
-  packnr++;
-  */
-
-  /*
    * primitive resync in case output buffer is emptied 
    */
 
