@@ -4,3 +4,4 @@ Makefile.in
 ogle_gui.pot
 stamp-cat-id
 cat-id-tbl.c
+*.gmo
