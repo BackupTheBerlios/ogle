@@ -21,6 +21,7 @@
 #include <unistd.h>
 #include <sys/msg.h>
 #include <string.h>
+#include <errno.h>
 
 #include "dvd.h"
 #include "dvdevents.h"
@@ -197,6 +198,7 @@ static const char DVD_E_NotImplemented_STR[] = "Not Implemented";
 static const char DVD_E_NoSuchError_STR[] = "No such error code";
 static const char DVD_E_RootNotSet_STR[] = "Root not set";
 static const char DVD_E_FailedToSend_STR[] = "Failed to send request";
+static const char DVD_E_NOMEM_STR[] = "Out of memory";
 /**
  * Print DVD error messages
  */
@@ -219,6 +221,9 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
     break;
   case DVD_E_FailedToSend:
     errstr = DVD_E_FailedToSend_STR;
+    break;
+  case DVD_E_NOMEM:
+    errstr = DVD_E_NOMEM_STR;
     break;
   default:
     errstr = DVD_E_NoSuchError_STR;
@@ -1155,12 +1160,13 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
  * @todo Remove this function.
  *
  * @param nav Specifies the connection to the DVD navigator.
- * @param ev is the returned message incase DVD_E_Ok is returned.
+ * @param ev is the returned message in case DVD_E_Ok is returned.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified. Failure.
  */
 DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
 {
