@@ -10,6 +10,183 @@ The file is written in XML, with a DTD in an external file.
 .br
 Look in the system-wide oglerc for available settings.
 .br
+The configuration is divided into four main groups:
+dvd, audio, video and user_interface.
+
+These are the available tags:
+
+<ogle_conf>
+
+
+
+  <dvd>
+    <nav>
+      <defaults>
+        <DefaultMenuLanguage>en</DefaultMenuLanguage>
+        <DefaultAudioLanguage>en</DefaultAudioLanguage>
+        <DefaultSubtitleLanguage>en</DefaultSubtitleLanguage>
+        <ParentalCountry>US</ParentalCountry>
+        <ParentalLevel>15</ParentalLevel>
+        <PlayerRegion>1</PlayerRegion>
+      </defaults>
+    </nav>
+    <device>
+      <path>/cdrom/cdrom0</path>
+    </device>
+  </dvd>
+
+The <DefaultMenuLanguage>,<DefaultAudioLanguage> and  <DefaultSubtitleLanguage>
+tags should be set to your preferred ISO-639 2-character language code.
+Depending on how the DVD uses these values you might get different
+languages when playing the dvd.
+
+<ParentalCountry> and <ParentalLevel> are used by the DVD to choose
+what you will be allowed to watch.
+
+<PlayerRegion> should be set to the region the DVD expects to be played
+in. An incorrect region might result in that the disc will refuse to play or
+show a screen telling you that you have the wrong region.
+This setting has nothing to do with the region setting of your
+DVD-ROM drive.
+
+<path> is the path to your DVD-ROM drive
+
+
+
+  <audio>
+    <device>
+      <path>/dev/audio</path>
+    </device>
+    <speakers>
+      <front>2</front>
+      <rear>0</rear>
+      <sub>0</sub>
+    </speakers>
+  </audio>
+
+<path> is the path to your audio device
+
+
+
+  <video>
+    <display>
+        <name></name>
+        <geometry>
+          <width></width>
+          <height></height>
+        </geometry>
+        <resolution>
+          <horizontal_pixels></horizontal_pixels>
+          <vertical_pixels></vertical_pixels>
+        </resolution>
+        <geometry_src>X11</geometry_src>
+        <resolution_src>Xinerama</resolution_src>
+        <switch_resolution>no</switch_resolution>
+    </display>
+  </video>
+
+<geometry_src> tells where to get the geometry from.
+The geometry is the size (in millimeters) of your display.
+It can be set to "X11" or "user" not including the "".
+If set to "X11" the geometry will be delivered by your X-server.
+If you X-server isn't set up correctly it might deliver the wrong geometry
+resulting in an incorrect aspect (the picture will be stretched in some
+direction).
+You can set the geometry manually by choosing "user" and filling in
+the <width> and <height> tags in the <geometry> section.
+Example:
+ <geometry>
+   <width>400</width>
+   <height>300</height>
+ </geometry>
+
+this tells that you have a monitor which has a width of 400 mm
+and a hight of 300 mm.
+
+
+<resolution_src> tells where to get the resolution from.
+The resolution is the number of pixels (in x and y direction) your display has.
+It can be set to "X11", "XF86VidMode", "Xinerama" or "user", not including
+the "".
+"X11" - the resolution is taken from the X-server,
+"XF86VidMode" - from the XF86VidMode extension (if you change
+resolution with <ctrl><alt><+/->)
+"Xinerama" - if you use the Xinerama extension
+"user" if you want to force it manually to a certain resolution.
+When set to "user" you must fill in the correct values in the
+<horizontal_pixels> and <vertical_pixels> tags.
+
+By using the "user" mode of both the <resolution> and <geometry> you
+can change the aspect of the picture and size.
+As an example, if you are using a tv-out output on your gfx-card
+to show the picture on a widescreen TV the following can be used.
+Assuming your gfx-card outputs 720x576 pixels to the tv-out when
+you have set the gfx-card to a resolution of 800x600.
+
+ <geometry>
+   <width>1600</width>
+   <height>900</height>
+ </geometry>
+The geometry should be the size of your tv in millimeters, the exact
+size isn't that important, as long as the proportions are correct.
+1600/900 == 16/9 == widescreen tv.
+For a normal tv you should use something like 400/300.
+
+ <resolution>
+   <horizontal_pixels>720</horizontal_pixels>
+   <vertical_pixels>576</vertical_pixels>
+ </resolution>
+This tells us to only use 720x576 pixels in fullscreen and not the entire
+space available on your monitor/desktop.
+
+
+  <user_interface>
+    <bindings>
+      <!-- Each binding contains an action and one or more keys.
+           The keys are given as X11 keysyms -->
+          <b>     
+            <action>Play</action>
+            <key>p</key>
+            <key>KP_Enter</key>
+          </b>
+      </bindings>
+  </user_interface>
+
+Each binding binds a number of keys to an action.
+The keys are normal X11 keysyms.
+The available actions are the following:
+
+action		default keys	  	description
+------		------------		-----------
+
+Play		p			Starts playback
+PauseToggle	space			Toggles pause on and off
+Stop					Stops playback
+Faster		period	(.)		Increases the playback speed
+Slower		comma	(,)		Decreases the playback speed
+NextPG		greater (>)		Jumps to the next program (chapter)
+PrevPG		less	(<)		Jumps to the previous program (chapter)
+UpperButton	Up   	(Arrow up)	Used in navigating the menus (up)
+LowerButton	Down	(Arrow down)	Used in navigating the menus (down)
+RightButton	Right	(Arrow right)	Used in navigating the menus (right)
+LeftButton	Left	(Arrow left)	Used in navigating the menus (left)
+ButtonActivate	Return, KP_Enter	Activates the selected menu button
+TitleMenu	t			Jumps to the Title Menu (if available)
+RootMenu	r			Jumps to the Root Menu (if available)
+AudioMenu	a			Jumps to the Audio Menu (if available)
+AngleMenu	A			Jumps to the Angle Menu (if available)
+PTTMenu		P			Jumps to the PTT(chapter) menu
+SubtitleMenu	S			Jumps to the SubtitleMenu(if available)
+Resume		c			Resumes playback
+SubtitleToggle	s			Toggles the subtitles on/off
+FullScreenToggle f, F			Toggles fullscreen mode on/off
+Quit		q, Q			Quits Ogle
+
+
+</ogle_conf>
+
+
+
 Some of the default key bindings include the following:
 .br
   ',', slower, in slow-motion sound will be muted
