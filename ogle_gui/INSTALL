@@ -5,10 +5,10 @@ Installation
      `./autogen.sh' to setup and generate the needed files.
      There are two package specific configure options.
        --with-dvd-includes=path
-       --with-dvd-libs=path
+       --with-dvdcontrol=prefix
      You will need to give there to build. The most common are:
      ./configure --with-dvd-includes=/usr/local/include 
-        --with-dvd-libs=/usr/local/lib/ogle
+        --with-dvdcontrol=/usr/local
 
   3. Type `make' to compile the package.
 
