@@ -137,7 +137,7 @@ void motion_comp()
     DPRINTF(5, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
 
     /* Image/Field select */
-    /* FIXME: Should test is 'second coded field'. */
+    /* FIXME: Should test for 'is second coded field' not bottom_field. */
     if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD &&
        pic.header.picture_coding_type == PIC_CODING_TYPE_P &&
        ((mb.motion_vertical_field_select[0][0] == 0 /* TOP_FIELD */ &&
