@@ -825,7 +825,7 @@ static int check_for_gnome_wm_layers(Display *dpy)
     return 0;
   }
   
-  while(bytes_after_return != 0) {
+  do {
   
     if(XGetWindowProperty(dpy, DefaultRootWindow(dpy), atom, index,
 			  1, False, XA_ATOM,
@@ -867,7 +867,7 @@ static int check_for_gnome_wm_layers(Display *dpy)
       }
       XFree(prop_return);
     }
-  }
+  } while(bytes_after_return != 0);
   return 0;
 }
 
