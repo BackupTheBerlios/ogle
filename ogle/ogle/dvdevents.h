@@ -133,7 +133,7 @@ typedef enum {
 } DVDCtrlEventType_t;
 
 typedef enum {
-  DVDCtrlLongSetDVDRoot,
+  DVDCtrlLongSetDVDRoot = 0x10000000,
   DVDCtrlLongState,
   DVDCtrlLongSetState,
   DVDCtrlLongVolIds
@@ -464,5 +464,37 @@ typedef union {
   DVDCtrlLongVolIdsEvent_t volids;
 } DVDCtrlLongEvent_t;
 
+
+
+typedef enum {
+  DVDEventCurrentUOPS = DVDCtrlCurrentUOPS,
+  DVDEventInputButtonPress,
+  DVDEventInputButtonRelease,
+  DVDEventInputPointerMotion,
+  DVDEventInputKeyPress,
+  DVDEventInputKeyRelease,
+} DVDEventType_t;
+
+typedef DVDCtrlAnyEvent_t    DVDEventAny_t;
+typedef DVDCtrlCurrentUOPS_t DVDEventUOPS_t;
+
+typedef struct {
+  DVDEventType_t type;
+  int32_t serial;
+  int x;
+  int y;
+  int x_root;
+  int y_root;
+  unsigned long mod_mask; /* X modifiers (keys/buttons)*/
+  unsigned long input;
+  unsigned long time; /* milliseconds */
+} DVDEventInput_t;
+		
+
+typedef union {
+  DVDEventType_t    type;
+  DVDEventUOPS_t    uops;
+  DVDEventInput_t   input;
+} DVDEvent_t;
 
 #endif /* DVDEVENTS_H_INCLUDED */
