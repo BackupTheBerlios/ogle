@@ -12,7 +12,7 @@ create_pipe() {
 create_pipe "/tmp/ac3"
 create_pipe "/tmp/audio"
 
-# This is were all the help programs are placed
+# This is were all the helper programs are placed
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 DVDP_ROOT=@libdir@/@PACKAGE@
@@ -41,7 +41,7 @@ DVDP_SPU=$DVDP_ROOT/video_output
 export DVDP_SPU
 DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
 export DVDP_VIDEO_OUT
-if [ -x "$DVDP_ROOT/ogle_gui" ]; then
+if [ -x "$DVDP_UI" ]; then
   $DVDP_CTRL -u gui $*;
 else
   $DVDP_CTRL -u cli $*;
