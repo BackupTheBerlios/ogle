@@ -42,14 +42,13 @@
 #include "bindings.h"
 #include "actions.h"
 
-extern int msgqid;
 
 
 static DVDNav_t *nav2;
 pthread_t at;
 
 
-void xsniff_init() {
+void xsniff_init(char *msgqid) {
   DVDResult_t res;
   res = DVDOpenNav(&nav2, msgqid);
   if(res != DVD_E_Ok ) {
@@ -72,7 +71,7 @@ void* xsniff_mouse(void* args) {
   
   while(1) {
 
-#if (defined(BSD) && (BSD >= 199306))
+#if 0 //(defined(BSD) && (BSD >= 199306))
     if (DVDNextEventNonBlocking(nav2, &mev) != DVD_E_Ok)
       pthread_exit(NULL);
 #else

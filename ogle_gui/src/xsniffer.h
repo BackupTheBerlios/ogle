@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-void xsniff_init(void);
+void xsniff_init(char *msgqid);
 
 void* xsniff_mouse(void* args);
 
