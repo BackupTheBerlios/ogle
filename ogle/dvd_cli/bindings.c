@@ -254,12 +254,20 @@ void actionBookmarkAdd(void *data)
   DVDBookmark_t *bm;
   unsigned char id[16];
   char *state = NULL;
+  char volid[33];
+  int volid_type;
+  char *disccomment = NULL;
   
   if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
     NOTE("%s", "GetDiscID failed\n");
     return;
   }
-
+  
+  if(DVDGetVolumeIdentifiers(nav, 0, &volid_type, volid, NULL) != DVD_E_Ok) {
+    NOTE("%s", "GetVolumeIdentifiers failed\n");
+    volid_type = 0;
+  }
+  
   if(DVDGetState(nav, &state) == DVD_E_Ok) {
     if((bm = DVDBookmarkOpen(id, NULL, 1)) == NULL) {
       NOTE("%s", "BookmarkOpen failed\n");
@@ -269,6 +277,18 @@ void actionBookmarkAdd(void *data)
       NOTE("%s", "BookmarkAdd failed\n");
       DVDBookmarkClose(bm);
       return;
+    }
+    if(volid_type != 0) {
+      if(DVDBookmarkGetDiscComment(bm, &disccomment) != -1) {
+	if((disccomment == NULL) || (disccomment[0] == '\0')) {
+	  if(DVDBookmarkSetDiscComment(bm, volid) == -1) {
+	    NOTE("%s", "SetDiscComment failed\n");
+	  }
+	}
+	if(disccomment) {
+	  free(disccomment);
+	}
+      }
     }
     if(DVDBookmarkSave(bm, 0) == -1) {
       NOTE("%s", "BookmarkSave failed\n");
