@@ -19,6 +19,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#if 1
+#define SOCKIPC
+#else
+#define HAVE_SYSV_MSG
+#endif
+
 #include <limits.h>
 #include <inttypes.h>
 
@@ -26,6 +32,12 @@
 #include <ogle/dvdevents.h>
 
 #include <sys/param.h>
+
+#ifdef SOCKIPC
+#include <sys/socket.h>
+#include <sys/un.h>
+#endif
+
 
 #if 0 /* One message queue for every listener */
 
@@ -50,6 +62,8 @@ typedef struct {
 
 /* more general version */
 
+typedef long int MsgEventClient_t;
+#if 0
 typedef union {
   struct {
     long int mtype;
@@ -64,13 +78,15 @@ typedef union {
     long int type;
     int d;
   } pipe;
-
 } MsgEventClient_t;
+#endif
 
 typedef enum {
+#ifdef HAVE_SYSV_MSG
   MsgEventQType_msgq,
-  MsgEventQType_socket;
-  MsgEventQType_pipe;
+#endif
+  MsgEventQType_socket,
+  MsgEventQType_pipe
 } MsgEventQType_t;
 
 typedef union {
@@ -78,16 +94,19 @@ typedef union {
   struct {
     MsgEventQType_t type;
   } any;
-  
+#ifdef HAVE_SYSV_MSG  
   struct {
     MsgEventQType_t type;
-    msqid;
+    int msqid;
     long int mtype;
   } msgq;
-  
+#endif  
   struct {
     MsgEventQType_t type;
-    int d;
+    long int clientid;
+    struct sockaddr_un server_addr;
+    int sd; //local socket
+    struct sockaddr_un client_addr;
   } socket;
   
   struct {
@@ -127,8 +146,8 @@ typedef enum {
   MsgEventQReqBuf,
   MsgEventQGntBuf,
   MsgEventQCtrlData,
-  MsgEventQReqPicBuf,
-  MsgEventQGntPicBuf,
+  MsgEventQReqPicQ,
+  MsgEventQGntPicQ,
   MsgEventQAttachQ,
   MsgEventQSPUPalette,
   MsgEventQSPUHighlight,       /* 20 */
@@ -157,7 +176,10 @@ typedef enum {
   MsgEventQQDetached,
   MsgEventQDestroyQ,
   MsgEventQDemuxStreamChange2,
-  MsgEventQSaveScreenshot
+  MsgEventQSaveScreenshot,
+  MsgEventQReqPicBuf,
+  MsgEventQGntPicBuf,
+  MsgEventQDestroyPicBuf
 } MsgEventType_t;
 
 
@@ -298,16 +320,38 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  int data_buf_shmid;
-  int nr_of_elems;
+  int size;
 } MsgQReqPicBufEvent_t;
 
 typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  int q_shmid;
+  int shmid;
+} MsgQDestroyPicBufEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int shmid;
+  int size;
 } MsgQGntPicBufEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int data_buf_shmid;
+  int nr_of_elems;
+} MsgQReqPicQEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int q_shmid;
+} MsgQGntPicQEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -506,9 +550,12 @@ typedef union {
   MsgQReqBufEvent_t reqbuf;
   MsgQGntBufEvent_t gntbuf;
   MsgQDestroyBufEvent_t destroybuf;
-  MsgQCtrlDataEvent_t ctrldata;
   MsgQReqPicBufEvent_t reqpicbuf;
   MsgQGntPicBufEvent_t gntpicbuf;
+  MsgQDestroyPicBufEvent_t destroypicbuf;
+  MsgQCtrlDataEvent_t ctrldata;
+  MsgQReqPicQEvent_t reqpicq;
+  MsgQGntPicQEvent_t gntpicq;
   MsgQAttachQEvent_t attachq;
   MsgQDetachQEvent_t detachq;
   MsgQSPUPaletteEvent_t spupalette;
@@ -532,20 +579,44 @@ typedef union {
   MsgQSaveScreenshotEvent_t savescreenshot;
 } MsgEvent_t;
 
+#ifdef SOCKIPC
+typedef union {
+#ifdef HAVE_SYSV_MSG
+  struct {
+    long int mtype;
+    char event_data[sizeof(MsgEvent_t)];
+  } msgq;
+#endif  
+  struct{
+    char event_data[sizeof(MsgEvent_t)];
+  } socket;
+
+  struct {
+    char event_data[sizeof(MsgEvent_t)];
+  } pipe;
+} msg_t;
+#else
 typedef struct {
   long int mtype;
   char event_data[sizeof(MsgEvent_t)];
 } msg_t;
+#endif
 
+#ifdef SOCKIPC
+MsgEventQ_t *MsgOpen(MsgEventQType_t type, char *name, int namelen);
+#else
 MsgEventQ_t *MsgOpen(int msqid);
+#endif
 
 void MsgClose(MsgEventQ_t *q);
 
 int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
 int MsgNextEventInterruptible(MsgEventQ_t *q, MsgEvent_t *event_return);
 
+#ifndef SOCKIPC
 #if (defined(BSD) && (BSD >= 199306))
 int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return);
+#endif
 #endif
 
 int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
@@ -579,4 +650,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 #define USER_INPUT         0x20000
 #define DECODE_LPCM_AUDIO  0x40000
 
+#ifdef SOCKIPC
+int get_msgqtype(char *msgq_str, MsgEventQType_t *type, char **id);
+#endif
 #endif /* MSGEVENTS_H_INCLUDED */

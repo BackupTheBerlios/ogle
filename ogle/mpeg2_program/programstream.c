@@ -21,13 +21,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
-#include <sys/mman.h>
+
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/shm.h>
+#include <sys/mman.h>
+
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/msg.h>
 #include <errno.h>
 
 #include <ogle/msgevents.h>
@@ -40,11 +40,8 @@
 #include "common.h"
 #include "queue.h"
 #include "mpeg.h"
+#include "shm.h"
 
-
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
 
 typedef enum {
   STREAM_NOT_REGISTERED = 0,
@@ -98,8 +95,7 @@ typedef struct {
   int in_use;
 } q_elem;
 
-static int msgqid = -1;
-
+static int standalone = 1;
 static MsgEventQ_t *msgq;
 
 int scr_discontinuity = 0;
@@ -698,7 +694,7 @@ void system_header(void)
 
   if(!system_header_set) {
     system_header_set = 1;
-    if(msgqid != -1) {
+    if(!standalone) {
       // this is now allocated before we start reading
       //get_buffer(min_bufsize);
     }
@@ -918,7 +914,7 @@ void push_stream_data(uint8_t stream_id, int len,
     //fprintf(stderr, "demux: put_in_q stream_id: %x %x\n",
     //      stream_id, subtype);
 
-    if(msgqid != -1) {
+    if(!standalone) {
       int infile;
       int is_newfile;
       infile = id_infile(stream_id, subtype);
@@ -1396,7 +1392,7 @@ void pack(void)
   SCR_flags = 0;
 
   /* TODOD clean up */
-  if(msgqid != -1) {
+  if(!standalone) {
     if(off_to != -1) {
       if(off_to <= offs-(bits_left/8)) {
 	//fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
@@ -1423,7 +1419,7 @@ void pack(void)
   case MPEG1:
 
     /* TODO clean up */
-    if(msgqid != -1) {
+    if(!standalone) {
       if(off_to != -1) {
 	if(off_to <= offs-(bits_left/8)) {
 	  //fprintf(stderr, "demux: off_to %d offs %d mpeg1\n", off_to, offs);
@@ -1451,7 +1447,7 @@ void pack(void)
       packet();
 
       /* TODO clean up */
-      if(msgqid != -1) {
+      if(!standalone) {
 	if(off_to != -1) {
 	  if(off_to <= offs-(bits_left/8)) {
 	    //fprintf(stderr, "demux: off_to %d offs %d packet\n", off_to, offs);
@@ -1521,7 +1517,7 @@ void pack(void)
       SCR_flags = 0;
 
       /* TODO clean up */
-      if(msgqid != -1) {
+      if(!standalone) {
 	if(off_to != -1) {
 	  if(off_to <= offs-(bits_left/8)) {
 	    //fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
@@ -1648,9 +1644,8 @@ int attach_ctrl_shm(int shmid)
 {
   char *shmaddr;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("demux: attach_ctrl_data(), shmat()");
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       return -1;
     }
     
@@ -1660,6 +1655,7 @@ int attach_ctrl_shm(int shmid)
   }    
   
   return 0;
+  
 }
 
 int main(int argc, char **argv)
@@ -1673,7 +1669,12 @@ int main(int argc, char **argv)
   char *file;
   uint8_t stream_id;
   int lost_sync = 1;
-  
+#ifdef SOCKIPC
+  MsgEventQType_t msgq_type;
+  char *msgqid;
+#else
+  int msgqid = -1;
+#endif
   program_name = argv[0];
   GET_DLEVEL();
   init_id_reg(STREAM_DISCARD);
@@ -1929,7 +1930,15 @@ int main(int argc, char **argv)
       debug = atoi(optarg);
       break;
     case 'm':
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "unknown msgq type: %s\n", optarg);
+	return 1;
+      }
+#else
       msgqid = atoi(optarg);
+#endif
+      standalone = 0;
       break;
     case 'o':
       offs = atoi(optarg);
@@ -1941,7 +1950,7 @@ int main(int argc, char **argv)
     }
   }
 
-  if(msgqid == -1) {
+  if(standalone) {
     if(argc - optind != 1){
       usage();
       return 1;
@@ -1949,12 +1958,16 @@ int main(int argc, char **argv)
   }
 
 
-  if(msgqid != -1) {
+  if(!standalone) {
     MsgEvent_t regev;
     int fileopen = 0;
     init_id_reg(STREAM_DISCARD);
     // get a handle
+#ifdef SOCKIPC
+    if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
+#else
     if((msgq = MsgOpen(msgqid)) == NULL) {
+#endif
       FATAL("%s", "Couldn't get message q\n");
       exit(1);
     }
@@ -2029,7 +2042,7 @@ int main(int argc, char **argv)
 #if DEBUG
   fprintf(stderr, "demux: get next demux q\n");
 #endif
-  if(msgqid != -1) {
+  if(!standalone) {
     get_next_demux_q();
   }
 
@@ -2134,7 +2147,7 @@ int register_id(uint8_t id, int subtype)
   data_buf_head_t *data_buf_head;
   int qsize;
   
-  if(msgqid != -1) {
+  if(!standalone) {
     
     data_buf_head = (data_buf_head_t *)data_buf_addr;
     
@@ -2204,7 +2217,7 @@ int id_get_output(uint8_t id, int subtype)
   data_buf_head_t *data_buf_head;
   int qsize;
   
-  if(msgqid != -1) {
+  if(!standalone) {
     
     data_buf_head = (data_buf_head_t *)data_buf_addr;
     
@@ -2564,12 +2577,8 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
 
-#if DEBUG
-  fprintf(stderr, "demux: shmid: %d\n", shmid);
-#endif
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("demux: attach_decoder_buffer(), shmat()");
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       return -1;
     }
     id_add(stream_id, subtype, STREAM_DECODE, shmid, shmaddr, NULL);
@@ -2577,8 +2586,9 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   } else {
     id_add(stream_id, subtype, STREAM_DISCARD, -1, NULL, NULL);
   }
-    
+  
   return 0;  
+  
 }
 
 
@@ -2589,16 +2599,11 @@ int attach_buffer(int shmid, int size)
   data_elem_t *data_elems;
   int n;
   
-#if DEBUG
-  fprintf(stderr, "demux: attach_buffer() shmid: %d\n", shmid);
-#endif
-  
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("demux: attach_buffer(), shmat()");
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       exit(1);
     }
-
+    
     data_buf_addr = shmaddr;
     data_buf_head = (data_buf_head_t *)data_buf_addr;
     data_buf_head->shmid = shmid;
@@ -2613,9 +2618,6 @@ int attach_buffer(int shmid, int size)
     
     disk_buf = data_buf_addr + data_buf_head->buffer_start_offset;
     
-#if DEBUG
-    fprintf(stderr, "demux: setup disk_buf: %lu\n", (unsigned long)disk_buf);
-#endif
     data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
     for(n = 0; n < data_buf_head->nr_of_dataelems; n++) {
       data_elems[n].in_use = 0;
@@ -2624,8 +2626,9 @@ int attach_buffer(int shmid, int size)
   } else {
     return -1;
   }
-    
+  
   return 0;
+  
 }
 
 

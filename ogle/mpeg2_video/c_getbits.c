@@ -19,13 +19,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/mman.h>
 
-#include <sys/shm.h>
-#include <sys/msg.h>
 #include <errno.h>
 #include <string.h>
 
@@ -36,9 +34,7 @@
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
+#include "shm.h"
 
 
 
@@ -52,7 +48,7 @@ extern uint64_t PTS;
 extern uint64_t DTS;
 extern int scr_nr;
 
-extern int msgqid;
+extern int standalone;
 extern int output_client;
 extern int input_stream;
 
@@ -170,7 +166,7 @@ static void change_file(char *new_filename)
 
 void get_next_packet()
 {
-  if(msgqid == -1) {
+  if(standalone) {
     if(mmap_base == NULL) {
       clocktime_t real_time;
       clocktime_t scr_time;
@@ -388,8 +384,8 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   
   //DNOTE("video_dec: shmid: %d\n", shmid);
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("video_stream: attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -403,8 +399,8 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   shmid = q_head->data_buf_shmid;
   //DNOTE("video_dec: data_buf shmid: %d\n", shmid);
 
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("video_stream: attach_buffer(), shmat()");
       return -1;
     }
@@ -583,18 +579,19 @@ int attach_ctrl_shm(int shmid)
 {
   char *shmaddr;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("attach_ctrl_data(), shmat()");
       return -1;
     }
-    
+
     ctrl_data_shmid = shmid;
     ctrl_data = (ctrl_data_t*)shmaddr;
     ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   }
   
   return 0;  
+
 }
 
 

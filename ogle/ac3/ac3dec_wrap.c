@@ -21,14 +21,10 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/shm.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <string.h>
 
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
 
 #include <ogle/msgevents.h>
 
@@ -37,7 +33,7 @@
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
-
+#include "shm.h"
 
 
 
@@ -48,7 +44,8 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 
 
-static char *program_name;
+char *program_name;
+int dlevel;
 
 static FILE *outfile;
 
@@ -62,13 +59,13 @@ static char *stream_shmaddr;
 static int data_buf_shmid;
 static char *data_buf_shmaddr;
 
-static int msgqid = -1;
 static MsgEventQ_t *msgq;
 
 static int flush_to_scrid = -1;
 
 static int prev_scr_nr = 0;
 
+static int standalone = 1;
 
 void usage()
 {
@@ -81,13 +78,29 @@ int main(int argc, char *argv[])
 {
   MsgEvent_t ev;
   int c; 
+#ifdef SOCKIPC
+  char *msgqid;
+  MsgEventQType_t msgq_type;
+#else
+  int msgqid = -1;
+#endif
+
   program_name = argv[0];
-  
+  GET_DLEVEL();
+
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
     case 'm':
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "unknown msgq type\n");
+	return 1;
+      }
+#else
       msgqid = atoi(optarg);
+#endif
+      standalone = 0;
       break;
     case 'h':
     case '?':
@@ -96,7 +109,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  if(msgqid == -1) {
+  if(standalone) {
     if(argc - optind != 1){
       usage();
       return 1;
@@ -107,8 +120,12 @@ int main(int argc, char *argv[])
   outfile = fopen("/tmp/ac3", "w");
   
 
-  if(msgqid != -1) {
+  if(!standalone) {
+#ifdef SOCKIPC
+    if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
+#else
     if((msgq = MsgOpen(msgqid)) == NULL) {
+#endif
       fprintf(stderr, "ac3wrap: couldn't get message q\n");
       exit(-1);
     }
@@ -186,8 +203,8 @@ int attach_ctrl_shm(int shmid)
 {
   char *shmaddr;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("ac3wrap: attach_ctrl_data(), shmat()");
       return -1;
     }
@@ -207,8 +224,8 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 
   fprintf(stderr, "ac3: shmid: %d\n", shmid);
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("ac3: attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -220,8 +237,8 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   q_head = (q_head_t *)stream_shmaddr;
   shmid = q_head->data_buf_shmid;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("ac3: attach_data_buffer(), shmat()");
       return -1;
     }

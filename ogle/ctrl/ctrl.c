@@ -24,12 +24,14 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ipc.h>
-#include <sys/shm.h>
+#ifdef HAVE_SYSV_MSG
 #include <sys/msg.h>
+#endif
 #include <limits.h>
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
+#include <sys/mman.h>
 
 #include <ogle/msgevents.h>
 #include "mpeg.h"
@@ -37,18 +39,17 @@
 #include "queue.h"
 #include "timemath.h"
 #include "debug_print.h"
+#include "shm.h"
 
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
 
 /* SA_SIGINFO isn't implemented yet on for example NetBSD */
 #if !defined(SA_SIGINFO)
 #define siginfo_t void
 #endif
 
-int create_msgq(void);
+int create_msgq(MsgEventQ_t *q);
 int init_decoder(char *msgqid_str, char *decoderstr);
+int get_sysv_buffer(int size, shm_bufinfo_t *bufinfo);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
 int create_q(int nr_of_elems, int buf_shmid, 
 	     MsgEventClient_t writer, MsgEventClient_t reader);
@@ -60,18 +61,15 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 void int_handler(int sig);
 void sigchld_handler(int sig, siginfo_t *info, void* context);
 
-void remove_q_shm(void);
-void add_q_shmid(int shmid);
-void remove_q_shmid(int shmid);
-void destroy_msgq(void);
+
+void destroy_msgq(MsgEventQ_t *q);
 
 void add_to_pidlist(pid_t pid, char *name);
 int remove_from_pidlist(pid_t pid);
 
-void cleanup_and_exit(void);
+void cleanup_and_exit(MsgEventQ_t *q);
 void slay_children(void);
 
-int msgqid;
 
 int ctrl_data_shmid;
 ctrl_data_t *ctrl_data;
@@ -79,7 +77,7 @@ ctrl_data_t *ctrl_data;
 char *program_name;
 int dlevel;
 
-char msgqid_str[9];
+char msgqid_str[108];
 
 char *input_file;
 
@@ -154,6 +152,29 @@ typedef struct {
 
 static caps_t *caps_array = NULL;
 static int nr_caps = 0;
+
+
+typedef struct _clientlist_t {
+  struct _clientlist_t *next;
+  MsgEventClient_t id;
+} clientlist_t;
+
+static clientlist_t *clients = NULL;
+
+int client_add(MsgEventClient_t id)
+{
+  clientlist_t *cl;
+  if((cl = malloc(sizeof(clientlist_t))) == NULL) {
+    perror("client_add, malloc");
+    return -1;
+  }
+  cl->id = id;
+  cl->next = clients;
+  clients = cl;
+  
+  return 0;
+}
+
 
 int register_capabilities(MsgEventClient_t client, int caps, cap_state_t state)
 {
@@ -322,14 +343,14 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 
 
 
-static void cleanup(void)
+static void cleanup(MsgEventQ_t *q)
 {
   //DNOTE("waiting for children to really die\n"); 
   
   while(sleep(2)); // Continue sleeping if interupted 
 
   slay_children();
-  cleanup_and_exit();
+  cleanup_and_exit(q);
 }
 
 
@@ -364,7 +385,7 @@ int request_capability(MsgEventQ_t *q, int cap,
   while(search_capabilities(cap, capclient, retcaps, &state) &&
 	(state != CAP_running)) {
     if(child_killed) {
-      cleanup();
+      cleanup(q);
     }
     if(MsgNextEventInterruptible(q, &r_ev) == -1) {
       switch(errno) {
@@ -406,9 +427,11 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 #if DEBUG
     DNOTE("_MsgEventQInitReq, new_id: %d\n", next_client_id);
 #endif
+    client_add(next_client_id);
     ev->type = MsgEventQInitGnt;
     ev->initgnt.newclientid = next_client_id++;
-    MsgSendEvent(q, CLIENT_UNINITIALIZED, ev, 0);
+    MsgSendEvent(q, ev->initreq.client, ev, 0);
+
     break;
   case MsgEventQRegister:
 #if DEBUG
@@ -439,40 +462,67 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       shm_bufinfo_t bufinfo;
       
 #if DEBUG
-      DNOTE("_got request for buffer size %d\n",
+      DNOTE("got request for buffer size %d\n",
 	      ev->reqbuf.size);
 #endif
+
       if(get_buffer(ev->reqbuf.size, &bufinfo) == -1) {
 	bufinfo.shmid = -1;
       }
-      
+
       s_ev.type = MsgEventQGntBuf;
       s_ev.gntbuf.shmid = bufinfo.shmid;
       s_ev.gntbuf.size = bufinfo.size;
       MsgSendEvent(q, ev->reqbuf.client, &s_ev, 0);
     }
     break;
+  case MsgEventQReqPicBuf:
+    {
+      shm_bufinfo_t bufinfo;
+      
+#if DEBUG
+      DNOTE("got request for picbuffer size %d\n",
+	      ev->reqpicbuf.size);
+#endif
+
+      if(get_sysv_buffer(ev->reqpicbuf.size, &bufinfo) == -1) {
+	bufinfo.shmid = -1;
+      }
+
+      s_ev.type = MsgEventQGntPicBuf;
+      s_ev.gntpicbuf.shmid = bufinfo.shmid;
+      s_ev.gntpicbuf.size = bufinfo.size;
+      MsgSendEvent(q, ev->reqpicbuf.client, &s_ev, 0);
+    }
+    break;
   case MsgEventQDestroyBuf:
     {
       //DNOTE("_got destroy buffer shmid %d\n", ev->destroybuf.shmid);
-      remove_q_shmid(ev->destroybuf.shmid);
+      ogle_shmrm(ev->destroybuf.shmid);
+      //remove_q_shmid(ev->destroybuf.shmid);
+    }
+    break;
+  case MsgEventQDestroyPicBuf:
+    {
+      //DNOTE("_got destroy picbuffer shmid %d\n", ev->destroypicbuf.shmid);
+      ogle_sysv_shmrm(ev->destroypicbuf.shmid);
     }
     break;
   case MsgEventQDestroyQ:
     {
       //DNOTE("_got destroy Q shmid %d\n", ev->detachq.q_shmid);
-      remove_q_shmid(ev->detachq.q_shmid);
+      ogle_shmrm(ev->detachq.q_shmid);
     }
     break;
   case MsgEventQReqStreamBuf:
     {
       int shmid;
       cap_state_t state = 0;
-      
+#ifdef DEBUG 
       DNOTE("_new stream %x, %x\n",
 	    ev->reqstreambuf.stream_id,
 	    ev->reqstreambuf.subtype);
-      
+#endif
       if(register_stream(ev->reqstreambuf.stream_id,
 			 ev->reqstreambuf.subtype)) {
 	// this stream is wanted
@@ -513,7 +563,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	while(!search_capabilities(capability, &rcpt, NULL, &state) ||
 	      (state != CAP_running)) {
 	  if(child_killed) {
-	    cleanup();
+	    cleanup(q);
 	  }
 	  if(MsgNextEventInterruptible(q, &r_ev) == -1) {
 	    switch(errno) {
@@ -584,7 +634,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
     }
     break;
-  case MsgEventQReqPicBuf:
+  case MsgEventQReqPicQ:
     {
       int shmid;
       cap_state_t state;
@@ -613,7 +663,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       while(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, &state) ||
 	    (state != CAP_running)) {
 	if(child_killed) {
-	  cleanup();
+	  cleanup(q);
 	}
 	if(MsgNextEventInterruptible(q, &r_ev) == -1) {
 	  switch(errno) {
@@ -643,23 +693,23 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       
       // lets create the buffer
 	
-      shmid = create_q(ev->reqpicbuf.nr_of_elems,
-		       ev->reqpicbuf.data_buf_shmid,
-		       ev->reqpicbuf.client,
+      shmid = create_q(ev->reqpicq.nr_of_elems,
+		       ev->reqpicq.data_buf_shmid,
+		       ev->reqpicq.client,
 		       rcpt);
       
       
       // let the writer know which picbuffer to connect to
-      s_ev.type = MsgEventQGntPicBuf;
-      s_ev.gntpicbuf.q_shmid = shmid;
+      s_ev.type = MsgEventQGntPicQ;
+      s_ev.gntpicq.q_shmid = shmid;
       
 #if DEBUG
       DNOTE("create_q, q_shmid: %d picture_buf_shmid: %d\n",
-	    shmid,  ev->reqpicbuf.data_buf_shmid);
+	    shmid,  ev->reqpicq.data_buf_shmid);
 #endif      
-      MsgSendEvent(q, ev->reqpicbuf.client, &s_ev, 0);
+      MsgSendEvent(q, ev->reqpicq.client, &s_ev, 0);
       
-      // connect the picbuf  to the reader
+      // connect the picq  to the reader
       
       s_ev.type = MsgEventQAttachQ;
       s_ev.attachq.q_shmid = shmid;
@@ -678,7 +728,6 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       DNOTE("speed: %.2f\n", ev->speed.speed);
 #endif
       ctrl_data->speed = ev->speed.speed;
-      
       
 
       // send speed event to syncmasters
@@ -722,7 +771,8 @@ int main(int argc, char *argv[])
   program_name = &argv[0][c];
 
   GET_DLEVEL();
-
+  
+  umask(0077);
   memset(&sig, 0, sizeof(struct sigaction));
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
@@ -808,24 +858,43 @@ int main(int argc, char *argv[])
   NOTE("%s %s\n", PACKAGE, VERSION);
   
   ctrl_data_shmid = create_ctrl_data();
-  
+
+#ifdef SOCKIPC
+  q.any.type = MsgEventQType_socket;
+#endif
   /* create msgq */  
-  create_msgq();
-  sprintf(msgqid_str, "%d", msgqid);
-  
+  create_msgq(&q);
+#ifdef SOCKIPC
+  switch(q.any.type) {
+#ifdef HAVE_SYSV_MSG
+  case MsgEventQType_msgq:
+    sprintf(msgqid_str, "msq:%d", q.msgq.msqid);
+    break;
+#endif
+  case MsgEventQType_socket:
+  snprintf(msgqid_str, sizeof(msgqid_str),
+	   "socket:%s", q.socket.server_addr.sun_path);
+  break;
+  case MsgEventQType_pipe:
+    break;
+  }
+#else
+  sprintf(msgqid_str, "%d", q.msqid);
+#endif  
+
 #if DEBUG
-  DNOTE("msgid: %d\n", msgqid);  
+#ifdef SOCKIPC
+#else
+  DNOTE("msgid: %d\n", q.msqid);  
   {
     struct msqid_ds msgqinfo;
     
-    msgctl(msgqid, IPC_STAT, &msgqinfo);
+    msgctl(q.msqid, IPC_STAT, &msgqinfo);
     
     DNOTE("max_bytes: %ld\n", (long)msgqinfo.msg_qbytes);
   }
 #endif
-
-  q.msqid = msgqid;
-  q.mtype = CLIENT_RESOURCE_MANAGER;
+#endif
 
   if(ui != NULL) {
     MsgEventClient_t ui_client;
@@ -835,7 +904,7 @@ int main(int argc, char *argv[])
       request_capability(&q, UI_DVD_GUI, &ui_client, NULL);
     } else {
       FATAL("%s", "no ui specified\n");
-      cleanup_and_exit();
+      cleanup_and_exit(&q);
     }
   }
   
@@ -853,7 +922,7 @@ int main(int argc, char *argv[])
   */
   while(1){
     if(child_killed) {
-      cleanup();
+      cleanup(&q);
     }
     if(MsgNextEventInterruptible(&q, &ev) == -1) {
       switch(errno) {
@@ -1156,40 +1225,150 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 }
 
 
-int create_msgq(void)
+int create_msgq(MsgEventQ_t *q)
 {
-  if((msgqid = msgget(IPC_PRIVATE, IPC_CREAT | 0600)) == -1) {
+#ifdef SOCKIPC
+  switch(q->any.type) {
+#ifdef HAVE_SYSV_MSG
+  case MsgEventQType_msgq:
+    if((q->msgq.msqid = msgget(IPC_PRIVATE, IPC_CREAT | 0600)) == -1) {
+      perror("*ctrl: msgget ipc_creat failed");
+      exit(1);
+    }
+    q->msgq.mtype = CLIENT_RESOURCE_MANAGER;
+    break;
+#endif
+  case MsgEventQType_socket:
+    {
+      char sock_dir[108];
+      struct sockaddr_un server_addr;
+      int server_sd;
+      
+      snprintf(sock_dir, sizeof(sock_dir),
+	       "%s.%d", "/tmp/ogle", getpid());
+      
+      if(mkdir(sock_dir, 0700) == -1) {
+	perror("ctrl: mkdir");
+	exit(1);
+      }
+      
+      server_sd = socket(PF_UNIX, SOCK_DGRAM, 0);
+      if(server_sd == -1) {
+	perror("ctrl: socket");
+	exit(1);
+      }
+
+      server_addr.sun_family = AF_UNIX;
+      snprintf(server_addr.sun_path, sizeof(server_addr.sun_path),
+	       "%s/%ld", sock_dir, CLIENT_RESOURCE_MANAGER);
+      if(bind(server_sd, (struct sockaddr *)&server_addr,
+	      sizeof(server_addr)) == -1) {
+	perror("ctrl: bind");
+	exit(1);
+      }
+      
+      q->socket.clientid = CLIENT_RESOURCE_MANAGER;
+      q->socket.client_addr = server_addr;
+      q->socket.sd = server_sd;
+      q->socket.server_addr.sun_family = AF_UNIX;
+      snprintf(q->socket.server_addr.sun_path, 
+	       sizeof(q->socket.server_addr.sun_path),
+	       "%s", sock_dir);
+    }
+    break;
+  case MsgEventQType_pipe:
+    break;
+  }
+#else
+  if((q->msqid = msgget(IPC_PRIVATE, IPC_CREAT | 0600)) == -1) {
     perror("*ctrl: msgget ipc_creat failed");
     exit(1);
   }
-
+  q->mtype = CLIENT_RESOURCE_MANAGER;
+#endif
   return 0;
 }  
 
 
-void destroy_msgq(void)
+void destroy_msgq(MsgEventQ_t *q)
 {
-  if(msgctl(msgqid, IPC_RMID, NULL) != 0) {
+#ifdef SOCKIPC
+  clientlist_t *cl;
+  char sname[108];
+  
+  switch(q->any.type) {
+#ifdef HAVE_SYSV_MSG
+  case MsgEventQType_msgq:
+    if(msgctl(q->msgq.msqid, IPC_RMID, NULL) != 0) {
+      perror("*ctrl: msgctl ipc_rmid failed");
+    }
+    q->msgq.msqid = -1;
+    break;
+#endif
+  case MsgEventQType_socket:
+    unlink(q->socket.client_addr.sun_path);
+    close(q->socket.sd);
+    q->socket.sd = -1;
+    for(cl=clients; cl != NULL;) {
+      clientlist_t *next = cl->next;
+
+      snprintf(sname, sizeof(sname),
+	       "%s/%ld", q->socket.server_addr.sun_path, cl->id);
+      if(unlink(sname) == -1) {
+	if(errno != ENOENT) {
+	  perror("destroy_msgq, unlink");
+	  fprintf(stderr, "'%s'\n", sname);
+	}
+      }
+      free(cl);
+      cl = next;
+    }
+    clients = NULL;
+    if(rmdir(q->socket.server_addr.sun_path) == -1) {
+      perror("destroy_msgq, unlink");
+      fprintf(stderr, "'%s'\n", q->socket.server_addr.sun_path);
+    }
+    break;
+  case MsgEventQType_pipe:
+    break;
+  }
+#else
+  if(msgctl(q->msqid, IPC_RMID, NULL) != 0) {
     perror("*ctrl: msgctl ipc_rmid failed");
   }
-  msgqid = -1;
+  q->msqid = -1;
+#endif
 }
 
 
-int get_buffer(int size, shm_bufinfo_t *bufinfo)
+int get_sysv_buffer(int size, shm_bufinfo_t *bufinfo)
 {
   int shmid;
   /* This also creates the image buffers that will be sent to attached
    * from the X server if we use Xv.  So we need to make sure that it
    * has permissions to attach / read it.  */
-  if((shmid = shmget(IPC_PRIVATE,
-		     size,
-		     IPC_CREAT | 0644)) == -1) {
-    perror("*ctrl: get_buffer, shmget failed");
+  if((shmid = ogle_sysv_shmget(size, 0644)) == -1) {
+    ERROR("get_sysv_buffer, ogle_sysv_shmget: %s\n", strerror(errno));
     return -1;
   }
+  
 
-  add_q_shmid(shmid);
+  bufinfo->shmid = shmid;
+  bufinfo->size = size;
+  
+  return 0;
+}
+
+
+
+int get_buffer(int size, shm_bufinfo_t *bufinfo)
+{
+  int shmid;
+
+  if((shmid = ogle_shmget(size, 0600)) == -1) {
+    ERROR("get_buffer, ogle_shmget: %s\n", strerror(errno));
+    return -1;
+  }
 
   bufinfo->shmid = shmid;
   bufinfo->size = size;
@@ -1201,34 +1380,27 @@ int get_buffer(int size, shm_bufinfo_t *bufinfo)
 int create_q(int nr_of_elems, int buf_shmid,
 	     MsgEventClient_t writer,  MsgEventClient_t reader)
 {
-  
   int shmid;
   char *shmaddr;
   q_head_t *q_head;
   q_elem_t *q_elems;
   int n;
+  int size = sizeof(q_head_t) + nr_of_elems*sizeof(q_elem_t);
 
-  if((shmid = shmget(IPC_PRIVATE,
-		     sizeof(q_head_t) + nr_of_elems*sizeof(q_elem_t),
-		     IPC_CREAT | 0600)) == -1) {
-    perror("*ctrl: create_q, shmget failed");
+  if((shmid = ogle_shmget(size, 0600)) == -1) {
+    ERROR("create_q, ogle_shmget: %s\n", strerror(errno));
     return -1;
   }
   
-  
-  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    perror("*ctrl: create_q, shmat failed");
-    
-    if(shmctl(shmid, IPC_RMID, NULL) != 0) {
-      perror("*ctrl: create_q, shmctl ipc_rmid faild");
+  if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
+    ERROR("create_q, ogle_shmat: %s\n", strerror(errno));
+    if(ogle_shmrm(shmid) == -1) {
+      ERROR("create_q, ogle_shmrm: %s\n", strerror(errno));
     }
     return -1;
   }
 
-  add_q_shmid(shmid);
-  
   q_head = (q_head_t *)shmaddr;
-  
 
   q_head->data_buf_shmid = buf_shmid;
   q_head->nr_of_qelems = nr_of_elems;
@@ -1245,9 +1417,12 @@ int create_q(int nr_of_elems, int buf_shmid,
   for(n = 0; n < nr_of_elems; n++) {
     q_elems[n].in_use = 0;
   }
-  if(shmdt(shmaddr) != 0) {
-    perror("*ctrl: create_q, shmdt failed");
+
+
+  if(ogle_shmdt(shmaddr) == -1) {
+    ERROR("create_q, ogle_shmdt: %s\n", strerror(errno));
   }
+
   return shmid;
 }
 
@@ -1261,26 +1436,22 @@ int create_ctrl_data(void)
   ctrl_time_t *ctrl_time;
   int n;
   int nr_of_offsets = 32;
-  
-  if((shmid = shmget(IPC_PRIVATE,
-		     sizeof(ctrl_data_t)+
-		     nr_of_offsets*sizeof(ctrl_time_t),
-		     IPC_CREAT | 0600)) == -1) {
-    perror("*ctrl: create_ctrl_data, shmget failed");
+  int size = nr_of_offsets * sizeof(ctrl_time_t); 
+
+  if((shmid = ogle_shmget(sizeof(ctrl_data_t)+size, 0600)) == -1) {
+    ERROR("create_ctrl_data, ogle_shmget: %s\n", strerror(errno));
     return -1;
   }
   
-  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    perror("*ctrl: create_ctrl_data, shmat failed");
+  if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
+    ERROR("create_ctrl_data, ogle_shmat: %s\n", strerror(errno));
     
-    if(shmctl(shmid, IPC_RMID, NULL) == -1) {
-      perror("*ctrl: create_ctrl_data, shmctl ipc_rmid");
+    if(ogle_shmrm(shmid) == -1) {
+      ERROR("create_ctrl_data, ogle_shmrm: %s\n", strerror(errno));
     }
     
     return -1;
   }
-  
-  add_q_shmid(shmid);
   
   ctrl_data = (ctrl_data_t *)shmaddr;
   ctrl_data->mode = MODE_STOP;
@@ -1296,62 +1467,13 @@ int create_ctrl_data(void)
 }
 
 
-int *shm_ids = NULL;
-int nr_shmids = 0;
-
-void add_q_shmid(int shmid)
+void cleanup_and_exit(MsgEventQ_t *q)
 {
-  nr_shmids++;
-  
-  if((shm_ids = (int *)realloc(shm_ids, sizeof(int)*nr_shmids)) == NULL) {
-    perror("*ctrl: add_q_shmid, realloc failed");
-    nr_shmids--;
-    return;
-  }
 
-  shm_ids[nr_shmids-1] = shmid;
-  
-}
+  destroy_msgq(q);
 
+  ogle_shmrm_all();
 
-void remove_q_shmid(int shmid)
-{
-  int n;
-  
-  for(n = 0; n < nr_shmids; n++) {
-    if(shm_ids[n] == shmid) {
-      DNOTE("removing shmid: %d\n", shm_ids[n]);
-      if(shmctl(shm_ids[n], IPC_RMID, NULL) == -1) {
-	perror("ipc_rmid");
-      }
-      shm_ids[n] = -1;
-    }
-  }
-}
-
-
-void remove_q_shm(void)
-{
-  int n;
-
-  for(n = 0; n < nr_shmids; n++) {
-    if(shm_ids[n] != -1) {
-      DNOTE("removing shmid: %d\n", shm_ids[n]);
-      if(shmctl(shm_ids[n], IPC_RMID, NULL) == -1) {
-	perror("ctrl: ipc_rmid");
-      }
-    }
-  }
-  nr_shmids = 0;
-  free(shm_ids);
-  shm_ids = NULL;
-  
-}
-
-void cleanup_and_exit(void)
-{
-  remove_q_shm();
-  destroy_msgq();
   NOTE("%s", "exiting\n");
   exit(0);
 }

@@ -69,6 +69,8 @@ MsgEventQ_t *msgq;
 char *program_name;
 int dlevel;
 
+static int standalone = 1;
+
 void usage(void)
 {
   fprintf(stderr, "Usage: %s  -m <msgqid>\n", 
@@ -77,8 +79,13 @@ void usage(void)
 
 int main(int argc, char *argv[])
 {
-  int msgqid = -1;
   int c; 
+#ifdef SOCKIPC
+  MsgEventQType_t msgq_type;
+  char *msgqid;
+#else
+  int msgqid = -1;
+#endif
   
   program_name = argv[0];
   GET_DLEVEL();
@@ -87,7 +94,15 @@ int main(int argc, char *argv[])
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
     case 'm':
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "unknown msgq type: %s\n", optarg);
+	return 1;
+      }
+#else
       msgqid = atoi(optarg);
+#endif
+      standalone = 0;
       break;
     case 'h':
     case '?':
@@ -96,7 +111,7 @@ int main(int argc, char *argv[])
     }
   }
   
-  if(msgqid == -1) {
+  if(standalone) {
     fprintf(stderr, "what?\n");
     exit(1);
   }
@@ -106,7 +121,11 @@ int main(int argc, char *argv[])
   {
     MsgEvent_t ev;
     
+#ifdef SOCKIPC
+    if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
+#else
     if((msgq = MsgOpen(msgqid)) == NULL) {
+#endif
       FATAL("%s", "couldn't get message q\n");
       exit(1);
     }

@@ -20,7 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
-#include <sys/mman.h>
+
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -41,9 +41,6 @@
 #include "c_mlib.h"
 #endif
 
-#include <sys/ipc.h>
-#include <sys/shm.h>
-
 
 #include <ogle/msgevents.h>
 
@@ -56,10 +53,7 @@
 #include "common.h"
 #include "timemath.h"
 #include "sync.h"
-
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
+#include "shm.h"
 
 
 
@@ -265,7 +259,7 @@ void init_program(void)
   sigaction(SIGINT, &sig, NULL);
 }
 
-int msgqid = -1;
+int standalone = 1;
 
 //char *infilename = NULL;
 
@@ -274,7 +268,13 @@ int main(int argc, char **argv)
 {
   int c;
   int output_client = 0;
-  
+#ifdef SOCKIPC
+  char *msgqid;
+  MsgEventQType_t msgq_type;
+#else
+  int msgqid = -1;
+#endif
+
   program_name = argv[0];
   GET_DLEVEL();
   /* Parse command line options */
@@ -293,7 +293,15 @@ int main(int argc, char **argv)
       shmem_flag = 0;
       break;
     case 'm':
-      msgqid = atoi(optarg);
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "unknown msgq type\n");
+	return 1;
+      }
+#else
+    msgqid = atoi(optarg);
+#endif
+    standalone = 0;
       break;
     case 'h':
     case '?':
@@ -310,7 +318,7 @@ int main(int argc, char **argv)
   mlib_Init();
   //init_out_q(nr_of_buffers);
   
-  if(msgqid == -1) {
+  if(standalone) {
     if(optind < argc) {
       infilename = argv[optind];
       infile = fopen(argv[optind], "r");
@@ -319,9 +327,13 @@ int main(int argc, char **argv)
     }
   } 
   
-  if(msgqid != -1) {
+  if(!standalone) {
     MsgEvent_t ev;
+#ifdef SOCKIPC
+    if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
+#else
     if((msgq = MsgOpen(msgqid)) == NULL) {
+#endif
       FATAL("%s", "couldn't get message qid\n");
       exit(1);
     }
@@ -765,11 +777,11 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
   data_head = (*data_q_p)->data_head;
   data_shmid = (*data_q_p)->data_head->shmid;
   
-  if(shmdt((char *)data_head) == -1) {
+  if(ogle_sysv_shmdt(data_head) == -1) {
     perror("ERROR[vs]: detach_data_q data_head");
   }
   
-  if(shmdt((char *)q_head) == -1) {
+  if(ogle_shmdt(q_head) == -1) {
     perror("ERROR[vs]: detach_data_q q_head");
   }
 
@@ -789,8 +801,8 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
     ERROR("%s", "couldn't send destroyq\n");
   }
   
-  ev.type = MsgEventQDestroyBuf;
-  ev.destroybuf.shmid = data_shmid;
+  ev.type = MsgEventQDestroyPicBuf;
+  ev.destroypicbuf.shmid = data_shmid;
 
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     ERROR("%s", "couldn't send destroybuf\n");
@@ -876,20 +888,20 @@ int get_output_buffer(data_q_t *data_q,
   // Get shared memory buffer
   
   
-  ev.type = MsgEventQReqBuf;
-  ev.reqbuf.size = buf_size;
-  
+  ev.type = MsgEventQReqPicBuf;
+  ev.reqpicbuf.size = buf_size;
+
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     ERROR("%s", "couldn't send buffer request\n");
   }
-  
+
   while(1) {
     if(MsgNextEvent(msgq, &ev) != -1) {
-      if(ev.type == MsgEventQGntBuf) {
+      if(ev.type == MsgEventQGntPicBuf) {
 	DPRINTF(1, "video_decoder: got buffer id %d, size %d\n",
-		ev.gntbuf.shmid,
-		ev.gntbuf.size);
-	data_shmid = ev.gntbuf.shmid;
+		ev.gntpicbuf.shmid,
+		ev.gntpicbuf.size);
+	data_shmid = ev.gntpicbuf.shmid;
 	break;
       } else {
 	handle_events(msgq, &ev);
@@ -897,8 +909,8 @@ int get_output_buffer(data_q_t *data_q,
     }
   }
 
-  if(data_shmid >= 0) {
-    if((data_shmaddr = shmat(data_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(data_shmid != -1) {
+    if((data_shmaddr = ogle_sysv_shmat(data_shmid)) == (void *)-1) {
       perror("**video_decode: attach_buffer(), shmat()");
       return -1;
     }
@@ -922,12 +934,15 @@ int get_output_buffer(data_q_t *data_q,
 
     picture_data_offset = picture_ctrl_size;
 
-  // TODO this is an ugly hack for not mixing in ref.frames
+    // TODO this is an ugly hack for not mixing in ref.frames
+    for(n = 0;
 #ifdef HAVE_XV
-    for(n = 0; n < (data_head->nr_of_dataelems+1); n++) {
+	n < (data_head->nr_of_dataelems+1);
 #else
-    for(n = 0; n < data_head->nr_of_dataelems; n++) {
+	n < data_head->nr_of_dataelems;
 #endif
+	n++) {
+      
       data_elems[n].displayed = 1;
       data_elems[n].is_reference = 0;
       data_elems[n].picture.y_offset = picture_data_offset;
@@ -936,7 +951,7 @@ int get_output_buffer(data_q_t *data_q,
       image_bufs[n].v = data_shmaddr + picture_data_offset + y_size;
       data_elems[n].picture.u_offset = picture_data_offset + y_size + uv_size;
       image_bufs[n].u = data_shmaddr + picture_data_offset+y_size+uv_size;
-
+      
       data_elems[n].picture.horizontal_size = seq.horizontal_size;
       data_elems[n].picture.vertical_size = seq.vertical_size;
       data_elems[n].picture.start_x = 0;
@@ -947,37 +962,37 @@ int get_output_buffer(data_q_t *data_q,
       picture_data_offset += picture_size;
       
     }
-
-
+    
+    
     fwd_ref_image = &image_bufs[0];
     bwd_ref_image = &image_bufs[1];
     
-
-    /* send create decoder request msg*/
-    ev.type = MsgEventQReqPicBuf;
     
-    ev.reqpicbuf.nr_of_elems = nr_of_bufs;
-    ev.reqpicbuf.data_buf_shmid = data_shmid;
-      
+    /* send create decoder request msg*/
+    ev.type = MsgEventQReqPicQ;
+    
+    ev.reqpicq.nr_of_elems = nr_of_bufs;
+    ev.reqpicq.data_buf_shmid = data_shmid;
+    
+    
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      ERROR("%s", "couldn't send picbuf request\n");
+      ERROR("%s", "couldn't send picq request\n");
     }
     
     /* wait for answer */
-    
     while(1) {
       if(MsgNextEvent(msgq, &ev) != -1) {
-	if(ev.type == MsgEventQGntPicBuf) {
-	  q_shmid = ev.gntpicbuf.q_shmid;
+	if(ev.type == MsgEventQGntPicQ) {
+	  q_shmid = ev.gntpicq.q_shmid;
 	  break;
 	} else {
 	  handle_events(msgq, &ev);
 	}
       }
     }
-
-    if(q_shmid >= 0) {
-      if((q_shmaddr = shmat(q_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+    
+    if(q_shmid != -1) {
+      if((q_shmaddr = ogle_shmat(q_shmid)) == (void *)-1) {
 	perror("**video_decode: attach_picq_buffer(), shmat()");
 	return -1;
       }
@@ -993,15 +1008,13 @@ int get_output_buffer(data_q_t *data_q,
     ERROR("%s", "couldn't get buffer\n");
   }
   
-
-
-
+  
   data_q->q_head = q_head;
   data_q->q_elems = q_elems;
   data_q->data_head = data_head;
   data_q->data_elems = data_elems;
   data_q->image_bufs = image_bufs;
-    
+  
 #ifdef HAVE_MMX
   emms();
 #endif
@@ -1047,7 +1060,7 @@ int get_output_buffer(data_q_t *data_q,
 	   ((double)(seq.ext.frame_rate_extension_d)+1.0));
     break;
   }
-
+  
   return 0;
 }
 
@@ -1722,7 +1735,7 @@ void picture_data(void)
 #endif
   
   
-  if(msgqid != -1) {
+  if(!standalone) {
     MsgEvent_t ev;
     while(MsgCheckEvent(msgq, &ev) != -1) {
       handle_events(msgq, &ev);

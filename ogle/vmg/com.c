@@ -21,19 +21,13 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
-
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/shm.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <sys/msg.h>
 #include <errno.h>
 
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
 
 #include <ogle/msgevents.h>
 #include "common.h"
@@ -41,6 +35,7 @@
 #include "timemath.h"
 //#include "sync.h"
 #include "debug_print.h"
+#include "shm.h"
 #include "vm.h"
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -287,29 +282,30 @@ static int attach_ctrl_shm(int shmid)
 {
   char *shmaddr;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("vmg: attach_ctrl_data(), shmat()");
       return -1;
     }
-    
+
     ctrl_data_shmid = shmid;
     ctrl_data = (ctrl_data_t*)shmaddr;
     ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   }    
   
   return 0;
+
 }
 
 static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
   q_head_t *q_head;
-
+  
   //DNOTE("shmid: %d\n", shmid);
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("vmg: attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -317,12 +313,12 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     stream_shmid = shmid;
     stream_shmaddr = shmaddr;
   }    
-
+  
   q_head = (q_head_t *)stream_shmaddr;
   shmid = q_head->data_buf_shmid;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       perror("vmg: attach_data_buffer(), shmat()");
       return -1;
     }
@@ -330,8 +326,9 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     data_buf_shmid = shmid;
     data_buf_shmaddr = (unsigned char *)shmaddr;
   }    
-
+  
   return 0;
+
 }
 
 

@@ -21,9 +21,13 @@
 #include <unistd.h>
 
 #include <signal.h>
-#include <sys/shm.h>
+
 #include <time.h>
 #include <errno.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #ifdef __bsdi__
 #include <sys/param.h>
@@ -43,15 +47,14 @@
 #include "video_types.h"
 #include "timemath.h"
 #include "sync.h"
+#include "shm.h"
+
 #include "spu_mixer.h"
 #include "video_output.h"
 #include "xscreensaver-comm.h"
 
 #include "screenshot.h"
 
-#ifndef SHM_SHARE_MMU
-#define SHM_SHARE_MMU 0
-#endif
 
 extern void display_init(int padded_width, int padded_height,
 		  int picture_buffer_shmid,
@@ -93,7 +96,11 @@ static int ctrl_data_shmid;
 ctrl_data_t *ctrl_data;
 ctrl_time_t *ctrl_time;
 
+#ifdef SOCKIPC
+#else
 int msgqid = -1;
+#endif
+
 MsgEventQ_t *msgq;
 
 
@@ -179,19 +186,20 @@ static int attach_ctrl_shm(int shmid)
     return 0;
   }
 
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(shmid != -1) {
+    if((shmaddr = ogle_shmat(shmid)) == (void *)-1) {
       ERROR("%s", "attach_ctrl_data()\n");
       perror("shmat");
       return -1;
     }
-    
+
     ctrl_data_shmid = shmid;
     ctrl_data = (ctrl_data_t*)shmaddr;
     ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   }    
   
   return 0;
+
 }
 
 
@@ -212,35 +220,37 @@ static int attach_data_q(int q_shmid, data_q_t *data_q)
 #endif
   
   //DNOTE("attach_data_q: q_shmid: %d\n", q_shmid);
-  
-  if(q_shmid < 0) {
-    ERROR("%s", "attach_data_q(), q_shmid < 0\n");
+
+
+  if(q_shmid == -1) {
+    ERROR("%s", "attach_data_q(), q_shmid == -1\n");
     return -1;
   }
-  if((q_shmaddr = shmat(q_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if((q_shmaddr = ogle_shmat(q_shmid)) == (void *)-1) {
     ERROR("%s", "attach_data_q()\n");
     perror("shmat");
     return -1;
   }
+  
 
   q_head = (q_head_t *)q_shmaddr;
   q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
-
+  
   data_shmid = q_head->data_buf_shmid;
-
+  
   //DNOTE("attach_data_q: data_shmid: %d\n", data_shmid);
-
-  if(data_shmid < 0) {
+  
+  if(data_shmid == -1) {
     ERROR("%s", "attach_data_q(), data_shmid\n");
     return -1;
   }
-
-  if((data_shmaddr = shmat(data_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  
+  if((data_shmaddr = ogle_sysv_shmat(data_shmid)) == (void *)-1) {
     ERROR("%s", "attach_data_q()");
     perror("shmat");
     return -1;
   }
-    
+  
   data_head = (data_buf_head_t *)data_shmaddr;
   
   data_elems = (picture_data_elem_t *)(data_shmaddr + 
@@ -308,12 +318,12 @@ static int detach_data_q(int q_shmid, data_q_t **data_q_head)
 
   client = (*data_q_p)->q_head->writer;
 
-  if(shmdt((char *)(*data_q_p)->data_head) == -1) {
+  if(ogle_sysv_shmdt((*data_q_p)->data_head) == -1) {
     ERROR("%s", "detach_data_q data_head");
     perror("shmdt");
   }
   
-  if(shmdt((char *)(*data_q_p)->q_head) == -1) {
+  if(ogle_shmdt((*data_q_p)->q_head) == -1) {
     ERROR("%s", "detach_data_q q_head");
     perror("shmdt");
   }
@@ -723,7 +733,7 @@ static void release_picture(int q_elem_id, data_q_t *data_q)
       if(process_interrupted) {
 	display_exit();
       }
-      if(MsgSendEvent(msgq, data_q->q_head->writer, &ev, IPC_NOWAIT) == -1) {
+      if(MsgSendEvent(msgq, data_q->q_head->writer, &ev, 0) == -1) {
 	MsgEvent_t c_ev;
 	switch(errno) {
 	case EAGAIN:
@@ -873,7 +883,12 @@ static void display_process()
     video_scr_nr = pinfos[buf_id].scr_nr;
     
     // Consume all messages for us and spu_mixer
+#ifdef SOCKIPC
+#warning "todo"
+    {
+#else
     if(msgqid != -1) {
+#endif
       MsgEvent_t ev;
       while(MsgCheckEvent(msgq, &ev) != -1) {
 	event_handler(msgq, &ev);
@@ -1078,11 +1093,15 @@ static void usage()
 	  program_name);
 }
 
+
 int main(int argc, char **argv)
 {
   MsgEvent_t ev;
   int c; 
-
+#ifdef SOCKIPC
+  char *msgqid;
+  MsgEventQType_t msgq_type;
+#endif
   program_name = argv[0];
   GET_DLEVEL();
 
@@ -1090,7 +1109,14 @@ int main(int argc, char **argv)
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
     case 'm':
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "unknown msgq type\n");
+	return 1;
+      }
+#else
       msgqid = atoi(optarg);
+#endif
       break;
     case 'h':
     case '?':
@@ -1099,12 +1125,15 @@ int main(int argc, char **argv)
     }
   }
 
+#ifdef SOCKIPC
+#else
   if(msgqid == -1) {
     if(argc - optind != 1){
       usage();
       return 1;
     }
   }
+#endif
   
   errno = 0;
 
@@ -1129,9 +1158,17 @@ int main(int argc, char **argv)
 
   DNOTE("CLK_TCK: %ld\n", clk_tck);
 
+#ifdef SOCKIPC
+#warning "not impl"
+#else
   if(msgqid != -1) {
-    
+#endif
+
+#ifdef SOCKIPC
+    if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
+#else
     if((msgq = MsgOpen(msgqid)) == NULL) {
+#endif
       FATAL("%s", "couldn't get message q\n");
       exit(1);
     }
@@ -1177,10 +1214,13 @@ int main(int argc, char **argv)
 
     display_process();
     
+#ifdef SOCKIPC
+#warning "not impl"
+#else
   } else {
     fprintf(stderr, "what?\n");
   }
-  
+#endif
   exit(0);
 }
 
