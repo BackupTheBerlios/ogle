@@ -607,6 +607,7 @@ typedef struct {
 
 /**
  * Parental Management Information Unit Table.
+ * Level 1 (US: G), ..., 7 (US: NC-17), 8
  */
 typedef uint16_t pf_level_t[8];
 
@@ -618,7 +619,7 @@ typedef struct {
   uint16_t zero_1;
   uint16_t pf_ptl_mai_start_byte;
   uint16_t zero_2;
-  pf_level_t *pf_ptl_mai; /* table of (nr_of_vtss + 1) x 8 */
+  pf_level_t *pf_ptl_mai; /* table of (nr_of_vtss + 1), video_ts is first */
 } ATTRIBUTE_PACKED ptl_mait_country_t;
 #define PTL_MAIT_COUNTRY_SIZE 8
 

@@ -1149,7 +1149,7 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
       for(level = 0; level < 8; level++) {
 	for(vts = 0; vts <= ptl_mait->nr_of_vtss; vts++) {
 	  ptl_mait->countries[i].pf_ptl_mai[vts][level] =
-	    pf_temp[level*(ptl_mait->nr_of_vtss+1) + vts];
+	    pf_temp[(7-level)*(ptl_mait->nr_of_vtss+1) + vts];
 	}
       }
       free(pf_temp);
