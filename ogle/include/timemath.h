@@ -26,9 +26,11 @@
 #define TIME_SS(t) ((t).tv_usec)
 #endif
 
-#define PTS_TO_CLOCKTIME(xtime, PTS) {            \
-  TIME_S(xtime) = PTS/90000;                      \
-  TIME_SS(xtime) = (PTS%90000)*CT_FRACTION/90000; \
+#define PTS_BASE 90000
+
+#define PTS_TO_CLOCKTIME(xtime, PTS) { \
+  TIME_S(xtime) = PTS/PTS_BASE; \
+  TIME_SS(xtime) = (PTS%PTS_BASE)*(CT_FRACTION/PTS_BASE); \
 }
 
 void clocktime_get(clocktime_t *d);
