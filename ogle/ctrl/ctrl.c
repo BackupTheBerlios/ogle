@@ -62,12 +62,12 @@ int pcm_audio_stream = -1;
 int mpeg_video_stream = -1;
 int subpicture_stream = -1;
 int nav_stream = -1;
-
+char *ui = NULL;
 
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n <#>] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
+  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
 }
 
 
@@ -549,7 +549,7 @@ int main(int argc, char *argv[])
   
   program_name = argv[0];
   
-  while((c = getopt(argc, argv, "a:v:s:n:m:f:r:o:p:d:h?")) != EOF) {
+  while((c = getopt(argc, argv, "na:v:s:m:f:r:o:p:d:u:h?")) != EOF) {
     switch(c) {
     case 'a':
       ac3_audio_stream = atoi(optarg);
@@ -567,7 +567,10 @@ int main(int argc, char *argv[])
       subpicture_stream = atoi(optarg);
       break;
     case 'n':
-      nav_stream = atoi(optarg);
+      nav_stream = 1;
+      break;
+    case 'u':
+      ui = optarg;
       break;
     case 'f':
       framerate = optarg;
@@ -626,8 +629,9 @@ int main(int argc, char *argv[])
   q.msqid = msgqid;
   q.mtype = CLIENT_RESOURCE_MANAGER;
 
-  init_ui(msgqid_str);
-
+  if(ui != NULL) {
+    init_ui(msgqid_str);
+  }
   
   demux_pid = init_demux(msgqid_str);
 
@@ -678,6 +682,17 @@ int main(int argc, char *argv[])
   
   MsgSendEvent(&q, rcpt, &ev);
   
+
+  ev.type = MsgEventQDemuxDefault;
+  
+  if((ac3_audio_stream | mpeg_audio_stream | pcm_audio_stream |
+      mpeg_video_stream | subpicture_stream | nav_stream) != -1) {
+    ev.demuxdefault.state = 0;
+  } else {
+    ev.demuxdefault.state = 1;
+  }
+  
+  MsgSendEvent(&q, rcpt, &ev);
   
   while(1){
     MsgNextEvent(&q, &ev);
@@ -1156,72 +1171,108 @@ int init_mpeg_audio_decoder(char *msgqid)
 #endif
 
 
+
 /**
  * @todo fix how to decide which streams to decode
+ *
+ * -u <gui name>     starts with gui name
+ * filename  which file to play
+ * -v #n     decode video stream #n
+ * -a #n     decode ac3 audio stream #n
+ * -m #n     decode mpeg audio stream #n
+ * -d #n     decode dts audio stream #n
+ * -p #n     decode pcm audio stream #n
+ * -n        decode mpeg private stream 2 (dvd nav data)
+ * -s #n     decode dvd subpicture stream #n
+ * -dvd      start with dvdgui and vm
+ * 
  */
-
 int register_stream(uint8_t stream_id, uint8_t subtype)
 {
   
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     
-    /* dvd, it's an ac3 stream ok */
-    if(((subtype & 0xf0) == 0x80) || ((subtype & 0xf0) == 0x90)) {
-      return 1;
-    }
-    /*
-      if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
-      (ac3_audio_stream >= 0)) {
-      return 1;
-      }
-    */
-    
-    /* dvd, it's a spu stream ok */
-    
-    if(((subtype & 0xf0) == 0x20) || ((subtype & 0xf0) == 0x90)) {
-      return 1;
-    }
-    /*
-      if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
-      (subpicture_stream >= 0)) {
-      return 1;
-      }
-    */
-  }
-  
-  /* dvd, mpeg audio stream ok */
-  if(((stream_id & 0xf0) == 0xc0) || ((stream_id & 0xf0) == 0xd0)) {
-    return 1;
-  }
-  /*
-  if((stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) &&
-     (mpeg_audio_stream >= 0)) { 
-    return 1;
-  }
-  */
+    if(ac3_audio_stream != -1) {
 
-  /* dvd, video stream ok */
-  if((stream_id & 0xf0) == 0xe0) {
-    return 1;
+      if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
+	 (ac3_audio_stream >= 0)) {
+	return 1;
+      }
+      
+    } else {
+      
+      /* dvd, it's an ac3 stream ok */
+      if(((subtype & 0xf0) == 0x80) || ((subtype & 0xf0) == 0x90)) {
+	return 1;
+      }
+      
+    }
+
+    if(subpicture_stream != -1) {
+
+      if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
+	 (subpicture_stream >= 0)) {
+	return 1;
+      }
+
+    } else {
+
+      /* dvd, it's a spu stream ok */
+      if(((subtype & 0xf0) == 0x20) || ((subtype & 0xf0) == 0x90)) {
+	return 1;
+      }
+      
+    }
+
   }
-  /*
-  if((stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) &&
-     (mpeg_video_stream >= 0)) {
-    return 1;
-  }
-  */
   
-  /* dvd, nav stream ok */
-  if(stream_id == MPEG2_PRIVATE_STREAM_2) { // nav packs
-    return 1;
+  if(mpeg_audio_stream != -1) {
+
+    if((stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) &&
+       (mpeg_audio_stream >= 0)) { 
+      return 1;
+    }
+    
+  } else {
+    
+    /* dvd, mpeg audio stream ok */
+    if(((stream_id & 0xf0) == 0xc0) || ((stream_id & 0xf0) == 0xd0)) {
+      return 1;
+    }
+    
   }
-  
-  /*
-  if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav packs
-    return 1;
+
+  if(mpeg_video_stream != -1) {
+
+    if((stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) &&
+       (mpeg_video_stream >= 0)) {
+      return 1;
+    }
+    
+  } else {
+    
+    /* dvd, video stream ok */
+    if((stream_id & 0xf0) == 0xe0) {
+      return 1;
+    }
+    
   }
-  */
+
+  if(nav_stream != -1) {
+
+    if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav
+      return 1;
+    }
+
+  } else {
+
+    /* dvd, nav stream ok */
+    if(stream_id == MPEG2_PRIVATE_STREAM_2) { // nav packs
+      return 1;
+    }
+    
+  }
 
   return 0;  
   
