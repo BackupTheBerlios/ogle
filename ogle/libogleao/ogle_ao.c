@@ -23,7 +23,7 @@
 #include "ogle_ao_private.h"
 
 #include "solaris_audio.h"
-
+#include "oss_audio.h"
 
 static ao_driver_t audio_out_drivers[] = {
 #ifdef LIBOGLEAO_OSS
