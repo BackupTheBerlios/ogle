@@ -28,11 +28,11 @@ char *program_name;
 FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
-
+FILE *infile;
 
 usage()
 {
-  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>]\n", 
+  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] <input file>\n", 
 	  program_name);
 }
 
@@ -69,7 +69,18 @@ main(int argc, char **argv)
       return 1;
     }
   }
-	
+
+  if(argc - optind != 1){
+    usage();
+    return 1;
+  }
+  if(!strcmp(argv[optind], "-"))
+    infile = stdin;
+  else
+    infile = fopen(argv[optind],"r");
+
+  //  printf("infile: %s\n",argv[optind]);
+
   if(subtitle ^ !!subtitle_id) {  // both arguments needed.
     if(!subtitle) {
       fprintf(stderr, "No subtitle filename given.\n");
@@ -111,7 +122,7 @@ get_data()
     }
   }
   
-  if(!fread(&buf[(buf_start+buf_fill)%buf_len], READ_SIZE, 1, stdin)) {
+  if(!fread(&buf[(buf_start+buf_fill)%buf_len], READ_SIZE, 1, infile)) {
     if(feof(stdin)) {
       fprintf(stderr, "*End Of File\n");
       exit(0);
