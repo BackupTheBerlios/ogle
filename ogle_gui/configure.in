@@ -65,7 +65,7 @@ fi
 AC_SUBST(PACKAGE_PIXMAPS_DIR)
 AC_DEFINE_UNQUOTED(PACKAGE_PIXMAPS_DIR, "$PACKAGE_PIXMAPS_DIR", [Get pixmaps])
 
-AM_PATH_XML2(2.0.0, AC_DEFINE(HAVE_XML, 1, [libxml found]),
+AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
   [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
 
 dvd_path=""
