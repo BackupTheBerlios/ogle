@@ -99,16 +99,19 @@ void display_init();
 void Display_Image(XImage *myximage, unsigned char *ImageData);
 void motion_comp();
 
+void extension_data(unsigned int i);
 
 
 
 
 
 // Not implemented
-void extension_data(unsigned int i);
-
-
-
+void quant_matrix_extension();
+void picture_display_extension();
+void picture_spatial_scalable_extension();
+void picture_temporal_scalable_extension();
+void sequence_scalable_extension();
+void sequence_display_extension();
 
 uint32_t buf[BUF_SIZE_MAX];
 unsigned int buf_len = 0;
@@ -965,11 +968,11 @@ void picture_data(void)
   }
   
   DPRINTF(1," switching buffers\n");
-    
+  
   memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
   memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
   memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
-  
+ 
   do {
     slice();
   } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
@@ -1003,9 +1006,47 @@ void picture_data(void)
 
 void extension_data(unsigned int i)
 {
-  fprintf(stderr, "**ni extension_data\n");
-  exit(-1);
+
+  uint32_t extension_start_code;
+
+
+  DPRINTF(2, "extension_data(%d)", i);
+  
+  while(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
+    extension_start_code = GETBITS(32, "extension_start_code");
+    if(i == 0) {
+      /* follows sequence_extension() */
+      
+      if(nextbits(4) == MPEG2_VS_SEQUENCE_DISPLAY_EXTENSION_ID) {
+	sequence_display_extension();
+      }
+      if(nextbits(4) == MPEG2_VS_SEQUENCE_SCALABLE_EXTENSION_ID) {
+	sequence_scalable_extension();
+      }
+    }
+
+    /* extension never follows a group_of_picture_header() */
+    
+    if(i == 2) {
+      /* follows picture_coding_extension() */
+
+      if(nextbits(4) == MPEG2_VS_QUANT_MATRIX_EXTENSION_ID) {
+	quant_matrix_extension();
+      }
+      if(nextbits(4) == MPEG2_VS_PICTURE_DISPLAY_EXTENSION_ID) {
+	/* the draft says picture_pan_scan_extension_id (must be wrong?) */
+	picture_display_extension();
+      }
+      if(nextbits(4) == MPEG2_VS_PICTURE_SPATIAL_SCALABLE_EXTENSION_ID) {
+	picture_spatial_scalable_extension();
+      }
+      if(nextbits(4) == MPEG2_VS_PICTURE_TEMPORAL_SCALABLE_EXTENSION_ID) {
+	picture_temporal_scalable_extension();
+      }
+    }
+  }
 }
+
 
 typedef struct {
   uint8_t slice_vertical_position;
@@ -2520,6 +2561,209 @@ void motion_comp()
     mlib_VideoAddBlock_U8_S16(dst_v, mb.f[5], width/2);
       
       
+}
+
+
+void quant_matrix_extension()
+{
+  fprintf(stderr, "***ni quant_matrix_extension()\n");
+  exit(-1);
+}
+
+
+void picture_display_extension()
+{
+  fprintf(stderr, "***ni picture_display_extension()\n");
+  exit(-1);
+}
+
+void picture_spatial_scalable_extension()
+{
+  fprintf(stderr, "***ni picture_spatial_scalable_extension()\n");
+  exit(-1);
+}
+
+void picture_temporal_scalable_extension()
+{
+  fprintf(stderr, "***ni picture_temporal_scalable_extension()\n");
+  exit(-1);
+}
+
+void sequence_scalable_extension()
+{
+  fprintf(stderr, "***ni sequence_scalable_extension()\n");
+  exit(-1);
+}
+
+void sequence_display_extension()
+{
+
+  uint8_t extension_start_code_identifier;
+  uint8_t video_format;
+  uint8_t colour_description;
+  
+  uint8_t colour_primaries;
+  uint8_t transfer_characteristics;
+  uint8_t matrix_coefficients;
+  
+  uint16_t display_horizontal_size;
+  uint16_t display_vertical_size;
+  
+  
+  DPRINTF(1, "sequence_display_extension()\n");
+  extension_start_code_identifier=GETBITS(4,"extension_start_code_identifier");
+  video_format = GETBITS(3, "video_format");
+  colour_description = GETBITS(1, "colour_description");
+
+#ifdef DEBUG
+  DPRINTF(1, "video_format: ");
+  switch(video_format) {
+  case 0x0:
+    DPRINTF(1, "component\n");
+    break;
+  case 0x1:
+    DPRINTF(1, "PAL\n");
+    break;
+  case 0x2:
+    DPRINTF(1, "NTSC\n");
+    break;
+  case 0x3:
+    DPRINTF(1, "SECAM\n");
+    break;
+  case 0x4:
+    DPRINTF(1, "MAC\n");
+    break;
+  case 0x5:
+    DPRINTF(1, "Unspecified video format\n");
+    break;
+  default:
+    DPRINTF(1, "reserved\n");
+    break;
+  }
+#endif
+
+
+
+  if(colour_description) {
+    colour_primaries = GETBITS(8, "colour_primaries");
+    transfer_characteristics = GETBITS(8, "transfer_characteristics");
+    matrix_coefficients = GETBITS(8, "matrix_coefficients");
+    
+#ifdef DEBUG
+    DPRINTF(1, "colour primaries (Table 6-7): ");
+    switch(colour_primaries) {
+    case 0x0:
+      DPRINTF(1, "(forbidden)\n");
+      break;
+    case 0x1:
+      DPRINTF(1, "ITU-R 709\n");
+      break;
+    case 0x2:
+      DPRINTF(1, "Unspecified Video\n");
+      break;
+    case 0x3:
+      DPRINTF(1, "reserved\n");
+      break;
+    case 0x4:
+      DPRINTF(1, "ITU-R 624-4 System M\n");
+      break;
+    case 0x5:
+      DPRINTF(1, "ITU-R 624-4 System B,G\n");
+      break;
+    case 0x6:
+      DPRINTF(1, "SMPTE 170M\n");
+      break;
+    case 0x7:
+      DPRINTF(1, "SMPTE 240M\n");
+      break;
+    default:
+      DPRINTF(1, "reserved\n");
+      break;
+    }
+#endif
+    
+#ifdef DEBUG
+    DPRINTF(1, "transfer characteristics (Table 6-8): ");
+    switch(transfer_characteristics) {
+    case 0x0:
+      DPRINTF(1, "(forbidden)\n");
+      break;
+    case 0x1:
+      DPRINTF(1, "ITU-R 709\n");
+      break;
+    case 0x2:
+      DPRINTF(1, "Unspecified Video\n");
+      break;
+    case 0x3:
+      DPRINTF(1, "reserved\n");
+      break;
+    case 0x4:
+      DPRINTF(1, "ITU-R 624-4 System M\n");
+      break;
+    case 0x5:
+      DPRINTF(1, "ITU-R 624-4 System B,G\n");
+      break;
+    case 0x6:
+      DPRINTF(1, "SMPTE 170M\n");
+      break;
+    case 0x7:
+      DPRINTF(1, "SMPTE 240M\n");
+      break;
+    case 0x8:
+      DPRINTF(1, "Linear transfer characteristics\n");
+      break;
+    default:
+      DPRINTF(1, "reserved\n");
+      break;
+    }
+#endif
+    
+#ifdef DEBUG
+    DPRINTF(1, "matrix coefficients (Table 6-9): ");
+    switch(matrix_coefficients) {
+    case 0x0:
+      DPRINTF(1, "(forbidden)\n");
+      break;
+    case 0x1:
+      DPRINTF(1, "ITU-R 709\n");
+      break;
+    case 0x2:
+      DPRINTF(1, "Unspecified Video\n");
+      break;
+    case 0x3:
+      DPRINTF(1, "reserved\n");
+      break;
+    case 0x4:
+      DPRINTF(1, "FCC\n");
+      break;
+    case 0x5:
+      DPRINTF(1, "ITU-R 624-4 System B,G\n");
+      break;
+    case 0x6:
+      DPRINTF(1, "SMPTE 170M\n");
+      break;
+    case 0x7:
+      DPRINTF(1, "SMPTE 240M\n");
+      break;
+    default:
+      DPRINTF(1, "reserved\n");
+      break;
+    }
+#endif
+
+
+  }
+
+  display_horizontal_size = GETBITS(14, "display_horizontal_size");
+  marker_bit();
+  display_vertical_size = GETBITS(14, "display_vertical_size");
+
+  DPRINTF(1, "display_horizontal_size: %d\n", display_horizontal_size);
+  DPRINTF(1, "display_vertical_size: %d\n", display_vertical_size);
+  
+
+  next_start_code();
+
 }
 
 
