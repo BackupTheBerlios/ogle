@@ -1223,7 +1223,7 @@ void sequence_extension(void) {
 
 
 /* 6.2.2.2 Extension and user data */
-void extension_and_user_data(unsigned int i) {
+void extension_and_user_data(const unsigned int i) {
   
   DPRINTFI(1, "extension_and_user_data(%u)\n", i);
   DINDENT(2);
@@ -1246,7 +1246,7 @@ void extension_and_user_data(unsigned int i) {
 void picture_coding_extension(void)
 {
   uint32_t extension_start_code;
-  int m,n;
+  unsigned int m,n;
 
   DPRINTFI(1, "picture_coding_extension()\n");
   DINDENT(2);
@@ -2022,7 +2022,7 @@ void picture_data(void)
     int sar_frac_n = 1;
     int sar_frac_d = 1;
     //double sar = 1.0;
-    uint16_t hsize,vsize;
+    uint16_t hsize, vsize;
     
       //wrong on some dvd's ?
     if(seq.dpy_ext.display_horizontal_size) { 
@@ -2211,7 +2211,7 @@ void picture_data(void)
 
 
 /* 6.2.2.2.1 Extension data */
-void extension_data(unsigned int i)
+void extension_data(const unsigned int i)
 {
   DPRINTFI(1, "extension_data(%d)", i);
   DINDENT(2);
@@ -2289,7 +2289,7 @@ void quant_matrix_extension(void)
   DINDENT(2);
   
   if(GETBITS(1, "load_intra_quantiser_matrix")) {
-    int n;
+    unsigned int n;
     intra_inverse_quantiser_matrix_changed = 1;
 
     /* 7.3.1 Inverse scan for matrix download */
@@ -2301,7 +2301,7 @@ void quant_matrix_extension(void)
   }
     
   if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
-    int n;
+    unsigned int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
     
     /*  7.3.1 Inverse scan for matrix download */
@@ -2325,7 +2325,7 @@ void picture_display_extension(void)
   uint16_t frame_centre_horizontal_offset;
   uint16_t frame_centre_vertical_offset;
   uint8_t number_of_frame_centre_offsets;
-  int i;
+  unsigned int i;
 
   DPRINTFI(1, "picture_display_extension()\n");
   DINDENT(2);
