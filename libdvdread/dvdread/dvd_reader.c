@@ -791,6 +791,9 @@ static int DVDReadBlocksPath( dvd_file_t *dvd_file, unsigned int offset,
 		/* FIXME: This is wrong if i is the last file in the set. 
                  * also error from this read will not show in ret. */
 		
+		/* Does the next part exist? If not then return now. */
+		if( !dvd_file->title_devs[ i + 1 ] ) return ret;
+
                 /* Read part 2 */
                 off = DVDinput_seek( dvd_file->title_devs[ i + 1 ], 0 );
                 if( off < 0 || off != 0 ) {
@@ -859,7 +862,9 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
     seek_sector = dvd_file->seek_pos / DVD_VIDEO_LB_LEN;
     seek_byte   = dvd_file->seek_pos % DVD_VIDEO_LB_LEN;
 
-    numsec = ( ( seek_byte + byte_size ) / DVD_VIDEO_LB_LEN ) + 1;
+    numsec = ( ( seek_byte + byte_size ) / DVD_VIDEO_LB_LEN ) +
+      ( ( ( seek_byte + byte_size ) % DVD_VIDEO_LB_LEN ) ? 1 : 0 );
+    
     secbuf = (unsigned char *) malloc( numsec * DVD_VIDEO_LB_LEN );
     if( !secbuf ) {
 	fprintf( stderr, "libdvdread: Can't allocate memory " 
@@ -879,8 +884,8 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
         free( secbuf );
         return ret < 0 ? ret : 0;
     }
-
-    memcpy( data, &(secbuf[ seek_byte ]), byte_size );
+    
+    memcpy( data, &(secbuf[ seek_byte ]), byte_size);
     free( secbuf );
 
     dvd_file->seek_pos += byte_size;
