@@ -42,10 +42,10 @@ dnl ---------------------------------------------------------
 use_xv=yes
 AC_ARG_ENABLE(xv, 
   [  --disable-xv            disable the use of Xv ],
-  if test x$enableval != xyes; then
+  if test "x$enableval" != xyes; then
     use_xv=no
   fi)
-if test x$use_xv = xyes; then
+if test "x$use_xv" = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
   AC_CHECK_HEADER(X11/extensions/Xv.h, xv_header=yes, xv_header=no)
@@ -71,10 +71,10 @@ dnl ---------------------------------------------------------
 jpeg_path=""
 AC_ARG_WITH(libjpeg, 
   [  --with-libjpeg=path     specify the install prefix to libjpeg ], 
-  if test x$withval = xno; then
+  if test "x$withval" = xno; then
     AC_MSG_ERROR([You must have/use libjpeg])
   fi
-  if test x$withval != xyes; then
+  if test "x$withval" != xyes; then
     jpeg_path=$withval
   fi)
 if test -z "$jpeg_path"; then
@@ -143,10 +143,10 @@ dnl ---------------------------------------------------------
 dvd_path=""
 AC_ARG_WITH(dvdread, 
   [  --with-dvdread=path     specify the install prefix to libdvdread ], 
-  if test x$with_dvdread = xno; then
+  if test "x$with_dvdread" = xno; then
     AC_MSG_ERROR([You must have/use libdvdread])
   fi
-  if test x$with_dvdread != xyes; then
+  if test "x$with_dvdread" != xyes; then
     dvd_path=$with_dvdread
   fi)
 if test -z "$dvd_path"; then
@@ -200,10 +200,10 @@ have_mlib=no
 mlib_path="/opt/SUNWmlib"
 AC_ARG_WITH(libmlib,
   [  --with-libmlib=path     specify where mediaLib is installed],
-  if test x$with_libmlib != xyes; then
+  if test "x$with_libmlib" != xyes; then
     mlib_path=$with_libmlib
   fi)
-if test x$mlib_path != xno; then
+if test "x$mlib_path" != xno; then
   saved_CPPFLAGS=$CFLAGS
   CFLAGS="$CFLAGS -L$mlib_path/lib"
   AC_CHECK_LIB(mlib, mlib_VideoDCT8x8_S16_S16, 
@@ -213,7 +213,7 @@ if test x$mlib_path != xno; then
                ],,)
   CFLAGS=$saved_CPPFLAGS
 fi
-if test x$have_mlib = xyes; then
+if test "x$have_mlib" = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $MLIB_CFLAGS"
   AC_CHECK_HEADER(mlib_types.h,, 
@@ -226,8 +226,8 @@ fi
 
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
-AM_CONDITIONAL(MLIB_LIBS, test x$have_mlib = xyes)
-if test x$have_mlib = xyes; then
+AM_CONDITIONAL(MLIB_LIBS, test "x$have_mlib" = xyes)
+if test "x$have_mlib" = xyes; then
   AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
 fi
 
@@ -240,20 +240,13 @@ dnl ---------------------------------------------------------
 dnl liba52
 dnl ---------------------------------------------------------
 
-
-
-
-dnl update to test for 0.7.2 / 0.7.3 (MM_ACCEL or a52_free) 
-
-
-
 a52_path=""
 AC_ARG_WITH(liba52, 
   [  --with-liba52=path      specify the install prefix to liba52 (a52dec) ], 
-  if test x$with_liba52 = xno; then
+  if test "x$with_liba52" = xno; then
     AC_MSG_ERROR([You must have/use a52dec])
   fi
-  if test x$with_liba52 != xyes; then
+  if test "x$with_liba52" != xyes; then
     a52_path=$with_liba52
   fi)
 if test -z "$a52_path"; then
@@ -262,29 +255,35 @@ if test -z "$a52_path"; then
     a52_path=$prefix
   else
     a52_path=$ac_default_prefix
-  fi  
+  fi
 fi
-if test x$have_mlib = xyes; then
-  AC_CHECK_LIB(a52, a52_init, 
-    [ A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
-      A52_CFLAGS=-I$a52_path/include
-    ],
-    [
-      AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
-    ], -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
-else
-  AC_CHECK_LIB(a52, a52_init, 
-    [ A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
-      A52_CFLAGS=-I$a52_path/include
-    ],
-    [
-      AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
-    ], -L$a52_path/lib -lm)
-fi
+dnl a52_free is a new function in 0.7.3
+AC_CHECK_LIB(a52, a52_free, 
+  [ 
+    A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
+    A52_CFLAGS=-I$a52_path/include
+  ],
+  [
+    if test "x$have_mlib" = xyes; then
+      AC_CHECK_LIB(a52, a52_init, 
+        [ AC_MSG_ERROR([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
+        ],
+        [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+        ], -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
+    else
+      AC_CHECK_LIB(a52, a52_init, 
+        [ AC_MSG_ERROR([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
+        ],
+        [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+        ], -L$a52_path/lib -lm)
+    fi
+  ], -L$a52_path/lib -lm)
 
 AC_ARG_WITH(liba52-includes, 
   [  --with-liba52-includes=path  specify location of liba52 headers ], 
   A52_CFLAGS=-I$with_liba52_includes)
+
+dnl update to test for 0.7.2 / 0.7.3 MM_ACCEL_DJBFFT ?
 
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $A52_CFLAGS"
@@ -308,21 +307,21 @@ dnl ---------------------------------------------------------
 dnl check for oss
 AC_ARG_ENABLE([oss],
     [  --disable-oss           make a version not using oss])
-if test x"$enable_oss" != x"no"; then
+if test "x$enable_oss" != xno; then
     case "$host" in
     *-linux*|*-openbsd*|*-freebsd*|*-bsdi*)
 
 dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
-            [LIBOGLEAO_LIBS="$LIBAO_LIBS -lossaudio"]);;
+            [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lossaudio"]);;
     esac
 fi
 
 dnl check for sunaudio
 AC_ARG_ENABLE([sunaudio],
-    [  --disable-sunaudio make a version not using sunaudio])
-if test x"$enable_sunaudio" != x"no"; then
+    [  --disable-sunaudio      make a version not using sunaudio])
+if test "x$enable_sunaudio" != xno; then
     case "$host" in
     *-sun-solaris*|*-netbsd*)
 
@@ -333,15 +332,47 @@ fi
 
 dnl check for ALSA
 AC_ARG_ENABLE([alsa],
-    [  --disable-alsa     make a version not using alsa])
-if test x"$enable_alsa" != x"no"; then
+    [  --disable-alsa          make a version not using alsa])
+if test "x$enable_alsa" != xno; then
     case "$host" in
     *-linux*)
-
-dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
-        AC_DEFINE([LIBOGLEAO_ALSA],,[libogleao ALSA audio support])
-        AC_CHECK_LIB([asound],[snd_cards],
-            [LIBOGLEAO_LIBS="$LIBAO_LIBS -lasound"]);;
+        AC_MSG_CHECKING(for alsa version)
+        AC_EGREP_CPP([AP_maGiC_VALUE],
+          [ 
+#include <sys/asoundlib.h>
+#if defined(SND_LIB_MAJOR) && defined(SND_LIB_MINOR)
+#if SND_LIB_MAJOR>0 || (SND_LIB_MAJOR==0 && SND_LIB_MINOR==5)
+AP_maGiC_VALUE
+#endif
+#endif
+          ],
+          [
+            have_alsa_05x=yes
+            AC_MSG_RESULT([found 0.5.x])
+          ],
+          [
+            AC_EGREP_CPP([AP_maGiC_VALUE],
+              [
+#include <sys/asoundlib.h>
+#if defined(SND_LIB_MAJOR) && defined(SND_LIB_MINOR)
+#if SND_LIB_MAJOR>0 || (SND_LIB_MAJOR==0 && SND_LIB_MINOR>=6)
+AP_maGiC_VALUE
+#endif
+#endif
+              ],
+              [
+                have_alsa_final=yes
+                AC_MSG_RESULT([found latest])
+              ])
+          ])
+        if test "x$have_alsa_final" = x"yes"; then
+                    dnl which symbol should we check for? 
+          AC_CHECK_LIB([asound],[main],
+                       [ AC_DEFINE([LIBOGLEAO_ALSA],,
+                                   [libogleao ALSA audio support])
+			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound" 
+                       ])
+        fi;;
     esac
 fi
 
@@ -371,10 +402,10 @@ dnl ---------------------------------------------------------
 use_xf86vidmode=yes
 AC_ARG_ENABLE(xf86vidmode, 
   [  --disable-xf86vidmode	  disable the use of XF86VidMode ],
-  if test x$enableval != xyes; then
+  if test "x$enableval" != xyes; then
     use_xf86vidmode=no
   fi)
-if test x$use_xf86vidmode = xyes; then
+if test "x$use_xf86vidmode" = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
   AC_CHECK_HEADER(X11/extensions/xf86vmode.h, 
@@ -403,10 +434,10 @@ dnl ---------------------------------------------------------
 use_xinerama=yes
 AC_ARG_ENABLE(xinerama, 
   [  --disable-xinerama	  disable the use of Xinerama ],
-  if test x$enableval != xyes; then
+  if test "x$enableval" != xyes; then
     use_xinerama=no
   fi)
-if test x$use_xinerama = xyes; then
+if test "x$use_xinerama" = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
   AC_CHECK_HEADER(X11/extensions/Xinerama.h, 
@@ -497,7 +528,7 @@ dnl ---------------------------------------------------------
 dnl Compiler specific stuff
 dnl ---------------------------------------------------------
 
-if test x"$GCC" = x"yes"; then
+if test "x$GCC" = xyes; then
   CFLAGS="$CFLAGS -Wall"
 else
     dnl non-GCC flags - we probably need exact configuration triplets here.
@@ -522,7 +553,7 @@ USE_ALTIVEC=
 USE_SPARCASM=
 case "$host_cpu" in
 i?86)
-	if test x"$GCC" = x"yes"; then
+	if test "x$GCC" = xyes; then
 	  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
 dnl Do we need this ? should we hard code it to pentium/pentiumpro?
 dnl what about k6 / athlon
@@ -533,14 +564,14 @@ dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
 	USE_MMX=yes
 	;;
 sparc)
-	if test x"$GCC" = x"yes"; then
+	if test "x$GCC" = xyes; then
 	  CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
 	  AC_DEFINE([USE_SPARCASM],1,[use assembler routines])
 	  USE_SPARCASM=yes
 	fi
 	;;
 powerpc|ppc)
-	if test x"$GCC" = x"yes"; then
+	if test "x$GCC" = xyes; then
 	  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
 dnl is the right? needed? use just -m7400 ? need new gcc for that..
 dnl is there a -mcpu -march flag that we should use?
@@ -553,30 +584,30 @@ esac
 
 AC_ARG_ENABLE(altivec, 
   [  --disable-altivec       disable the use of Altivec (G4+)],
-  if test x$enableval != xyes; then
+  if test "x$enableval" != xyes; then
     USE_ALTIVEC=
   fi)
-if test x$USE_ALTIVEC = xyes; then
+if test "x$USE_ALTIVEC" = xyes; then
   AC_DEFINE([HAVE_ALTIVEC],1,[Processor support ALTIVEC])
   CFLAGS="$XCFLAGS $CFLAGS"
 fi
 
 AC_ARG_ENABLE(mmx, 
   [  --disable-mmx           disable the use of MMX (x86)],
-  if test x$enableval != xyes; then
+  if test "x$enableval" != xyes; then
     USE_MMX=
   fi)
-if test x$USE_MMX = xyes; then
+if test "x$USE_MMX" = xyes; then
   AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
   CFLAGS="$CFLAGS $XCFLAGS"
 fi
 
 AC_SUBST(USE_MMX)
-AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
+AM_CONDITIONAL(USE_MMX, test "x$USE_MMX" = xyes)
 AC_SUBST(USE_ALTIVEC)
-AM_CONDITIONAL(USE_ALTIVEC, test x$USE_ALTIVEC = xyes)
+AM_CONDITIONAL(USE_ALTIVEC, test "x$USE_ALTIVEC" = xyes)
 AC_SUBST(USE_SPARCASM)
-AM_CONDITIONAL(USE_SPARCASM, test x$USE_SPARCASM = xyes)
+AM_CONDITIONAL(USE_SPARCASM, test "x$USE_SPARCASM" = xyes)
 
 dnl ---------------------------------------------------------
 dnl end Architecture specific stuff
