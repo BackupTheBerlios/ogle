@@ -36,10 +36,10 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
 #define B2N_32(x) (void)(x)
 #define B2N_64(x) (void)(x)
 #else
-#include <sys/bswap.h> //??? 
-#define B2N_16(x) bswap_16(x)
-#define B2N_32(x) bswap_32(x)
-#define B2N_64(x) bswap_64(x) // Hummm...
+#include <byteswap.h>
+#define B2N_16(x) x = bswap_16((x))
+#define B2N_32(x) x = bswap_32((x))
+#define B2N_64(x) x = bswap_64((x))
 #endif
 
 void ifoPrint(char *filename);
@@ -88,21 +88,10 @@ int main(int argc, char *argv[])
 
 
 void ifoPrint(char *filename) {
-  uint8_t *data;
+  vmgi_mat_t vmgi_mat;
+  vtsi_mat_t vtsi_mat;
   
-  ifo_file = fopen(filename,"r");
-  if(!ifo_file) {
-    perror(filename);
-    exit(1);
-  }
-  
-  data = malloc( DVD_BLOCK_LEN );
-  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
-    exit(1);
-  }
-    
-  if(strncmp("DVDVIDEO-VMG",data, 12) == 0) {
-    vmgi_mat_t vmgi_mat;
+  if(!ifoOpen_VMG(&vmgi_mat, filename)) {
     vmg_ptt_srpt_t vmg_ptt_srpt;
     pgc_t pgc;    
     menu_pgci_ut_t vmgm_pgci_ut;
@@ -113,9 +102,7 @@ void ifoPrint(char *filename) {
      
     
     PUT(1, "VMG top level\n-------------\n");
-    memcpy(&vmgi_mat, data, sizeof(vmgi_mat));
     ifoPrint_VMGI_MAT(&vmgi_mat);
-      
       
     PUT(1, "\nFirst Play PGC\n--------------\n");
     ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
@@ -170,10 +157,12 @@ void ifoPrint(char *filename) {
       ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
       ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
     } else
-      PUT(5, "No Menu VOBU address map present\n");
-    
-  } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
-    vtsi_mat_t vtsi_mat;
+      PUT(5, "No Menu VOBU address map present\n");   
+  }
+  if(ifo_file)
+    fclose(ifo_file);
+
+  if(!ifoOpen_VTS(&vtsi_mat, filename)) {
     vts_ptt_srpt_t vts_ptt_srpt;
     pgc_t pgc;    
     pgcit_t vts_pgcit;
@@ -184,7 +173,6 @@ void ifoPrint(char *filename) {
     vobu_admap_t vts_vobu_admap;
       
     PUT(1, "VTS top level\n-------------\n");
-    memcpy(&vtsi_mat, data, sizeof(vtsi_mat));
     ifoPrint_VTSI_MAT(&vtsi_mat);
       
     PUT(1, "\nPart of title search pointer table information\n");
@@ -243,11 +231,12 @@ void ifoPrint(char *filename) {
       ifoRead_VOBU_ADMAP(&vts_vobu_admap, vtsi_mat.vts_vobu_admap);
       ifoPrint_VOBU_ADMAP(&vts_vobu_admap);
     } else
-      PUT(5, "No Menu VOBU address map present\n");
-  
-  } else if(!memcmp(data, system_startcode, 4)) {
-    /* Vob */
-  }
+      PUT(5, "No Menu VOBU address map present\n");  
+  } 
+  if(ifo_file)
+    fclose(ifo_file);
+
+  /* Vob */
   
 }
 
@@ -641,9 +630,7 @@ void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait) {
     for(i=0;i<ptl_mait->nr_of_countries;i++) {
       CHECK_ZERO(ptl_mait->countries[i].zero_1);
       CHECK_ZERO(ptl_mait->countries[i].zero_2);
-      PUT(5, "Country code: %c%c\n", 
-	  ptl_mait->countries[i].country_code>>8,
-	  ptl_mait->countries[i].country_code&0xff);
+      PUT(5, "Country code: %.2s\n", ptl_mait->countries[i].country_code);
       /*
 	PUT(5, "Start byte: %04x %i\n", 
 	ptl_mait->countries[i].start_byte_of_pf_ptl_mai, 
@@ -836,7 +823,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
     return -1;
   }
   
-  if(fread(vmgi_mat, sizeof(vmgi_mat), 1, ifo_file) != 1) {
+  if(fread(vmgi_mat, sizeof(vmgi_mat_t), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
     return -1;
@@ -859,7 +846,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   B2N_32(vmgi_mat->vmgm_c_adt);
   B2N_32(vmgi_mat->vmgm_vobu_admap);
   B2N_16(vmgi_mat->vmgm_video_attributes);
-  
+
   return strncmp("DVDVIDEO-VMG", vmgi_mat->vmg_identifier, 12);
 }
 
@@ -871,7 +858,7 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
     return -1;
   }
   
-  if(fread(vtsi_mat, sizeof(vtsi_mat), 1, ifo_file) != 1) {
+  if(fread(vtsi_mat, sizeof(vtsi_mat_t), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
     return -1;
@@ -892,8 +879,8 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   B2N_32(vtsi_mat->vts_vobu_admap);
   B2N_16(vtsi_mat->vtsm_video_attributes);
   B2N_16(vtsi_mat->vts_video_attributes);
-  
-  return strncmp("DVDVIDEO-VMG", vtsi_mat->vts_identifier, 12);
+
+  return strncmp("DVDVIDEO-VTS", vtsi_mat->vts_identifier, 12);
 }
 
 
@@ -949,28 +936,33 @@ void ifoRead_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr, int offset)
 }
 
 void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int offset) {
+  int i;
   int size = nr * sizeof(cell_playback_tbl_t);
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_playback, size, 1, ifo_file) != 1) {
     perror("PGC - Cell Playback info");
     exit(1);
   }
-  B2N_32(cell_playback->category);
-  B2N_32(cell_playback->playback_time);
-  B2N_32(cell_playback->first_sector);
-  B2N_32(cell_playback->first_ilvu_end_sector);
-  B2N_32(cell_playback->last_vobu_start_sector);
-  B2N_32(cell_playback->last_sector);
+  for(i=0;i<nr;i++) {
+    B2N_32(cell_playback[i].category);
+    B2N_32(cell_playback[i].first_sector);
+    B2N_32(cell_playback[i].first_ilvu_end_sector);
+    B2N_32(cell_playback[i].last_vobu_start_sector);
+    B2N_32(cell_playback[i].last_sector);
+  }
 }
 
 void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int offset) {
+  int i;
   int size = nr * sizeof(cell_position_tbl_t);
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_position, size, 1, ifo_file) != 1) {
     perror("PGC - Cell Position info");
     exit(1);
   }
-  B2N_16(cell_position->vob_id_nr);
+  for(i=0;i<nr;i++) {
+    B2N_16(cell_position[i].vob_id_nr);
+  }
 }
 
 
@@ -982,7 +974,6 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
     exit(1);
   }
   B2N_16(pgc->zero_1);
-  B2N_32(pgc->playback_time);
   B2N_32(pgc->prohibited_ops);
   B2N_16(pgc->next_pgc_nr);
   B2N_16(pgc->prev_pgc_nr);
@@ -1113,7 +1104,7 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
 }
 
 void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
-  int info_length;
+  int i, info_length;
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(ptl_mait, VMG_PTL_MAIT_SIZE, 1, ifo_file) != 1) {
     perror("VMG_PTL_MAIT");
@@ -1131,6 +1122,9 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
   if(fread(ptl_mait->countries, info_length, 1, ifo_file) != 1) {
     perror("VMG_PTL_MAIT info");
     exit(1);
+  }
+  for(i=0;i<ptl_mait->nr_of_countries;i++) {
+    B2N_16(ptl_mait->countries[i].start_byte_of_pf_ptl_mai);
   }
 }
 
@@ -1151,7 +1145,7 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
     perror("VMGM_C_ADT info");
     exit(1);
   }
-  for(i=0;i<c_adt->nr_of_vobs;i++) {
+  for(i=0;i<info_length/sizeof(c_adt_t);i++) {
     B2N_16(c_adt->cell_adr_table[i].vob_id);
     B2N_32(c_adt->cell_adr_table[i].start_sector);
     B2N_32(c_adt->cell_adr_table[i].last_sector);

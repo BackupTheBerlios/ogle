@@ -13,7 +13,7 @@ typedef struct {
   uint8_t minute;
   uint8_t second;
   uint8_t frame_u; // The two high bits are the fps.
-} dvd_time_t;
+}  __attribute__ ((packed)) dvd_time_t;
 
 typedef struct { // Video Manager Information Management Table
   char     vmg_identifier[12];
@@ -162,7 +162,7 @@ typedef struct {
 
 
 typedef struct {
-  uint16_t country_code;
+  char country_code[2];
   uint16_t zero_1;
   uint16_t start_byte_of_pf_ptl_mai;
   uint16_t zero_2;
