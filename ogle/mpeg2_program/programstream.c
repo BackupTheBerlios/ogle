@@ -314,23 +314,29 @@ void dvd_close_file(void)
 int dvd_read_block(char *buf, int boffset, int nblocks)
 {
   int bytes_read;
-  bytes_read = DVDReadBlocks(dvdfile, boffset, nblocks, buf);
   
-  switch(bytes_read) {
-  case -1:
-    fprintf(stderr, "demux: dvdreadblocks failed\n");
-    exit(1);
-  case 0:
-    fprintf(stderr, "demux: dvdreadblocks returned 0\n");
-    break;
-  default:
-    break;
-  }
-  if(bytes_read != nblocks * 2048) {
-    fprintf(stderr, "demux: dvdreadblocks only got %d, wanted %d\n",
-	    bytes_read, nblocks * 2048);
-    exit(1);
-  }
+
+  do {
+    bytes_read = DVDReadBlocks(dvdfile, boffset, nblocks, buf);
+    
+    switch(bytes_read) {
+    case -1:
+      fprintf(stderr, "demux: dvdreadblocks failed\n");
+      exit(1);
+    case 0:
+      fprintf(stderr, "demux: dvdreadblocks returned 0\n");
+      break;
+    default:
+      break;
+    }
+    if(bytes_read != nblocks * 2048) {
+      fprintf(stderr, "demux: dvdreadblocks only got %d, wanted %d\n",
+	      bytes_read, nblocks * 2048);
+    }
+    buf+= bytes_read;
+    nblocks-= (bytes_read/2048);
+    boffset+= (bytes_read/2048);
+  } while(nblocks > 0);
   return 0;
 }
 
