@@ -264,6 +264,7 @@ int interpret_config(void)
   int config_read = 0;
   char *home;
 
+  LIBXML_TEST_VERSION
 
   if(interpret_oglerc(CONFIG_FILE) != -1) {
     config_read |= 1;
