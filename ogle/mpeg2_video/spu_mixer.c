@@ -33,6 +33,7 @@ typedef struct {
 
   unsigned char *buffer;
   char *next_buffer;
+  int scr_nr;
   clocktime_t base_time;
   clocktime_t next_time;
   
@@ -85,7 +86,9 @@ static uint32_t palette_rgb[16];
 
 static highlight_t highlight  = { 0 };
 
+extern int video_scr_nr;
 extern int msgqid;
+
 
 #define MAX_BUF_SIZE 65536
 
@@ -250,7 +253,7 @@ static void change_file(char *new_filename)
 }
 
 
-static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
+static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *new_scr_nr)
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
@@ -301,8 +304,9 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   if(PTS_DTS_flags & 0x2) {
     PTS = data_elem->PTS;
     scr_nr = data_elem->scr_nr;
-    PTS_TO_CLOCKTIME(pts_time, PTS)
+    PTS_TO_CLOCKTIME(pts_time, PTS);
     timeadd(display_base_time, &pts_time, &ctrl_time[scr_nr].realtime_offset);
+    *new_scr_nr = scr_nr;
   }
   if(PTS_DTS_flags & 0x1) {
     DTS = data_elem->DTS;
@@ -443,7 +447,7 @@ int init_spu(void)
 
 
 
-int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime)
+int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime, int *scr_nr)
 {
   int r;
   static int bytes_to_read = 0;
@@ -464,7 +468,7 @@ int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime)
   }
   if(state == 0) {
     while(bytes_to_read > 0) {
-      r = get_q(&databuf[2-bytes_to_read], bytes_to_read, dtime);
+      r = get_q(&databuf[2-bytes_to_read], bytes_to_read, dtime, scr_nr);
       
       if(r > 0) {
 	bytes_to_read -= r;
@@ -494,7 +498,7 @@ int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime)
 
   // get the rest of the spu
   while(bytes_to_read > 0) {
-    r = get_q(&databuf[spu_size-bytes_to_read], bytes_to_read, dtime);
+    r = get_q(&databuf[spu_size-bytes_to_read], bytes_to_read, dtime, scr_nr);
     
     if(r > 0) {
       bytes_to_read -= r;
@@ -961,6 +965,13 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
  * be 'executed'. If no next sequence exist or if it is in the  
  * future, return 'false'.
  */
+
+/* TODO
+ * 
+ *
+ *
+ *
+ */
 int next_spu_cmd_pending(spu_t *spu_info) {
   int start_time, offset;
   clocktime_t realtime, errtime;
@@ -970,7 +981,7 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       
-      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, &spu_info->base_time))
+      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, &spu_info->base_time, &spu_info->scr_nr))
 	return 0;
       
       /* The offset to the first DCSQ */
@@ -995,7 +1006,10 @@ int next_spu_cmd_pending(spu_t *spu_info) {
 
   if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0)
     return 1;
-
+  if(spu_info->scr_nr != video_scr_nr) {
+    return 1;
+  }
+  
   return 0;
 }
 

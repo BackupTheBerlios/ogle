@@ -31,7 +31,7 @@
 #ifndef HAVE_CLOCK_GETTIME
 #include <sys/time.h>
 #endif
-
+#include <errno.h>
 
 extern buf_ctrl_head_t *buf_ctrl_head;
 extern void display(yuv_image_t *current_image);
@@ -41,15 +41,23 @@ extern void display_init(int padded_width, int padded_height,
 
 extern void display_exit(void);
 
+int video_scr_nr;
+
 int get_next_picture_buf_id()
 {
   int id;
   static int dpy_q_get_pos = 0; // Fix me!!
-
-  if(ip_sem_wait(&buf_ctrl_head->queue, PICTURES_READY_TO_DISPLAY) == -1) {
-    perror("sem_wait() get_next_picture_buf_id");
-    exit(1); // XXX 
+  /** hack warning fix me */
+  
+  if(ip_sem_trywait(&buf_ctrl_head->queue, PICTURES_READY_TO_DISPLAY) == -1) {
+    if(errno != EAGAIN) {
+      perror("sem_wait() get_next_picture_buf_id");
+      exit(1); // XXX 
+    } else {
+      return -1;
+    }
   }
+
   id = buf_ctrl_head->dpy_q[dpy_q_get_pos];
   dpy_q_get_pos = (dpy_q_get_pos + 1) % (buf_ctrl_head->nr_of_buffers);
 
@@ -82,7 +90,7 @@ void display_process()
   clocktime_t calc_rt;
   struct timespec wait_time;
   struct sigaction sig;
-  int buf_id;
+  int buf_id, prev_buf_id;
   int drop = 0;
   int avg_nr = 23;
   int first = 1;
@@ -96,9 +104,23 @@ void display_process()
   sigaction(SIGINT, &sig, NULL);
 
   while(1) {
-    buf_id = get_next_picture_buf_id();
+    /** hack warning, fix me */
+    while((buf_id = get_next_picture_buf_id()) == -1) {
+      if(!first) {
+	PTS_TO_CLOCKTIME(wait_time, buf_ctrl_head->frame_interval);
+	nanosleep(&wait_time, NULL);
+	display(&(buf_ctrl_head->picture_infos[prev_buf_id].picture));	
+      } else {
+	PTS_TO_CLOCKTIME(wait_time, 3750);
+	nanosleep(&wait_time, NULL);
+      }
+    }
+    prev_buf_id = buf_id;
+
     //fprintf(stderr, "display: start displaying buf: %d\n", buf_id);
-    TIME_SS(frame_interval) = buf_ctrl_head->frame_interval;
+    PTS_TO_CLOCKTIME(frame_interval, buf_ctrl_head->frame_interval);
+    video_scr_nr = buf_ctrl_head->picture_infos[buf_id].scr_nr;
+
     if(first) {
       first = 0;
       display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
@@ -133,7 +155,7 @@ void display_process()
     }
     // Fixme!!! wait_time can't be used here..
     timesub(&wait_time, &prefered_time, &real_time);
-    /*
+    
     fprintf(stderr, "pref: %d.%09ld\n",
 	    TIME_S(prefered_time), TIME_SS(prefered_time));
 
@@ -142,7 +164,7 @@ void display_process()
 
     fprintf(stderr, "wait: %d.%09ld, ",
 	    TIME_S(wait_time), TIME_SS(wait_time));
-    */     
+         
 
     if(wait_time.tv_nsec > 5000000 && wait_time.tv_sec >= 0) {
       nanosleep(&wait_time, NULL);

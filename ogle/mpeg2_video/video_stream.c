@@ -576,11 +576,7 @@ void video_sequence(void) {
 void sequence_header(void)
 {
   uint32_t sequence_header_code;
-#ifdef HAVE_CLOCK_GETTIME
-  long int frame_interval_nsec = 0;
-#else
-  long int frame_interval_usec = 0;
-#endif
+  long int frame_interval_pts = 0;
 
   DPRINTFI(1, "sequence_header()\n");
   DINDENT(2);
@@ -692,67 +688,35 @@ void sequence_header(void)
     break;
   case 0x1:
     DPRINTF(2, "24000/1001 (23.976)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 41708333;
-#else
-    frame_interval_usec = 41708;
-#endif
+    frame_interval_pts = 3754;
     break;
   case 0x2:
     DPRINTF(2, "24\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 41666667;
-#else
-    frame_interval_usec = 41667;
-#endif
+    frame_interval_pts = 3750;
     break;
   case 0x3:
     DPRINTF(2, "25\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 40000000;
-#else
-    frame_interval_usec = 40000;
-#endif
+    frame_interval_pts = 3600;
     break;
   case 0x4:
     DPRINTF(2, "30000/1001 (29.97)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 33366667;
-#else
-    frame_interval_usec = 33367;
-#endif
+    frame_interval_pts = 3003;
     break;
   case 0x5:
     DPRINTF(2, "30\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 33333333;
-#else
-    frame_interval_usec = 33333;
-#endif
+    frame_interval_pts = 3000;
     break;
   case 0x6:
     DPRINTF(2, "50\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 20000000;
-#else
-    frame_interval_usec = 20000;
-#endif
+    frame_interval_pts = 1800;
     break;
   case 0x7:
     DPRINTF(2, "60000/1001 (59.94)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 16683333;
-#else
-    frame_interval_usec = 16683;
-#endif
+    frame_interval_pts = 1502;
     break;
   case 0x8:
     DPRINTF(2, "60\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 16666667;
-#else
-    frame_interval_usec = 16667;
-#endif
+    frame_interval_pts = 1500;
     break;
   default:
     DPRINTF(2, "Reserved\n");
@@ -762,20 +726,12 @@ void sequence_header(void)
   
   
   if(forced_frame_rate == -1) { /* No forced frame rate */
-#ifdef HAVE_CLOCK_GETTIME
-    buf_ctrl_head->frame_interval = frame_interval_nsec;
-#else
-    buf_ctrl_head->frame_interval = frame_interval_usec;
-#endif
+    buf_ctrl_head->frame_interval = frame_interval_pts;
   } else {
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
-#ifdef HAVE_CLOCK_GETTIME
-      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
-#else
-      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
-#endif
+      buf_ctrl_head->frame_interval = PTS_BASE/forced_frame_rate;
     }
   }
 
@@ -957,11 +913,7 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
 
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
-#ifdef HAVE_CLOCK_GETTIME
-  long int frame_interval_nsec = 0;
-#else
-  long int frame_interval_usec = 0;
-#endif
+  long int frame_interval_pts = 0;
   uint32_t extension_start_code;
   
   extension_start_code = GETBITS(32, "extension_start_code");
@@ -1079,67 +1031,35 @@ void sequence_extension(void) {
     break;
   case 0x1:
     DPRINTF(2, "24000/1001 (23.976)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 41708333;
-#else
-    frame_interval_usec = 41708;
-#endif
+    frame_interval_pts = 3754;
     break;
   case 0x2:
     DPRINTF(2, "24\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 41666667;
-#else
-    frame_interval_usec = 41667;
-#endif
+    frame_interval_pts = 3750;
     break;
   case 0x3:
     DPRINTF(2, "25\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 40000000;
-#else
-    frame_interval_usec = 40000;
-#endif
+    frame_interval_pts = 3600;
     break;
   case 0x4:
     DPRINTF(2, "30000/1001 (29.97)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 33366667;
-#else
-    frame_interval_usec = 33367;
-#endif
+    frame_interval_pts = 3003;
     break;
   case 0x5:
     DPRINTF(2, "30\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 33333333;
-#else
-    frame_interval_usec = 33333;
-#endif
+    frame_interval_pts = 3000;
     break;
   case 0x6:
     DPRINTF(2, "50\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 20000000;
-#else
-    frame_interval_usec = 20000;
-#endif
+    frame_interval_pts = 1800;
     break;
   case 0x7:
     DPRINTF(2, "60000/1001 (59.94)\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 16683333;
-#else
-    frame_interval_usec = 16683;
-#endif
+    frame_interval_pts = 1502;
     break;
   case 0x8:
     DPRINTF(2, "60\n");
-#ifdef HAVE_CLOCK_GETTIME
-    frame_interval_nsec = 16666667;
-#else
-    frame_interval_usec = 16667;
-#endif
+    frame_interval_pts = 1500;
     break;
   default:
     DPRINTF(2, "%f (computed)\n",
@@ -1152,20 +1072,12 @@ void sequence_extension(void) {
   }
 
   if(forced_frame_rate == -1) { /* No forced frame rate */
-#ifdef HAVE_CLOCK_GETTIME
-    buf_ctrl_head->frame_interval = frame_interval_nsec;
-#else
-    buf_ctrl_head->frame_interval = frame_interval_usec;
-#endif
+    buf_ctrl_head->frame_interval = frame_interval_pts;
   } else {
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
-#ifdef HAVE_CLOCK_GETTIME
-      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
-#else
-      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
-#endif
+      buf_ctrl_head->frame_interval = PTS_BASE/forced_frame_rate;
     }
   }
   DINDENT(-2);
@@ -1386,8 +1298,8 @@ void picture_header(void)
     picture_has_pts = 1;
     DPRINTFI(1, "PTS: %016llx %lld.%06lld\n",
 	     PTS,
-	     PTS/90000,
-	     (PTS%90000)*1000000/90000);
+	     PTS/PTS_BASE,
+	     (PTS%PTS_BASE)*1000000/PTS_BASE);
   } else {
     picture_has_pts = 0;
   }
@@ -1564,7 +1476,7 @@ void dpy_q_put(int id)
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
-      buf_ctrl_head->frame_interval = CT_FRACTION/forced_frame_rate; // XXX
+      buf_ctrl_head->frame_interval = PTS_BASE/forced_frame_rate; // XXX
     }
   }
 
@@ -1803,20 +1715,20 @@ void picture_data(void)
 	if(last_timestamped_temp_ref != -1) {
 	  calc_pts = last_pts +
 	    (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	    90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
+	    buf_ctrl_head->frame_interval;
 	  /*
 	    calc_pts = last_pts_to_dpy +
-	    90000/(1000000000/buf_ctrl_head->frame_interval);
+	    buf_ctrl_head->frame_interval;
 	  */
 	} else {
 	  if(last_temporal_ref_to_dpy == -1) {
 	    calc_pts = last_pts_to_dpy +
 	      (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	    90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
+	    buf_ctrl_head->frame_interval;
 	  } else {
 	    calc_pts = last_pts_to_dpy +
 	      (pic.header.temporal_reference - last_temporal_ref_to_dpy) *
-	      90000/(CT_FRACTION/buf_ctrl_head->frame_interval);	    
+	      buf_ctrl_head->frame_interval;	    
 	  }   
 	}
 	
@@ -1870,10 +1782,10 @@ void picture_data(void)
 
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
+	  buf_ctrl_head->frame_interval;
 	/*
 	  calc_pts = last_pts_to_dpy + 
-	  90000/(1000000000/buf_ctrl_head->frame_interval);
+	  buf_ctrl_head->frame_interval;
 	*/
 	pinfos[buf_id].PTS = calc_pts;
 	pinfos[buf_id].realtime_offset = 
