@@ -22,15 +22,17 @@
 typedef enum {
   ChannelType_Unspecified = -1,
   ChannelType_Null = 0,
-  ChannelType_Left = 1,
-  ChannelType_Right = 2,
-  ChannelType_Center = 4,
-  ChannelType_LeftSurround = 8,
-  ChannelType_RightSurround = 16,
-  ChannelType_LFE = 64,
-  ChannelType_Surround = 32,
-  ChannelType_CenterSurround = 128,
-  ChannelType_Mono = 256
+  ChannelType_Left = 0x1,
+  ChannelType_Right = 0x2,
+  ChannelType_Center = 0x4,
+  ChannelType_LeftSurround = 0x8,
+  ChannelType_RightSurround = 0x10,
+  ChannelType_Surround = 0x20,
+  ChannelType_LFE = 0x40,
+  ChannelType_CenterSurround = 0x80,
+  ChannelType_Mono = 0x100
 } ChannelType_t;
+
+char *channeltype_str(ChannelType_t chtype);
 
 #endif /* AUDIO_TYPES_H */

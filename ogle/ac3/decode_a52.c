@@ -145,11 +145,18 @@ void a52flags_to_format(int flags, int *channels, ChannelType_t *channel[])
 
   ch_array = malloc(6 * sizeof(ChannelType_t));
 
+  // the order of the channels is
+  // lfe, left, center, right, leftsurround, rightsurround
+
+  if(flags & A52_LFE) { // sub
+    ch_array[nr_channels++] = ChannelType_LFE;
+  }
+
   if(f == A52_CHANNEL) { 
     ch_array[nr_channels++] = ChannelType_Left; //??
     ch_array[nr_channels++] = ChannelType_Right; //??
   } if(f == A52_MONO || f == A52_CHANNEL1 || f == A52_CHANNEL2) {
-    ch_array[nr_channels++] = ChannelType_Center;
+    ch_array[nr_channels++] = ChannelType_Mono;
   } else {
     if(1) { // left
       ch_array[nr_channels++] = ChannelType_Left;
@@ -167,9 +174,6 @@ void a52flags_to_format(int flags, int *channels, ChannelType_t *channel[])
       ch_array[nr_channels++] = ChannelType_LeftSurround;
       ch_array[nr_channels++] = ChannelType_RightSurround;
     }
-  }
-  if(flags & A52_LFE) { // sub
-    ch_array[nr_channels++] = ChannelType_LFE;
   }
 
   *channels = nr_channels;
@@ -315,13 +319,18 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	
 	a52flags_to_format(flags, &new_format.nr_channels,
 			   &new_format.ch_array);
-	fprintf(stderr, "nr_ch: %d\n",
-		new_format.nr_channels);
+	DNOTE("%d channels decoded: ", new_format.nr_channels);
 	new_format.sample_rate = handle->sample_rate;
 	new_format.sample_resolution = 16;
 	new_format.sample_format = SampleFormat_A52float;
 	init_sample_conversion((adec_handle_t *)handle, &new_format, 256*6);
-
+	{
+	  int n;
+	  for(n = 0; n < new_format.nr_channels; n++) {
+	    fprintf(stderr, " %s", channeltype_str(new_format.ch_array[n]));
+	  }
+	  fprintf(stderr, "\n");
+	}
 	free(new_format.ch_array);
       }
 
