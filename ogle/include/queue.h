@@ -37,12 +37,6 @@ typedef struct {
   float sar;
 } yuv_picture_t;
 
-typedef struct {
-  uint8_t *y; //[480][720];  //y-component image
-  uint8_t *u; //[480/2][720/2]; //u-component
-  uint8_t *v; //[480/2][720/2]; //v-component
-  yuv_picture_t *info;
-} yuv_image_t;
 
 typedef struct {
   uint64_t PTS;
@@ -60,6 +54,14 @@ typedef struct {
   long int frame_interval;
   char *q_addr;
 } picture_data_elem_t;
+
+
+typedef struct {
+  uint8_t *y; //[480][720];  //y-component image
+  uint8_t *u; //[480/2][720/2]; //u-component
+  uint8_t *v; //[480/2][720/2]; //v-component
+  picture_data_elem_t *info;
+} yuv_image_t;
 
 typedef struct {
   int shmid;
