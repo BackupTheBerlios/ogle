@@ -23,11 +23,21 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include <a52dec/a52.h>
 #include "audio_out.h"
 
-int float_setup (ao_instance_t * instance, int sample_rate, int * flags,
+typedef struct float_instance_s {
+    ao_instance_t ao;
+    int fd;
+} float_instance_t;
+
+
+int float_setup (ao_instance_t * _instance, int sample_rate, int * flags,
 		 sample_t * level, sample_t * bias)
 {
     *flags = A52_STEREO;
@@ -37,8 +47,9 @@ int float_setup (ao_instance_t * instance, int sample_rate, int * flags,
     return 0;
 }
 
-int float_play (ao_instance_t * instance, int flags, sample_t * _samples)
+int float_play (ao_instance_t * _instance, int flags, sample_t * _samples)
 {
+  float_instance_t *instance = (float_instance_t *)_instance;
 #ifdef LIBA52_DOUBLE
     float samples[256 * 2];
     int i;
@@ -49,18 +60,27 @@ int float_play (ao_instance_t * instance, int flags, sample_t * _samples)
     float * samples = _samples;
 #endif
 
-    fwrite (samples, sizeof (float), 256 * 2, stdout);
+    write(instance->fd, samples, sizeof(float) * 256 * 2);
 
     return 0;
 }
 
-void float_close (ao_instance_t * instance)
+void float_close (ao_instance_t * _instance)
 {
+  float_instance_t *instance = (float_instance_t *)_instance;
+  close(instance->fd);
 }
 
-static ao_instance_t instance = {float_setup, float_play, float_close};
+static float_instance_t instance = {{float_setup, float_play, float_close}, -1};
 
-ao_instance_t * ao_float_open (void)
+ao_instance_t * ao_float_open (char *dev)
 {
-    return &instance;
+
+  instance.fd = open (dev, O_WRONLY);
+  if (instance.fd < 0) {
+    fprintf (stderr, "Can not open %s\n", dev);
+    return NULL;
+  }
+  
+  return &instance;
 }

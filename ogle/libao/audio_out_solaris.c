@@ -162,7 +162,7 @@ void solaris_close (ao_instance_t * _instance)
     close (instance->fd);
 }
 
-ao_instance_t * solaris_open (int flags)
+ao_instance_t * solaris_open (int flags, char *dev)
 {
     solaris_instance_t * instance;
 
@@ -178,9 +178,9 @@ ao_instance_t * solaris_open (int flags)
     instance->set_params = 1;
     instance->flags = flags;
 
-    instance->fd = open ("/dev/audio", O_WRONLY);
+    instance->fd = open (dev, O_WRONLY);
     if (instance->fd < 0) {
-	fprintf (stderr, "Can not open /dev/audio\n");
+	fprintf (stderr, "Can not open %s\n", dev);
 	free (instance);
 	return NULL;
     }
@@ -188,14 +188,14 @@ ao_instance_t * solaris_open (int flags)
     return (ao_instance_t *) instance;
 }
 
-ao_instance_t * ao_solaris_open (void)
+ao_instance_t * ao_solaris_open (char *dev)
 {
-    return solaris_open (A52_STEREO);
+    return solaris_open (A52_STEREO, dev);
 }
 
-ao_instance_t * ao_solarisdolby_open (void)
+ao_instance_t * ao_solarisdolby_open (char *dev)
 {
-    return solaris_open (A52_DOLBY);
+    return solaris_open (A52_DOLBY, dev);
 }
 
 #endif

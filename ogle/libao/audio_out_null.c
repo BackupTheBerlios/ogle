@@ -54,21 +54,21 @@ void null_close (ao_instance_t * instance)
 
 static null_instance_t instance = {{null_setup, null_play, null_close}, 0};
 
-ao_instance_t * ao_null_open (void)
+ao_instance_t * ao_null_open (char *dev)
 {
     instance.channels = A52_STEREO;
 
     return (ao_instance_t *) &instance;
 }
 
-ao_instance_t * ao_null4_open (void)
+ao_instance_t * ao_null4_open (char *dev)
 {
     instance.channels = A52_2F2R;
 
     return (ao_instance_t *) &instance;
 }
 
-ao_instance_t * ao_null6_open (void)
+ao_instance_t * ao_null6_open (char *dev)
 {
     instance.channels = A52_3F2R | A52_LFE;
 

@@ -28,7 +28,7 @@ struct ao_instance_s {
     void (* close) (ao_instance_t * instance);
 };
 
-typedef ao_instance_t * ao_open_t (void);
+typedef ao_instance_t * ao_open_t (char *dev);
 
 typedef struct ao_driver_s {
     char * name;
@@ -38,9 +38,9 @@ typedef struct ao_driver_s {
 /* return NULL terminated array of all drivers */
 ao_driver_t * ao_drivers (void);
 
-static inline ao_instance_t * ao_open (ao_open_t * open)
+static inline ao_instance_t * ao_open (ao_open_t * open, char *dev)
 {
-    return open ();
+    return open (dev);
 }
 
 static inline int ao_setup (ao_instance_t * instance, int sample_rate,
