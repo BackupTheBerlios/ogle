@@ -2,7 +2,5 @@
 .libs
 Makefile
 Makefile.in
-msgevents.lo
-libmsgevents.la
-dvdcontrol.lo
-libdvdcontrol.la
+*.lo
+*.la

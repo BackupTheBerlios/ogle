@@ -546,8 +546,9 @@ static link_t process_command(link_t link_values)
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
-    printf("%i %i %i %i\n", link_values.command, 
-	   link_values.data1, link_values.data2, link_values.data3);
+    printf("%i %i %i %i\n", link_values.command, link_values.data1, 
+	   link_values.data2, link_values.data3);
+    
     switch(link_values.command) {
     case LinkNoLink:
       if(link_values.data1 != 0)
@@ -597,7 +598,8 @@ static link_t process_command(link_t link_values)
     case LinkTopPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      exit(-1);
+      link_values = play_PGC();
+      break;
     case LinkNextPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
