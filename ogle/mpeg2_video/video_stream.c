@@ -227,7 +227,7 @@ void extension_data(unsigned int i);
 
 void frame_done();
 
-void exit_program();
+void exit_program(int exitcode) __attribute__ ((noreturn));
 
 // Not implemented
 void quant_matrix_extension();
@@ -688,7 +688,7 @@ void read_buf()
   if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
     if(feof(infile)) {
       fprintf(stderr, "*End Of File\n");
-      exit_program();
+      exit_program(0);
     } else {
       fprintf(stderr, "**File Error\n");
       exit(0);
@@ -715,7 +715,7 @@ void next_word(void)
     if(!fread(&buf[buf_pos], 1, 4, infile)) {
       if(feof(infile)) {
 	fprintf(stderr, "*End Of File\n");
-	exit_program();
+	exit_program(0);
       } else {
 	fprintf(stderr, "**File Error\n");
 	exit(0);
@@ -2460,7 +2460,7 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
+    exit_program(1);
   }
   
   GETBITS(tab->len, "(get_dct)");
@@ -2544,7 +2544,7 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
+    exit_program(1);
   }
   
   dropbits(tab->len);
@@ -2611,7 +2611,7 @@ void get_dct_intra_vlcformat_0(runlevel_t *runlevel, char *func)
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
+    exit_program(1);
   }
   
   dropbits(tab->len);
@@ -2677,8 +2677,7 @@ void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func)
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
-    return;
+    exit_program(1);
   }
   
   dropbits(tab->len);
@@ -2748,7 +2747,7 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
+    exit_program(1);
   }
   
   
@@ -2816,7 +2815,7 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
     fprintf(stderr,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
-    exit(1);
+    exit_program(1);
   }
   
   dropbits(tab->len);
@@ -3204,7 +3203,7 @@ void block_non_intra(unsigned int b)
 	fprintf(stderr,
 		"(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 		code);
-	exit(1);
+	exit_program(1);
       }
   
 #ifdef DEBUG
@@ -4723,7 +4722,7 @@ void frame_done()
 	  nextframe = 1;
 	  break;
 	case 'q':
-	  exit_program();
+	  exit_program(0);
 	  break;
 	default:
 	  if(debug_change) {
@@ -4774,7 +4773,7 @@ void draw_win(debug_win *dwin)
   return;
 }
 
-void exit_program()
+void exit_program(int exitcode)
 {
   
   XShmDetach (mydisplay, &shm_info);
@@ -4867,5 +4866,5 @@ void exit_program()
 
 
 #endif
-  exit(0);
+  exit(exitcode);
 }
