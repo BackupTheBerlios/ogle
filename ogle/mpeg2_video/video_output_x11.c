@@ -267,7 +267,7 @@ void display_init(int padded_width, int padded_height,
 
 #endif
 	      
-              shm_info.readOnly = FALSE;
+              shm_info.readOnly = True;
 #ifndef HAVE_XV_NO_CP // TODO hack
               xv_image->data = shm_info.shmaddr;
 #else
@@ -276,7 +276,7 @@ void display_init(int padded_width, int padded_height,
               XShmAttach (mydisplay, &shm_info);
               XSync (mydisplay, FALSE);
               shmctl (shm_info.shmid, IPC_RMID, 0);
-              memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
+              //memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
 	      
 	      CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
 	      

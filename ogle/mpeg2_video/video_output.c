@@ -285,7 +285,7 @@ void display_process()
 		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
 		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size,
 		   buf_ctrl_head);
-      display(&(buf_ctrl_head->picture_infos[buf_id].picture));
+      //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       clock_gettime(CLOCK_REALTIME, &first_time);      
     }
@@ -445,7 +445,7 @@ void display_process()
 		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
 		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size,
 		   buf_ctrl_head);
-      display(&(buf_ctrl_head->picture_infos[buf_id].picture));
+      //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       gettimeofday(&first_time, NULL);      
     }
