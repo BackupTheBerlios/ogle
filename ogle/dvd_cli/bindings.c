@@ -8,6 +8,8 @@
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 
+#include "debug_print.h"
+
 #include "bindings.h"
 
 
@@ -230,28 +232,69 @@ void actionSlower(void *data)
   DVDForwardScan(nav, speed);
 }
 
-static char *state = NULL;
 
 void actionBookmarkAdd(void *data)
 {
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char *state = NULL;
   
-  if(state) {
-    free(state);
+  if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+    NOTE("%s", "GetDiscID failed\n");
+    return;
   }
+
   if(DVDGetState(nav, &state) == DVD_E_Ok) {
-    fprintf(stderr, "state: '%s'\n", state);
+    if((bm = DVDBookmarkOpen(id, NULL, 1)) == NULL) {
+      NOTE("%s", "BookmarkOpen failed\n");
+      return;
+    }
+    if(DVDBookmarkAdd(bm, state, NULL, NULL, NULL) == -1) {
+      NOTE("%s", "BookmarkAdd failed\n");
+      DVDBookmarkClose(bm);
+      return;
+    }
+    if(DVDBookmarkSave(bm, 0) == -1) {
+      NOTE("%s", "BookmarkSave failed\n");
+    }
+    DVDBookmarkClose(bm);
+    NOTE("%s", "Bookmark Saved\n");
   }
-  
+  free(state);
 }
 
-void actionBookmarkJump(void *data)
+void actionBookmarkRestore(void *data)
 {
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char *state = NULL;
+  int n;
+
+  if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+    NOTE("%s", "GetDiscID failed\n");
+    return;
+  }
   
-  if(state) {
-    if(DVDSetState(nav, state) != DVD_E_Ok) {
-      fprintf(stderr, "setstate failed\n");
+  if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+    NOTE("%s", "BookmarkOpen failed\n");
+    return;
+  }
+  for(n = -1;;n++) {
+    if(DVDBookmarkGet(bm, n+1, NULL, NULL, NULL, NULL) == -1) {
+      break;
     }
   }
+  if(n == -1) {
+    NOTE("%s", "DVDBookmarkGet failed\n");
+  } else {
+    DVDBookmarkGet(bm, n, &state, NULL, NULL, NULL);
+    
+    if(DVDSetState(nav, state) != DVD_E_Ok) {
+      NOTE("%s", "DVDSetState failed\n");
+    }
+    free(state);
+  }
+  DVDBookmarkClose(bm);
 }
 
 typedef struct {
@@ -308,7 +351,7 @@ static action_mapping_t actions[] = {
   { "SubtitleToggle", actionSubpictureToggle },
   { "Quit", actionQuit },
   { "BookmarkAdd", actionBookmarkAdd },
-  { "BookmarkJump", actionBookmarkJump },
+  { "BookmarkRestore", actionBookmarkRestore },
   { NULL, NULL }
 };
 
