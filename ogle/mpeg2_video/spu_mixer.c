@@ -102,8 +102,6 @@ static char *stream_shmaddr;
 static int data_buf_shmid;
 static char *data_buf_shmaddr;
 
-static char *mmap_base;
-
 static int aligned;
 static uint16_t fieldoffset[2];
 static uint16_t field = 0;
@@ -130,12 +128,8 @@ extern MsgEventQ_t *msgq;
 #define MAX_BUF_SIZE 65536
 
 
-
-
-
-
-
-
+extern void redraw_request(void);
+extern int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 
 
 static uint32_t yuv2rgb(uint32_t yuv_color)
@@ -178,6 +172,7 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
 }
 
 
+
 static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
@@ -212,9 +207,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   }    
   
   initialized = 1;
-  fprintf(stderr, "**************\n");
   return 0;
-  
 }
 
 
@@ -236,12 +229,10 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
 	    ev->decodestreambuf.stream_id,
 	    ev->decodestreambuf.subtype);
-    fprintf(stderr, "+++++++++++++++++++\n");
   
     attach_stream_buffer(ev->decodestreambuf.stream_id,
 			 ev->decodestreambuf.subtype,
 			 ev->decodestreambuf.q_shmid);
-    
     break;
   case MsgEventQSPUPalette:
     {
@@ -280,69 +271,8 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 }
 
 
-
-static void change_file(char *new_filename)
-{
-  int filefd;
-  static struct stat statbuf;
-  int rv;
-  static char *cur_filename = NULL;
-  
-  // maybe close file when null ?
-  if(new_filename == NULL) {
-    return;
-  }
-
-  if(new_filename[0] == '\0') {
-    return;
-  }
-  
-  // if same filename do nothing
-  if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
-    return;
-  }
-
-  if(mmap_base != NULL) {
-    munmap(mmap_base, statbuf.st_size);
-  }
-  if(cur_filename != NULL) {
-    free(cur_filename);
-  }
-  
-  filefd = open(new_filename, O_RDONLY);
-  if(filefd == -1) {
-    perror(new_filename);
-    exit(1);
-  }
-
-
-  cur_filename = strdup(new_filename);
-  rv = fstat(filefd, &statbuf);
-  if(rv == -1) {
-    perror("fstat");
-    exit(1);
-  }
-  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
-			      PROT_READ, MAP_SHARED, filefd,0);
-  close(filefd);
-  if(mmap_base == MAP_FAILED) {
-    perror("mmap");
-    exit(1);
-  }
-
-  
-#ifdef HAVE_MADVISE
-  rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
-  if(rv == -1) {
-    perror("madvise");
-    exit(1);
-  }
-#endif
-
-}
-
-
-static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *new_scr_nr)
+static int get_q(char *dst, int readlen, clocktime_t *display_base_time, 
+		 int *new_scr_nr)
 {
   MsgEvent_t ev;
   q_head_t *q_head;
@@ -384,11 +314,9 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
-  //change_file(data_elem->filename);
 
   off = data_elem->off;
   len = data_elem->len;
-
   
     
   PTS_DTS_flags = data_elem->PTS_DTS_flags;
@@ -805,15 +733,15 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 
   fieldoffset[0] = spu_info->fieldoffset[0];
   fieldoffset[1] = spu_info->fieldoffset[1];
-  field=0;
+  field = 0;
   aligned = 1;
   set_byte(&spu_info->buffer[fieldoffset[field]]);
   
   //    fprintf(stderr, "\nReading picture data\n");
   
   //    initialize(spu_info->width, spu_info->height);
-  x=0;
-  y=0;
+  x = 0;
+  y = 0;
   nr_vlc = 0;
 
   /*  
@@ -964,7 +892,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	uint8_t *y_pixel;
 	uint8_t *u_pixel;
 	uint8_t *v_pixel;
-	int even;
+
 	yl = (color>>16)&0xff;
 	u = (color>>8) & 0xff;
 	v = (color) & 0xff;
@@ -1057,7 +985,8 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       
-      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, &spu_info->base_time, &spu_info->scr_nr))
+      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
+		   &spu_info->base_time, &spu_info->scr_nr))
 	return 0;
       
       /* The offset to the first DCSQ */
@@ -1073,11 +1002,9 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     }
 
     TIME_S(spu_info->next_time)  = start_time/(90000/1100);
-    TIME_SS(spu_info->next_time) = (start_time%(90000/1100))
-      * CT_FRACTION/100;  
+    TIME_SS(spu_info->next_time) = (start_time%(90000/1100)) * CT_FRACTION/100;
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
-
 
   clocktime_get(&realtime);
   timesub(&errtime, &spu_info->next_time, &realtime);
@@ -1091,33 +1018,17 @@ int next_spu_cmd_pending(spu_t *spu_info) {
   return 0;
 }
 
-//ugly hack
-#ifdef HAVE_XV
-int mix_subpicture(yuv_image_t *img, yuv_image_t *reserv, int width,
-		    int height, int picformat)
-#else
-     void mix_subpicture(char *data, int width, int height, int picformat)
-#endif
+void mix_subpicture_rgb(char *data, int width, int height)
 {
   /*
-   * Check for, and process, messages. Exit if not 
-   * Then execute all pending spu command sequences.
-   * If there then is an active overlay call the acutal mix function.
+   * Check for, and execute all pending spu command sequences.
+   * If there then is an active overlay, call the actual mix function.
    */
 
-  //chk_for_msg();
-  
-
+  //ugly hack
   if(!initialized) {
-
-    //ugly hack
-#ifdef HAVE_XV
-    return 0;
-#else
     return;
-#endif
   }
-
   
   while(next_spu_cmd_pending(&spu_info)) {
 
@@ -1143,25 +1054,62 @@ int mix_subpicture(yuv_image_t *img, yuv_image_t *reserv, int width,
 
   if(spu_info.display_start || spu_info.menu) {
     //fprintf(stderr, "decoding data\n");
+    decode_display_data(&spu_info, data, width, height, /*picformat*/ 0);
+  }
+}
+
+int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
+{
+  /*
+   * Check for, and execute all pending spu command sequences.
+   * If there then is an active overlay call the acutal mix function.
+   */
+
+  //ugly hack
+  if(!initialized) {
+    return 0;
+  }
+  
+  while(next_spu_cmd_pending(&spu_info)) {
+
+    if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
+      unsigned char *swap;
+      /* Change to the next buffer and recycle the old */
+      swap = spu_info.buffer;
+      spu_info.buffer = spu_info.next_buffer;
+      spu_info.next_buffer = swap;
+      
+      decode_dcsqt(&spu_info);
+    }
+
+    decode_dcsq(&spu_info);
+
+    /* 
+     * The 'next command' is no longer the same, the time needs to
+     * be recomputed. 
+     */
+    TIME_S(spu_info.next_time) = 0;
+  }
+
+
+  if(spu_info.display_start || spu_info.menu) {
+    int width = img->info->picture.padded_width;
+    int height = img->info->picture.padded_height;
+    //fprintf(stderr, "decoding data\n");
     //ugly hack
-#ifdef HAVE_XV
     if(img->info->is_reference) {
       int size;
-      size = img->info->picture.padded_width*img->info->picture.padded_height;
+      size = width * height;
       memcpy(reserv->y, img->y, size);
       memcpy(reserv->u, img->u, size/4);
       memcpy(reserv->v, img->v, size/4);
-      decode_display_data(&spu_info, reserv->y, width, height, picformat);
+      decode_display_data(&spu_info, reserv->y, width, height, 1);
       return 1;
     } else {
-      decode_display_data(&spu_info, img->y, width, height, picformat);
+      decode_display_data(&spu_info, img->y, width, height, /*picformat*/ 1);
       return 0;
     }
-#else
-    decode_display_data(&spu_info, data, width, height, picformat);
-#endif
-    }
-  
+  }
 }
 
 

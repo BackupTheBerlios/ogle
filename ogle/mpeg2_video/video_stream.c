@@ -1558,10 +1558,9 @@ void dpy_q_put(int id)
       fprintf(stderr, "video_decode: couldn't send notification\n");
     }
   }
-  
 }
 
-#define FPS_FRAMES 120
+
 /* 6.2.3.6 Picture data */
 void picture_data(void)
 {
@@ -1570,7 +1569,6 @@ void picture_data(void)
   static int bwd_ref_buf_id  = -1;
   int err;
   picture_data_elem_t *pinfos;
-  static int bepa = FPS_FRAMES;
   static int bwd_ref_temporal_reference = -1;
 
   static int last_timestamped_temp_ref = -1;
@@ -1581,25 +1579,6 @@ void picture_data(void)
   DPRINTFI(1, "picture_data()\n");
   DINDENT(2);
   
-  if(bepa >= FPS_FRAMES) {
-    static clocktime_t ct_beg;
-    clocktime_t ct_end, elapsed;
-    int fps;
-    
-    bepa = 0;
-    
-    clocktime_get(&ct_end);
-    timesub(&elapsed, &ct_end, &ct_beg);
-    ct_beg = ct_end;
-    
-    fps = ((FPS_FRAMES*10000) 
-	   / (TIME_S(elapsed)*100 + TIME_SS(elapsed)/(CT_FRACTION/100)));
-    fprintf(stderr, "decode fps: %d.%02d\n", fps / 100, fps % 100);
-  }
-  
-  bepa++;
-  
-
   
   if(msgqid != -1) {
     MsgEvent_t ev;
@@ -1903,7 +1882,8 @@ void picture_data(void)
       
       /* If the picture should already have been displayed then drop it. */
       /* TODO: More investigation needed. */
-      if((TIME_SS(err_time) < 0 || TIME_S(err_time) < 0) && forced_frame_rate) {
+      if((TIME_SS(err_time) < 0 || TIME_S(err_time) < 0) 
+	 && forced_frame_rate) {
 	fprintf(stderr, "!");
 	
 	/*
@@ -1913,7 +1893,6 @@ void picture_data(void)
 	
 	/* mark the frame to be dropped */
 	drop_frame = 1;
-	
       }
     }
   }/* else {
@@ -1923,19 +1902,12 @@ void picture_data(void)
       }
    */
 
-#ifdef HAVE_MMX
-    emms();
-#endif
-  
-    { // Don't use floating point math!
-      
-      int sar_frac_n = 1;
-      int sar_frac_d = 1;
-      //double sar = 1.0;
-      uint16_t hsize,vsize;
+  { // Don't use floating point math!
+    int sar_frac_n = 1;
+    int sar_frac_d = 1;
+    //double sar = 1.0;
+    uint16_t hsize,vsize;
     
-
-      
       //wrong on some dvd's ?
     if(seq.dpy_ext.display_horizontal_size) { 
       hsize = seq.dpy_ext.display_horizontal_size;
@@ -1988,7 +1960,6 @@ void picture_data(void)
     }
     pinfos[buf_id].picture.sar_frac_n = sar_frac_n;
     pinfos[buf_id].picture.sar_frac_d = sar_frac_d;
-    
   }
   
 
@@ -2075,7 +2046,6 @@ void picture_data(void)
 	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
 	
 	dpy_q_put(buf_id);
-	
       }
     }
     /*
