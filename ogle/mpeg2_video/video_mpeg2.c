@@ -1079,7 +1079,7 @@ void mpeg2_slice(void)
   reset_PMV();
 
   slice_data.slice_vertical_position = GETBITS(32, "slice_start_code") & 0xff;
-  
+  //  fprintf(stderr, "slice: %d\n", slice_data.slice_vertical_position);
   seq.mb_row = slice_data.slice_vertical_position - 1;
 #if 0
   if(seq.vertical_size > 2800) {
@@ -1124,14 +1124,31 @@ void mpeg2_slice(void)
   seq.mb_column = -1;
   
   do {
+    unsigned int tmp;
     unsigned int macroblock_address_increment = 0;
     
+    while(nextbits(11) == 0x00f) {
+      GETBITS(11, "macroblock_stuffing");
+    }
+
     while(nextbits(11) == 0x008) {
       GETBITS(11, "macroblock_escape");
       macroblock_address_increment += 33;
     }
+    //    fprintf(stderr, "inc1: %d\n", macroblock_address_increment);
+    //    fprintf(stderr, "vlc: %08x\n", nextbits(32));
+    tmp = get_vlc(table_b1, "macroblock_address_increment");
+    if(tmp != 0x8000) {
+      macroblock_address_increment += tmp;
+    } else {
+      fprintf(stderr, "*mai error\n");
+      macroblock_address_increment += 1;
+    }
+    /*
     macroblock_address_increment 
       += get_vlc(table_b1, "macroblock_address_increment");
+    */
+    //    fprintf(stderr, "inc2: %d\n", macroblock_address_increment);
     
     if(seq.mb_column == -1) {
       /* The first macroblock is coded. I.e. no skipped blocks, they must have
@@ -1207,6 +1224,8 @@ void mpeg2_slice(void)
 	  unsigned int x, y;
 	  /* 7.6.6.2 P frame picture */
 	  x = (seq.mb_column-macroblock_address_increment)*16;
+	  //	  fprintf(stderr, "x: %d, inc: %d, row: %d\n",
+	  //		  x, macroblock_address_increment, seq.mb_row);
 	  for(y = seq.mb_row*16; y < (seq.mb_row+1)*16; y++) {
 	    memcpy(&dst_image->y[y*(seq.mb_width*16)+x], 
 		   &fwd_ref_image->y[y*(seq.mb_width*16)+x], 
