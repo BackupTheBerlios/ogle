@@ -704,7 +704,6 @@ msgstr "Hawaiianisch"
 msgid "Hebrew"
 msgstr "Hebräisch"
 
-#. Withdrawn in 1989. Still used!!!
 #: src/language.c:193
 msgid "Herero"
 msgstr ""
@@ -773,7 +772,6 @@ msgstr "Indo-Europäisch (andere)"
 msgid "Indonesian"
 msgstr "Indonesisch"
 
-#. Withdrawn in 1989. Still used?
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr ""
@@ -822,7 +820,6 @@ msgstr "Japanisch"
 msgid "Javanese"
 msgstr "Javaisch"
 
-#. Withdrawn 2001-07-27
 #: src/language.c:225
 msgid "Judeo-Arabic"
 msgstr "Judeo-Arabisch"
@@ -1387,7 +1384,10 @@ msgstr ""
 msgid "Rarotongan"
 msgstr ""
 
-#. { N_("Reserved for local use"), "qaa-qtz", "qaa-qtz", ""},
+#: src/language.c:366
+msgid "Reserved for local use"
+msgstr ""
+
 #: src/language.c:367
 msgid "Romance (Other)"
 msgstr ""
@@ -1472,7 +1472,6 @@ msgstr "Serbisch"
 msgid "Serbo-Croatian"
 msgstr "Serbo-Kroatisch"
 
-#. Withdrawn 2000-02-18. Still used?
 #: src/language.c:388
 msgid "Serer"
 msgstr ""
@@ -1813,7 +1812,6 @@ msgstr ""
 msgid "Yiddish"
 msgstr "Jiddisch"
 
-#. // Withdrawn in 1989. Still used?
 #: src/language.c:474
 msgid "Yoruba"
 msgstr ""
