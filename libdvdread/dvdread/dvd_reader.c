@@ -209,7 +209,9 @@ dvd_reader_t *DVDOpen( const char *path )
         return 0;
     }
 
-    if( S_ISBLK( fileinfo.st_mode ) || S_ISREG( fileinfo.st_mode ) ) {
+    if( S_ISBLK( fileinfo.st_mode ) || 
+	S_ISCHR( fileinfo.st_mode ) || 
+	S_ISREG( fileinfo.st_mode ) ) {
 
         /**
          * Block devices and regular files are assumed to be DVD-Video images.

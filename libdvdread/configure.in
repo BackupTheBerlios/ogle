@@ -53,7 +53,7 @@ else
 fi
 AC_SUBST(STATIC)
 
-dnl We use dlopen for libcss access
+dnl We use dlopen for libdvdcss access
 AC_CHECK_FUNC(dlopen, 
   DL_LIBS="", 
   AC_CHECK_LIB(dl, dlopen, 

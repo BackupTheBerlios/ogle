@@ -50,9 +50,9 @@ typedef struct dvd_file_s dvd_file_t;
  * of those methods to work.
  *
  * If the given file is a block device, or is the mountpoint for a block
- * device, then that device is used for CSS authentication using libcss.  If no
- * device is available, then no CSS authentication is performed, and we hope
- * that the image is decrypted.
+ * device, then that device is used for CSS authentication using libdvdcss.
+ * If no device is available, then no CSS authentication is performed, 
+ * and we hope that the image is decrypted.
  *
  * If the path given is a directory, then the files in that directory may be in
  * any one of these formats:
@@ -107,10 +107,10 @@ void DVDCloseFile( dvd_file_t *dvd_file );
 
 /**
  * Reads the requested number of blocks from the file at the given offset.
- * Returns number of bytes read on success, -1 on error.  This call is only for
- * reading VOB data, and should not be used when reading the IFO files.  When
- * reading from an encrypted drive, blocks are decrypted using libcss where
- * required.
+ * Returns number of bytes read on success, -1 on error.  This call is only
+ * for reading VOB data, and should not be used when reading the IFO files.  
+ * When reading from an encrypted drive, blocks are decrypted using libdvdcss 
+ * where required.
  */
 int DVDReadBlocks( dvd_file_t *dvd_file, size_t offset,
                    size_t block_count, unsigned char *data );
