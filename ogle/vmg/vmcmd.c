@@ -152,7 +152,7 @@ print_special_instruction() {
           bits(6,4,4), bits(7,0,8));
       break;
     default: // Unknown
-      printf("Unknown special instruction");
+      printf("WARNING: Unknown special instruction (%i)", bits(1,4,4));
   }
 }
 
@@ -162,12 +162,11 @@ print_link_instruction() {
   uint8_t but = bits(6,0,6);
   if (op == 1) {
     int linkop=bits(7,3,5);
-    if(linkop > 0x10) {
-      printf ("Unknown link instruction");
+    if(linkop > 0x10 || link_table[linkop] == NULL) {
+      printf("WARNING: Unknown link instruction (%i)", linkop);
     } else {
       char *link = link_table[linkop];
-      printf ("%s (button %" PRIu8 ")", 
-          link ? link : "Unknown link instruction", but);
+      printf("%s (button %" PRIu8 ")", link, but);
     }
   } else {
     switch (op) {
@@ -187,7 +186,7 @@ print_link_instruction() {
                bits(7,0,8), but);
         break;
       default:
-        printf("Unknown link instruction");
+        printf("WARNING: Unknown link instruction");
     }
   }
 }
@@ -259,7 +258,7 @@ print_jump_instruction () {
       }
       break;
     default:
-      printf("Unknown Jump/Call instruction");
+      printf("WARNING: Unknown Jump/Call instruction");
   }
 }
 
@@ -296,7 +295,7 @@ print_system_set () {
       }
       break;
     default:
-      printf ("Unknown system set instruction");
+      printf ("WARNING: Unknown system set instruction (%i)", bits(0,4,4));
   }
   if(bits(1,4,4)) {
     printf(" ");
@@ -359,7 +358,7 @@ vmcmd(uint8_t *bytes)  {
       print_set();
       break;
     default:
-      printf("Unknown instruction type"); 
+      printf("WARNING: Unknown instruction type (%i)", bits(0,0,3)); 
   }
   // Check if there are bits not yet examined
 

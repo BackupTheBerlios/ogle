@@ -78,6 +78,7 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
   
   /* -- asserts ------------------------------------------------------------ */
   
+#ifndef NDEBUG
   /* pci pci gi */ 
   assert (pci->pci_gi.zero1 == 0);
   
@@ -88,9 +89,9 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
   assert (pci->hli.hl_gi.zero4 == 0);
   assert (pci->hli.hl_gi.zero5 == 0);
   if ((pci->hli.hl_gi.hli_ss & 0x03) == 0) {
-    assert (pci->hli.hl_gi.hli_s_ptm == 0);
-    assert (pci->hli.hl_gi.hli_e_ptm == 0);
-    assert (pci->hli.hl_gi.btn_se_e_ptm == 0);
+    //assert (pci->hli.hl_gi.hli_s_ptm == 0); // These we set on the 
+    //assert (pci->hli.hl_gi.hli_e_ptm == 0); // Beastieboys Antology DVD
+    //assert (pci->hli.hl_gi.btn_se_e_ptm == 0);
     assert (pci->hli.hl_gi.btngr_ns == 0);
     assert (pci->hli.hl_gi.btngr1_dsp_ty == 0);
     assert (pci->hli.hl_gi.btngr2_dsp_ty == 0);
@@ -166,6 +167,7 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
       }
 
   }
+#endif
   
 }
 
@@ -202,8 +204,10 @@ void read_dsi_packet (dsi_t *dsi, FILE *out, buffer_t *buffer)
   
   /* -- asserts ------------------------------------------------------------ */
   
+#ifndef NDEBUG
   /* dsi dsi gi */
   assert (dsi->dsi_gi.zero1 == 0);
+#endif
   
 }
 

@@ -110,7 +110,7 @@ VMG {
 	[132-135]    First Play PGC start byte (FP_PGC)
 	[136-191]    --
 	[192-195]    Start sector of VMGM_VOBS
-	[196-199]    Start sector of VMG_PTT_SRPT
+	[196-199]    Start sector of VMG_PTT_SRPT // wrong name?
 	[200-203]    Start sector of VMGM_PGCI_UT
 	[204-207]    Start sector of VMG_PTL_MAIT
 	[208-211]    Start sector of VMG_VTS_ATRT
@@ -260,7 +260,7 @@ VMG {
 	}
 
 
-
+	// wrong name?
 	[Start sector of VMG_PTT_SRPT] PartOfTitle search pointer table info {
 	       [0-1]  Number of Title Unit Search Pointers TTUs in the VTS
 	       [2-3]  --

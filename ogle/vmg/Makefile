@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -DWORDS_BIGENDIAN
+CFLAGS=-g -O2 -Wall -DWORDS_BIGENDIAN
 LDFLAGS=-lposix4
 
 all: vmg_dump ifo_dump dump vm vmg

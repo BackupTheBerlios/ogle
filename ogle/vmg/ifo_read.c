@@ -19,6 +19,7 @@
 #define B2N_64(x) x = bswap_64((x))
 #endif
 
+#ifndef NDEBUG
 #define CHECK_ZERO(arg) \
 if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
  int i; \
@@ -29,7 +30,9 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
  fprintf(stderr, "\n"); \
 }
 static const uint8_t my_friendly_zeros[2048];
-
+#else
+#define CHECK_ZERO(arg) (void)(arg)
+#endif
 
 
 
@@ -77,6 +80,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   B2N_16(vmgi_mat->vmgm_video_attributes);
   
   
+#ifndef NDEBUG
   CHECK_ZERO(vmgi_mat->zero_1);
   CHECK_ZERO(vmgi_mat->zero_2);
   CHECK_ZERO(vmgi_mat->zero_3);
@@ -86,7 +90,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   CHECK_ZERO(vmgi_mat->zero_7);
   CHECK_ZERO(vmgi_mat->zero_8);
   assert(vmgi_mat->vmg_last_sector != 0);
-  assert(vmgi_mat->vmg_last_sector != 0);
+  assert(vmgi_mat->vmgi_last_sector != 0);
   assert(vmgi_mat->vmgi_last_sector * 2 <= vmgi_mat->vmg_last_sector);
   assert(vmgi_mat->vmg_nr_of_volumes != 0);
   assert(vmgi_mat->vmg_this_volume_nr != 0);
@@ -116,6 +120,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   for(i = vmgi_mat->nr_of_vmgm_subp_streams; i < 28; i++)
     for(j = 0; j < 6; j++)
       CHECK_ZERO(vmgi_mat->vmgm_subp_attributes[i][j]);      
+#endif
   
   return 0;
 }
@@ -155,7 +160,7 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   B2N_16(vtsi_mat->vtsm_video_attributes);
   B2N_16(vtsi_mat->vts_video_attributes);
 
-  
+#ifndef NDEBUG
   CHECK_ZERO(vtsi_mat->zero_1);
   CHECK_ZERO(vtsi_mat->zero_2);
   CHECK_ZERO(vtsi_mat->zero_3);
@@ -207,7 +212,7 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   for(i = vtsi_mat->nr_of_vts_subp_streams; i < 32; i++)
     for(j = 0; j < 6; j++)
       CHECK_ZERO(vtsi_mat->vts_subp_attributes[i][j]);      
-  
+#endif  
   return 0;
 }
 
@@ -287,11 +292,13 @@ void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int o
     B2N_32(cell_playback[i].last_vobu_start_sector);
     B2N_32(cell_playback[i].last_sector);
     
+#ifndef NDEBUG
     // Changed < to <= because this was false in the movie 'Pi'.
     assert(cell_playback[i].last_vobu_start_sector <= 
 	   cell_playback[i].last_sector);
     assert(cell_playback[i].first_sector <= 
-	   cell_playback[i].last_vobu_start_sector);    
+	   cell_playback[i].last_vobu_start_sector);
+#endif
   }
 }
 
@@ -309,9 +316,11 @@ void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int o
     B2N_16(cell_position[i].vob_id_nr);
   }
   
+#ifndef NDEBUG
   for(i = 0; i < nr; i++) {
     CHECK_ZERO(cell_position[i].zero_1);
   }
+#endif
 }
 
 
@@ -338,7 +347,7 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   for(i = 0; i < 16; i++)
     B2N_32(pgc->palette[i]);
   
-  
+#ifndef NDEBUG
   CHECK_ZERO(pgc->zero_1);
   assert(pgc->nr_of_programs <= pgc->nr_of_cells);
   // verify time (look at print_time)
@@ -361,7 +370,8 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
     assert(pgc->cell_playback_tbl_offset != 0);
     assert(pgc->cell_position_tbl_offset != 0);
   }
-    
+#endif
+  
   if(pgc->pgc_command_tbl_offset != 0) {
     pgc->pgc_command_tbl = malloc(sizeof(pgc_command_tbl_t));
     ifoRead_PGC_COMMAND_TBL(pgc->pgc_command_tbl, 
@@ -423,6 +433,7 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
     B2N_32(vmg_ptt_srpt->title_info[i].title_set_sector);
   }
   
+#ifndef NDEBUG
   CHECK_ZERO(vmg_ptt_srpt->zero_1);
   assert(vmg_ptt_srpt->nr_of_srpts != 0);
   assert(vmg_ptt_srpt->nr_of_srpts < 100); // ??
@@ -439,6 +450,7 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
     assert(vmg_ptt_srpt->title_info[i].vts_ttn < 100); // ??
     assert(vmg_ptt_srpt->title_info[i].title_set_sector != 0);
   }
+#endif
   
   // Make this a function
 #if 0
@@ -467,10 +479,12 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
   B2N_16(vts_ptt_srpt->nr_of_srpts);
   B2N_32(vts_ptt_srpt->last_byte);
   
+#ifndef NDEBUG
   CHECK_ZERO(vts_ptt_srpt->zero_1);
   assert(vts_ptt_srpt->nr_of_srpts != 0);
   assert(vts_ptt_srpt->nr_of_srpts < 100); // ??
-    
+#endif
+  
   info_length = vts_ptt_srpt->last_byte + 1 - VTS_PTT_SRPT_SIZE;
   data = malloc(info_length); 
   if(fread(data, info_length, 1, ifo_file) != 1) {
@@ -480,8 +494,10 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++)
     B2N_32(data[i]);
   
+#ifndef NDEBUG
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++)
     assert(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1);
+#endif
   
   vts_ptt_srpt->title_info = malloc(vts_ptt_srpt->nr_of_srpts * sizeof(ttu_t));
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++) {
@@ -510,6 +526,7 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
     }
   }
   
+#ifndef NDEBUG
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++) {
     assert(vts_ptt_srpt->title_info[i].nr_of_ptts < 1000); // ??
     for(j = 0; j < vts_ptt_srpt->title_info[i].nr_of_ptts; j++) {
@@ -519,6 +536,7 @@ void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
       assert(vts_ptt_srpt->title_info[i].ptt_info[j].pgn < 100); // ??
     }
   }
+#endif
 }
 
 
@@ -536,11 +554,13 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
   
   info_length = ptl_mait->last_byte + 1 -  VMG_PTL_MAIT_SIZE;
   
+#ifndef NDEBUG
   assert(ptl_mait->nr_of_countries != 0);
   assert(ptl_mait->nr_of_countries < 100); // ??
   assert(ptl_mait->nr_of_vtss != 0);
   assert(ptl_mait->nr_of_vtss < 100); // ??  
   assert(ptl_mait->nr_of_countries * VMG_PTL_MAIT_COUNTRY_SIZE <= info_length);
+#endif
   
   /* Change this to read and 'translate' the tables too. 
      I.e don't read so much here */
@@ -553,12 +573,14 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
     B2N_16(ptl_mait->countries[i].pf_ptl_mai_start_byte);
   }
   
+#ifndef NDEBUG
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
     CHECK_ZERO(ptl_mait->countries[i].zero_1);
     CHECK_ZERO(ptl_mait->countries[i].zero_2);    
     assert(ptl_mait->countries[i].pf_ptl_mai_start_byte + 
 	   8 * (ptl_mait->nr_of_vtss+1) * 2 <= ptl_mait->last_byte + 1);
-  }  
+  }
+#endif
 }
 
 
@@ -575,10 +597,12 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
   
   info_length = c_adt->last_byte + 1 - C_ADT_SIZE;
   
+#ifndef NDEBUG
   CHECK_ZERO(c_adt->zero_1);
   assert(c_adt->nr_of_vobs > 0);  
   assert(info_length % sizeof(c_adt_t) == 0);
   assert(info_length/sizeof(c_adt_t) >= c_adt->nr_of_vobs); // Pointless test..
+#endif
   
   c_adt->cell_adr_table = malloc(info_length); 
   if(fread(c_adt->cell_adr_table, info_length, 1, ifo_file) != 1) {
@@ -591,6 +615,7 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
     B2N_32(c_adt->cell_adr_table[i].last_sector);
   }
   
+#ifndef NDEBUG
   for(i = 0; i < info_length/sizeof(c_adt_t); i++) {
     CHECK_ZERO(c_adt->cell_adr_table[i].zero_1);
     assert(c_adt->cell_adr_table[i].vob_id > 0);
@@ -599,6 +624,7 @@ void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
     assert(c_adt->cell_adr_table[i].start_sector < 
 	   c_adt->cell_adr_table[i].last_sector);
   }
+#endif
 }
 
 
@@ -639,9 +665,11 @@ void ifoRead_PGCIT(pgcit_t *pgcit, int offset) {
   B2N_16(pgcit->nr_of_pgci_srp);
   B2N_32(pgcit->last_byte);
   
+#ifndef NDEBUG
   CHECK_ZERO(pgcit->zero_1);
   assert(pgcit->nr_of_pgci_srp != 0);
   assert(pgcit->nr_of_pgci_srp < 1000); // ?? 99
+#endif
   
   info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
   data = malloc(info_length);
@@ -659,8 +687,10 @@ void ifoRead_PGCIT(pgcit_t *pgcit, int offset) {
   }
   free(data);
   
+#ifndef NDEBUG
   for(i = 0; i < pgcit->nr_of_pgci_srp; i++)
     assert(pgcit->pgci_srp[i].pgc_start_byte + PGC_SIZE <= pgcit->last_byte+1);
+#endif
   
   for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
     pgcit->pgci_srp[i].pgc = malloc(sizeof(pgc_t));
@@ -682,10 +712,12 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   B2N_16(pgci_ut->nr_of_lang_units);
   B2N_32(pgci_ut->last_byte);
   
+#ifndef NDEBUG
   CHECK_ZERO(pgci_ut->zero_1);
   assert(pgci_ut->nr_of_lang_units != 0);
   assert(pgci_ut->nr_of_lang_units < 100); // ?? 3-4 ? 
   assert(pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE < pgci_ut->last_byte);
+#endif
   
   info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
   data = malloc(info_length);
@@ -703,6 +735,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   }
   free(data);
   
+#ifndef NDEBUG
   for(i = 0; i < pgci_ut->nr_of_lang_units; i++) {
     CHECK_ZERO(pgci_ut->menu_lu[i].zero_1);
     // Maybe this is only defined for v1.1 and later titles.
@@ -716,6 +749,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
     */
     assert((pgci_ut->menu_lu[i].exists & 0x07) == 0);
   }
+#endif
   
   for(i = 0; i < pgci_ut->nr_of_lang_units; i++) {
     pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
@@ -728,7 +762,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
 
 
 void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
-  int i, j, nr_coded;
+  int i, j;
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(vts_atributes, VMG_VTS_ATRIBUTES_SIZE, 1, ifo_file) != 1) {
@@ -740,7 +774,7 @@ void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
   B2N_16(vts_atributes->vtsm_vobs_attributes);
   B2N_16(vts_atributes->vtstt_vobs_video_attributes);
   
-  
+#ifndef NDEBUG
   CHECK_ZERO(vts_atributes->zero_1);
   CHECK_ZERO(vts_atributes->zero_2);
   CHECK_ZERO(vts_atributes->zero_3);
@@ -760,17 +794,20 @@ void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
   for(i = vts_atributes->nr_of_vtstt_audio_streams; i < 8; i++)
     for(j = 0; j < 6; j++)
       CHECK_ZERO(vts_atributes->vtstt_audio_attributes[i][j]);
-  
-  assert(vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE >= 0);  
-  nr_coded = (vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE)/6;
-  // This is often nr_coded = 70, how do you know how many there really are?
-  if(nr_coded > 32) { // We haven't read more from disk/file anyway
-    nr_coded = 32;
+  {
+    int nr_coded;
+    assert(vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE >= 0);  
+    nr_coded = (vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE)/6;
+    // This is often nr_coded = 70, how do you know how many there really are?
+    if(nr_coded > 32) { // We haven't read more from disk/file anyway
+      nr_coded = 32;
+    }
+    assert(vts_atributes->nr_of_vtstt_subp_streams <= nr_coded);
+    for(i = vts_atributes->nr_of_vtstt_subp_streams; i < nr_coded; i++)
+      for(j = 0; j < 6; j++)
+	CHECK_ZERO(vts_atributes->vtstt_subp_attributes[i][j]);
   }
-  assert(vts_atributes->nr_of_vtstt_subp_streams <= nr_coded);
-  for(i = vts_atributes->nr_of_vtstt_subp_streams; i < nr_coded; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vts_atributes->vtstt_subp_attributes[i][j]);
+#endif
 }
 
 
@@ -786,11 +823,13 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   B2N_16(vts_atrt->nr_of_vtss);
   B2N_32(vts_atrt->last_byte);
   
+#ifndef NDEBUG
   CHECK_ZERO(vts_atrt->zero_1);
   assert(vts_atrt->nr_of_vtss != 0);
   assert(vts_atrt->nr_of_vtss < 100); //??
   assert(vts_atrt->nr_of_vtss * (4 + VMG_VTS_ATRIBUTES_MIN_SIZE) + 
 	 VMG_VTS_ATRT_SIZE < vts_atrt->last_byte + 1);
+#endif
   
   info_length = vts_atrt->nr_of_vtss * sizeof(uint32_t);
   data = malloc(info_length);
@@ -801,8 +840,10 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   for(i = 0; i < vts_atrt->nr_of_vtss; i++)
     B2N_32(data[i]);
   
+#ifndef NDEBUG
   for(i = 0; i < vts_atrt->nr_of_vtss; i++)
     assert(data[i] + VMG_VTS_ATRIBUTES_MIN_SIZE < vts_atrt->last_byte + 1);
+#endif
   
   info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATRIBUTES_SIZE;
   vts_atrt->vts_atributes = malloc(info_length);
@@ -810,9 +851,11 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
     int offset = data[i];
     ifoRead_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i], 
 			  sector * DVD_BLOCK_LEN + offset);
+#ifndef NDEBUG
     // This assert cant be in ifoRead_VTS_ATRIBUTES
     assert(offset + vts_atrt->vts_atributes[i].last_byte 
 	   <= vts_atrt->last_byte + 1); // Check if this is correct
+#endif
   }
   free(data);
 }
