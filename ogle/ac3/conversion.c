@@ -382,6 +382,7 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
 {
   int i,n,ct;
   int src_ch = src_format->nr_channels;
+  int unaligned = ((uint32_t)lpcm) % 2;
 
   if(src_format->nr_channels != 2) {
     FATAL("REPORT BUG: convert from %d lpcm channels not implemented\n",
@@ -400,8 +401,13 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
       for (i = 0; i < nr_samples; i++) {
 	for(n = 0; n < dst_ch; n++) {
 	  if((ct = ch_transform[n]) != -1) {
-	    ((int16_t *)output)[dst_ch*i+n] = 
-	      FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct]);
+	    if(unaligned) {
+	      ((int16_t *)output)[dst_ch*i+n] =
+		(lpcm[2*(i*src_ch+ct)] << 8) | lpcm[2*(i*src_ch+ct)+1];
+	    } else {
+	      ((int16_t *)output)[dst_ch*i+n] = 
+		FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct]);
+	    }
 	  } else {
 	    ((int16_t *)output)[dst_ch*i+n] = 0;
 	  }
