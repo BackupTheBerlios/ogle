@@ -277,11 +277,14 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	  switch(format) {
 	  case SampleFormat_IEC61937:
 	    handle->output_format = SampleFormat_AC3Frame;
+	    break;
 	  case SampleFormat_LPCM:
 	    handle->output_format = SampleFormat_A52float;
+	    break;
 	  default:
 	    WARNING("unknown sample format %d\n", format); 
 	    handle->output_format = SampleFormat_A52float;
+	    break;
 	  }
 	  //change config into a52dec flags
 	  handle->output_flags = config_to_a52flags(handle->handle.config);
