@@ -90,7 +90,7 @@ static void set_color_widget (GtkObject *color_selection, long value)
     (value >> 16)         / 255.0, 
     ((value >> 8) & 0xff) / 255.0,
     (value        & 0xff) / 255.0,
-    0
+    255
   };
   gtk_color_selection_set_color(
       GTK_COLOR_SELECTION(color_selection),
