@@ -121,8 +121,8 @@ void audio_menu_update(void) {
 	return;
       }
       
-      /* Language name followed by audio format in parenthesis 
-         for use in the audio choice menu */
+      /* TRANSLATORS: Language name followed by audio format in
+         parenthesis for use in the audio choice menu */
       label = g_strdup_printf(_("%s (%s)"), 
                               language_name(Attr.Language),
                               guiDVDAudioFormat(Attr.AudioFormat));

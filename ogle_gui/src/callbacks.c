@@ -215,7 +215,7 @@ on_about_activate                     (GtkMenuItem     *menuitem,
   GtkWidget *authors_label;
   gchar* version_text;
   const gchar authors_text[] =
-    /* Translators:
+    /* TRANSLATORS:
        See the Swedish translation for the correct iso-8859-1
        representations of these, and use them if possible */
     N_("Authors:\n"

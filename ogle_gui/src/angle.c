@@ -77,7 +77,7 @@ void angle_menu_update(void) {
   while(stream <= StreamsAvailable) {
     char *label;
     
-    /* The name of the angle choice in the angle popup menu */
+    /* TRANSLATORS: The name of the angle choice in the angle popup menu */
     label = g_strdup_printf(_("Angle %d"), stream);
     menu_item = gtk_radio_menu_item_new_with_label(menu_group, label);
     g_free(label);

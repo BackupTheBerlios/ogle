@@ -324,7 +324,7 @@ langcodes_t language[] = {
   { N_("North American Indian (Other)"), "nai", "nai", ""},
   { N_("Northern Sami"), "sme", "sme", "se"},
   { N_("Norwegian"), "nor", "nor", "no"},
-  /* Translators, this is really Bokm&#229;l */
+  /* TRANSLATORS: this is really Bokm&#229;l */
   { N_("Norwegian Bokmal"), "nob", "nob", "nb"},
   { N_("Norwegian Nynorsk"), "nno", "nno", "nn"},
   { N_("Nubian languages"), "nub", "nub", ""},
@@ -355,9 +355,9 @@ langcodes_t language[] = {
   { N_("Polish"), "pol", "pol", "pl"},
   { N_("Portuguese"), "por", "por", "pt"},
   { N_("Prakrit languages"), "pra", "pra", ""},
-  /* Translators, this is really Proven&#231;al */
+  /* TRANSLATORS: this is really Proven&#231;al */
   { N_("Provencal; Occitan (post 1500) "), "oci", "oci", "oc"},
-  /* Translators, this is really Proven&#231;al */
+  /* TRANSLATORS: this is really Proven&#231;al */
   { N_("Provencal, Old (to 1500)"), "pro", "pro", ""},
   { N_("Pushto"), "pus", "pus", "ps"},
   { N_("Quechua"), "que", "que", "qu"},
@@ -459,7 +459,7 @@ langcodes_t language[] = {
   { N_("Vai"), "vai", "vai", ""},
   { N_("Venda"), "ven", "ven", ""},
   { N_("Vietnamese"), "vie", "vie", "vi"},
-  /* Translators, this is really Volap&#252;k */
+  /* TRANSLATORS: this is really Volap&#252;k */
   { N_("Volapuk"), "vol", "vol", "vo"},
   { N_("Votic"), "vot", "vot", ""},
   { N_("Wakashan languages"), "wak", "wak", ""},
@@ -503,7 +503,7 @@ char* language_name(DVDLangID_t lang) {
   }
   fprintf(stderr, "language.language_name() Unknown language: %c%c\n",
 	  lang_code[0], lang_code[1]);
-  /* Unknown language */
+  /* TRANSLATORS: Unknown language */
   return _("Unknown");
 }
 
