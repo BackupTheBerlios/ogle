@@ -184,21 +184,66 @@ void print_dsi_gi (FILE *out, dsi_gi_t *dsi_gi)
 void print_sml_pbi (FILE *out, sml_pbi_t *sml_pbi)
 {
   /* $$$ more code needed here */
+#if 1
+  int i;
+  for(i = 0; i < 148; i++) {
+    fprintf(stdout, "%02x ", dsi.sml_pbi.unknown[i]);
+    if(i % 20 == 19)
+      fprintf(stdout, "\n");
+  }
+  if(i % 20 != 19)
+    fprintf(stdout, "\n");
+#endif
 }
 
 void print_sml_agli (FILE *out, sml_agli_t *sml_agli)
 {
   /* $$$ more code needed here */
+#if 1
+  int i, j;
+  for(i = 0; i < 9; i++) {
+    for(j = 0; j < 6; j++)
+      fprintf(stdout, "%02x ", dsi.sml_agli.unknown[i][j]);
+    fprintf(stdout, "\n");
+  }
+#endif
 }
 
 void print_vobu_sri (FILE *out, vobu_sri_t *vobu_sri)
 {
   /* $$$ more code needed here */
+#if 1
+  int i;
+  fprintf(stdout, "%08x\n", dsi.vobu_sri.unknown1);
+  for(i = 0; i < 20; i++) {
+    fprintf(stdout, "%08x ", dsi.vobu_sri.unknown2[i]);
+    if(i % 5 == 4)
+      fprintf(stdout, "\n");
+  }
+  fprintf(stdout, "--\n");
+  for(i = 0; i < 20; i++) {
+    fprintf(stdout, "%08x ", dsi.vobu_sri.unknown3[i]);
+    if(i % 5 == 4)
+      fprintf(stdout, "\n");
+  }
+  fprintf(stdout, "%08x\n", dsi.vobu_sri.unknown4);
+#endif
 }
 
 void print_synci (FILE *out, synci_t *synci)
 {
   /* $$$ more code needed here */
+#if 1
+  int i;
+  fprintf(stdout, "%04x\n", dsi.synci.offset);
+  for(i = 0; i < 142; i++) {
+    fprintf(stdout, "%02x ", dsi.synci.unknown[i]);
+    if(i % 20 == 19)
+      fprintf(stdout, "\n");
+  }
+  if(i % 20 != 19)
+    fprintf(stdout, "\n");
+#endif
 }
 
 void print_dsi_packet (FILE *out, dsi_t *dsi)

@@ -54,53 +54,11 @@ void parse_vmg_data (FILE *in)
     substream = get_bits (&buffer, 8);
     if (substream == PS2_PCI_SUBSTREAM_ID) {
       read_pci_packet(&pci, stdout, &buffer);
-      //print_pci_packet(stdout, &pci);
+      print_pci_packet(stdout, &pci);
     }
     else if (substream == PS2_DSI_SUBSTREAM_ID) {
-      int i, j;
       read_dsi_packet(&dsi, stdout, &buffer);
       print_dsi_packet(stdout, &dsi);
-#if 1
-      for(i = 0; i < 148; i++) {
-	fprintf(stdout, "%02x ", dsi.sml_pbi.unknown[i]);
-	if(i % 20 == 19)
-	  fprintf(stdout, "\n");
-      }
-      if(i % 20 != 19)
-	fprintf(stdout, "\n");
-#endif
-#if 0
-      for(i = 0; i < 9; i++) {
-	for(j = 0; j < 6; j++)
-	  fprintf(stdout, "%02x ", dsi.sml_agli.unknown[i][j]);
-	fprintf(stdout, "\n");
-      }
-#endif
-#if 0
-      fprintf(stdout, "%08x\n", dsi.vobu_sri.unknown1);
-      for(i = 0; i < 20; i++) {
-	fprintf(stdout, "%08x ", dsi.vobu_sri.unknown2[i]);
-	if(i % 5 == 4)
-	  fprintf(stdout, "\n");
-      }
-      fprintf(stdout, "--\n");
-      for(i = 0; i < 20; i++) {
-	fprintf(stdout, "%08x ", dsi.vobu_sri.unknown3[i]);
-	if(i % 5 == 4)
-	  fprintf(stdout, "\n");
-      }
-      fprintf(stdout, "%08x\n", dsi.vobu_sri.unknown4);
-#endif
-#if 0
-      fprintf(stdout, "%04x\n", dsi.synci.offset);
-      for(i = 0; i < 142; i++) {
-	fprintf(stdout, "%02x ", dsi.synci.unknown[i]);
-	if(i % 20 == 19)
-	  fprintf(stdout, "\n");
-      }
-      if(i % 20 != 19)
-	fprintf(stdout, "\n");
-#endif
     }
     else {
       fprintf (stdout, "ps2 packet of unknown substream 0x%02x", substream);
