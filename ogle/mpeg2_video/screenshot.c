@@ -23,13 +23,14 @@
 #include <setjmp.h>
 #include <X11/Xlib.h>
 #include "common.h"
-
+#include "debug_print.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
 
+extern char *program_name;
 static char *new_file(void);
 
 JSAMPLE * jpg_buffer;	/* Points to large array of R,G,B-order data */
@@ -51,7 +52,7 @@ GLOBAL(void)
   jpeg_create_compress(&cinfo);
 
   if ((outfile = fopen(filename, "wb")) == NULL) {
-    fprintf(stderr, "can't open %s\n", filename);
+    FATAL("can't open %s\n", filename);
     exit(1);
   }
   jpeg_stdio_dest(&cinfo, outfile);
@@ -105,15 +106,18 @@ METHODDEF(void)
 void screenshot_rgb_jpg(unsigned char *data,
 			unsigned int width, unsigned int height) {
   int x,y;
+  char *file = new_file(); //support for progressive screenshots
+
   image_height = height; /* Number of rows in image */
   image_width  = width;	/* Number of columns in image */  
+
   
-  fprintf(stderr, "screenshot_rgb_jpg()\n");
+  DNOTE("screenshot_rgb_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
 				* image_height * image_width * 3);
   
   if(jpg_buffer == NULL) {
-    fprintf(stderr, "FEL!\n");
+    FATAL("FEL!\n");
     exit(1);
   }
   
@@ -129,7 +133,7 @@ void screenshot_rgb_jpg(unsigned char *data,
 	data [y * image_width * 4 + x*4 +1 ] ;
     }
   }
-  write_JPEG_file ("screenshot_rgb.jpg", JCS_RGB, 100);
+  write_JPEG_file (file, JCS_RGB, 100);
 }
 
 
@@ -148,12 +152,12 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
   image_height = yuv_data->info->picture.vertical_size;
   image_width  = yuv_data->info->picture.horizontal_size;
   
-  fprintf(stderr, "screenshot_yuv_jpg()\n");
+  DNOTE("screenshot_yuv_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
 				* image_height * image_width * 3);
   
   if(jpg_buffer == NULL) {
-    fprintf(stderr, "FEL!\n");
+    FATAL("FEL!\n");
     exit(1);
   }
   
