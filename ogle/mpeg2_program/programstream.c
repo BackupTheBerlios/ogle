@@ -34,7 +34,7 @@
 
 #include <dvdread/dvd_reader.h>
 
-#include "endian.h"
+#include "ogle_endian.h"
 #include "programstream.h"
 #include "common.h"
 #include "queue.h"

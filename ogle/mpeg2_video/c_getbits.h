@@ -21,7 +21,7 @@
 
 #include <inttypes.h>
 
-#include "endian.h"
+#include "ogle_endian.h"
 #include "video_types.h"
 
 
