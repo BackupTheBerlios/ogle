@@ -1,12 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(ac3/ac3dec_wrap.c)
 AM_INIT_AUTOMAKE(skrompf, 0.1)
+dnl AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
 
 dnl Checks for programs.
 AC_PROG_CC
-AC_PROG_RANLIB
 
 AM_PROG_LIBTOOL
 
@@ -18,10 +18,11 @@ AC_SUBST(GLIB_CFLAGS)
 
 dnl Find X Window System
 AC_PATH_XTRA
-AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE(HAVE_XV))
-AC_CHECK_HEADER(X11/extensions/XShm.h, AC_DEFINE(HAVE_XSHM))
+AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE([HAVE_XV],1,[X11 supports Xv]))
+AC_CHECK_HEADER(X11/extensions/XShm.h, 
+                AC_DEFINE([HAVE_XSHM],1,[X11 supports MIT-XShm]))
 
-dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE(HAVE_XV))
+dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE([HAVE_XV]))
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
@@ -65,12 +66,12 @@ i?86)
 	i386 | i486)
 		;;
 	i686)
-		AC_DEFINE(HAVE_MMX)
+		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
 		USE_MMX=yes
 		CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops -malign-double"
 		;;
 	*)
-		AC_DEFINE(HAVE_MMX)
+		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
 		USE_MMX=yes
 		;;
 	esac
@@ -84,10 +85,10 @@ AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
 case "$host_os" in
 linux-gnu)
-	AC_DEFINE(USE_SYSV_SEM)
+	AC_DEFINE([USE_SYSV_SEM],1,[Using System V semaphors])
 	;;
 *)
-	AC_DEFINE(USE_POSIX_SEM)
+	AC_DEFINE([USE_POSIX_SEM],1,[Using POSIX semaphors])
 	;;
 esac
 
