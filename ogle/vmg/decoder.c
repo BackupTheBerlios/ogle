@@ -237,6 +237,8 @@ static bool eval_link_subins(bool cond, link_t *return_values)
   // Assumes that the link_cmd_t enum has the same values as the LinkSIns codes
   return_values->command = linkop;
   return_values->data1 = button;
+  if(cond && return_values->data1)
+    state->SPRM[8] = return_values->data1 << 10;
   return cond;
 }
 
@@ -259,16 +261,22 @@ static bool eval_link_instruction(bool cond, link_t *return_values)
 	return_values->command = LinkPTTN;
 	return_values->data1 = bits(6, 6, 10);
 	return_values->data2 = bits(6, 0, 6);
+	if(cond && return_values->data2)
+	  state->SPRM[8] = return_values->data2 << 10;
 	return cond;
     case 6:
 	return_values->command = LinkPGN;
 	return_values->data1 = bits(7, 1, 7);
 	return_values->data2 = bits(6, 0, 6);
+	if(cond && return_values->data2)
+	  state->SPRM[8] = return_values->data2 << 10;
 	return cond;
     case 7:
 	return_values->command = LinkCN;
 	return_values->data1 = bits(7, 0, 8);
 	return_values->data2 = bits(6, 0, 6);
+	if(cond && return_values->data2)
+	  state->SPRM[8] = return_values->data2 << 10;
 	return cond;
   }
   return 0;

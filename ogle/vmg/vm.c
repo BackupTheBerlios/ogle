@@ -1086,18 +1086,12 @@ static link_t process_command(link_t link_values)
     
     switch(link_values.command) {
     case LinkNoLink:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       exit(1);
       
     case LinkTopC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       link_values = play_Cell();
       break;
     case LinkNextC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       // What if cellN becomes > nr_of_cells?
       if(state.cellN == state.pgc->nr_of_cells)
 	return do_nothing; // it should do nothing
@@ -1105,8 +1099,6 @@ static link_t process_command(link_t link_values)
       link_values = play_Cell();
       break;
     case LinkPrevC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       // What if cellN becomes < 1?
       if(state.cellN == 0)
 	return do_nothing; // it should do nothing
@@ -1115,14 +1107,10 @@ static link_t process_command(link_t link_values)
       break;
       
     case LinkTopPG:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       // Does pgN always contain the current value?
       link_values = play_PG();
       break;
     case LinkNextPG:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       // Does pgN always contain the current value?
       if(state.pgN == state.pgc->nr_of_programs) {
 	if(get_PGC(state.pgc->prev_pgc_nr))
@@ -1134,8 +1122,6 @@ static link_t process_command(link_t link_values)
       }                                                                       
       break;
     case LinkPrevPG:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       // Does pgN always contain the current value?
       if(state.pgN == 1) {
 	if(get_PGC(state.pgc->prev_pgc_nr))
@@ -1148,44 +1134,31 @@ static link_t process_command(link_t link_values)
       break;
       
     case LinkTopPGC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       link_values = play_PGC();
       break;
     case LinkNextPGC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->next_pgc_nr != 0);
       if(get_PGC(state.pgc->next_pgc_nr))
 	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkPrevPGC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->prev_pgc_nr != 0);
       if(get_PGC(state.pgc->prev_pgc_nr))
 	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkGoUpPGC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->goup_pgc_nr != 0);
       if(get_PGC(state.pgc->goup_pgc_nr))
 	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkTailPGC:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
       link_values = play_PGC_post();
       break;
       
     case LinkRSM:
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
-      
       /* Updates link_values if successful */
       if(!vm_resume_int(&link_values)) {
 	/* Nothing / Faild.  What should we do? Do we need closer interaction
@@ -1200,23 +1173,17 @@ static link_t process_command(link_t link_values)
       break;
     case LinkPTTN:
       assert(state.domain == VTS_DOMAIN);
-      if(link_values.data2 != 0)
-	state.HL_BTNN_REG = link_values.data2 << 10;
       if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, link_values.data1) == -1)
 	assert(0);
       // not play_PGC(); Fixes Men In Black delux set / sepcial edition 
       link_values = play_PG();
       break;
     case LinkPGN:
-      if(link_values.data2 != 0)
-	state.HL_BTNN_REG = link_values.data2 << 10;
       /* Update any other state, PTTN perhaps? */
       state.pgN = link_values.data1;
       link_values = play_PG();
       break;
     case LinkCN:
-      if(link_values.data2 != 0)
-	state.HL_BTNN_REG = link_values.data2 << 10;
       /* Update any other state, pgN, PTTN perhaps? */
       state.cellN = link_values.data1;
       link_values = play_Cell();
