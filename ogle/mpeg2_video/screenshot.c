@@ -22,13 +22,14 @@
 #include <jpeglib.h>
 #include <setjmp.h>
 #include <X11/Xlib.h>
+#include "common.h"
 
 JSAMPLE * jpg_buffer;	/* Points to large array of R,G,B-order data */
 int image_height;	/* Number of rows in image */
 int image_width;	/* Number of columns in image */
 
 GLOBAL(void)
-     write_JPEG_file (char * filename, int quality)
+     write_JPEG_file (char * filename, J_COLOR_SPACE type, int quality)
 {
   struct jpeg_compress_struct cinfo;
   struct jpeg_error_mgr jerr;
@@ -50,7 +51,7 @@ GLOBAL(void)
   cinfo.image_width = image_width; 	/* image width and height, in pixels */
   cinfo.image_height = image_height;
   cinfo.input_components = 3;		/* # of color components per pixel */
-  cinfo.in_color_space = JCS_RGB; 	/* colorspace of input image */
+  cinfo.in_color_space = type;          /* colorspace of input image */
 
   jpeg_set_defaults(&cinfo);
 
@@ -119,5 +120,53 @@ void screenshot_jpg(unsigned char *data, XImage *ximg) {
 	data [y * image_width * 4 + x*4 +1 ] ;
     }
   }
-  write_JPEG_file ("screenshot.jpg", 100);
+  write_JPEG_file ("screenshot.jpg", JCS_RGB, 100);
+}
+
+
+
+void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
+  int x,y;
+  
+  uint8_t* py = yuv_data->y;
+  uint8_t* pu = yuv_data->u; 
+  uint8_t* pv = yuv_data->v; 
+  
+  //ximg->height; /* Number of rows in image */
+  //ximg->width;	/* Number of columns in image */  
+
+  image_height = yuv_data->info->picture.vertical_size;
+  image_width  = yuv_data->info->picture.horizontal_size;
+  
+  fprintf(stderr, "screenshot_yuv_jpg()\n");
+  jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
+				* image_height * image_width * 3);
+  
+  if(jpg_buffer == NULL) {
+    fprintf(stderr, "FEL!\n");
+    exit(1);
+  }
+  
+  
+  for(y=0; y < image_height ; y++) {
+    for(x=0; x < image_width; x++) {
+      jpg_buffer[y * image_width * 3 + x*3 +0 ] = (*py++);
+    }
+  }
+
+  for(y=0; y < image_height ; y+=2) {
+    for(x=0; x < image_width; x+=2) {
+      
+      jpg_buffer[y * image_width * 3 + x*3 +1 ] = (*pu);
+      jpg_buffer[y * image_width * 3 + (x+1)*3 +1 ] = (*pu);
+      jpg_buffer[(y+1) * image_width * 3 + x*3 +1 ] = (*pu);
+      jpg_buffer[(y+1) * image_width * 3 + (x+1)*3 +1 ] = (*pu++);
+      
+      jpg_buffer[y     * image_width * 3 + x*3 +2 ] = (*pv);
+      jpg_buffer[y     * image_width * 3 + (x+1)*3 +2 ] = (*pv);
+      jpg_buffer[(y+1) * image_width * 3 + x*3 +2 ] = (*pv);
+      jpg_buffer[(y+1) * image_width * 3 + (x+1)*3 +2 ] = (*pv++);
+    }
+  }
+  write_JPEG_file ("screenshot.jpg", JCS_YCbCr, 100);
 }

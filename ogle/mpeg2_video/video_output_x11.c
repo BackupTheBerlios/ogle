@@ -1166,7 +1166,8 @@ static void draw_win_x11(window_info *dwin)
   
   if(screenshot) {
     screenshot = 0;
-    screenshot_jpg(dwin->ximage->data, dwin->ximage);
+    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+    //screenshot_jpg(dwin->ximage->data, dwin->ximage);
   }
   
   window.video_area.width = scale.image_width;
@@ -1237,6 +1238,12 @@ static void draw_win_xv(window_info *dwin)
     }
   }
 #endif
+
+  if(screenshot) {
+    screenshot = 0;
+    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+  }
+  
 
   XGetWindowAttributes(mydisplay, window.win, &xattr);
 
