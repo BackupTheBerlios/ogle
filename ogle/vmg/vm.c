@@ -1086,7 +1086,7 @@ static link_t process_command(link_t link_values)
     
     switch(link_values.command) {
     case LinkNoLink:
-      exit(1);
+      return do_nothing;
       
     case LinkTopC:
       link_values = play_Cell();
