@@ -15,6 +15,7 @@ static GnomeUIInfo *menu_items_uiinfo;
 static GSList *labellist = NULL;
 static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
+static const int OFF = 63;
 
 void subpicture_menu_new(void) {
   menu = gtk_menu_new ();
@@ -76,7 +77,7 @@ void subpicture_menu_update(void) {
     GnomeUIInfo tmp_info =  {
       GNOME_APP_UI_ITEM, (gchar*) N_("None"),
       NULL,
-      subpicture_item_activate, GINT_TO_POINTER(63), NULL,
+      subpicture_item_activate, GINT_TO_POINTER(OFF), NULL,
       GNOME_APP_PIXMAP_NONE, NULL,
       0, 0, NULL
     };
@@ -162,13 +163,15 @@ void subpicture_item_activate( GtkRadioMenuItem *item,
   int stream = GPOINTER_TO_INT(user_data);
   
   if(GTK_CHECK_MENU_ITEM(item)->active) {
-    fprintf(stderr, "item %d\n", stream);
-    
-    res = DVDSubpictureStreamChange(nav, stream, DVDTrue);
-    if(res != DVD_E_Ok) {
-      DVDPerror("subpicture.subpicture_item_activate: DVDSubpictureChange",
-		res);
-      return;
+    if(stream==OFF) {
+      DVDSetSubpictureState(nav, DVDTrue);
+    } else {
+      res = DVDSubpictureStreamChange(nav, stream);
+      if(res != DVD_E_Ok) {
+	DVDPerror("subpicture.subpicture_item_activate: DVDSubpictureChange",
+		  res);
+	return;
+      }
     }
   }
 }
