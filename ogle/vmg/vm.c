@@ -17,8 +17,8 @@
 #include "ifo_print.h"
 #include "decoder.h"
 
-extern int demux_data(char *file_name, int start_sector, 
-		      int last_sector, command_data_t *cmd); // nav.c
+extern int eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
+		     command_data_t *cmd); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
 extern int msgqid;
 
@@ -111,6 +111,7 @@ int main(int argc, char *argv[])
   }
   
   // Setup State
+  memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
   state.registers.SPRM[13] = 8; // Parental Level
   state.registers.SPRM[20] = 1; // Player Regional Code
   state.registers.SPRM[4] = 1; // Title Number (VTS#)
@@ -146,9 +147,9 @@ int main(int argc, char *argv[])
      - just play video i.e first PG1 (also a kind of jump/link)
        (This is what happens if you fall of the end of the pre_commands)
      - or a error (are there more cases?) */
-  if(pgc.pgc_command_tbl &&
-     eval(pgc.pgc_command_tbl->pre_commands, 
-	  pgc.pgc_command_tbl->nr_of_pre, &state.registers, &link_values)) {
+  if(pgc.pgc_command_tbl && eval(pgc.pgc_command_tbl->pre_commands, 
+				 pgc.pgc_command_tbl->nr_of_pre, 
+				 &state.registers, &link_values)) {
     goto process_jump;
   }
   if(state.pgN == 0)
@@ -206,11 +207,11 @@ int main(int argc, char *argv[])
 	pgc.cell_position_tbl[state.cellN-1].vob_id_nr,
 	pgc.cell_position_tbl[state.cellN-1].cell_nr,
 	cell.first_sector, cell.last_sector);
-    // How to handle buttons and other nav data?
-    /* Should this return any button_cmd that executes?? */
+    
+    /* This should return any button_cmd that is to be executed */
     {
       command_data_t cmd;
-      int res = demux_data(name, cell.first_sector, cell.last_sector, &cmd);
+      int res = eval_cell(name, &cell, &cmd);
       if(res) {
 	// Remove me..
 	state.registers.SPRM[8] = 0x400 * res;
@@ -221,23 +222,19 @@ int main(int argc, char *argv[])
 	}
       }
     }
-    /* Still time or some thing */
-    if(cell.category & 0xff00) {
-      int time = (cell.category>>8) & 0xff;
-      if(time == 0xff) {
-	printf("-- Wait for user interaction --\n");
-      } else {
-	sleep(time); // Really advance SCR clock..
-      }
-    }
-    /* Deal with looking up and 'evaling' the Cell cmd, if any */
+    /* Deal with a Cell cmd, if any */
     if((cell.category & 0xff) != 0) {
-      command_data_t *cmd =
-	&pgc.pgc_command_tbl->cell_commands[(cell.category&0xff)-1];
-      if(eval(cmd, 1, &state.registers, &link_values)) {
+      int cell_cmd_nr = cell.category & 0xff;
+      assert(pgc.pgc_command_tbl != NULL);
+      assert(pgc.pgc_command_tbl->nr_of_cell >= cell_cmd_nr);
+      if(eval(&pgc.pgc_command_tbl->cell_commands[cell_cmd_nr - 1], 
+	      1, &state.registers, &link_values)) {
 	goto process_jump;
+      } else {
+	// Error ?? goto tail? goto next PG? or what? just continue?
       }
     }
+
     /* Where to continue after playing the cell... */
     switch((cell.category & 0xff000000)>>24) {
     default:
@@ -272,54 +269,67 @@ int main(int argc, char *argv[])
 	 link_values.data1, link_values.data2, link_values.data3);
   switch(link_values.command) {
   case LinkNoLink: // Vill inte ha det här här..
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);
     
   case LinkTopC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     goto play_Cell;
   case LinkNextC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.cellN += 1; // >nr_of_cells?
     goto play_Cell;    
   case LinkPrevC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.cellN -= 1; // < 1?
     goto play_Cell;   
     
   case LinkTopPG:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     //state.pgN = ?
     goto play_PG;
   case LinkNextPG:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.pgN += 1; // What if pgN becomes > pgc.nr_of_programs?
     state.cellN = 0;
     goto play_PG;
   case LinkPrevPG:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.pgN -= 1; // What if pgN becomes < 1?
     state.cellN = 0;
     goto play_PG;
   
   case LinkTopPGC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   case LinkNextPGC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   case LinkPrevPGC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   case LinkGoUpPGC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   case LinkTailPGC:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     goto play_PGC_post;
   
   case LinkRSM:
-    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    if(link_values.data1 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   
   case LinkPGCN:
@@ -327,17 +337,20 @@ int main(int argc, char *argv[])
     goto play_PGC;
   
   case LinkPTTN:
-    state.registers.SPRM[8] = 0x400 * link_values.data2;
+    if(link_values.data2 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data2;
     exit(-1);  
   
   case LinkPGN:
-    state.registers.SPRM[8] = 0x400 * link_values.data2;
+    if(link_values.data2 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data2;
     state.pgN = link_values.data1;
     state.cellN = 0;
     goto play_PG;
   
   case LinkCN:
-    state.registers.SPRM[8] = 0x400 * link_values.data2;
+    if(link_values.data2 != 0)
+      state.registers.SPRM[8] = 0x400 * link_values.data2;
     state.cellN = link_values.data1;
     goto play_Cell;
   

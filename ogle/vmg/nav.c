@@ -181,8 +181,7 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 }
 
 
-int demux_data(char *file_name, int start_sector, int last_sector, 
-	       command_data_t *cmd) {
+int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
   buffer_t buffer;
   pci_t pci;
   dsi_t dsi;
@@ -193,13 +192,13 @@ int demux_data(char *file_name, int start_sector, int last_sector,
   memset(&pci, 0, sizeof(pci_t));
   memset(&dsi, 0, sizeof(dsi_t));
   
-  //if(strcmp(file_name, last_file_name) != 0)
-    send_use_file(file_name);
+  //if(strcmp(vob_name, last_file_name) != 0)
+    send_use_file(vob_name);
  
   block = 0;
-  while(start_sector + block <= last_sector) {
+  while(cell->first_sector + block <= cell->last_sector) {
     /* Get the pci/dsi data, always fist in a vobu. */
-    send_demux_sectors(start_sector + block, 1); 
+    send_demux_sectors(cell->first_sector + block, 1); 
     block++;
     
     get_next_nav_packet(&buffer.bytes[0]);
@@ -219,7 +218,7 @@ int demux_data(char *file_name, int start_sector, int last_sector,
     /* Assume that the vobus are packed and continue after each other,
        this isn't correct. Certanly not for multiangle at least. */
     /* Needs to know the selected angle. */
-    send_demux_sectors(start_sector + block, dsi.dsi_gi.vobu_ea);
+    send_demux_sectors(cell->first_sector + block, dsi.dsi_gi.vobu_ea);
     block += dsi.dsi_gi.vobu_ea;
     
     if(res != 0) {
@@ -232,9 +231,24 @@ int demux_data(char *file_name, int start_sector, int last_sector,
   else /* Check for user input */
     if((res = process_pci(&pci, &state_systemreg_hili_button_nr)) != 0) {
       memcpy(cmd, &pci.hli.btnit[state_systemreg_hili_button_nr-1].cmd, 8);
-      return state_systemreg_hili_button_nr;
+      
+      //set state_systemreg_hili_button_nr;
     }
   
+  
+  /* Handle cell pause and still here */
+  
+  /* Still time or some thing */
+  if(cell->category & 0xff00) {
+    int time = (cell->category>>8) & 0xff;
+    if(time == 0xff) {
+      printf("-- Wait for user interaction --\n");
+    } else {
+      sleep(time); // Really advance SCR clock..
+    }
+  }
+  
+  memset(cmd, 0, sizeof(cmd_t));
   return 0;
 }
 
