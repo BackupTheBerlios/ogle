@@ -10,7 +10,6 @@
 #include "debug_print.h"
 #include "interpret_config.h"
 
-extern char *program_name;
 extern char *dvd_path;
 
 
