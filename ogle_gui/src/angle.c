@@ -51,7 +51,7 @@ void angle_menu_update(void) {
   GtkWidget *selecteditem;
   int selectedpos=0;  
 
-  int stream=0;
+  int stream=1;
   int pos=0;
   
   res = DVDGetCurrentAngle(nav, &StreamsAvailable, &CurrentStream);
@@ -67,20 +67,7 @@ void angle_menu_update(void) {
     return;
   }
 
-  /*
-    {
-    GnomeUIInfo tmp_info =  {
-      GNOME_APP_UI_ITEM, (gchar*) N_("None"),
-      NULL,
-      angle_item_activate, GINT_TO_POINTER(OFF), NULL,
-      GNOME_APP_PIXMAP_NONE, NULL,
-      0, 0, NULL
-    };
-    menu_items_uiinfo[pos++] = tmp_info;
-  } 
-  */
-
-  while(stream < StreamsAvailable) {
+  while(stream <= StreamsAvailable) {
     int stringlength;
     char *label;
     
@@ -145,30 +132,7 @@ void angle_item_activate( GtkRadioMenuItem *item,
   int stream = GPOINTER_TO_INT(user_data);
   
   if(GTK_CHECK_MENU_ITEM(item)->active) {
-    DVDAngleChange(nav, stream);
-    /*
-    if(stream==OFF) {
-      fprintf(stderr, "Angle: OFF\n");
-      res = DVDSetAngleState(nav, DVDFalse);
-      if(res != DVD_E_Ok) {
-	DVDPerror("angle.angle_item_activate: DVDAngleState",
-		  res);
-      }
-    } else {
-      fprintf(stderr, "Angle: ON\n");
-      res = DVDSetAngleState(nav, DVDTrue);
-      if(res != DVD_E_Ok) {
-	DVDPerror("angle.angle_item_activate: DVDAngleState",
-		  res);
-      }
-      res = DVDAngleStreamChange(nav, stream);
-      if(res != DVD_E_Ok) {
-	DVDPerror("angle.angle_item_activate: DVDAngleChange",
-		  res);
-	return;
-      }
-    }
-    */
+    DVDAngleChange(nav, stream); 
   }
 }
 
