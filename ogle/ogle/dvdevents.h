@@ -51,7 +51,7 @@ typedef enum {
   DVDCtrlTopPGSearch,
 
   DVDCtrlPTTSearch,
-  DVDCtrlPTTPlay,
+  DVDCtrlPTTPlay, /* 10 */
   
   
 
@@ -69,7 +69,7 @@ typedef enum {
   DVDCtrlDefaultAudioLanguageSelect,
   DVDCtrlDefaultSubpictureLanguageSelect,
 
-  DVDCtrlParentalCountrySelect,
+  DVDCtrlParentalCountrySelect, /* 20 */
   DVDCtrlParentalLevelSelect,
 
   DVDCtrlAudioStreamChange,

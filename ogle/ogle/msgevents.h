@@ -70,7 +70,7 @@ typedef enum {
   MsgEventQGntCapability,
   MsgEventQPlayCtrl,
   MsgEventQChangeFile,
-  MsgEventQReqStreamBuf,
+  MsgEventQReqStreamBuf,       /* 10 */
   MsgEventQGntStreamBuf,
   MsgEventQDecodeStreamBuf,
   MsgEventQReqBuf,
@@ -80,7 +80,7 @@ typedef enum {
   MsgEventQGntPicBuf,
   MsgEventQAttachQ,
   MsgEventQSPUPalette,
-  MsgEventQSPUHighlight,
+  MsgEventQSPUHighlight,       /* 20 */
   MsgEventQSpeed,
   MsgEventQDVDCtrl,
   MsgEventQFlow,
@@ -90,7 +90,7 @@ typedef enum {
   MsgEventQDemuxDefault,
   MsgEventQDVDCtrlLong,
   MsgEventQDemuxDVD,
-  MsgEventQDemuxDVDRoot,
+  MsgEventQDemuxDVDRoot,       /* 30 */
   MsgEventQSetAspectModeSrc,
   MsgEventQSetSrcAspect,
   MsgEventQSetZoomMode,
@@ -100,7 +100,7 @@ typedef enum {
   MsgEventQInputPointerMotion,
   MsgEventQInputKeyPress,
   MsgEventQInputKeyRelease,
-  MsgEventQDestroyBuf,
+  MsgEventQDestroyBuf,         /* 40 */
   MsgEventQAppendQ,
   MsgEventQDetachQ,
   MsgEventQQDetached,
