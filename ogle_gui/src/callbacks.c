@@ -203,7 +203,7 @@ void
 on_preferences_activate               (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+  fprintf(stderr, "Not implemented yet.\n");
 }
 
 

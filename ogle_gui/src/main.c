@@ -87,12 +87,12 @@ main (int argc, char *argv[])
   gnome_init_with_popt_table("ogle", VERSION, argc, argv, options, 0, &ctx);
 
   if(window_string == NULL) {
-    fprintf(stderr, "Inget win_id\n");
+    //fprintf(stderr, "Inget win_id\n");
     window_string = "-1";
   }
   win = strtol(window_string, NULL, 0);
   
-  fprintf(stderr, "Window-id: 0x%x\n", win);
+  //fprintf(stderr, "Window-id: 0x%x\n", win);
   
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;

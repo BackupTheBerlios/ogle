@@ -163,12 +163,14 @@ static char* file_menu_uiinfo_string[] = {
 
 static GnomeUIInfo edit_menu_uiinfo[] =
 {
+  /*
   GNOMEUIINFO_MENU_CUT_ITEM (on_cut_activate, NULL),
   GNOMEUIINFO_MENU_COPY_ITEM (on_copy_activate, NULL),
   GNOMEUIINFO_MENU_PASTE_ITEM (on_paste_activate, NULL),
   GNOMEUIINFO_MENU_CLEAR_ITEM (on_clear_activate, NULL),
   GNOMEUIINFO_SEPARATOR,
   GNOMEUIINFO_MENU_PROPERTIES_ITEM (on_properties_activate, NULL),
+  */
   GNOMEUIINFO_END
 };
 
@@ -291,7 +293,7 @@ create_app (void)
       i++;
     }
   }
-
+  /*
   gtk_widget_set_name (menubar_uiinfo[1].widget, "edit");
   gtk_widget_ref (menubar_uiinfo[1].widget);
   gtk_object_set_data_full (GTK_OBJECT (app), "edit",
@@ -339,7 +341,7 @@ create_app (void)
   gtk_object_set_data_full (GTK_OBJECT (app), "view",
                             menubar_uiinfo[2].widget,
                             (GtkDestroyNotify) gtk_widget_unref);
-
+  */
   gtk_widget_set_name (menubar_uiinfo[3].widget, "settings");
   gtk_widget_ref (menubar_uiinfo[3].widget);
   gtk_object_set_data_full (GTK_OBJECT (app), "settings",
@@ -916,6 +918,26 @@ create_app (void)
                       NULL);
 
   gtk_object_set_data (GTK_OBJECT (app), "tooltips", tooltips);
+
+
+
+
+  /* Beginning of disabled buttons */
+  gtk_widget_set_sensitive(GTK_WIDGET(rewind_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(reverse_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(stop_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(play_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(fastforward_button), FALSE); 
+
+  gtk_widget_set_sensitive(GTK_WIDGET(step_reverse_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(pause_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(step_forwards_button), FALSE);
+
+  gtk_widget_set_sensitive(GTK_WIDGET(fast_button), FALSE);
+  gtk_widget_set_sensitive(GTK_WIDGET(slow_button), FALSE);
+
+  gtk_widget_set_sensitive(GTK_WIDGET(cursor_go_up_button), FALSE);
+  /* End of disabled buttons */
 
   return app;
 }
