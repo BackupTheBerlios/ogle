@@ -51,7 +51,6 @@ extern void display(yuv_image_t *current_image);
 extern void display_poll(yuv_image_t *current_image);
 extern void display_exit(void);
 
-
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
@@ -61,7 +60,7 @@ int process_interrupted = 0;
 
 static int end_of_wait;
 
-AspectModeSrc_t aspect_mode;
+AspectModeSrc_t aspect_mode = AspectModeSrcVM;
 AspectModeSrc_t aspect_sender;
 
 uint16_t aspect_new_frac_n;
@@ -288,6 +287,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     aspect_mode = ev->setaspectmodesrc.mode_src;
     break;
   case MsgEventQSetSrcAspect:
+    // hack, fix this to use an array of all aspectmodesrc's
     aspect_sender = ev->setsrcaspect.mode_src;
     aspect_new_frac_n = ev->setsrcaspect.aspect_frac_n;
     aspect_new_frac_d = ev->setsrcaspect.aspect_frac_d;

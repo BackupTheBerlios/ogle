@@ -167,7 +167,10 @@ extern yuv_image_t *image_bufs;
 
 extern void display_process_exit(void);
 
+extern AspectModeSrc_t aspect_mode;
 extern ZoomMode_t zoom_mode;
+extern uint16_t aspect_new_frac_n;
+extern uint16_t aspect_new_frac_d;
 
 extern MsgEventQ_t *msgq;
 extern MsgEventClient_t input_client;
@@ -806,14 +809,17 @@ static void display_adjust_size(yuv_image_t *current_image,
   int base_width, base_height, max_width, max_height;
   int new_width, new_height;
   
-  /* Use the stream aspect or a forced/user aspect. */ 
-  //  if(!scale_override_aspect) {
-  sar_frac_n = current_image->info->picture.sar_frac_n;
-  sar_frac_d = current_image->info->picture.sar_frac_d;
-  //  } else {
-  //    sar_frac_n = scale_override_aspect_n;
-  //    sar_frac_d = scale_override_aspect_d;
-  //  }
+  if(aspect_mode == AspectModeSrcVM) {
+    sar_frac_n // hack
+      = aspect_new_frac_d * current_image->info->picture.horizontal_size;
+    sar_frac_d // hack
+      = aspect_new_frac_n * current_image->info->picture.vertical_size;
+  }
+  /* Use the stream aspect */ 
+  else /* if(aspect_mode == AspectModeSrcMPEG) also default */ {
+    sar_frac_n = current_image->info->picture.sar_frac_n;
+    sar_frac_d = current_image->info->picture.sar_frac_d;
+  }
   
   // TODO replace image->sar.. with image->dar
   scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
@@ -1173,14 +1179,26 @@ void display(yuv_image_t *current_image)
 {
   static int sar_frac_n, sar_frac_d; 
   
-  /* New source aspect ratio? */
-  if(current_image->info->picture.sar_frac_n != sar_frac_n ||
-     current_image->info->picture.sar_frac_d != sar_frac_d) {
+  if(aspect_mode == AspectModeSrcMPEG) {
+    /* New source aspect ratio? */
+    if(current_image->info->picture.sar_frac_n != sar_frac_n ||
+       current_image->info->picture.sar_frac_d != sar_frac_d) {
+      
+      sar_frac_n = current_image->info->picture.sar_frac_n;
+      sar_frac_d = current_image->info->picture.sar_frac_d;
+      
+      display_adjust_size(current_image, -1, -1);
+    }
+  }
+  if(aspect_mode == AspectModeSrcVM) {
+    /* New VM aspect ratio? */
+    if(aspect_new_frac_n != sar_frac_n || aspect_new_frac_d != sar_frac_d) {
+      
+      sar_frac_n = aspect_new_frac_n;
+      sar_frac_d = aspect_new_frac_d;
     
-    sar_frac_n = current_image->info->picture.sar_frac_n;
-    sar_frac_d = current_image->info->picture.sar_frac_d;
-    
-    display_adjust_size(current_image, -1, -1);
+      display_adjust_size(current_image, -1, -1);
+    }
   }
   
   if(((window.win_state == WINDOW_STATE_NORMAL) && 
