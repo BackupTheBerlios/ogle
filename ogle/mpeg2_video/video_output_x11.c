@@ -579,6 +579,8 @@ void init_config(Display *dpy)
       orig = DpyInfoOriginUser;
     } else if(!strcmp(cfg_display->resolution_src, "XF86VidMode")) {
       orig = DpyInfoOriginXF86VidMode;
+    } else if(!strcmp(cfg_display->resolution_src, "Xinerama")) {
+      orig = DpyInfoOriginXinerama;
     }
   }
   
@@ -591,6 +593,9 @@ void init_config(Display *dpy)
       break;
     case DpyInfoOriginXF86VidMode:
       orig_str = "XF86VidMode";
+      break;
+    case DpyInfoOriginXinerama:
+      orig_str = "Xinerama";
       break;
     case DpyInfoOriginUser:
       orig_str = "user";
