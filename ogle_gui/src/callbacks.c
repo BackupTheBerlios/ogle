@@ -398,3 +398,20 @@ on_angle_button_clicked                (GtkButton       *button,
 }
 
 
+void 
+on_full_screen_activate                (GtkButton       *button,
+					gpointer        user_data)
+{
+  static ZoomMode_t mode = ZoomModeResizeAllowed;
+  DVDResult_t res;
+  
+  mode = (mode == ZoomModeResizeAllowed) 
+    ? ZoomModeFullScreen : ZoomModeResizeAllowed;
+  
+  res = DVDSetZoomMode(nav, mode);
+  if(res != DVD_E_Ok) {
+    DVDPerror("callbacks.on_full_screen_activate: DVDSetZoomMode()",
+	      res);
+    return;
+  }
+}

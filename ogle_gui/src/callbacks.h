@@ -190,5 +190,9 @@ void
 on_angle_button_clicked                (GtkButton       *button,
                                         gpointer         user_data);
 
+void 
+on_full_screen_activate                (GtkButton       *button,
+					gpointer        user_data);
+
 #endif /* CALLBACKS_H */
 
