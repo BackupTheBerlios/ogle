@@ -16,5 +16,7 @@ DVDP_VIDEO=$DVDP_ROOT/mpeg2_video/video_stream
 export DVDP_VIDEO
 DVDP_VMG=$DVDP_ROOT/vmg/vmg
 export DVDP_VMG
+DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
+export DVDP_SPU
 
 $DVDP_CTRL $*
