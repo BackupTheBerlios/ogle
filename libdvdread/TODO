@@ -1,0 +1,5 @@
+
+* we don't have any functions for reading / printing VTS_TMAPT 
+* and likewise for TXT_MGI
+* rename zero_1 and add bitfields / macro constants in pgcit_srpt
+

@@ -1,0 +1,14 @@
+.*.sw[po]
+*~
+*.diff
+*.patch
+*.lo
+*.o
+Makefile
+Makefile.in
+.deps
+.libs
+*.la
+title_info
+play_title
+ifo_dump
