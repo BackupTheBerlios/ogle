@@ -48,11 +48,17 @@ extern int show_stat;
 unsigned int debug = 0;
 int shm_ready = 0;
 static int shmem_flag = 1;
-int   ring_shmid;
-int   ring_c_shmid;
-int   ring_buffers = 4;
-char *ring_shmaddr;
-void setup_shm(int horiz_size, int vert_size);
+
+int nr_of_buffers = 3;
+buf_ctrl_head_t *buf_ctrl_head;
+int picture_buffers_shmid;
+int buf_ctrl_shmid;
+char *buf_ctrl_shmaddr;
+char *picture_buffers_shmaddr;
+
+
+void init_out_q(int nr_of_bufs);
+void setup_shm(int horiz_size, int vert_size, int nr_of_bufs);
 
 double time_pic[4] = { 0.0, 0.0, 0.0, 0.0};
 double time_max[4] = { 0.0, 0.0, 0.0, 0.0};
@@ -155,51 +161,8 @@ void statistics_init()
 
 #ifdef TIMESTAT
 
-
-void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-  //  s1 is greater than s2
-  
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  if(d->tv_nsec < 0) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-}  
-
-void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  }
-}  
-
-int timecompare(struct timespec *s1, struct timespec *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_nsec > s2->tv_nsec) {
-    return 1;
-  } else if(s1->tv_nsec < s2->tv_nsec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
+void timestat_init();
+void timestat_print();
 
 
 struct timespec picture_decode_start_time;
@@ -250,402 +213,19 @@ typedef struct {
   struct timespec pic_min;
   struct timespec should_sleep;
   struct timespec did_sleep;
-  uint8_t type;
+  int type;
 } picture_time_t;
 
 picture_time_t *picture_timestat;
 
-#define TIMESTAT_NOF 24*60
-void timestat_init()
-{
-  int n;
-
-  for(n = 0; n < 3; n++) {
-    
-    picture_decode_time_tot[n].tv_sec = 0;
-    picture_decode_time_tot[n].tv_nsec = 0;
-    
-    picture_display_time_tot[n].tv_sec = 0;
-    picture_display_time_tot[n].tv_nsec = 0;
-
-    picture_decode_time_min[n].tv_sec = 99;
-    picture_decode_time_min[n].tv_nsec = 0;
-    
-    picture_display_time_min[n].tv_sec = 99;
-    picture_display_time_min[n].tv_nsec = 0;
-    
-    picture_decode_time_max[n].tv_sec = 0;
-    picture_decode_time_max[n].tv_nsec = 0;
-
-    picture_display_time_max[n].tv_sec = 0;
-    picture_display_time_max[n].tv_nsec = 0;
-
-    picture_decode_nr[n] = 0;
-    picture_display_nr[n] = 0;
-  }
-
-  picture_timestat = calloc(TIMESTAT_NOF, sizeof(picture_time_t));
-
-  picture_time.tv_sec = 0;
-  picture_time.tv_nsec = 0;
-
-  for(n = 0; n < TIMESTAT_NOF; n++) {
-    picture_timestat[n].dec_start = picture_time;
-    picture_timestat[n].dec_end = picture_time;
-    picture_timestat[n].disp_start = picture_time;
-    picture_timestat[n].disp_end = picture_time;
-    picture_timestat[n].should_sleep = picture_time;
-    picture_timestat[n].did_sleep = picture_time;
-    picture_timestat[n].type = 0xff;
-  }
-
-  picture_decode_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_decode_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_display_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_display_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_type = calloc(TIMESTAT_NOF, sizeof(uint8_t));
-
-  picture_decode_num = 0;
-  picture_display_num = 0;
-  
-}
-
-void timestat_print()
-{
-  int n;
-  FILE *stat_file;
-  FILE *gnuplot_file;
-  picture_time_t tmppic;
-  int statnr = 1;
-  fprintf(stderr, "\ntimestat\n");
-
-
-  for(n = 0; n < picture_decode_num; n++) {
-
-    timesub(&(picture_timestat[n].dec_tot),
-	    &(picture_timestat[n].dec_end),
-	    &(picture_timestat[n].dec_start));
-    
-    picture_timestat[n].dec_min = picture_timestat[n].dec_tot;
-
-
-    timesub(&(picture_timestat[n].disp_tot),
-	    &(picture_timestat[n].disp_end),
-	    &(picture_timestat[n].disp_start));
-
-    picture_timestat[n].disp_min = picture_timestat[n].disp_tot;
-    
-
-    timesub(&(picture_timestat[n].pic_tot),
-	    &(picture_timestat[n].disp_end),
-	    &(picture_timestat[n].dec_start));
-
-    picture_timestat[n].pic_min = picture_timestat[n].pic_tot;
-    
-  }
-  
-  if((stat_file = fopen("video_stats", "r")) == NULL) {
-    perror("no previous stats");
-  } else {
-    n = 0;
-    fread(&statnr, sizeof(statnr), 1, stat_file);
-    statnr++;
-    while(fread(&tmppic, sizeof(tmppic), 1, stat_file) && 
-	  (n < picture_decode_num)) {
-      if(timecompare(&(picture_timestat[n].dec_min), &(tmppic.dec_min)) > 0) {
-	picture_timestat[n].dec_min = tmppic.dec_min;
-      }
-      timeadd(&(picture_timestat[n].dec_tot),
-	      &(picture_timestat[n].dec_tot),
-	      &(tmppic.dec_tot));
-      
-      if(timecompare(&(picture_timestat[n].disp_min), &(tmppic.disp_min)) > 0) {
-	picture_timestat[n].disp_min = tmppic.disp_min;
-      }
-      timeadd(&(picture_timestat[n].disp_tot),
-	      &(picture_timestat[n].disp_tot),
-	      &(tmppic.disp_tot));
-
-      if(timecompare(&(picture_timestat[n].pic_min), &(tmppic.pic_min)) > 0) {
-	picture_timestat[n].pic_min = tmppic.pic_min;
-      }
-      timeadd(&(picture_timestat[n].pic_tot),
-	      &(picture_timestat[n].pic_tot),
-	      &(tmppic.pic_tot));
-      n++;
-
-    }
-    picture_decode_num = n;
-    fclose(stat_file);
-  }
-  
-  if((stat_file = fopen("video_stats", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    fwrite(&statnr, sizeof(statnr), 1, stat_file);
-    if(fwrite(picture_timestat, sizeof(picture_time_t),
-	      picture_decode_num, stat_file) != picture_decode_num) {
-      perror("fwrite");
-    }
-    fprintf(stderr, "Wrote stats to file: video_stats\n");
-    fclose(stat_file);
-  }
-
-  if((gnuplot_file = fopen("stats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].dec_end), &(picture_timestat[n].dec_start));
-      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09d %d.%09d\n",
-	      picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("stats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].disp_start));
-      timesub(&picture_time0, &(picture_timestat[n].disp_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09d %d.%09d\n",
-	      picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("stats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].dec_start));
-      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09d %d.%09d\n",
-	      picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-
-
-
-  /* ---------------- */
-
-
-  if((gnuplot_file = fopen("avgstats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].dec_tot.tv_sec+
-	      (double)picture_timestat[n].dec_tot.tv_nsec/
-	      1000000000.0)/(double)statnr);
-
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("avgstats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].disp_tot.tv_sec+
-	      (double)picture_timestat[n].disp_tot.tv_nsec/
-	       1000000000.0)/(double)statnr);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("avgstats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].pic_tot.tv_sec+
-	       (double)picture_timestat[n].pic_tot.tv_nsec/
-	       1000000000.0)/(double)statnr);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  fprintf(stderr, "statnr: %d\n", statnr);
-
-  
-
-  /* ------------------------------ */
-
-
-
-  if((gnuplot_file = fopen("minstats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09d\n",
-	      n,
-	      picture_timestat[n].dec_min.tv_sec,
-	      picture_timestat[n].dec_min.tv_nsec);
-      
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("minstats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09d\n",
-	      n,
-	      picture_timestat[n].disp_min.tv_sec,
-	      picture_timestat[n].disp_min.tv_nsec);
-
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("minstats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09d\n",
-	      n,
-	      picture_timestat[n].pic_min.tv_sec,
-	      picture_timestat[n].pic_min.tv_nsec);
-
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-
-  /* ------------------------------- */
-  
-    
-    /*
-    for(n = 0; n < picture_decode_num; n++) {
-      fprintf(gnuplot_file, "%.9f %d\n",
-	      1.0/24.0*n,
-	      n);
-    }
-    */
-
-  
-  for(n = 0; n < 3; n++) {
-    
-    fprintf(stderr, "avg_decode_time: %.4f s,  %.2f fps \n",
-	    ((double)picture_decode_time_tot[n].tv_sec +
-	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0)/
-	    (double)picture_decode_nr[n],
-	    (double)picture_decode_nr[n]/
-	    ((double)picture_decode_time_tot[n].tv_sec +
-	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0));
-
-    fprintf(stderr, "avg_display_time: %.4f s\n",
-	    ((double)picture_display_time_tot[n].tv_sec +
-	     (double)picture_display_time_tot[n].tv_nsec/1000000000.0)/
-	    (double)picture_display_nr[n]);
-
-
-
-    fprintf(stderr, "display_time_max: %d.%09d\n",
-	    picture_display_time_max[0].tv_sec,
-	    picture_display_time_max[0].tv_nsec);
-    fprintf(stderr, "display_time_max: %d.%09d\n",
-	    picture_display_time_max[1].tv_sec,
-	    picture_display_time_max[1].tv_nsec);
-    fprintf(stderr, "display_time_max: %d.%09d\n",
-	    picture_display_time_max[2].tv_sec,
-	    picture_display_time_max[2].tv_nsec);
-
-    fprintf(stderr, "display_time_min: %d.%09d\n",
-	    picture_display_time_min[0].tv_sec,
-	    picture_display_time_min[0].tv_nsec);
-    fprintf(stderr, "display_time_min: %d.%09d\n",
-	    picture_display_time_min[1].tv_sec,
-	    picture_display_time_min[1].tv_nsec);
-    fprintf(stderr, "display_time_min: %d.%09d\n",
-	    picture_display_time_min[2].tv_sec,
-	    picture_display_time_min[2].tv_nsec);
-
-    /*
-    picture_decode_time_tot[n].tv_sec = 0;
-    picture_decode_time_tot[n].tv_nsec = 0;
-    
-    picture_display_time_tot[n].tv_sec = 0;
-    picture_display_time_tot[n].tv_nsec = 0;
-
-    picture_decode_time_min[n].tv_sec = 99;
-    picture_decode_time_min[n].tv_nsec = 0;
-    
-    picture_display_time_min[n].tv_sec = 99;
-    picture_display_time_min[n].tv_nsec = 99;
-    
-    picture_decode_time_max[n].tv_sec = 0;
-    picture_decode_time_max[n].tv_nsec = 0;
-
-    picture_display_time_max[n].tv_sec = 0;
-    picture_display_time_max[n].tv_nsec = 0;
-
-    picture_decode_nr[n] = 0;
-    picture_display_nr[n] = 0;
-    */
-  }
-  
-}
-
-
 #endif
-
 
 
 sequence_t seq;
 picture_t pic;
 slice_t slice_data;
 macroblock_t mb;
+
 
 yuv_image_t r1_img;
 yuv_image_t r2_img;
@@ -690,6 +270,7 @@ void reset_to_default_quantiser_matrix();
 
 void display_init();
 void display_exit();
+void display_process();
 void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 		yuv_image_t *ref_image1, macroblock_t *ref1_mbs,
 		yuv_image_t *ref_image2, macroblock_t *ref2_mbs, 
@@ -729,14 +310,6 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 }
   
 
-
-
-
-
-
-
-
-
 int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
   int numberofbits=1;
@@ -772,30 +345,30 @@ void sighandler(void)
 void init_program()
 {
   struct sigaction sig;
-
+  
   cur_mbs = malloc(36*45*sizeof(macroblock_t));
   ref1_mbs = malloc(36*45*sizeof(macroblock_t));
   ref2_mbs = malloc(36*45*sizeof(macroblock_t));
   
-  
+#if 0
   ref_image1 = &r1_img;
   ref_image2 = &r2_img;
   b_image = &b_img;
 
   display_init();
-
-
+#endif
+  
   // Setup signal handler.
-
+  // SIGINT == ctrl-c
   sig.sa_handler = sighandler;
   sigaction(SIGINT, &sig, NULL);
   
-
-
+  
+  
 #ifdef STATS
   statistics_init();
 #endif
-
+  
 
   // init values for MPEG-1
   pic.coding_ext.picture_structure = 0x3;
@@ -818,7 +391,7 @@ int main(int argc, char **argv)
       debug = atoi(optarg);
       break;
     case 'r':
-      ring_buffers = atoi(optarg);
+      nr_of_buffers = atoi(optarg);
       break;
     case 's':
       shmem_flag = 0;
@@ -827,16 +400,11 @@ int main(int argc, char **argv)
     case '?':
       printf ("Usage: %s [-d <level] [-s <buffers>] [-s]\n\n"
 	      "  -d <level>   set debug level (default 0)\n"
-	      "  -r <buffers> set ringbuffer size (default 4)\n"
+	      "  -r <buffers> set nr of buffers (default 3)\n"
 	      "  -s           disable shared memory\n", 
 	      argv[0]);
       return 1;
     }
-  }
-  if(optind < argc) {
-    infile = fopen(argv[optind], "r");
-  } else {
-    infile = stdin;
   }
   
   init_program();
@@ -844,7 +412,16 @@ int main(int argc, char **argv)
 #ifdef TIMESTAT
   timestat_init();
 #endif
-
+  
+  init_out_q(nr_of_buffers);
+  
+  
+  if(optind < argc) {
+    infile = fopen(argv[optind], "r");
+  } else {
+    infile = stdin;
+  }
+    
 #ifdef GETBITSMMAP
   get_next_packet(); // Realy, open and mmap the FILE
   packet.offset = 0;
@@ -907,7 +484,7 @@ void video_sequence(void) {
   
   if(first) {
     first = 0;
-    user_control(cur_mbs, ref1_mbs, ref2_mbs);
+    //user_control(cur_mbs, ref1_mbs, ref2_mbs);
   }
 
   next_start_code();
@@ -921,16 +498,29 @@ void video_sequence(void) {
       sequence_extension();
 
       if(!shm_ready) {
-	setup_shm(seq.mb_width * 16, seq.mb_height * 16);
+	setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
 	//display_init(...);
 	shm_ready = 1;
+	
+	switch(fork()) {
+	case 0:
+	  display_process();
+	  exit(0);
+	  break;
+	case -1:
+	  perror("fork");
+	  break;
+	default:
+	  break;
+	}
+
       }
       
       do {
 	extension_and_user_data(0);
 	do {
 #ifdef TIMESTAT
-  clock_gettime(CLOCK_REALTIME, &picture_decode_start_time);
+	  clock_gettime(CLOCK_REALTIME, &picture_decode_start_time);
 #endif
 	  if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
 	    group_of_pictures_header();
@@ -964,10 +554,23 @@ void video_sequence(void) {
       //MPEG-1 2000-04-06 start
       
       if(!shm_ready) {
-	setup_shm(seq.mb_width * 16, seq.mb_height * 16);
+	setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
 	//display_init(...);
 	shm_ready = 1;
+
+	switch(fork()) {
+	case 0:
+	  display_process();
+	  exit(0);
+	  break;
+	case -1:
+	  perror("fork");
+	break;
+	default:
+	  break;
+	}
       }
+      
 
       extension_and_user_data(1);
       do {
@@ -998,10 +601,10 @@ void video_sequence(void) {
 }
   
 
-
 /* 6.2.2.1 Sequence header */
 void sequence_header(void)
 {
+  long int frame_interval_nsec;
   uint32_t sequence_header_code;
   
   DPRINTF(1, "sequence_header\n");
@@ -1114,6 +717,49 @@ void sequence_header(void)
 #endif
 
 
+  DPRINTF(1, "frame rate: ");
+  switch(seq.header.frame_rate_code) {
+  case 0x0:
+    DPRINTF(1, "forbidden\n");
+    break;
+  case 0x1:
+    DPRINTF(1, "24000/1001 (23.976)\n");
+    frame_interval_nsec = 41708333;
+    break;
+  case 0x2:
+    DPRINTF(1, "24\n");
+    frame_interval_nsec = 41666667;
+    break;
+  case 0x3:
+    DPRINTF(1, "25\n");
+    frame_interval_nsec = 40000000;
+    break;
+  case 0x4:
+    DPRINTF(1, "30000/1001 (29.97)\n");
+    frame_interval_nsec = 33366667;
+    break;
+  case 0x5:
+    DPRINTF(1, "30\n");
+    frame_interval_nsec = 33333333;
+    break;
+  case 0x6:
+    DPRINTF(1, "50\n");
+    frame_interval_nsec = 20000000;
+    break;
+  case 0x7:
+    DPRINTF(1, "60000/1001 (59.94)\n");
+    frame_interval_nsec = 16683333;
+    break;
+  case 0x8:
+    DPRINTF(1, "60\n");
+    frame_interval_nsec = 16666667;
+    break;
+  default:
+    DPRINTF(1, "Reserved\n");
+    break;
+  }
+  buf_ctrl_head->frame_interval = frame_interval_nsec;
+  
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
   
@@ -1125,121 +771,162 @@ void sequence_header(void)
 #define BUFFER_FREE 0
 #define BUFFER_FULL 1
 
-int writer_alloc(void)
-{
-  int i;
-  for(i=0 ; i<ring_buffers ; i++) {
-    if (ring[i].lock == BUFFER_FREE)
-      break;
-  }
-  return i;
-}
-
-void writer_free(int buffer)
-{
-  ring[buffer].lock = BUFFER_FULL;
-}
-
-int  reader_alloc(void)
-{
-  int i;
-  for(i=0 ; i<ring_buffers ; i++) {
-    if (ring[i].lock == BUFFER_FULL)
-      break;
-  }
-  return i;
-}
-
-void reader_free(int buffer)
-{
-  ring[buffer].lock = BUFFER_FREE;
-}
 
 #define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
 
-void setup_shm(int horiz_size, int vert_size)
+void init_out_q(int nr_of_bufs)
 { 
-  int num_pels     = horiz_size * vert_size;
-  int key          = 740828;
-  int pagesize     = sysconf(_SC_PAGESIZE);
-  int yuv_size     = INC_8b_ALIGNMENT(num_pels) + INC_8b_ALIGNMENT(num_pels/4) * 2; 
-  int segment_size = ring_buffers * (yuv_size + yuv_size % pagesize);
-  int ring_c_size  = ring_buffers * sizeof(yuv_image_t);
+
+  int buf_ctrl_size  = (sizeof(buf_ctrl_head_t) + 
+			nr_of_bufs * sizeof(picture_info_t) +
+			nr_of_bufs * sizeof(int));
+
+  // Get shared memory and identifiers
+
+  if ((buf_ctrl_shmid =
+       shmget(IPC_PRIVATE, buf_ctrl_size, IPC_CREAT | 0666)) == -1) {
+    perror("shmget buf_ctrl");
+    exit_program(1);
+  }
+
+  // Attach the shared memory to the process
+  
+  buf_ctrl_shmaddr = shmat(buf_ctrl_shmid, NULL, 0);
+  if(buf_ctrl_shmaddr == (char *) -1) {
+    perror("shmat buf_ctrl");
+    exit_program(1);
+  }
+
+  // Init the buf_ctrl data
+  buf_ctrl_head = (buf_ctrl_head_t *)buf_ctrl_shmaddr;
+
+  // Number of pictures
+  buf_ctrl_head->nr_of_buffers = nr_of_bufs;
+
+  // Set up the pointer to the picture_info array
+  buf_ctrl_head->picture_infos = (picture_info_t *)(((char *)buf_ctrl_head) +
+						    sizeof(buf_ctrl_head_t));
+
+  // Setup the pointer to the dpy_q
+  buf_ctrl_head->dpy_q = (int *)(((char *)buf_ctrl_head) +
+				 sizeof(buf_ctrl_head_t) +
+				 nr_of_bufs * sizeof(picture_info_t));
+  
+  
+  // Set the semaphores to the correct starting values
+  
+  if(sem_init(&(buf_ctrl_head->pictures_ready_to_display), 1, 0) == -1){
+    perror("sem_init ready_to_display");
+  }
+  if(sem_init(&(buf_ctrl_head->pictures_displayed), 1, 0) == -1) {
+    perror("sem_init displayed");
+  }
+  
+}
+
+
+void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
+{ 
+  int num_pels = padded_width * padded_height;
+  int pagesize = sysconf(_SC_PAGESIZE);
+  int y_size   = INC_8b_ALIGNMENT(num_pels);
+  int uv_size  = INC_8b_ALIGNMENT(num_pels/4);
+  int yuv_size = y_size + 2 * uv_size; 
+  
+  int picture_buffer_size = (yuv_size + yuv_size % pagesize);
+  int picture_buffers_size = nr_of_bufs * picture_buffer_size;
+
   int i;
   char *baseaddr;
 
-  // Get the ringbuffer shared memory.
-  
-  if ((ring_shmid = shmget(key, segment_size, IPC_CREAT | 0666)) < 0) {
-    perror("shmget ringbuffer");
+  // Get shared memory and identifiers
+
+  if ((picture_buffers_shmid =
+       shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0666)) == -1) {
+    perror("shmget picture_buffers");
     exit_program(1);
   }
 
-  // Get the control part.
-
-  if ((ring_c_shmid = shmget(key+1, ring_c_size, IPC_CREAT | 0666)) < 0) {
-    perror("shmget ringbuffer control");
-    exit_program(1);
-  }
+  // Attach the shared memory to the process
   
-  /*
-   * Now we attach the segments to our data space.
-   */
-  ring_shmaddr = shmat(ring_shmid, NULL, 0); // Add SHM_SHARE_MMU?
-  if(ring_shmaddr == (char *) -1) {
-    perror("shmat ringbuffer");
-    exit_program(1);
-  }
-  
-  ring = (yuv_image_t *)shmat(ring_c_shmid, NULL, 0); // Add SHM_SHARE_MMU?
-  if(ring == (yuv_image_t *) -1) {
-    perror("shmat ringbuffer control");
+  picture_buffers_shmaddr = shmat(picture_buffers_shmid, NULL, 0);
+  if(picture_buffers_shmaddr == (char *) -1) {
+    perror("shmat picture_buffers");
     exit_program(1);
   }
 
-  // Setup the ring buffer.
-  //  ring = (yuv_image_t[])malloc(ring_buffers*sizeof(yuv_image_t));
-  
-  baseaddr = ring_shmaddr;
-  for(i=0 ; i<ring_buffers ; i++) {
-    ring[i].y = baseaddr;
-    ring[i].u = num_pels   + (char *)INC_8b_ALIGNMENT((long)ring[i].y);
-    ring[i].v = num_pels/4 + (char *)INC_8b_ALIGNMENT((long)ring[i].u);
-    ring[i].lock = BUFFER_FREE;
-    baseaddr += yuv_size + yuv_size % pagesize;
-  }
+  // Setup the pointers to the pictures in the buffer
+  baseaddr = picture_buffers_shmaddr;
 
-  // Fork off the CC/sync stage here.
-  
-  {}  
-
-  if(ref_image1->y == NULL) {
-    DPRINTF(1, "Allocating buffers\n");
-#if 0
-    ref_image1->y = memalign(8, num_pels);
-    ref_image1->u = memalign(8, num_pels/4);
-    ref_image1->v = memalign(8, num_pels/4);
+  for(i=0 ; i< nr_of_bufs ; i++) {
     
-    ref_image2->y = memalign(8, num_pels);
-    ref_image2->u = memalign(8, num_pels/4);
-    ref_image2->v = memalign(8, num_pels/4);
+    buf_ctrl_head->picture_infos[i].picture.y = baseaddr;
+    buf_ctrl_head->picture_infos[i].picture.u = baseaddr + y_size;
+    buf_ctrl_head->picture_infos[i].picture.v = baseaddr + y_size + uv_size;
+    buf_ctrl_head->picture_infos[i].picture.horizontal_size = seq.horizontal_size;
+    buf_ctrl_head->picture_infos[i].picture.vertical_size = seq.vertical_size;
+    buf_ctrl_head->picture_infos[i].picture.start_x = 0;
+    buf_ctrl_head->picture_infos[i].picture.start_y = 0;
+    buf_ctrl_head->picture_infos[i].picture.padded_width = padded_width;
+    buf_ctrl_head->picture_infos[i].picture.padded_height = padded_height;
+    buf_ctrl_head->picture_infos[i].in_use = 0;
+    buf_ctrl_head->picture_infos[i].displayed = 1;
     
-    b_image->y = memalign(8, num_pels);
-    b_image->u = memalign(8, num_pels/4);
-    b_image->v = memalign(8, num_pels/4);
-#else    
-    ref_image1 = &ring[0];
-    ref_image2 = &ring[1];
-    b_image    = &ring[2];
-#endif
+    baseaddr += picture_buffer_size;
+  }
 
-  } 
+  
+  ref_image1 = &buf_ctrl_head->picture_infos[0].picture;
+  ref_image2 = &buf_ctrl_head->picture_infos[1].picture;
+  b_image = &buf_ctrl_head->picture_infos[2].picture;
+  
+  fprintf(stderr, "horizontal_size: %d, vertical_size: %d\n",
+	  seq.horizontal_size, seq.vertical_size);
+  fprintf(stderr, "padded_width: %d, padded_height: %d\n",
+	  padded_width, padded_height);
+
+  fprintf(stderr, "frame rate: ");
+  switch(seq.header.frame_rate_code) {
+  case 0x0:
+    break;
+  case 0x1:
+    fprintf(stderr, "24000/1001 (23.976)\n");
+    break;
+  case 0x2:
+    fprintf(stderr, "24\n");
+    break;
+  case 0x3:
+    fprintf(stderr, "25\n");
+    break;
+  case 0x4:
+    fprintf(stderr, "30000/1001 (29.97)\n");
+    break;
+  case 0x5:
+    fprintf(stderr, "30\n");
+    break;
+  case 0x6:
+    fprintf(stderr, "50\n");
+    break;
+  case 0x7:
+    fprintf(stderr, "60000/1001 (59.94)\n");
+    break;
+  case 0x8:
+    fprintf(stderr, "60\n");
+    break;
+  default:
+    fprintf(stderr, "%f (computed)\n",
+	    (double)(seq.header.frame_rate_code)*
+	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
+	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
+    break;
+  }
+
 }
 
 
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
-
+  long int frame_interval_nsec;
   uint32_t extension_start_code;
   
   extension_start_code = GETBITS(32, "extension_start_code");
@@ -1316,7 +1003,7 @@ void sequence_extension(void) {
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
 
-#ifdef DEBUG
+
 
   DPRINTF(1, "bit rate: %d bits/s\n",
 	  400 *
@@ -1330,36 +1017,45 @@ void sequence_extension(void) {
     break;
   case 0x1:
     DPRINTF(1, "24000/1001 (23.976)\n");
+    frame_interval_nsec = 41708333;
     break;
   case 0x2:
     DPRINTF(1, "24\n");
+    frame_interval_nsec = 41666667;
     break;
   case 0x3:
     DPRINTF(1, "25\n");
+    frame_interval_nsec = 40000000;
     break;
   case 0x4:
     DPRINTF(1, "30000/1001 (29.97)\n");
+    frame_interval_nsec = 33366667;
     break;
   case 0x5:
     DPRINTF(1, "30\n");
+    frame_interval_nsec = 33333333;
     break;
   case 0x6:
     DPRINTF(1, "50\n");
+    frame_interval_nsec = 20000000;
     break;
   case 0x7:
     DPRINTF(1, "60000/1001 (59.94)\n");
+    frame_interval_nsec = 16683333;
     break;
   case 0x8:
     DPRINTF(1, "60\n");
+    frame_interval_nsec = 16666667;
     break;
   default:
     DPRINTF(1, "%f (computed)\n",
 	    (double)(seq.header.frame_rate_code)*
 	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
 	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
+    //TODO: frame_interval_nsec = ?
     break;
   }
-#endif
+  buf_ctrl_head->frame_interval = frame_interval_nsec;
 }
 
 /* 6.2.2.2 Extension and user data */
@@ -1592,30 +1288,144 @@ void picture_header(void)
 }
 
 
+// Get id of empty buffer
+int get_picture_buf()
+{
+  static int dpy_q_displayed_pos = 0;
+  int n;
+  int id;
+  //  search for empty buffer
+
+  for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
+    /*    fprintf(stderr, "decode: BUF[%d]: in_use:%d, displayed: %d\n",
+	    n,
+	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].displayed);
+    */
+    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+       (buf_ctrl_head->picture_infos[n].displayed == 1)) {
+      buf_ctrl_head->picture_infos[n].displayed = 0;
+      //      fprintf(stderr, " buf_id %d empty\n", n);
+      return n;
+    }
+  }
+
+  //  fprintf(stderr, "waiting for displayed picture\n");
+  // didn't find empty buffer, wait for a picture to display
+  if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
+    perror("sem_wait get_picture_buf");
+  }
+  id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
+  buf_ctrl_head->picture_infos[id].displayed = 1;
+  dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
+
+  for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
+    /*    fprintf(stderr, "decode: buf[%d]: in_use:%d, displayed: %d\n",
+	    n,
+	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].displayed);
+    */
+    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+       (buf_ctrl_head->picture_infos[n].displayed == 1)) {
+      buf_ctrl_head->picture_infos[n].displayed = 0;
+      //fprintf(stderr, " buf_id %d found empty\n", n);
+      return n;
+    }
+  }
+
+  //  fprintf(stderr, "decode: *** get_picture_buf\n");
+
+  if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
+    perror("sem_wait get_picture_buf");
+  }
+  id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
+  buf_ctrl_head->picture_infos[id].displayed = 1;
+  dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
+
+  for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
+    /*    fprintf(stderr, "decode: buf[%d]: in_use:%d, displayed: %d\n",
+	    n,
+	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].displayed);
+    */
+    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+       (buf_ctrl_head->picture_infos[n].displayed == 1)) {
+      buf_ctrl_head->picture_infos[n].displayed = 0;
+      // fprintf(stderr, " buf_id %d found empty\n", n);
+      return n;
+    }
+  }
+  
+  fprintf(stderr, "decode: error get_picture_buf\n");
+  return -1;
+}
+
+// Put decoded picture into display queue
+
+void dpy_q_put(int id)
+{
+  static int dpy_q_put_pos = 0;
+  buf_ctrl_head->dpy_q[dpy_q_put_pos] = id;
+  //fprintf(stderr, "decode: dpy_q[%d]=%d\n", dpy_q_put_pos, id);
+  dpy_q_put_pos = (dpy_q_put_pos + 1) % (buf_ctrl_head->nr_of_buffers);
+  //fprintf(stderr, "decode: sem_post\n");
+  if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
+    perror("sempost pictures_ready");
+  }
+  
+}
+
+
 /* 6.2.3.6 Picture data */
 void picture_data(void)
 {
+  int buf_id;
+  yuv_image_t *reserved_image;
+  static int prev_ref_buf_id = -1;
+  static int old_ref_buf_id  = -1;
   
-  yuv_image_t *tmp_img;
- 
   DPRINTF(3, "picture_data\n");
-  
+
+
+
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
     //I,P picture
+    if(old_ref_buf_id != -1) {
+      buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
+    }
+    break;
+  default:
+    break;
+  }
 
-    tmp_img = ref_image1;
+  buf_id = get_picture_buf();
+  reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
+  //fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    //I,P picture
+    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
+    //fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
     ref_image1 = ref_image2;
-    ref_image2 = tmp_img;
 
-    dst_image = ref_image2;
-    current_image = ref_image1;
+    ref_image2 = reserved_image;
+    dst_image = reserved_image;
+
+    if(prev_ref_buf_id != -1) {
+      dpy_q_put(prev_ref_buf_id);
+      old_ref_buf_id = prev_ref_buf_id;
+    }
+    prev_ref_buf_id = buf_id;
+    
+
     break;
   case 0x3:
     // B-picture
-    dst_image = b_image;
-    current_image = b_image;
+    //fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
+    dst_image = reserved_image;
     break;
   }
   
@@ -1631,7 +1441,7 @@ void picture_data(void)
     }
     break;
   }
-  
+
   if( MPEG2 )
     do {
       mpeg2_slice();
@@ -1643,9 +1453,29 @@ void picture_data(void)
     } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   }
+  
+  //  fprintf(stderr, "decode: decoding finished buf %d\n", buf_id);
+  // Picture decoded
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    break;
+  case 0x3:
+    // B-picture
+    if(prev_ref_buf_id == -1) {
+      fprintf(stderr, "decode: B-frame before reference frame\n");
+    }
+    dpy_q_put(buf_id);
+    break;
+  default:
+    fprintf(stderr, "Invalid frame type halting...\n");
+    break;
+  }
+
+
 #ifdef TIMESTAT
   clock_gettime(CLOCK_REALTIME, &picture_decode_end_time);
-
+  /*
   picture_timestat[picture_decode_num].dec_start = picture_decode_start_time;
   picture_timestat[picture_decode_num].dec_end = picture_decode_end_time;
   picture_timestat[picture_decode_num].type = pic.header.picture_coding_type;
@@ -1653,6 +1483,8 @@ void picture_data(void)
   timesub(&picture_decode_time,
 	  &picture_decode_end_time, &picture_decode_start_time);
 
+  picture_timestat[picture_decode_num].type = pic.header.picture_coding_type;
+  */
   /*
   switch(pic.header.picture_coding_type) {
   case 0x1:
@@ -1664,9 +1496,10 @@ void picture_data(void)
   case 0x3:
     fprintf(stderr, "B ");
     break;
+  default:
   }
   */
-  
+  /*
   switch(pic.header.picture_coding_type) {
   case 0x1:
     timeadd(&picture_decode_time_tot[0],
@@ -1703,9 +1536,12 @@ void picture_data(void)
     picture_decode_nr[2]++;
     break;
   }
+  */
+  /*
   if(picture_decode_num < TIMESTAT_NOF) {
     picture_decode_num++;
   }
+  */
 #endif
 
 
@@ -1716,11 +1552,13 @@ void picture_data(void)
 
 
 
+
+#if 0
   frame_done(current_image, cur_mbs, 
 	     ref_image1, ref1_mbs, 
 	     ref_image2, ref2_mbs,
 	     pic.header.picture_coding_type);
-  
+#endif
 #ifdef TIMESTAT
   clock_gettime(CLOCK_REALTIME, &picture_display_end_time);
 #endif
@@ -1734,17 +1572,20 @@ void picture_data(void)
 	  (double)picture_decode_time.tv_sec+
 	  (double)picture_decode_time.tv_nsec/1000000000.0);
   */
+  /*
   picture_timestat[picture_decode_num-1].disp_start = picture_display_start_time;
   picture_timestat[picture_decode_num-1].disp_end = picture_display_end_time;
 
 
   timesub(&picture_display_time,
 	  &picture_display_end_time, &picture_display_start_time);
+  */
   /*
   fprintf(stderr, "displaytime: %d.%09d\n",
 	  picture_display_time.tv_sec,
 	  picture_display_time.tv_nsec);
   */
+  /*
   switch(pic.header.picture_coding_type) {
   case 0x1:
     timeadd(&picture_display_time_tot[0],
@@ -1781,6 +1622,8 @@ void picture_data(void)
     picture_display_nr[2]++;
     break;
   }
+  */
+  /*
   if(picture_display_num < TIMESTAT_NOF) {
     picture_display_num++;
   }
@@ -1791,7 +1634,7 @@ void picture_data(void)
   timesub(&picture_time,
 	  &picture_display_end_time, &picture_decode_start_time);
   picture_time2 = picture_time;
-  
+  */
   /*
   fprintf(stderr, "picturetime: %d.%09d\n",
 	  picture_time.tv_sec,
@@ -1893,7 +1736,7 @@ void picture_data(void)
 	bits_read_new = stats_bits_read;
 #endif
 	
-	fprintf(stderr, "frame rate: %f fps\t",
+	fprintf(stderr, "decode: frame rate: %f fps\t",
 		25.0/(((double)tva.tv_sec+
 		       (double)(tva.tv_usec)/1000000.0)-
 		      ((double)otva.tv_sec+
@@ -1970,10 +1813,7 @@ void extension_data(unsigned int i)
   }
 }
 
-
-
-
-
+ 
 void reset_to_default_quantiser_matrix()
 {
   memcpy(seq.header.intra_inverse_quantiser_matrix,
@@ -2002,18 +1842,9 @@ void reset_to_default_non_intra_quantiser_matrix()
 
 
 
-
-
-
-
-
-
-
-
-
 void motion_comp()
 {
-  int width,x,y;
+  int padded_width,x,y;
   int stride;
   int d;
   uint8_t *dst_y,*dst_u,*dst_v;
@@ -2028,25 +1859,25 @@ void motion_comp()
   int field;
 
 
-  width = seq.horizontal_size;
+  padded_width = seq.mb_width * 16;
 
   
   DPRINTF(2, "dct_type: %d\n", mb.modes.dct_type);
   //handle interlaced blocks
   if (mb.modes.dct_type) { // skicka med dct_type som argument
     d = 1;
-    stride = width * 2;
+    stride = padded_width * 2;
   } else {
     d = 8;
-    stride = width;
+    stride = padded_width;
   }
 
   x = seq.mb_column;
   y = seq.mb_row;
     
-  dst_y = &dst_image->y[x * 16 + y * width * 16];
-  dst_u = &dst_image->u[x * 8 + y * width/2 * 8];
-  dst_v = &dst_image->v[x * 8 + y * width/2 * 8];
+  dst_y = &dst_image->y[x * 16 + y * padded_width * 16];
+  dst_u = &dst_image->u[x * 8 + y * padded_width/2 * 8];
+  dst_v = &dst_image->v[x * 8 + y * padded_width/2 * 8];
     
   //mb.prediction_type = PRED_TYPE_FIELD_BASED;
     
@@ -2073,7 +1904,7 @@ void motion_comp()
       field = mb.motion_vertical_field_select[i][0];
       
       DPRINTF(2, "forward_motion_comp\n");
-      
+
       if(pic.header.full_pel_forward_vector) {
  	half_flag_y[0]  = 0;
 	half_flag_y[1]  = 0;
@@ -2105,96 +1936,122 @@ void motion_comp()
 	      (mb.vector[i][0][1] >> 1));
     
       pred_y  =
-	&ref_image1->y[int_vec_y[0] + int_vec_y[1] * width];
+	&ref_image1->y[int_vec_y[0] + int_vec_y[1] * padded_width];
     
       DPRINTF(3, "ypos: %d\n",
-	      int_vec_y[0] + int_vec_y[1] * width);
+	      int_vec_y[0] + int_vec_y[1] * padded_width);
     
       DPRINTF(3, "start: 0, end: %d\n",
 	      seq.horizontal_size * seq.vertical_size/4);
     
       pred_u =
-	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
-    
-    
+	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
+      
       DPRINTF(3, "uvpos: %d\n",
-	      int_vec_uv[0] + int_vec_uv[1] * width/2);
+	      int_vec_uv[0] + int_vec_uv[1] * padded_width/2);
     
       pred_v =
-	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
-    
+	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
       DPRINTF(3, "x: %d, y: %d\n", x, y);
-    
-	
+      
+      
       if (half_flag_y[0] && half_flag_y[1]) {
 	if(apa == 2) {
-	  mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-					width*2, width*2);
+	  mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*padded_width,
+					pred_y+field*padded_width,
+					padded_width*2, padded_width*2);
 	} else {
-	  mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	  mlib_VideoInterpXY_U8_U8_16x16(dst_y, pred_y,
+					 padded_width, padded_width);
 	}
       } else if (half_flag_y[0]) {
 	if(apa == 2) {
-	  mlib_VideoInterpX_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				       width*2, width*2);
+	  mlib_VideoInterpX_U8_U8_16x8(dst_y + i*padded_width,
+				       pred_y+field*padded_width,
+				       padded_width*2, padded_width*2);
 	} else {
-	  mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	  mlib_VideoInterpX_U8_U8_16x16(dst_y, pred_y,
+					padded_width, padded_width);
 	}
       } else if (half_flag_y[1]) {
 	if(apa == 2) {
-	  mlib_VideoInterpY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				       width*2, width*2);
+	  mlib_VideoInterpY_U8_U8_16x8(dst_y + i*padded_width,
+				       pred_y+field*padded_width,
+				       padded_width*2, padded_width*2);
 	} else {
-	  mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	  mlib_VideoInterpY_U8_U8_16x16(dst_y, pred_y,
+					padded_width, padded_width);
 	}
       } else {
 	if(apa == 2) {
-	  mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				       width*2);
+	  mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*padded_width,
+				       pred_y+field*padded_width,
+				       padded_width*2);
 	} else {
-	  mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
+	  mlib_VideoCopyRef_U8_U8_16x16(dst_y, pred_y,
+					padded_width);
 	}
       }
 
       if (half_flag_uv[0] && half_flag_uv[1]) {
 	if(apa == 2) {
-	  mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				       width*2/2, width*2/2);
-	  mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				       width*2/2, width*2/2);
+	  mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*padded_width/2, 
+				       pred_u+field*padded_width/2,
+				       padded_width*2/2, padded_width*2/2);
+
+	  mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*padded_width/2,
+				       pred_v+field*padded_width/2,
+				       padded_width*2/2, padded_width*2/2);
 	} else {
-	  mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	  mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	  mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u,
+					 padded_width/2, padded_width/2);
+	  mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v,
+					 padded_width/2, padded_width/2);
 	}
       } else if (half_flag_uv[0]) {
 	if(apa == 2) {
-	  mlib_VideoInterpX_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				      width*2/2, width*2/2);
-	  mlib_VideoInterpX_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				      width*2/2, width*2/2);
+	  mlib_VideoInterpX_U8_U8_8x4(dst_u + i*padded_width/2,
+				      pred_u+field*padded_width/2,
+				      padded_width*2/2, padded_width*2/2);
+
+	  mlib_VideoInterpX_U8_U8_8x4(dst_v + i*padded_width/2,
+				      pred_v+field*padded_width/2,
+				      padded_width*2/2, padded_width*2/2);
 	} else {
-	  mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	  mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	  mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u,
+					padded_width/2, padded_width/2);
+	  mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, padded_width/2, padded_width/2);
 	}
       } else if (half_flag_uv[1]) {
 	if(apa == 2) {
-	  mlib_VideoInterpY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				      width*2/2, width*2/2);
-	  mlib_VideoInterpY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				      width*2/2, width*2/2);
+	  mlib_VideoInterpY_U8_U8_8x4(dst_u + i*padded_width/2,
+				      pred_u+field*padded_width/2,
+				      padded_width*2/2, padded_width*2/2);
+	  
+	  mlib_VideoInterpY_U8_U8_8x4(dst_v + i*padded_width/2,
+				      pred_v+field*padded_width/2,
+				      padded_width*2/2, padded_width*2/2);
 	} else {
-	  mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	  mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	  mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u,
+					padded_width/2, padded_width/2);
+	  
+	  mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v,
+					padded_width/2, padded_width/2);
 	}
       } else {
 	if(apa == 2) {
-	  mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				      width*2/2);
-	  mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				      width*2/2);
+	  mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*padded_width/2,
+				      pred_u+field*padded_width/2,
+				      padded_width*2/2);
+	  
+	  mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*padded_width/2,
+				      pred_v+field*padded_width/2,
+				      padded_width*2/2);
 	} else {
-	  mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
-	  mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
+	  mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, padded_width/2);
+	  mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, padded_width/2);
 	}
       }
     }
@@ -2236,172 +2093,206 @@ void motion_comp()
       }
       
       pred_y  =
-	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * width];
+	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
       pred_u =
-	&ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
+	&ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       pred_v =
-	&ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
+	&ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       
       if(mb.modes.macroblock_motion_forward) {
 	if (half_flag_y[0] && half_flag_y[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveXY_U8_U8_16x8(dst_y + i*width,
-					     pred_y+field*width,
-					     width*2, width*2);
+	    mlib_VideoInterpAveXY_U8_U8_16x8(dst_y + i*padded_width,
+					     pred_y+field*padded_width,
+					     padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpAveXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpAveXY_U8_U8_16x16(dst_y,  pred_y,  padded_width,   padded_width);
 	  }
 	} else if (half_flag_y[0]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveX_U8_U8_16x8(dst_y + i*width,
-					    pred_y+field*width,
-					    width*2, width*2);
+	    mlib_VideoInterpAveX_U8_U8_16x8(dst_y + i*padded_width,
+					    pred_y+field*padded_width,
+					    padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpAveX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpAveX_U8_U8_16x16(dst_y, pred_y,
+					     padded_width, padded_width);
 	  }
 	} else if (half_flag_y[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveY_U8_U8_16x8(dst_y + i*width,
-					    pred_y+field*width,
-					    width*2, width*2);
+	    mlib_VideoInterpAveY_U8_U8_16x8(dst_y + i*padded_width,
+					    pred_y+field*padded_width,
+					    padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpAveY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpAveY_U8_U8_16x16(dst_y, pred_y,
+					     padded_width, padded_width);
 	  }
 	} else {
 	  if(apa == 2) {
-	    mlib_VideoCopyRefAve_U8_U8_16x8(dst_y + i*width,
-					    pred_y+field*width,
-					    width*2);
+	    mlib_VideoCopyRefAve_U8_U8_16x8(dst_y + i*padded_width,
+					    pred_y+field*padded_width,
+					    padded_width*2);
 	  } else {
-	    mlib_VideoCopyRefAve_U8_U8_16x16(dst_y,  pred_y,  width);
+	    mlib_VideoCopyRefAve_U8_U8_16x16(dst_y, pred_y, padded_width);
 	  }
 	}
 	if (half_flag_uv[0] && half_flag_uv[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_u + i*width/2,
-					    pred_u+field*width/2,
-					    width*2/2, width*2/2);
-	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_v + i*width/2,
-					    pred_v+field*width/2,
-					    width*2/2, width*2/2);
+	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_u + i*padded_width/2,
+					    pred_u+field*padded_width/2,
+					    padded_width*2/2, padded_width*2/2);
+	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_v + i*padded_width/2,
+					    pred_v+field*padded_width/2,
+					    padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_u, pred_u,
+					    padded_width/2, padded_width/2);
+	    
+	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_v, pred_v,
+					    padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[0]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveX_U8_U8_8x4(dst_u + i*width/2,
-					   pred_u+field*width/2,
-					   width*2/2, width*2/2);
-	    mlib_VideoInterpAveX_U8_U8_8x4(dst_v + i*width/2,
-					   pred_v+field*width/2,
-					   width*2/2, width*2/2);
+	    mlib_VideoInterpAveX_U8_U8_8x4(dst_u + i*padded_width/2,
+					   pred_u+field*padded_width/2,
+					   padded_width*2/2, padded_width*2/2);
+	    
+	    mlib_VideoInterpAveX_U8_U8_8x4(dst_v + i*padded_width/2,
+					   pred_v+field*padded_width/2,
+					   padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpAveX_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpAveX_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpAveX_U8_U8_8x8(dst_u, pred_u,
+					   padded_width/2, padded_width/2);
+	
+	    mlib_VideoInterpAveX_U8_U8_8x8(dst_v, pred_v,
+					   padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpAveY_U8_U8_8x4(dst_u + i*width/2,
-					   pred_u+field*width/2,
-					   width*2/2, width*2/2);
-	    mlib_VideoInterpAveY_U8_U8_8x4(dst_v + i*width/2,
-					   pred_v+field*width/2,
-					   width*2/2, width*2/2);
+	    mlib_VideoInterpAveY_U8_U8_8x4(dst_u + i*padded_width/2,
+					   pred_u+field*padded_width/2,
+					   padded_width*2/2, padded_width*2/2);
+	   
+	    mlib_VideoInterpAveY_U8_U8_8x4(dst_v + i*padded_width/2,
+					   pred_v+field*padded_width/2,
+					   padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpAveY_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpAveY_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpAveY_U8_U8_8x8(dst_u, pred_u,
+					   padded_width/2, padded_width/2);
+	 
+	    mlib_VideoInterpAveY_U8_U8_8x8(dst_v, pred_v,
+					   padded_width/2, padded_width/2);
 	  }
 	} else {
 	  if(apa == 2) {
-	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_u + i*width/2,
-					   pred_u+field*width/2,
-					   width*2/2);
-	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_v + i*width/2,
-					   pred_v+field*width/2,
-					   width*2/2);
+	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_u + i*padded_width/2,
+					   pred_u+field*padded_width/2,
+					   padded_width*2/2);
+
+	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_v + i*padded_width/2,
+					   pred_v+field*padded_width/2,
+					   padded_width*2/2);
 	  } else {
-	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_u, pred_u, width/2);
-	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_v, pred_v, width/2);
+	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_u, pred_u, padded_width/2);
+	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_v, pred_v, padded_width/2);
 	  }
 	}
       } else {
 	if (half_flag_y[0] && half_flag_y[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-					  width*2, width*2);
+	    mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*padded_width,
+					  pred_y+field*padded_width,
+					  padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpXY_U8_U8_16x16(dst_y, pred_y,
+					   padded_width, padded_width);
 	  }
 	} else if (half_flag_y[0]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpX_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-					 width*2, width*2);
+	    mlib_VideoInterpX_U8_U8_16x8(dst_y + i*padded_width,
+					 pred_y+field*padded_width,
+					 padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpX_U8_U8_16x16(dst_y, pred_y,
+					  padded_width, padded_width);
 	  }
 	} else if (half_flag_y[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-					 width*2, width*2);
+	    mlib_VideoInterpY_U8_U8_16x8(dst_y + i*padded_width,
+					 pred_y+field*padded_width,
+					 padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	    mlib_VideoInterpY_U8_U8_16x16(dst_y, pred_y,
+					  padded_width, padded_width);
 	  }
 	} else {
 	  if(apa == 2) {
-	    mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-					 width*2);
+	    mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*padded_width,
+					 pred_y+field*padded_width,
+					 padded_width*2);
 	  } else {
-	    mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
+	    mlib_VideoCopyRef_U8_U8_16x16(dst_y, pred_y, padded_width);
 	  }
 	}
 	if (half_flag_uv[0] && half_flag_uv[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*width/2,
-					 pred_u+field*width/2,
-					 width*2/2, width*2/2);
-	    mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*width/2,
-					 pred_v+field*width/2, 
-					 width*2/2, width*2/2);
+	    mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*padded_width/2,
+					 pred_u+field*padded_width/2,
+					 padded_width*2/2, padded_width*2/2);
+	    
+	    mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*padded_width/2,
+					 pred_v+field*padded_width/2, 
+					 padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u,
+					   padded_width/2, padded_width/2);
+	    
+	    mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v,
+					   padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[0]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpX_U8_U8_8x4(dst_u + i*width/2,
-					pred_u+field*width/2,
-					width*2/2, width*2/2);
-	    mlib_VideoInterpX_U8_U8_8x4(dst_v + i*width/2,
-					pred_v+field*width/2, 
-					width*2/2, width*2/2);
+	    mlib_VideoInterpX_U8_U8_8x4(dst_u + i*padded_width/2,
+					pred_u+field*padded_width/2,
+					padded_width*2/2, padded_width*2/2);
+	    
+	    mlib_VideoInterpX_U8_U8_8x4(dst_v + i*padded_width/2,
+					pred_v+field*padded_width/2, 
+					padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u,
+					  padded_width/2, padded_width/2);
+	    
+	    mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v,
+					  padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[1]) {
 	  if(apa == 2) {
-	    mlib_VideoInterpY_U8_U8_8x4(dst_u + i*width/2,
-					pred_u+field*width/2,
-					width*2/2, width*2/2);
-	    mlib_VideoInterpY_U8_U8_8x4(dst_v + i*width/2,
-					pred_v+field*width/2, 
-					width*2/2, width*2/2);
+	    mlib_VideoInterpY_U8_U8_8x4(dst_u + i*padded_width/2,
+					pred_u+field*padded_width/2,
+					padded_width*2/2, padded_width*2/2);
+
+	    mlib_VideoInterpY_U8_U8_8x4(dst_v + i*padded_width/2,
+					pred_v+field*padded_width/2, 
+					padded_width*2/2, padded_width*2/2);
 	  } else {
-	    mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-	    mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	    mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u,
+					  padded_width/2, padded_width/2);
+
+	    mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v,
+					  padded_width/2, padded_width/2);
 	  }
 	} else {
 	  if(apa == 2) {
-	    mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*width/2,
-					pred_u+field*width/2,
-					width*2/2);
-	    mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*width/2,
-					pred_v+field*width/2, 
-					width*2/2);
+	    mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*padded_width/2,
+					pred_u+field*padded_width/2,
+					padded_width*2/2);
+	    
+	    mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*padded_width/2,
+					pred_v+field*padded_width/2, 
+					padded_width*2/2);
 	  } else {
-	    mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
-	    mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
+	    mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, padded_width/2);
+	    mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, padded_width/2);
 	  }
 	}
       }
@@ -2416,16 +2307,16 @@ void motion_comp()
     mlib_VideoAddBlock_U8_S16(dst_y + 8, mb.f[1], stride);
       
   if(mb.pattern_code[2])
-    mlib_VideoAddBlock_U8_S16(dst_y + width * d, mb.f[2], stride);
+    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d, mb.f[2], stride);
   
   if(mb.pattern_code[3])
-    mlib_VideoAddBlock_U8_S16(dst_y + width * d + 8, mb.f[3], stride);
+    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d + 8, mb.f[3], stride);
   
   if(mb.pattern_code[4])
-    mlib_VideoAddBlock_U8_S16(dst_u, mb.f[4], width/2);
+    mlib_VideoAddBlock_U8_S16(dst_u, mb.f[4], padded_width/2);
   
   if(mb.pattern_code[5])
-    mlib_VideoAddBlock_U8_S16(dst_v, mb.f[5], width/2);
+    mlib_VideoAddBlock_U8_S16(dst_v, mb.f[5], padded_width/2);
   */
   
 }
@@ -2433,28 +2324,28 @@ void motion_comp()
 void motion_comp_add_coeff(unsigned int i)
 {
 
-  int width,x,y;
+  int padded_width,x,y;
   int stride;
   int d;
   uint8_t *dst_y,*dst_u,*dst_v;
 
-  width = seq.mb_width * 16; //seq.horizontal_size;
+  padded_width = seq.mb_width * 16; //seq.horizontal_size;
 
 
   if (mb.modes.dct_type) { // skicka med dct_type som argument
     d = 1;
-    stride = width * 2;
+    stride = padded_width * 2;
   } else {
     d = 8;
-    stride = width;
+    stride = padded_width;
   }
 
   x = seq.mb_column;
   y = seq.mb_row;
 
-  dst_y = &dst_image->y[x * 16 + y * width * 16];
-  dst_u = &dst_image->u[x * 8 + y * width/2 * 8];
-  dst_v = &dst_image->v[x * 8 + y * width/2 * 8];
+  dst_y = &dst_image->y[x * 16 + y * padded_width * 16];
+  dst_u = &dst_image->u[x * 8 + y * padded_width/2 * 8];
+  dst_v = &dst_image->v[x * 8 + y * padded_width/2 * 8];
 
 
   switch(i) {
@@ -2465,23 +2356,19 @@ void motion_comp_add_coeff(unsigned int i)
     mlib_VideoAddBlock_U8_S16(dst_y + 8, mb.QFS, stride);
     break;
   case 2:
-    mlib_VideoAddBlock_U8_S16(dst_y + width * d, mb.QFS, stride);
+    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d, mb.QFS, stride);
     break;
   case 3:
-    mlib_VideoAddBlock_U8_S16(dst_y + width * d + 8, mb.QFS, stride);
+    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d + 8, mb.QFS, stride);
     break;
   case 4:
-    mlib_VideoAddBlock_U8_S16(dst_u, mb.QFS, width/2);
+    mlib_VideoAddBlock_U8_S16(dst_u, mb.QFS, padded_width/2);
     break;
   case 5:
-    mlib_VideoAddBlock_U8_S16(dst_v, mb.QFS, width/2);
+    mlib_VideoAddBlock_U8_S16(dst_v, mb.QFS, padded_width/2);
     break;
   }
 }
-
-
-
-
 
 
 /* 6.2.3.2 Quant matrix extension */
@@ -2541,8 +2428,6 @@ void quant_matrix_extension()
 }
 
 
-
-
 void picture_display_extension()
 {
   uint8_t extension_start_code_identifier;
@@ -2578,17 +2463,20 @@ void picture_display_extension()
   
 }
 
+
 void picture_spatial_scalable_extension()
 {
   fprintf(stderr, "***ni picture_spatial_scalable_extension()\n");
   exit(-1);
 }
 
+
 void picture_temporal_scalable_extension()
 {
   fprintf(stderr, "***ni picture_temporal_scalable_extension()\n");
   exit(-1);
 }
+
 
 void sequence_scalable_extension()
 {
@@ -2645,7 +2533,8 @@ void sequence_display_extension()
   }
 #endif
 
-  
+
+
   if(colour_description) {
     colour_primaries = GETBITS(8, "colour_primaries");
     transfer_characteristics = GETBITS(8, "transfer_characteristics");
@@ -2755,6 +2644,8 @@ void sequence_display_extension()
       break;
     }
 #endif
+
+
   }
 
   display_horizontal_size = GETBITS(14, "display_horizontal_size");
@@ -2774,10 +2665,13 @@ void exit_program(int exitcode)
 {
   display_exit();
 
-  shmdt ( ring_shmaddr);
-  shmdt ( (char *)ring);
-  shmctl (ring_shmid, IPC_RMID, 0);
-  shmctl (ring_c_shmid, IPC_RMID, 0);
+  // Detach the shared memory segments from this process
+  
+  shmdt(picture_buffers_shmaddr);
+  shmdt(buf_ctrl_shmaddr);
+  
+  shmctl(picture_buffers_shmid, IPC_RMID, 0);
+  shmctl(buf_ctrl_shmid, IPC_RMID, 0);
 
 #ifdef HAVE_MMX
   emms();
@@ -2882,3 +2776,458 @@ void exit_program(int exitcode)
 
   exit(exitcode);
 }
+
+
+
+#ifdef TIMESTAT
+
+void timesub(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1-s2
+  //  s1 is greater than s2
+  
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+  if(d->tv_nsec < 0) {
+    d->tv_nsec +=1000000000;
+    d->tv_sec -=1;
+  }
+}  
+
+void timeadd(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_nsec -=1000000000;
+    d->tv_sec +=1;
+  }
+}  
+
+int timecompare(struct timespec *s1, struct timespec *s2) {
+
+  if(s1->tv_sec > s2->tv_sec) {
+    return 1;
+  } else if(s1->tv_sec < s2->tv_sec) {
+    return -1;
+  }
+
+  if(s1->tv_nsec > s2->tv_nsec) {
+    return 1;
+  } else if(s1->tv_nsec < s2->tv_nsec) {
+    return -1;
+  }
+  
+  return 0;
+}
+
+
+#define TIMESTAT_NOF 24*60
+void timestat_init()
+{
+  int n;
+
+  for(n = 0; n < 3; n++) {
+    
+    picture_decode_time_tot[n].tv_sec = 0;
+    picture_decode_time_tot[n].tv_nsec = 0;
+    
+    picture_display_time_tot[n].tv_sec = 0;
+    picture_display_time_tot[n].tv_nsec = 0;
+
+    picture_decode_time_min[n].tv_sec = 99;
+    picture_decode_time_min[n].tv_nsec = 0;
+    
+    picture_display_time_min[n].tv_sec = 99;
+    picture_display_time_min[n].tv_nsec = 0;
+    
+    picture_decode_time_max[n].tv_sec = 0;
+    picture_decode_time_max[n].tv_nsec = 0;
+
+    picture_display_time_max[n].tv_sec = 0;
+    picture_display_time_max[n].tv_nsec = 0;
+
+    picture_decode_nr[n] = 0;
+    picture_display_nr[n] = 0;
+  }
+
+  picture_timestat = calloc(TIMESTAT_NOF, sizeof(picture_time_t));
+
+  picture_time.tv_sec = 0;
+  picture_time.tv_nsec = 0;
+
+  for(n = 0; n < TIMESTAT_NOF; n++) {
+    picture_timestat[n].dec_start = picture_time;
+    picture_timestat[n].dec_end = picture_time;
+    picture_timestat[n].disp_start = picture_time;
+    picture_timestat[n].disp_end = picture_time;
+    picture_timestat[n].should_sleep = picture_time;
+    picture_timestat[n].did_sleep = picture_time;
+    picture_timestat[n].type = 0xff;
+  }
+
+  picture_decode_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
+  picture_decode_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
+  picture_display_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
+  picture_display_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
+  picture_type = calloc(TIMESTAT_NOF, sizeof(uint8_t));
+
+  picture_decode_num = 0;
+  picture_display_num = 0;
+  
+}
+
+void timestat_print()
+{
+  int n;
+  FILE *stat_file;
+  FILE *gnuplot_file;
+  picture_time_t tmppic;
+  int statnr = 1;
+  fprintf(stderr, "\ntimestat\n");
+
+
+  for(n = 0; n < picture_decode_num; n++) {
+
+    timesub(&(picture_timestat[n].dec_tot),
+	    &(picture_timestat[n].dec_end),
+	    &(picture_timestat[n].dec_start));
+    
+    picture_timestat[n].dec_min = picture_timestat[n].dec_tot;
+
+
+    timesub(&(picture_timestat[n].disp_tot),
+	    &(picture_timestat[n].disp_end),
+	    &(picture_timestat[n].disp_start));
+
+    picture_timestat[n].disp_min = picture_timestat[n].disp_tot;
+    
+
+    timesub(&(picture_timestat[n].pic_tot),
+	    &(picture_timestat[n].disp_end),
+	    &(picture_timestat[n].dec_start));
+
+    picture_timestat[n].pic_min = picture_timestat[n].pic_tot;
+    
+  }
+  
+  if((stat_file = fopen("video_stats", "r")) == NULL) {
+    perror("no previous stats");
+  } else {
+    n = 0;
+    fread(&statnr, sizeof(statnr), 1, stat_file);
+    statnr++;
+    while(fread(&tmppic, sizeof(tmppic), 1, stat_file) && 
+	  (n < picture_decode_num)) {
+      if(timecompare(&(picture_timestat[n].dec_min), &(tmppic.dec_min)) > 0) {
+	picture_timestat[n].dec_min = tmppic.dec_min;
+      }
+      timeadd(&(picture_timestat[n].dec_tot),
+	      &(picture_timestat[n].dec_tot),
+	      &(tmppic.dec_tot));
+      
+      if(timecompare(&(picture_timestat[n].disp_min), &(tmppic.disp_min)) > 0) {
+	picture_timestat[n].disp_min = tmppic.disp_min;
+      }
+      timeadd(&(picture_timestat[n].disp_tot),
+	      &(picture_timestat[n].disp_tot),
+	      &(tmppic.disp_tot));
+
+      if(timecompare(&(picture_timestat[n].pic_min), &(tmppic.pic_min)) > 0) {
+	picture_timestat[n].pic_min = tmppic.pic_min;
+      }
+      timeadd(&(picture_timestat[n].pic_tot),
+	      &(picture_timestat[n].pic_tot),
+	      &(tmppic.pic_tot));
+      n++;
+
+    }
+    picture_decode_num = n;
+    fclose(stat_file);
+  }
+  
+  if((stat_file = fopen("video_stats", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    fwrite(&statnr, sizeof(statnr), 1, stat_file);
+    if(fwrite(picture_timestat, sizeof(picture_time_t),
+	      picture_decode_num, stat_file) != picture_decode_num) {
+      perror("fwrite");
+    }
+    fprintf(stderr, "Wrote stats to file: video_stats\n");
+    fclose(stat_file);
+  }
+
+  if((gnuplot_file = fopen("stats_dec.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+      timesub(&picture_time, &(picture_timestat[n].dec_end), &(picture_timestat[n].dec_start));
+      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
+      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
+	      (int)picture_time0.tv_sec,
+	      picture_time0.tv_nsec,
+	      (int)picture_time.tv_sec,
+	      picture_time.tv_nsec);
+    }
+   
+    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+  
+  if((gnuplot_file = fopen("stats_disp.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].disp_start));
+      timesub(&picture_time0, &(picture_timestat[n].disp_start), &(picture_timestat[0].dec_start));
+      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
+	      (int)picture_time0.tv_sec,
+	      picture_time0.tv_nsec,
+	      (int)picture_time.tv_sec,
+	      picture_time.tv_nsec);
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+  if((gnuplot_file = fopen("stats_pic.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].dec_start));
+      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
+      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
+	      (int)picture_time0.tv_sec,
+	      picture_time0.tv_nsec,
+	      (int)picture_time.tv_sec,
+	      picture_time.tv_nsec);
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+
+
+
+  /* ---------------- */
+
+  if((gnuplot_file = fopen("avgstats_dec.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+      
+      fprintf(gnuplot_file, "%d %.09f\n",
+	      n,
+	      ((double)picture_timestat[n].dec_tot.tv_sec+
+	      (double)picture_timestat[n].dec_tot.tv_nsec/
+	      1000000000.0)/(double)statnr);
+
+    }
+   
+    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+  
+  if((gnuplot_file = fopen("avgstats_disp.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+
+      fprintf(gnuplot_file, "%d %.09f\n",
+	      n,
+	      ((double)picture_timestat[n].disp_tot.tv_sec+
+	      (double)picture_timestat[n].disp_tot.tv_nsec/
+	       1000000000.0)/(double)statnr);
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+  if((gnuplot_file = fopen("avgstats_pic.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+
+      fprintf(gnuplot_file, "%d %.09f\n",
+	      n,
+	      ((double)picture_timestat[n].pic_tot.tv_sec+
+	       (double)picture_timestat[n].pic_tot.tv_nsec/
+	       1000000000.0)/(double)statnr);
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+  fprintf(stderr, "statnr: %d\n", statnr);
+
+  
+
+  /* ------------------------------ */
+
+
+
+  if((gnuplot_file = fopen("minstats_dec.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+
+      fprintf(gnuplot_file, "%d %d.%09ld\n",
+	      n,
+	      (int)picture_timestat[n].dec_min.tv_sec,
+	      picture_timestat[n].dec_min.tv_nsec);
+      
+    }
+   
+    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+  
+  if((gnuplot_file = fopen("minstats_disp.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+
+      fprintf(gnuplot_file, "%d %d.%09ld\n",
+	      n,
+	      (int)picture_timestat[n].disp_min.tv_sec,
+	      picture_timestat[n].disp_min.tv_nsec);
+
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+  if((gnuplot_file = fopen("minstats_pic.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+
+      fprintf(gnuplot_file, "%d %d.%09ld\n",
+	      n,
+	      (int)picture_timestat[n].pic_min.tv_sec,
+	      picture_timestat[n].pic_min.tv_nsec);
+
+    }
+    
+    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+
+  /* ------------------------------- */
+  
+
+
+
+  if((gnuplot_file = fopen("stats_type.dat", "w")) == NULL) {
+    perror("fopen");
+  } else {
+    for(n = 0; n < picture_decode_num-1; n++) {
+      
+      fprintf(gnuplot_file, "%d %d\n",
+	      n,
+	      picture_timestat[n].type);
+
+      
+    }
+   
+    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
+    fclose(gnuplot_file);
+  } 
+
+
+
+  /* ------------------------------- */
+    
+    /*
+    for(n = 0; n < picture_decode_num; n++) {
+      fprintf(gnuplot_file, "%.9f %d\n",
+	      1.0/24.0*n,
+	      n);
+    }
+    */
+
+  
+  for(n = 0; n < 3; n++) {
+    
+    fprintf(stderr, "avg_decode_time: %.4f s,  %.2f fps \n",
+	    ((double)picture_decode_time_tot[n].tv_sec +
+	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0)/
+	    (double)picture_decode_nr[n],
+	    (double)picture_decode_nr[n]/
+	    ((double)picture_decode_time_tot[n].tv_sec +
+	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0));
+
+    fprintf(stderr, "avg_display_time: %.4f s\n",
+	    ((double)picture_display_time_tot[n].tv_sec +
+	     (double)picture_display_time_tot[n].tv_nsec/1000000000.0)/
+	    (double)picture_display_nr[n]);
+
+
+
+    fprintf(stderr, "display_time_max: %d.%09ld\n",
+	    (int)picture_display_time_max[0].tv_sec,
+	    picture_display_time_max[0].tv_nsec);
+    fprintf(stderr, "display_time_max: %d.%09ld\n",
+	    (int)picture_display_time_max[1].tv_sec,
+	    picture_display_time_max[1].tv_nsec);
+    fprintf(stderr, "display_time_max: %d.%09ld\n",
+	    (int)picture_display_time_max[2].tv_sec,
+	    picture_display_time_max[2].tv_nsec);
+
+    fprintf(stderr, "display_time_min: %d.%09ld\n",
+	    (int)picture_display_time_min[0].tv_sec,
+	    picture_display_time_min[0].tv_nsec);
+    fprintf(stderr, "display_time_min: %d.%09ld\n",
+	    (int)picture_display_time_min[1].tv_sec,
+	    picture_display_time_min[1].tv_nsec);
+    fprintf(stderr, "display_time_min: %d.%09ld\n",
+	    (int)picture_display_time_min[2].tv_sec,
+	    picture_display_time_min[2].tv_nsec);
+
+    /*
+    picture_decode_time_tot[n].tv_sec = 0;
+    picture_decode_time_tot[n].tv_nsec = 0;
+    
+    picture_display_time_tot[n].tv_sec = 0;
+    picture_display_time_tot[n].tv_nsec = 0;
+
+    picture_decode_time_min[n].tv_sec = 99;
+    picture_decode_time_min[n].tv_nsec = 0;
+    
+    picture_display_time_min[n].tv_sec = 99;
+    picture_display_time_min[n].tv_nsec = 99;
+    
+    picture_decode_time_max[n].tv_sec = 0;
+    picture_decode_time_max[n].tv_nsec = 0;
+
+    picture_display_time_max[n].tv_sec = 0;
+    picture_display_time_max[n].tv_nsec = 0;
+
+    picture_decode_nr[n] = 0;
+    picture_display_nr[n] = 0;
+    */
+  }
+  
+}
+
+
+#endif

@@ -28,7 +28,7 @@
 #include "yuv2rgb.h"
 
 
-
+extern buf_ctrl_head_t *buf_ctrl_head;
 
 typedef struct {
   Window win;
@@ -59,8 +59,8 @@ int show_window[3] = {1,0,0};
 int show_stat = 0;
 int run = 0;
 
-static int horizontal_size = 720;
-static int vertical_size = 480;
+//static int horizontal_size = 480;
+//static int vertical_size = 216;
 
 
 
@@ -69,7 +69,8 @@ void exit_program(int);
 void draw_win(debug_win *dwin);
 
 
-void display_init()
+void display_init(int padded_width, int padded_height,
+		  int horizontal_size, int vertical_size)
 {
   int screen;
   char *hello = "I hate X11";
@@ -186,18 +187,18 @@ void display_init()
   /* Create shared memory image */
   windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
 				      ZPixmap, NULL, &shm_info,
-				      horizontal_size,
-				      vertical_size);
+				      padded_width,
+				      padded_height);
   
   windows[1].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
 				      ZPixmap, NULL, &shm_info_ref1,
-				      horizontal_size,
-				      vertical_size);
+				      padded_width,
+				      padded_height);
   
   windows[2].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
 				      ZPixmap, NULL, &shm_info_ref2,
-				      horizontal_size,
-				      vertical_size);
+				      padded_width,
+				      padded_height);
   if (windows[0].ximage == NULL || 
       windows[1].ximage == NULL ||
       windows[2].ximage == NULL) {
@@ -253,7 +254,7 @@ void display_init()
   windows[1].data = windows[1].ximage->data;
   windows[2].data = windows[2].ximage->data;
   
-   
+  
   bpp = windows[0].ximage->bits_per_pixel;
   // If we have blue in the lowest bit then obviously RGB 
   mode = ((windows[0].ximage->blue_mask & 0x01) != 0) ? 1 : 2;
@@ -295,12 +296,14 @@ void display_exit(void)
   shmctl(shm_info_ref2.shmid, IPC_RMID, 0);
 }
 
-void Display_Image(Window win, XImage *myximage, unsigned char *ImageData)
+void Display_Image(Window win, XImage *myximage,
+		   unsigned char *ImageData, yuv_image_t *image)
 {
 
   XShmPutImage(mydisplay, win, mygc, myximage, 
-	       0, 0, 0, 0, myximage->width, myximage->height, 1);
-  XFlush(mydisplay);
+	       0, 0, 0, 0, image->horizontal_size, image->vertical_size, 1);
+
+  XSync(mydisplay, False);
 }
 
 
@@ -310,22 +313,22 @@ void compute_frame(yuv_image_t *image, unsigned char *data)
 {
 }
  
-void add_grid(unsigned char *data)
+void add_grid(unsigned char *data, XImage *ximg)
 {
   int m,n;
   
-  for(m = 0; m < vertical_size; m++) {
+  for(m = 0; m < ximg->height; m++) {
     if(m%16 == 0) {
-      for(n = 0; n < horizontal_size*4; n+=4) {
-	data[m*horizontal_size*4+n+1] = 127;
-	data[m*horizontal_size*4+n+2] = 127;
-	data[m*horizontal_size*4+n+3] = 127;
+      for(n = 0; n < ximg->width*4; n+=4) {
+	data[m*ximg->width*4+n+1] = 127;
+	data[m*ximg->width*4+n+2] = 127;
+	data[m*ximg->width*4+n+3] = 127;
       }
     } else {
-      for(n = 0; n < horizontal_size*4; n+=16*4) {
-	data[m*horizontal_size*4+n+1] = 127;
-	data[m*horizontal_size*4+n+2] = 127;
-	data[m*horizontal_size*4+n+3] = 127;
+      for(n = 0; n < ximg->width*4; n+=16*4) {
+	data[m*ximg->width*4+n+1] = 127;
+	data[m*ximg->width*4+n+2] = 127;
+	data[m*ximg->width*4+n+3] = 127;
       }
     }
   }
@@ -334,7 +337,8 @@ void add_grid(unsigned char *data)
 void add_2_box_sides(unsigned char *data,
 		     unsigned char r,
 		     unsigned char g,
-		     unsigned char b)
+		     unsigned char b,
+		     XImage *ximg)
 {
   int n;
   
@@ -344,7 +348,7 @@ void add_2_box_sides(unsigned char *data,
     data[n+3] = r;
   }
   
-  for(n = 0; n < horizontal_size*4*16; n+=horizontal_size*4) {
+  for(n = 0; n < ximg->width*4*16; n+=ximg->width*4) {
     data[n+1] = b;
     data[n+2] = g;
     data[n+3] = r;
@@ -360,29 +364,29 @@ void add_color_grid(debug_win *win)
   for(m = 0; m < 30*45; m++) {
     if(win->mbs[m].skipped) {
 
-      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
-		      150, 150, 150);
+      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
+		      150, 150, 150, win->ximage);
       
     } else if(win->mbs[m].modes.macroblock_intra) {
 
-      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
-		      0, 255, 255);
+      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
+		      0, 255, 255, win->ximage);
       
     } else if(win->mbs[m].modes.macroblock_motion_forward &&
 	      win->mbs[m].modes.macroblock_motion_backward) {
       
-      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
-		      255, 0, 0);
+      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
+		      255, 0, 0, win->ximage);
       
     } else if(win->mbs[m].modes.macroblock_motion_forward) {
       
-      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
-		      255, 255, 0);
+      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
+		      255, 255, 0, win->ximage);
 
     } else if(win->mbs[m].modes.macroblock_motion_backward) {
       
-      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
-		      0, 0, 255);
+      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
+		      0, 0, 255, win->ximage);
     }
   }
 }
@@ -394,80 +398,27 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 		uint8_t picture_coding_type)
 {
   XEvent ev;
-  static struct timeval tv, tmp_tv;
-  double timediff;
-  static int started = 0;
   int nextframe = 0;  
 
-#if 0
-  gettimeofday(&tmp_tv, NULL);
-  if(!started) {
-    tv.tv_sec = tmp_tv.tv_sec;
-    tv.tv_usec = tmp_tv.tv_usec;
-    started = 1;
-  }
-  
-  timediff = (((double)tmp_tv.tv_sec + (double)(tmp_tv.tv_usec)/1000000.0)-
-	    ((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0));
-
-  tv.tv_usec += 41666;
-  
-  if(tv.tv_usec >= 1000000) {
-    tv.tv_usec -= 1000000;
-    tv.tv_sec +=1;
-  }    
-  
-
-  if(timediff < 1.1*1.0/24.0) {
-    //    fprintf(stderr, "timediff: %f\n", timediff);
-    //    fprintf(stderr, "timediff: %d\n", (int)(1000000.0*(1.0/24.0-timediff)));
-    fprintf(stderr, "o");
-    //    if( (1.0/24.0 - timediff) > 0.01 )
-    //  usleep((int)(1000000*(1.0/24.0-timediff)*.95));
-  } else {
-    fprintf(stderr, "*");
-    // return;
-  }
-#endif
-
-  // TODO move out
-  //  windows[0].win = mywindow;
-  //  windows[0].data = ImageData;
-  //  windows[0].ximage = myximage;
   windows[0].image = current_image;
   windows[0].mbs = cur_mbs;
-  //  windows[1].win = window_ref1;
-  //  windows[1].data = imagedata_ref1;
-  //  windows[1].ximage = ximage_ref1;
-  windows[1].image = ref_image1;
+
+  windows[1].image = current_image;
   windows[1].mbs = ref1_mbs;
-  //  windows[2].win = window_ref2;
-  //  windows[2].data = imagedata_ref2;
-  //  windows[2].ximage = ximage_ref2;
-  windows[2].image = ref_image2;
+
+  windows[2].image = current_image;
   windows[2].mbs = ref2_mbs;
   
 
-
-  switch(picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    if(show_window[1]) {
-      draw_win(&windows[1]);
-    }
-    if(show_window[2]) {
-      draw_win(&windows[2]);
-    }
-    // No "break;" here. (This is right!)
-  case 0x3:
-    if(show_window[0]) {
-      draw_win(&windows[0]);
-    }
-    break;
-  default:
-    break;
+  if(show_window[1]) {
+    draw_win(&windows[1]);
   }
-
+  if(show_window[2]) {
+    draw_win(&windows[2]);
+  }
+  if(show_window[0]) {
+    draw_win(&windows[0]);
+  }
   while(!nextframe) {
 
     if(run) {
@@ -905,86 +856,212 @@ void user_control(macroblock_t *cur_mbs,
 
 void draw_win(debug_win *dwin)
 {
-  
+
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
-	  horizontal_size, vertical_size, 
-	  horizontal_size*(bpp/8), horizontal_size, horizontal_size/2 );
-    
+	  dwin->image->padded_width,
+	  dwin->image->padded_height, 
+	  dwin->image->padded_width*(bpp/8),
+	  dwin->image->padded_width, dwin->image->padded_width/2 );
+  
   if(dwin->grid) {
     if(dwin->color_grid) {
       add_color_grid(dwin);
     } else {
-      add_grid(dwin->data);
+      add_grid(dwin->data, dwin->ximage);
     }
   }
+
   
-  Display_Image(dwin->win, dwin->ximage, dwin->data);
+  Display_Image(dwin->win, dwin->ximage, dwin->data, dwin->image);
 
   return;
 }
 
 
 
-
-#if 0
-
-
-/*
-init;
-realtime_ref = realtime;
-stc_offset = realtimeclock - pts;
-(when first apu is presented) ;
-
-for each apu;
-
-scr = scr+audio_time;
-
-scr = realtimeclock-stc_offset;
-
-if(pts < scr) {
-  OK;
-} else { // pts > scr
-  skip to next access unit;
-}
-*/
-
-
-put_frame()
+int get_next_picture_buf_id()
 {
+  int id;
+  static int dpy_q_get_pos = 0;
   
-  time time, tmptime;
-  while(1) {
-    
-    // wait for the next frame show time
-    time+= 1/framerate;
-    wait_until(time);
-    
-    
-    
-  // check to see if there are any frames ready to show
-  
-  if(sem_tryget(frames_decoded)) {
-    
-    // There is a decoded frame ready for output
-    // In which buffer is it?
-    // Send the frame to the output function
-    
-    output_frame(buffer[get_buffer_num()]);
-
-    // Tell the decoder that there is one more buffer empty
-    sem_post(frames_empty);
-    
-  } else {
-    
-    // there are no decoded frames ready to show
-
-    // this means the decoder is lagging behind
-    // tell the decoder to skip to the next frame
-    // don't output a new frame 
-    send_decode_next_frame();
-    
+  if(sem_wait(&(buf_ctrl_head->pictures_ready_to_display)) == -1) {
+    perror("sem_wait get_next_picture_buf_id");
   }
 
+  id = buf_ctrl_head->dpy_q[dpy_q_get_pos];
+  dpy_q_get_pos = (dpy_q_get_pos + 1) % (buf_ctrl_head->nr_of_buffers);
+  
+  return id;
+}
+
+
+
+void release_picture_buf(int id)
+{
+  sem_post(&(buf_ctrl_head->pictures_displayed));
+  return;
+}
+
+
+
+void display(int id)
+{
+  frame_done(&(buf_ctrl_head->picture_infos[id].picture), NULL,
+	     NULL, NULL,
+	     NULL, NULL,
+	     1);
+}
+
+
+int timecompare(struct timespec *s1, struct timespec *s2) {
+
+  if(s1->tv_sec > s2->tv_sec) {
+    return 1;
+  } else if(s1->tv_sec < s2->tv_sec) {
+    return -1;
+  }
+
+  if(s1->tv_nsec > s2->tv_nsec) {
+    return 1;
+  } else if(s1->tv_nsec < s2->tv_nsec) {
+    return -1;
+  }
+  
+  return 0;
+}
+
+void timesub(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1-s2
+  //  s1 is greater than s2
+  if(timecompare(s1, s2) > 0) {
+    d->tv_sec = s1->tv_sec - s2->tv_sec;
+    d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+    if(d->tv_nsec < 0) {
+      d->tv_nsec +=1000000000;
+      d->tv_sec -=1;
+    }
+  } else {
+    d->tv_sec = s2->tv_sec - s1->tv_sec;
+    d->tv_nsec = s2->tv_nsec - s1->tv_nsec;
+    if(d->tv_nsec < 0) {
+      d->tv_nsec +=1000000000;
+      d->tv_sec -=1;
+    }
+    d->tv_sec = -d->tv_sec;
+    d->tv_nsec = -d->tv_nsec;
+  }    
+}  
+
+void timeadd(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_nsec -=1000000000;
+    d->tv_sec +=1;
+  }
+}  
+
+
+void display_process()
+{
+  struct timespec real_time, prefered_time, wait_time, frame_interval;
+  struct timespec real_time2, diff, avg_time, oavg_time;
+  int buf_id;
+  int drop = 0;
+  int frame_nr = 0;
+  int avg_nr = 23;
+  int first = 1;
+  frame_interval.tv_sec = 0;
+  //frame_interval.tv_nsec = 28571428; //35 fps
+  //frame_interval.tv_nsec = 33366700; // 29.97 fps
+  frame_interval.tv_nsec = 41666666; //24 fps
+  prefered_time.tv_sec = 0;
+
+  while(1) {
+    buf_id = get_next_picture_buf_id();
+    frame_interval.tv_nsec = buf_ctrl_head->frame_interval;
+    if(first) {
+      first = 0;
+      display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
+		   buf_ctrl_head->picture_infos[buf_id].picture.padded_height,
+		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
+		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size);
+      display(buf_id);
+    }
+    clock_gettime(CLOCK_REALTIME, &real_time);
+    if(prefered_time.tv_sec == 0) {
+      prefered_time = real_time;
+    }
+    timesub(&wait_time, &prefered_time, &real_time);
+    /*
+    fprintf(stderr, "pref: %d.%09ld\n",
+	    prefered_time.tv_sec, prefered_time.tv_nsec);
+
+    fprintf(stderr, "real: %d.%09ld\n",
+	    real_time.tv_sec, real_time.tv_nsec);
+
+    fprintf(stderr, "wait: %d.%09ld, ",
+	    wait_time.tv_sec, wait_time.tv_nsec);
+    */     
+
+    if((wait_time.tv_nsec > 5000000) && (wait_time.tv_sec >= 0)) {
+      nanosleep(&wait_time, NULL);
+    } else {
+      //fprintf(stderr, "---less than 0.005 s\n");
+    }
+    
+    frame_nr++;
+    avg_nr++;
+    if(avg_nr == 24) {
+      avg_nr = 0;
+      oavg_time = avg_time;
+      clock_gettime(CLOCK_REALTIME, &avg_time);
+      
+      fprintf(stderr, "display: frame rate: %.3f fps\t",
+	      24.0/(((double)avg_time.tv_sec+
+		     (double)(avg_time.tv_nsec)/1000000000.0)-
+		    ((double)oavg_time.tv_sec+
+		     (double)(oavg_time.tv_nsec)/1000000000.0))
+	      );
+    }
+      
+    clock_gettime(CLOCK_REALTIME, &real_time2);
+    timesub(&diff, &prefered_time, &real_time2);
+    /*
+    fprintf(stderr, "diff: %d.%09ld\n",
+	    diff.tv_sec, diff.tv_nsec);
+    */
+    /*
+    fprintf(stderr, "rt: %d.%09ld, pt: %d.%09ld, diff: %d.%+010ld\n",
+	    real_time2.tv_sec, real_time2.tv_nsec,
+	    prefered_time.tv_sec, prefered_time.tv_nsec,
+	    diff.tv_sec, diff.tv_nsec);
+    */
+    if(drop) {
+      if(wait_time.tv_nsec > -5000000) {
+	fprintf(stderr, "$ %+010ld \n", wait_time.tv_nsec);
+	drop = 0;
+      } else {
+	fprintf(stderr, "# %+010ld \n", wait_time.tv_nsec);
+      }
+    }
+    if(!drop) {
+      display(buf_id);
+    } else {
+      fprintf(stderr, "* \n");
+      drop = 0;
+    }
+    timeadd(&prefered_time, &prefered_time, &frame_interval);
+    if(wait_time.tv_nsec < 0) {
+      drop = 1;
+    }
+    //    fprintf(stderr, "display: done with buf %d\n", buf_id);
+    release_picture_buf(buf_id);
   }
 }
-#endif
