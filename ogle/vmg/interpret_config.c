@@ -153,11 +153,7 @@ int interpret_oglerc(char *filename)
     return 0;
 
   } else {
-
-    WARNING("Couldn't load config file\n");
-
     return -1;
-
   }
 }
 
