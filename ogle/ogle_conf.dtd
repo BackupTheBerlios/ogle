@@ -15,9 +15,8 @@
 <!ELEMENT dvd (nav|device)*>
 
 <!ELEMENT drc (#PCDATA)>
-<!ELEMENT adjust_level (#PCDATA)>
-<!ELEMENT level (#PCDATA)>
-<!ELEMENT liba52 (level|adjust_level|drc)*>
+<!ELEMENT downmix_level (#PCDATA)>
+<!ELEMENT liba52 (downmix_level|drc)*>
 
 <!ELEMENT type (#PCDATA)>
 <!ELEMENT resample (#PCDATA)>
