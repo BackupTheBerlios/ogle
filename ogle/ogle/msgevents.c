@@ -77,7 +77,12 @@ static char *MsgEventType_str[] = {
   "MsgEventQInputPointerMotion",
   "MsgEventQInputKeyPress",
   "MsgEventQInputKeyRelease",
-  
+  "MsgEventQDestroyBuf",
+  "MsgEventQAppendQ",
+  "MsgEventQDetachQ",
+  "MsgEventQQDetached",
+  "MsgEventQDestroyQ",
+
   NULL
 };
 
@@ -278,6 +283,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQGntBuf:
     size = sizeof(MsgQGntBufEvent_t);
     break;
+  case MsgEventQDestroyBuf:
+    size = sizeof(MsgQDestroyBufEvent_t);
+    break;
   case MsgEventQCtrlData:
     size = sizeof(MsgQCtrlDataEvent_t);
     break;
@@ -288,7 +296,13 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     size = sizeof(MsgQGntPicBufEvent_t);
     break;
   case MsgEventQAttachQ:
+  case MsgEventQAppendQ:
     size = sizeof(MsgQAttachQEvent_t);
+    break;
+  case MsgEventQDetachQ:
+  case MsgEventQQDetached:
+  case MsgEventQDestroyQ:
+    size = sizeof(MsgQDetachQEvent_t);
     break;
   case MsgEventQSPUPalette:
     size = sizeof(MsgQSPUPaletteEvent_t);
