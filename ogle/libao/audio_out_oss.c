@@ -55,6 +55,7 @@ typedef struct oss_instance_s {
     int sample_rate;
     int set_params;
     int flags;
+  int resample_idx;
 } oss_instance_t;
 
 int oss_setup (ao_instance_t * _instance, int sample_rate, int * flags,
@@ -197,6 +198,207 @@ static inline void float_to_int235 (float * _f, int16_t * s16, int flags)
 }
 
 
+static inline int float_to_int48_44 (float * _f, int16_t * s16, int flags)
+{
+  int i;
+  int32_t * f = (int32_t *) _f;
+  static int m = 0;
+  int d, s;
+
+  switch (flags) {
+  case A52_MONO:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[5*d] = s16[5*d+1] = s16[5*d+2] = s16[5*d+3] = 0;
+      s16[5*d+4] = convert (f[s]);
+      
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_CHANNEL:
+  case A52_STEREO:
+  case A52_DOLBY:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[2*d] = convert (f[s]);
+      s16[2*d+1] = convert (f[s+256]);
+      
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_3F:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[5*d] = convert (f[s]);
+      s16[5*d+1] = convert (f[s+512]);
+      s16[5*d+2] = s16[5*d+3] = 0;
+      s16[5*d+4] = convert (f[s+256]);
+      
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_2F2R:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[4*d] = convert (f[s]);
+      s16[4*d+1] = convert (f[s+256]);
+      s16[4*d+2] = convert (f[s+512]);
+      s16[4*d+3] = convert (f[s+768]);
+
+      
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_3F2R:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[5*d] = convert (f[s]);
+      s16[5*d+1] = convert (f[s+512]);
+      s16[5*d+2] = convert (f[s+768]);
+      s16[5*d+3] = convert (f[s+1024]);
+      s16[5*d+4] = convert (f[s+256]);
+
+      
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_MONO | A52_LFE:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[6*d] = s16[6*d+1] = s16[6*d+2] = s16[6*d+3] = 0;
+      s16[6*d+4] = convert (f[s+256]);
+      s16[6*d+5] = convert (f[s]);
+
+
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_CHANNEL | A52_LFE:
+  case A52_STEREO | A52_LFE:
+  case A52_DOLBY | A52_LFE:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[6*d] = convert (f[s+256]);
+      s16[6*d+1] = convert (f[s+512]);
+      s16[6*d+2] = s16[6*d+3] = s16[6*d+4] = 0;
+      s16[6*d+5] = convert (f[s]);
+
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_3F | A52_LFE:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[6*d] = convert (f[s+256]);
+      s16[6*d+1] = convert (f[s+768]);
+      s16[6*d+2] = s16[6*d+3] = 0;
+      s16[6*d+4] = convert (f[s+512]);
+      s16[6*d+5] = convert (f[s]);
+
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_2F2R | A52_LFE:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[6*d] = convert (f[s+256]);
+      s16[6*d+1] = convert (f[s+512]);
+      s16[6*d+2] = convert (f[s+768]);
+      s16[6*d+3] = convert (f[s+1024]);
+      s16[6*d+4] = 0;
+      s16[6*d+5] = convert (f[s]);
+
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  case A52_3F2R | A52_LFE:
+    for(s = 0, d = 0; s < 256; m++, d++) {
+      if(m%147 == 0) {
+	m = 0; 
+      }    
+      s16[6*d] = convert (f[s+256]);
+      s16[6*d+1] = convert (f[s+768]);
+      s16[6*d+2] = convert (f[s+1024]);
+      s16[6*d+3] = convert (f[s+1280]);
+      s16[6*d+4] = convert (f[s+512]);
+      s16[6*d+5] = convert (f[s]);
+
+      if(m%12 == 0) {
+	s+=2;
+      } else {
+	s++;
+      }
+      
+    }
+    break;
+  }
+  return d;
+}
+
+
 static inline void float_to_int (float * _f, int16_t * s16, int flags)
 {
     int i;
@@ -329,7 +531,8 @@ int oss_play (ao_instance_t * _instance, int flags, sample_t * _samples)
 
     if (instance->set_params) {
 	int tmp;
-
+	instance->resample_idx = 0;
+	    
 	tmp = chans;
 	if ((ioctl (instance->fd, SNDCTL_DSP_CHANNELS, &tmp) < 0) ||
 	    (tmp != chans)) {
@@ -368,11 +571,12 @@ int oss_play (ao_instance_t * _instance, int flags, sample_t * _samples)
 	return 1;
 
     if (downsample) {
-      float_to_int235 (samples, int16_samples, flags);
-      write (instance->fd, int16_samples, 235 * sizeof (int16_t) * chans);
+      int num;
+      num = float_to_int48_44(samples, int16_samples, flags);
+      write(instance->fd, int16_samples, num * sizeof (int16_t) * chans);
     } else {
-      float_to_int (samples, int16_samples, flags);
-      write (instance->fd, int16_samples, 256 * sizeof (int16_t) * chans);
+      float_to_int(samples, int16_samples, flags);
+      write(instance->fd, int16_samples, 256 * sizeof (int16_t) * chans);
     }
     
     return 0;

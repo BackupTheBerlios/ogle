@@ -50,7 +50,7 @@ int solaris_setup (ao_instance_t * _instance, int sample_rate, int * flags,
     if ((instance->set_params == 0) && (instance->sample_rate != sample_rate))
 	return 1;
     instance->sample_rate = sample_rate;
-
+    fprintf(stderr, "apa\n");
     *flags = instance->flags;
     *level = 1;
 #if 1
