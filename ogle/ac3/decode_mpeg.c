@@ -56,131 +56,8 @@ typedef struct {
 } adec_mpeg_handle_t;
 
 
-#if 0
-static
-int a52flags_to_channels(int flags)
-{
-  int ch = 0;
-  
-  switch(flags & A52_CHANNEL_MASK) {
-  case A52_CHANNEL:
-    //TODO ???
-    ch = ChannelType_Left | ChannelType_Right;
-    break;
-  case A52_MONO:
-    ch = ChannelType_Center;
-    break;
-  case A52_STEREO:
-  case A52_DOLBY:
-    ch = ChannelType_Left | ChannelType_Right;
-    break;
-  case A52_3F:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right;
-    break;
-  case A52_2F1R:
-    ch = ChannelType_Left | ChannelType_Right | ChannelType_Surround;
-    break;
-  case A52_3F1R:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right | 
-      ChannelType_Surround;
-    break;
-  case A52_2F2R:
-    ch = ChannelType_Left | ChannelType_Right | 
-      ChannelType_LeftSurround | ChannelType_RightSurround;
-    break;
-  case A52_3F2R:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right |
-      ChannelType_LeftSurround | ChannelType_RightSurround;
-    break;
-    
-  }
-  
-  if(flags & A52_LFE) {
-    ch |= ChannelType_LFE;
-  }
-  
-  return ch;
-}
-
-static
-int config_to_a52flags(audio_config_t *conf)
-{
-  int i;
-  int ch = 0;
-  int hasLFE = 0;
-
-  for(i = 0; i < conf->format.nr_channels; i++) {
-    if(conf->format.ch_array[i] == ChannelType_LFE)
-      hasLFE = A52_LFE;
-    else
-      ch |= conf->format.ch_array[i];
-  }
-  switch(ch) {
-  case ChannelType_Center:
-    return A52_MONO | hasLFE;
-  case ChannelType_Left | ChannelType_Right:
-    return A52_STEREO | hasLFE; // or A52_CHANNEL or A52_DOLBY
-  case ChannelType_Left | ChannelType_Center | ChannelType_Right:
-    return A52_3F | hasLFE;
-  case ChannelType_Left | ChannelType_Right | ChannelType_Surround:
-    return A52_2F1R | hasLFE;
-  case ChannelType_Left | ChannelType_Center | ChannelType_Right | ChannelType_Surround:
-    return A52_3F1R | hasLFE;
-  case ChannelType_Left | ChannelType_Right |  ChannelType_LeftSurround | ChannelType_RightSurround:
-    return A52_2F2R | hasLFE;
-  case ChannelType_Left | ChannelType_Center | ChannelType_Right | ChannelType_LeftSurround | ChannelType_RightSurround:
-    return A52_3F2R | hasLFE;
-  default:
-  }
-  return A52_3F2R | hasLFE; // Some strange sound configuration...
-}
-
-
-static 
-void a52flags_to_format(int flags, int *channels, ChannelType_t *channel[])
-{
-  int f = flags & A52_CHANNEL_MASK;
-  int nr_channels = 0;
-  ChannelType_t *ch_array;
-
-  ch_array = malloc(6 * sizeof(ChannelType_t));
-
-  if(f == A52_CHANNEL) { 
-    ch_array[nr_channels++] = ChannelType_Left; //??
-    ch_array[nr_channels++] = ChannelType_Right; //??
-  } if(f == A52_MONO || f == A52_CHANNEL1 || f == A52_CHANNEL2) {
-    ch_array[nr_channels++] = ChannelType_Center;
-  } else {
-    if(1) { // left
-      ch_array[nr_channels++] = ChannelType_Left;
-    }
-    if(f == A52_3F || f == A52_3F1R || f == A52_3F2R) { // center
-      ch_array[nr_channels++] = ChannelType_Center;
-    }
-    if(1) { // right
-      ch_array[nr_channels++] = ChannelType_Right;
-    }
-    if(f == A52_2F1R || f == A52_3F1R) { // mono surround
-      ch_array[nr_channels++] = ChannelType_Surround;
-    }
-    if(f == A52_2F2R || f == A52_3F2R) { // left and right surround
-      ch_array[nr_channels++] = ChannelType_LeftSurround;
-      ch_array[nr_channels++] = ChannelType_RightSurround;
-    }
-  }
-  if(flags & A52_LFE) { // sub
-    ch_array[nr_channels++] = ChannelType_LFE;
-  }
-
-  *channels = nr_channels;
-  *channel = ch_array;
-}
-#endif
-
-
-static 
-int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
-		int pts_offset, uint64_t new_PTS, int scr_nr)
+static int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
+		       int pts_offset, uint64_t new_PTS, int scr_nr)
 {
   static uint8_t *indata_ptr;
   int bytes_left;
@@ -218,6 +95,10 @@ int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
 	  handle->stream.next_frame);
   
   frame_len = handle->stream.next_frame - handle->stream.this_frame;
+    mad_stream_init(&handle->stream);
+    mad_frame_init(&handle->frame);
+    mad_synth_init(&handle->synth);
+    mad_timer_reset(&handle->timer);
   /*
   if(handle->frame.next_frame - start
   */
@@ -235,7 +116,7 @@ int flush_mpeg(adec_mpeg_handle_t *handle)
   handle->bytes_needed = 7;
   
   // Fix this.. not the right way to do things I belive.
-  ogle_ao_flush(handle->handle.config->adev_handle);
+  //  ogle_ao_flush(handle->handle.config->adev_handle);
   return 0;
 }
 
@@ -243,6 +124,7 @@ int flush_mpeg(adec_mpeg_handle_t *handle)
 static
 void free_mpeg(adec_mpeg_handle_t *handle)
 {
+  audio_config_close(handle->handle.config);
   free(handle->coded_buf);
   free(handle);
   return;
