@@ -406,7 +406,7 @@ int coded_block_pattern(void)
   mb.cbp = get_vlc(table_b9, "cbp (b9)");
   
   if(mb.cbp == 0) {
-    fprintf(stderr, "** shall not be used with 4:2:0 chrominance\n");
+    fprintf(stderr, "** cbp = 0, shall not be used with 4:2:0 chrominance\n");
     //exit_program(-1);
     return -1;
   }

@@ -813,13 +813,13 @@ void coded_block_pattern(void)
   
 
   if((cbp == 0) && (seq.ext.chroma_format == 0x1)) {
-    fprintf(stderr, "** shall not be used with 4:2:0 chrominance\n");
-    exit_program(1);
+    fprintf(stderr, "** cbp = 0, shall not be used with 4:2:0 chrominance\n");
+    //exit_program(1);
   }
   mb.cbp = cbp;
   
   DPRINTF(4, "cpb = %u\n", mb.cbp);
-
+#if 0
   if(seq.ext.chroma_format == 0x02) {
     mb.coded_block_pattern_1 = GETBITS(2, "coded_block_pattern_1");
   }
@@ -827,7 +827,7 @@ void coded_block_pattern(void)
   if(seq.ext.chroma_format == 0x03) {
     mb.coded_block_pattern_2 = GETBITS(6, "coded_block_pattern_2");
   }
-  
+#endif
 }
 
 
