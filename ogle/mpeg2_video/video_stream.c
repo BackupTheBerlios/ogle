@@ -1589,6 +1589,10 @@ void picture_data(void)
  
   DPRINTFI(1, "picture_data()\n");
   DINDENT(2);
+
+#ifdef HAVE_MMX
+    emms();
+#endif
   
   
   if(msgqid != -1) {
@@ -1869,7 +1873,7 @@ void picture_data(void)
      * We check to see if we are lagging behind the desired time
      * and in that case we don't decode/show this picture
      */
-    
+
     /* Calculate the time remaining until this picture shall be viewed. */
     if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
       clocktime_t realtime, calc_rt, err_time, pts_time;
@@ -1878,14 +1882,14 @@ void picture_data(void)
       clocktime_get(&realtime);
 
       if(ctrl_time[last_scr_nr].offset_valid == OFFSET_VALID) {
-	calc_realtime_from_scrtime(&calc_rt, &pts_time,
-				   &ctrl_time[last_scr_nr].sync_point);
+	calc_realtime_left_to_scrtime(&err_time, &realtime, &pts_time,
+				      &ctrl_time[last_scr_nr].sync_point);
       } else {
 	calc_rt = realtime;
+	timesub(&err_time, &calc_rt, &realtime);
 	fprintf(stderr, "*vs: offset not valid\n");
       }
-      
-      timesub(&err_time, &calc_rt, &realtime);
+
       
       /* If the picture should already have been displayed then drop it. */
       /* TODO: More investigation needed. */
