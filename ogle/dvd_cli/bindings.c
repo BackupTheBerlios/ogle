@@ -310,7 +310,7 @@ void actionFastForward(void *data)
     DVDPauseOff(nav);
   }
 
-  if((speed >= 1.0) && (speed < 8.0)) {
+  if((speed >= 1.0) && (speed < 32.0)) {
     speed +=0.5;
   } else if(speed < 1.0) {
     speed = 1.5;
@@ -341,7 +341,7 @@ void actionFaster(void *data)
     DVDPauseOff(nav);
   }
   
-  if((speed >= 1.0) && (speed < 8.0)) {
+  if((speed >= 1.0) && (speed < 32.0)) {
     speed += 0.5;
   } else if(speed < 1.0) {
     speed *= 2.0;
