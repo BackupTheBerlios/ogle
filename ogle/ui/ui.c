@@ -209,7 +209,6 @@ int input() {
       int n;
       msg.mtype = MTYPE_SPU_DECODE;
       sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
-      cmd = CTRLCMD_STOP;
       
       for(n = 0; n < 16; n++) {
 	tok = strtok(NULL, " ");
@@ -220,7 +219,6 @@ int input() {
       int n;
       msg.mtype = MTYPE_SPU_DECODE;
       sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
-      cmd = CTRLCMD_STOP;
       
       tok = strtok(NULL, " ");
       sendcmd->cmd.spu_highlight.x_start = strtol(tok, NULL, 0);
@@ -243,55 +241,81 @@ int input() {
       
     } else if(strcmp(tok, "file") == 0) {
       
-      cmd = CTRLCMD_NONE;
-      
       msg.mtype = MTYPE_DEMUX;
       sendcmd->cmdtype = CMD_FILE_OPEN;
       
       tok = strtok(NULL, " ");
       strcpy(sendcmd->cmd.file_open.file, tok);
       
-      send_msg(&msg, sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+
+      
+    } else if(strcmp(tok, "btn") == 0) {
+      msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
+      sendcmd->cmdtype = CMD_NAV_CMD;
+      
+      tok = strtok(NULL, " ");
+      if(strcmp(tok, "up") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_UP_BUTTON;
+      } else if(strcmp(tok, "down") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_DOWN_BUTTON;	
+      } else if(strcmp(tok, "left") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_LEFT_BUTTON;	
+      } else if(strcmp(tok, "right") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_RIGHT_BUTTON;	
+      } else if(strcmp(tok, "activate") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_ACTIVATE_BUTTON;	
+      }
+      
+    } else if(strcmp(tok, "btnnr") == 0) {
+      msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
+      sendcmd->cmdtype = CMD_NAV_CMD;
+      
+      tok = strtok(NULL, " ");
+      if(strcmp(tok, "activate") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_SELECT_ACTIVATE_BUTTON_NR;
+      } else if(strcmp(tok, "select") == 0) {
+	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_SELECT_BUTTON_NR;	
+      }
+      tok = strtok(NULL, " ");
+      sendcmd->cmd.nav_cmd.button_nr = strtol(tok, NULL, 0);	
+      
       
     }
-    
-
     
 
     fprintf(stderr, "****input() tok end\n");
-    
-    if(cmd != CTRLCMD_NONE) {
-      // send command
-      if(msg.mtype == MTYPE_CTL) {
+
+    switch(sendcmd->cmdtype) {
+    case CMD_CTRL_CMD:
+      if(cmd != CTRLCMD_NONE) {
 	sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd;
-      }
-      switch(cmd) {
-      case CTRLCMD_PLAY:
-	break;
-      case CTRLCMD_PLAY_FROM:
-	break;
-      case CTRLCMD_STOP:
-	break;
-      default:
-	break;
-      }
-      
-      fprintf(stderr, "****input() sent cmd\n");
-      if(cmd != CTRLCMD_STOP) {
+	
 	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
-      } else {
-	if(sendcmd->cmdtype == CMD_SPU_SET_HIGHLIGHT) {
-	  send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_highlight_t));
-	} else if(sendcmd->cmdtype == CMD_SPU_SET_PALETTE) {
-	  send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
-	}
       }
+      break;
+    case CMD_FILE_OPEN:
+      send_msg(&msg, sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+      break;
+    case CMD_SPU_SET_HIGHLIGHT:
+      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_highlight_t));      
+      break;
+    case CMD_SPU_SET_PALETTE:
+      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
+      break;
+    case CMD_NAV_CMD:
+      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_nav_cmd_t));
+      break;
+    default:
+      break;
     }
+
+    fprintf(stderr, "****input() sent cmd\n");
+    
     
   }
-
+  
   fprintf(stderr, "****input() exit\n");
-    
+  
   fclose(infile);
   // send command quit
 
