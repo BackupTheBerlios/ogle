@@ -21,6 +21,8 @@ MANDATORY_MISSING_LIBS=""
 
 dnl Checks for header files.
 AC_CHECK_HEADERS([byteswap.h sys/bswap.h sys/endian.h sys/param.h stropts.h])
+AC_CHECK_HEADERS([poll.h sys/poll.h sys/select.h])
+AC_CHECK_FUNCS(poll)
 
 dnl Find X Window System
 AC_PATH_XTRA
