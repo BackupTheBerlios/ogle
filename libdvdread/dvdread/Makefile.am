@@ -1,3 +1,4 @@
+INCLUDES = -I$(top_srcdir)
 
 lib_LTLIBRARIES = libdvdread.la
 libdvdread_la_SOURCES = dvd_input.c dvd_reader.c dvd_udf.c ifo_read.c \

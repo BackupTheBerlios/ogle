@@ -2,6 +2,8 @@
 # There really shouldn't be any need to use @DL_LIBS@ here
 # but old versions of libtool failed to do the correct thing
 
+INCLUDES = -I$(top_srcdir)
+
 noinst_PROGRAMS = ifo_dump play_title title_info
 
 ifo_dump_SOURCES = ifo_dump.c
