@@ -1,10 +1,12 @@
 # List of source files containing translatable strings.
-
+src/angle.c
 src/audio.c
 src/callbacks.c
+src/fileselector.c
 src/interface.c
 src/language.c
 src/main.c
+src/menu.c
 src/subpicture.c
 src/support.c
 
