@@ -72,6 +72,88 @@ static int log2(int val)
 }
 
 static
+int test_audio(oss_instance_t *i)
+{
+  int sample_size;
+  int buf_size;
+  char *buf;
+  int32_t *data32 = NULL;
+  int16_t *data16 = NULL;
+  int ch;
+  int swap = 0;
+
+  switch(i->fmt) {
+  case AFMT_S32_BE:
+  case AFMT_S16_BE:
+    if(OGLE_AO_BYTEORDER_NE != OGLE_AO_BYTEORDER_BE) {
+      swap = 1;
+    }
+    break;
+  case AFMT_S32_LE:
+  case AFMT_S16_LE:
+    if(OGLE_AO_BYTEORDER_NE != OGLE_AO_BYTEORDER_LE) {
+      swap = 1;
+    }
+    break;
+  default:
+    break;
+  }
+  switch(i->fmt) {
+  case AFMT_S32_BE:
+    sample_size = 4;
+  case AFMT_S32_LE:
+    sample_size = 4;
+    break;
+  case AFMT_S16_BE:
+  case AFMT_S16_LE:
+    sample_size = 2;
+    break;
+  default:
+    fprintf(stderr, "oss_audio: Can't test audio format %d\n", i->fmt);
+    return -1;
+    break;
+  }
+
+  buf_size = sample_size*i->channels*i->speed/10;
+  buf = malloc(buf_size);
+  if(!buf) {
+    perror("oss_audio: malloc\n");
+    return -1;
+  }
+  data16 = (int16_t *)buf;
+  data32 = (int32_t *)buf;
+
+  for(ch = 0; ch < i->channels; ch++) {
+    int f, wr, m;
+    for(m = 0; m < 2; m++) {
+      wr = 0;
+      for(f = 100; f <= 2500; f+=400) {
+	int period, step, s, n;
+	period = i->speed / f;
+	step = 16384 / period;
+	memset(buf, 0, buf_size);
+	for(n=0, s=0; n < i->speed/10; n+=sample_size*i->channels, s+=step) {
+	  if(s >= 16384) {
+	    s = 0;
+	  }
+	  if(sample_size == 2) {
+	    data16[n+ch] = swap ? ((s>>8)&0xff) | s<<8: s;
+	  } else {
+	    data32[n+ch] = swap ? (((s>>8)&0xff) | s<<8)&0xffff : s<<16;
+	  }
+	}
+	wr+= write(i->fd, buf, buf_size);
+	if(f < 105) {
+	  f-=399;
+	}
+      }
+      fprintf(stderr, "audio_out: ch %d, written %d bytes\n", ch, wr);
+    }
+  }
+  return 0;
+}
+
+static
 int oss_init(ogle_ao_instance_t *_instance,
 		 ogle_ao_audio_info_t *audio_info)
 {
@@ -327,8 +409,11 @@ int oss_init(ogle_ao_instance_t *_instance,
     instance->nr_fragments = info.fragstotal;
   }
   
-  
   instance->initialized = 1;
+
+  if(getenv("OGLE_OSS_TEST")) {
+    test_audio(instance);
+  }
   
   return 0;
 }
