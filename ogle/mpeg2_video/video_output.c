@@ -59,6 +59,10 @@ int show_window[3] = {1,0,0};
 int show_stat = 0;
 int run = 0;
 
+static int horizontal_size = 720;
+static int vertical_size = 480;
+
+
 
 void exit_program(int);
 
@@ -78,8 +82,6 @@ void display_init()
   XSetWindowAttributes xswa;
   unsigned long xswamask;
 
-  int horizontal_size = 720;
-  int vertical_size = 480;
 
 
   mydisplay = XOpenDisplay(NULL);
@@ -312,18 +314,18 @@ void add_grid(unsigned char *data)
 {
   int m,n;
   
-  for(m = 0; m < 480; m++) {
+  for(m = 0; m < vertical_size; m++) {
     if(m%16 == 0) {
-      for(n = 0; n < 720*4; n+=4) {
-	data[m*720*4+n+1] = 127;
-	data[m*720*4+n+2] = 127;
-	data[m*720*4+n+3] = 127;
+      for(n = 0; n < horizontal_size*4; n+=4) {
+	data[m*horizontal_size*4+n+1] = 127;
+	data[m*horizontal_size*4+n+2] = 127;
+	data[m*horizontal_size*4+n+3] = 127;
       }
     } else {
-      for(n = 0; n < 720*4; n+=16*4) {
-	data[m*720*4+n+1] = 127;
-	data[m*720*4+n+2] = 127;
-	data[m*720*4+n+3] = 127;
+      for(n = 0; n < horizontal_size*4; n+=16*4) {
+	data[m*horizontal_size*4+n+1] = 127;
+	data[m*horizontal_size*4+n+2] = 127;
+	data[m*horizontal_size*4+n+3] = 127;
       }
     }
   }
@@ -342,7 +344,7 @@ void add_2_box_sides(unsigned char *data,
     data[n+3] = r;
   }
   
-  for(n = 0; n < 720*4*16; n+=720*4) {
+  for(n = 0; n < horizontal_size*4*16; n+=horizontal_size*4) {
     data[n+1] = b;
     data[n+2] = g;
     data[n+3] = r;
@@ -358,28 +360,28 @@ void add_color_grid(debug_win *win)
   for(m = 0; m < 30*45; m++) {
     if(win->mbs[m].skipped) {
 
-      add_2_box_sides(&(win->data[m/45*720*4*16+(m%45)*16*4]),
+      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
 		      150, 150, 150);
       
     } else if(win->mbs[m].modes.macroblock_intra) {
 
-      add_2_box_sides(&(win->data[m/45*720*4*16+(m%45)*16*4]),
+      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
 		      0, 255, 255);
       
     } else if(win->mbs[m].modes.macroblock_motion_forward &&
 	      win->mbs[m].modes.macroblock_motion_backward) {
       
-      add_2_box_sides(&(win->data[m/45*720*4*16+(m%45)*16*4]),
+      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
 		      255, 0, 0);
       
     } else if(win->mbs[m].modes.macroblock_motion_forward) {
       
-      add_2_box_sides(&(win->data[m/45*720*4*16+(m%45)*16*4]),
+      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
 		      255, 255, 0);
 
     } else if(win->mbs[m].modes.macroblock_motion_backward) {
       
-      add_2_box_sides(&(win->data[m/45*720*4*16+(m%45)*16*4]),
+      add_2_box_sides(&(win->data[m/45*horizontal_size*4*16+(m%45)*16*4]),
 		      0, 0, 255);
     }
   }
@@ -903,12 +905,10 @@ void user_control(macroblock_t *cur_mbs,
 
 void draw_win(debug_win *dwin)
 {
-  int horizontal_size = 720;
-  int vertical_size = 480;
   
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
 	  horizontal_size, vertical_size, 
-	  /*horizontal_size*/720*(bpp/8), horizontal_size, horizontal_size/2 );
+	  horizontal_size*(bpp/8), horizontal_size, horizontal_size/2 );
     
   if(dwin->grid) {
     if(dwin->color_grid) {

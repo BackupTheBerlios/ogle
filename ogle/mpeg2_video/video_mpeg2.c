@@ -1062,6 +1062,7 @@ void motion_vector(int r, int s)
   if(mb.dmv == 1) {
     mb.dmvector[0] = get_vlc(table_b11, "dmvector[0] (b11)");
   }
+  
   mb.motion_code[r][s][1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
   // The reference code has f_code[s][0] here, that is probably wrong....
   if((pic.coding_ext.f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {

@@ -774,8 +774,8 @@ void init_program()
   struct sigaction sig;
 
   cur_mbs = malloc(36*45*sizeof(macroblock_t));
-   ref1_mbs = malloc(36*45*sizeof(macroblock_t));
-   ref2_mbs = malloc(36*45*sizeof(macroblock_t));
+  ref1_mbs = malloc(36*45*sizeof(macroblock_t));
+  ref2_mbs = malloc(36*45*sizeof(macroblock_t));
   
   
   ref_image1 = &r1_img;
@@ -801,7 +801,7 @@ void init_program()
   pic.coding_ext.picture_structure = 0x3;
   pic.coding_ext.frame_pred_frame_dct = 1;
   pic.coding_ext.intra_vlc_format = 0;
-
+  mb.motion_vector_count = 1;
   seq.ext.chroma_format = 0x1;
 
   return;
@@ -921,7 +921,7 @@ void video_sequence(void) {
       sequence_extension();
 
       if(!shm_ready) {
-	setup_shm(seq.horizontal_size, seq.vertical_size);
+	setup_shm(seq.mb_width * 16, seq.mb_height * 16);
 	//display_init(...);
 	shm_ready = 1;
       }
@@ -959,12 +959,12 @@ void video_sequence(void) {
 	}
       } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
     } else {
-      fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
+      // fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
       
       //MPEG-1 2000-04-06 start
       
       if(!shm_ready) {
-	setup_shm(seq.horizontal_size, seq.vertical_size);
+	setup_shm(seq.mb_width * 16, seq.mb_height * 16);
 	//display_init(...);
 	shm_ready = 1;
       }
@@ -1117,7 +1117,8 @@ void sequence_header(void)
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
   
-  seq.mb_width = (seq.horizontal_size+15)/16;
+  seq.mb_width  = (seq.horizontal_size+15)/16;
+  seq.mb_height = (seq.vertical_size+15)/16;
 
 }
 
@@ -1569,11 +1570,15 @@ void picture_header(void)
      (pic.header.picture_coding_type == 3)) {
     pic.header.full_pel_forward_vector = GETBITS(1, "full_pel_forward_vector");
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
+    pic.coding_ext.f_code[0][0] = pic.header.forward_f_code; //MPEG-1/2
+    pic.coding_ext.f_code[0][1] = pic.header.forward_f_code; //MPEG-1/2
   }
   
   if(pic.header.picture_coding_type == 3) {
     pic.header.full_pel_backward_vector = GETBITS(1, "full_pel_backward_vector");
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
+    pic.coding_ext.f_code[1][0] = pic.header.backward_f_code; //MPEG-1/2
+    pic.coding_ext.f_code[1][1] = pic.header.backward_f_code; //MPEG-1/2
   }
   
   while(nextbits(1) == 1) {
@@ -2068,19 +2073,27 @@ void motion_comp()
       field = mb.motion_vertical_field_select[i][0];
       
       DPRINTF(2, "forward_motion_comp\n");
-
-      half_flag_y[0] = (mb.vector[i][0][0] & 1);
-      half_flag_y[1] = (mb.vector[i][0][1] & 1);
-      half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
-      half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
-      int_vec_y[0] = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
-      int_vec_y[1] = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
-      int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + x * 8;
-      int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + y * 8;
-      //int_vec_uv[0] = int_vec_y[0] / 2 ;
-      //  int_vec_uv[1] = int_vec_y[1] / 2 ;
-    
-    
+      
+      if(pic.header.full_pel_forward_vector) {
+ 	half_flag_y[0]  = 0;
+	half_flag_y[1]  = 0;
+	half_flag_uv[0] = 0;
+	half_flag_uv[1] = 0;
+	int_vec_y[0]  = (mb.vector[i][0][0]) + (signed int)x * 16;
+	int_vec_y[1]  = (mb.vector[i][0][1])*apa + (signed int)y * 16;
+	int_vec_uv[0] = (mb.vector[i][0][0]/2)  + (signed int)x * 8;
+	int_vec_uv[1] = (mb.vector[i][0][1]/2)*apa + (signed int)y * 8;
+      }
+      else {
+	half_flag_y[0]  = (mb.vector[i][0][0] & 1);
+	half_flag_y[1]  = (mb.vector[i][0][1] & 1);
+	half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
+	half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
+	int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
+	int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
+	int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + (signed int)x * 8;
+	int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + (signed int)y * 8;
+      }    
 
 
 
@@ -2201,16 +2214,26 @@ void motion_comp()
       
       field = mb.motion_vertical_field_select[i][1];
       
-      half_flag_y[0]   = (mb.vector[i][1][0] & 1);
-      half_flag_y[1]   = (mb.vector[i][1][1] & 1);
-      half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
-      half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
-      int_vec_y[0] = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
-      int_vec_y[1] = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
-      int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1)  + x * 8;
-      int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa  + y * 8;
-      //int_vec_uv[0] = int_vec_y[0] / 2;
-      //int_vec_uv[1] = int_vec_y[1] / 2;
+     if(pic.header.full_pel_forward_vector) {
+ 	half_flag_y[0]  = 0;
+	half_flag_y[1]  = 0;
+	half_flag_uv[0] = 0;
+	half_flag_uv[1] = 0;
+	int_vec_y[0]  = (mb.vector[i][1][0]) + (signed int)x * 16;
+	int_vec_y[1]  = (mb.vector[i][1][1])*apa + (signed int)y * 16;
+	int_vec_uv[0] = (mb.vector[i][1][0]/2) + (signed int)x * 8;
+	int_vec_uv[1] = (mb.vector[i][1][1]/2)*apa + (signed int)y * 8;
+      }
+      else {
+	half_flag_y[0]  = (mb.vector[i][1][0] & 1);
+	half_flag_y[1]  = (mb.vector[i][1][1] & 1);
+	half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
+	half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
+	int_vec_y[0]  = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
+	int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
+	int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
+	int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa + (signed int)y * 8;
+      }
       
       pred_y  =
 	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * width];
@@ -2415,7 +2438,7 @@ void motion_comp_add_coeff(unsigned int i)
   int d;
   uint8_t *dst_y,*dst_u,*dst_v;
 
-  width = seq.horizontal_size;
+  width = seq.mb_width * 16; //seq.horizontal_size;
 
 
   if (mb.modes.dct_type) { // skicka med dct_type som argument
