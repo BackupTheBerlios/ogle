@@ -154,7 +154,7 @@ if test -z "$dvd_path"; then
     dvd_path=$prefix
   else
     dvd_path=$ac_default_prefix
-  fi  
+  fi
 fi
 AC_CHECK_LIB(dvdread, DVDFileSize, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -rpath $dvd_path/lib -ldvdread" 
@@ -472,7 +472,7 @@ dnl Do we need this ? should we hard code it to pentium/pentiumpro?
 dnl what about k6 / athlon
 dnl will it still assemble the mmx instructions when -march=i386
 dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
-	  CFLAGS="$CFLAGS -march=i586 -mcpu=pentiumpro"
+	  XCFLAGS="$CFLAGS -march=i586 -mcpu=pentiumpro"
 	fi
 	USE_MMX=yes
 	;;
@@ -489,7 +489,7 @@ powerpc|ppc)
 dnl is the right? needed? use just -m7400 ? need new gcc for that..
 dnl is there a -mcpu -march flag that we should use?
 dnl should be a try compile on this line.. 
-	  CFLAGS="$CFLAGS -Wa,-m7400"
+	  XCFLAGS="-Wa,-m7400"
 dnl that sets USE_ALTIVEC depending on the success
 	  USE_ALTIVEC=yes
 	fi
@@ -502,6 +502,7 @@ AC_ARG_ENABLE(altivec,
   fi)
 if test x$USE_ALTIVEC = xyes; then
   AC_DEFINE([HAVE_ALTIVEC],1,[Processor support ALTIVEC])
+  CFLAGS="$XCFLAGS $CFLAGS"
 fi
 
 AC_ARG_ENABLE(mmx, 
@@ -511,6 +512,7 @@ AC_ARG_ENABLE(mmx,
   fi)
 if test x$USE_MMX = xyes; then
   AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
+  CFLAGS="$CFLAGS $XCFLAGS"
 fi
 
 AC_SUBST(USE_MMX)
