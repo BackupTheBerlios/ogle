@@ -42,13 +42,15 @@
 #else
 #  warning "No accelerated byte swap found. Using slow c version."
 #  include <inttypes.h>
-static inline unsigned uint32_t FROM_BE_32(uint32_t x)
+static inline uint32_t FROM_BE_32(uint32_t x)
 {
   return (((x & 0xff000000) >> 24) |
           ((x & 0x00ff0000) >>  8) |
           ((x & 0x0000ff00) <<  8) |
           ((x & 0x000000ff) << 24));
 }
+
+#endif /* INCLUDE TESTS */
 
 #endif /* WORDS_BIGENDIAN */
 
