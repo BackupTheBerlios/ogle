@@ -77,26 +77,20 @@ typedef struct {
   unsigned char *data;
   XImage *ximage;
   yuv_image_t *image;
-  int grid;
-  int color_grid;
-  macroblock_t *mbs;
-} debug_win;
+} window_info;
 
-static debug_win windows[1];
+static window_info window;
 
 
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
 static Display *mydisplay;
-//static Window window_stat;
 static GC mygc;
-//static GC statgc;
 static char title[100];
 static int color_depth, pixel_stride, mode;
 
 
 extern unsigned int debug;
-static int show_window[1] = {1};
 static int run = 1;
 static int screenshot = 0;
 static int scaled_image_width;
@@ -105,8 +99,22 @@ static int scaled_image_height;
 static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */
 static int scalemode_change = 0;
-static double sar;
-static double xscale_factor;
+
+
+static struct {
+  int width;
+  int height;
+  int horizontal_pixels;
+  int vertical_pixels;
+} dpy_size;
+
+
+static int64_t xscale_factor_frac_n;
+static int64_t xscale_factor_frac_d;
+
+static int dpy_sar_frac_n;
+static int dpy_sar_frac_d;
+
 
 static int use_xshm = 1;
 
@@ -117,8 +125,9 @@ extern yuv_image_t *image_bufs;
 
 extern void display_process_exit(void);
 
-static void draw_win(debug_win *dwin);
-void display_change_size(int new_width, int new_height);
+static void draw_win(window_info *dwin);
+
+void display_change_size(yuv_image_t *img, int new_width, int new_height);
 
 
 unsigned long req_serial;
@@ -173,20 +182,68 @@ void display_init(yuv_image_t *picture_data,
 
 
   screen = DefaultScreen(mydisplay);
+  
+  dpy_size.width = DisplayWidthMM(mydisplay, screen);
+  dpy_size.height = DisplayHeightMM(mydisplay, screen);
+  
+  dpy_size.horizontal_pixels = DisplayWidth(mydisplay, screen);
+  dpy_size.vertical_pixels = DisplayHeight(mydisplay, screen);
+  
+  //  dpy_sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
 
-  sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
-  xscale_factor = sar/picture_data->info->sar;
+  dpy_sar_frac_n =
+    (int64_t)dpy_size.height * (int64_t)dpy_size.horizontal_pixels;
+  dpy_sar_frac_d =
+    (int64_t)dpy_size.width * (int64_t)dpy_size.vertical_pixels;
+  
+  xscale_factor_frac_n = dpy_sar_frac_n * picture_data->info->sar_frac_d; 
+  
+  xscale_factor_frac_d = dpy_sar_frac_d * picture_data->info->sar_frac_n;
+
+  /*  
+  xscale_factor = dpy_size.height * 
+    dpy_size.horizontal_pixels *
+    picture_data->info->sar_frac_d /
+    (dpy_size.width * dpy_size.vertical_pixels *
+     picture_data->info->sar_frac_n);
+  
+  xscale_factor = dpy_sar/picture_data->info->sar;
+  */
+
   fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
 	  DisplayHeightMM(mydisplay, screen),
 	  DisplayWidthMM(mydisplay, screen),
 	  DisplayHeight(mydisplay, screen),
 	  DisplayWidth(mydisplay, screen));
-  fprintf(stderr, "*** src_sar: %f, dst_sar: %f, xscale: %f\n",
-	  picture_data->info->sar,
-	  sar, xscale_factor);
+  fprintf(stderr, "*** src_sar: %d/%d, dst_sar: %d/%d, xscale: %lld/%lld\n",
+	  picture_data->info->sar_frac_n,
+	  picture_data->info->sar_frac_d,
+	  dpy_sar_frac_n,
+	  dpy_sar_frac_d,
+	  xscale_factor_frac_n,
+	  xscale_factor_frac_d);
+
 
 
   /* Scale init. */
+
+  if(xscale_factor_frac_n > xscale_factor_frac_d) {
+    
+    scaled_image_width = (picture_data->info->horizontal_size *
+			  xscale_factor_frac_n) / xscale_factor_frac_d;
+    
+    scaled_image_height = picture_data->info->vertical_size;
+    
+  } else {
+
+    scaled_image_width = picture_data->info->horizontal_size;
+
+    scaled_image_height = (picture_data->info->vertical_size *
+			   xscale_factor_frac_d) / xscale_factor_frac_n;
+
+  }
+  
+  /*
   if(xscale_factor > 1) {
     scaled_image_width = (int)(((double)picture_data->info->horizontal_size)*
 			       xscale_factor);
@@ -200,7 +257,12 @@ void display_init(yuv_image_t *picture_data,
     if(scaled_image_height != picture_data->info->vertical_size)
       scaled_image_height &= ~1;
   }
-  
+  */
+
+  fprintf(stderr, "vo: image width: %d, height: %d\n",
+	  scaled_image_width,
+	  scaled_image_height);
+
   hint.x = 0;
   hint.y = 0;
   hint.width = scaled_image_width;
@@ -229,19 +291,19 @@ void display_init(yuv_image_t *picture_data,
   xswa.colormap         = theCmap;
   xswamask = CWBackPixel | CWBorderPixel | CWColormap;
 
-  windows[0].win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+  window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 				 hint.x, hint.y, hint.width, hint.height, 
 				 4, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
-  //fprintf(stderr, "Window id: 0x%lx\n", windows[0].win);
+  //fprintf(stderr, "Window id: 0x%lx\n", window.win);
   
   //window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
   //hint.x, hint.y, 200, 200, 0,
   //0, 0);
 
-  XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | ExposureMask);
-  //XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | KeyPressMask 
+  XSelectInput(mydisplay, window.win, StructureNotifyMask | ExposureMask);
+  //XSelectInput(mydisplay, window.win, StructureNotifyMask | KeyPressMask 
   //| ExposureMask);
   
   //XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask 
@@ -249,16 +311,16 @@ void display_init(yuv_image_t *picture_data,
 
   /* Tell other applications about this window */
   
-  snprintf(&title[0], 99, "Mjölner: 0x%lx", windows[0].win);
+  snprintf(&title[0], 99, "Mjölner: 0x%lx", window.win);
 
-  XSetStandardProperties(mydisplay, windows[0].win, 
+  XSetStandardProperties(mydisplay, window.win, 
 			 &title[0], &title[0], None, NULL, 0, &hint);
   //XSetStandardProperties(mydisplay, window_stat, 
   //"stat", "stat", None, NULL, 0, &hint);
 
   /* Map window. */
   //XMapWindow(mydisplay, window_stat);
-  XMapWindow(mydisplay, windows[0].win);
+  XMapWindow(mydisplay, window.win);
   
   
   // This doesn't work correctly
@@ -266,14 +328,14 @@ void display_init(yuv_image_t *picture_data,
   do {
     XNextEvent(mydisplay, &xev);
   }
-  while (xev.type != MapNotify || xev.xmap.event != windows[0].win);
+  while (xev.type != MapNotify || xev.xmap.event != window.win);
   
   //   XSelectInput(mydisplay, mywindow, NoEventMask);
 
   XSync(mydisplay, False);
    
   /* Create the colormaps. */   
-  mygc = XCreateGC(mydisplay, windows[0].win, 0L, &xgcv);
+  mygc = XCreateGC(mydisplay, window.win, 0L, &xgcv);
   //statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
    
 #ifdef HAVE_XV
@@ -377,26 +439,26 @@ void display_init(yuv_image_t *picture_data,
   /* Create shared memory image */
   if(scaled_image_width * scaled_image_height < 
      picture_data->info->padded_width * picture_data->info->padded_height) {
-    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
+    window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
 					picture_data->info->padded_width,
 					picture_data->info->padded_height);
   } else {
-    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
+    window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
 					scaled_image_width,
 					scaled_image_height);
   }
   
-  if (windows[0].ximage == NULL) {
+  if (window.ximage == NULL) {
     fprintf(stderr, "Shared memory: couldn't create Shm image\n");
     goto shmemerror;
   }
   
   /* Get a shared memory segment */
   shm_info.shmid = shmget(IPC_PRIVATE,
-			  windows[0].ximage->bytes_per_line * 
-			  windows[0].ximage->height, 
+			  window.ximage->bytes_per_line * 
+			  window.ximage->height, 
 			  IPC_CREAT | 0777);
   
   if (shm_info.shmid < 0) {
@@ -415,7 +477,7 @@ void display_init(yuv_image_t *picture_data,
     goto shmemerror;
   }
   
-  windows[0].ximage->data = shm_info.shmaddr;
+  window.ximage->data = shm_info.shmaddr;
   shm_info.readOnly = False;
 
 
@@ -439,16 +501,16 @@ void display_init(yuv_image_t *picture_data,
   /* revert to the previous xerrorhandler */
   XSetErrorHandler(prev_xerrhandler);
   
-  windows[0].data = windows[0].ximage->data;
+  window.data = window.ximage->data;
   
-  pixel_stride = windows[0].ximage->bits_per_pixel;
+  pixel_stride = window.ximage->bits_per_pixel;
   // If we have blue in the lowest bit then obviously RGB 
-  mode = ((windows[0].ximage->blue_mask & 0x01) != 0) ? 1 : 2;
+  mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
   /*
 #ifdef WORDS_BIGENDIAN 
-  if (windows[0].ximage->byte_order != MSBFirst)
+  if (window.ximage->byte_order != MSBFirst)
 #else
-  if (windows[0].ximage->byte_order != LSBFirst) 
+  if (window.ximage->byte_order != LSBFirst) 
 #endif
   {
     fprintf( stderr, "No support for non-native XImage byte order!\n" );
@@ -468,9 +530,12 @@ void display_init(yuv_image_t *picture_data,
 
 /* TODO display_change_size needs to be fixed */
 
-void display_change_size(int new_width, int new_height) {
-  int padded_width = windows[0].image->info->padded_width;
-  int padded_height = windows[0].image->info->padded_height;
+void display_change_size(yuv_image_t *img, int new_width, int new_height) {
+  int padded_width = img->info->padded_width;
+  int padded_height = img->info->padded_height;
+  
+  fprintf(stderr, "vo padded: %d, %d\n",
+	  padded_width, padded_height);
   
   // Check to not 'reallocate' if the size is the same or less than 
   // minimum size...
@@ -486,7 +551,7 @@ void display_change_size(int new_width, int new_height) {
   scaled_image_height = new_height;
   
   /* Stop events temporarily, while creating new display_image */
-  XSelectInput(mydisplay, windows[0].win, NoEventMask);
+  XSelectInput(mydisplay, window.win, NoEventMask);
 
 #ifndef HAVE_XV
   
@@ -496,10 +561,10 @@ void display_change_size(int new_width, int new_height) {
     
     /* Destroy old display */
     XShmDetach(mydisplay, &shm_info);
-    XDestroyImage(windows[0].ximage);
+    XDestroyImage(window.ximage);
     shmdt(shm_info.shmaddr);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "Shared memory: Couldn't detache segment\n");
+      fprintf(stderr, "Shared memory: Couldn't detach segment\n");
       exit(-10);
     }
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
@@ -511,21 +576,21 @@ void display_change_size(int new_width, int new_height) {
     memset( &shm_info, 0, sizeof( XShmSegmentInfo ) );
     
     /* Create new display */
-    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, 
+    window.ximage = XShmCreateImage(mydisplay, vinfo.visual, 
 					color_depth, ZPixmap, 
 					NULL, &shm_info,
 					scaled_image_width,
 					scaled_image_height);
     
-    if(windows[0].ximage == NULL) {
+    if(window.ximage == NULL) {
       fprintf(stderr, "Shared memory: couldn't create Shm image\n");
       exit(-10);
     }
     
     /* Get a shared memory segment */
     shm_info.shmid = shmget(IPC_PRIVATE,
-			    windows[0].ximage->bytes_per_line * 
-			    windows[0].ximage->height, 
+			    window.ximage->bytes_per_line * 
+			    window.ximage->height, 
 			    IPC_CREAT | 0777);
     
     if(shm_info.shmid < 0) {
@@ -540,8 +605,8 @@ void display_change_size(int new_width, int new_height) {
       exit(-10);
     }
     
-    windows[0].ximage->data = shm_info.shmaddr;
-    windows[0].data = windows[0].ximage->data;
+    window.ximage->data = shm_info.shmaddr;
+    window.data = window.ximage->data;
     
     shm_info.readOnly = False;
     XShmAttach(mydisplay, &shm_info);
@@ -550,13 +615,13 @@ void display_change_size(int new_width, int new_height) {
   }
 #endif  
   /* Force a change of the widow size. */
-  XResizeWindow(mydisplay, windows[0].win, 
+  XResizeWindow(mydisplay, window.win, 
 		scaled_image_width, scaled_image_height);
   
   /* Turn on events */
-  //XSelectInput(mydisplay, windows[0].win, StructureNotifyMask 
+  //XSelectInput(mydisplay, window.win, StructureNotifyMask 
   //| KeyPressMask | ExposureMask);
-  XSelectInput(mydisplay, windows[0].win, StructureNotifyMask 
+  XSelectInput(mydisplay, window.win, StructureNotifyMask 
 	       | ExposureMask);
 }
 
@@ -566,7 +631,7 @@ void display_exit(void)
   if(use_xshm) {
     
     XShmDetach(mydisplay, &shm_info);
-    XDestroyImage(windows[0].ximage);
+    XDestroyImage(window.ximage);
     shmdt(shm_info.shmaddr);
     shmctl(shm_info.shmid, IPC_RMID, 0);
   }
@@ -576,85 +641,6 @@ void display_exit(void)
 
 
  
-void add_grid(unsigned char *data, XImage *ximg)
-{
-  int m,n;
-  
-  for(m = 0; m < ximg->height; m++) {
-    if(m%16 == 0) {
-      for(n = 0; n < ximg->width*4; n+=4) {
-	data[m*ximg->width*4+n+1] = 127;
-	data[m*ximg->width*4+n+2] = 127;
-	data[m*ximg->width*4+n+3] = 127;
-      }
-    } else {
-      for(n = 0; n < ximg->width*4; n+=16*4) {
-	data[m*ximg->width*4+n+1] = 127;
-	data[m*ximg->width*4+n+2] = 127;
-	data[m*ximg->width*4+n+3] = 127;
-      }
-    }
-  }
-}
-
-
-void add_2_box_sides(unsigned char *data,
-		     unsigned char r, unsigned char g, unsigned char b,
-		     XImage *ximg)
-{
-  int n;
-  
-  for(n = 0; n < 16*4; n+=4) {
-    data[n+1] = b;
-    data[n+2] = g;
-    data[n+3] = r;
-  }
-  
-  for(n = 0; n < ximg->width*4*16; n+=ximg->width*4) {
-    data[n+1] = b;
-    data[n+2] = g;
-    data[n+3] = r;
-  }
-  
-  return;
-}
-
-
-/* This assumes a 720x480 image */
-void add_color_grid(debug_win *win)
-{
-  int m;
-  
-  for(m = 0; m < 30*45; m++) {
-    if(win->mbs[m].skipped) {
-
-      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
-		      150, 150, 150, win->ximage);
-      
-    } else if(win->mbs[m].modes.macroblock_intra) {
-
-      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
-		      0, 255, 255, win->ximage);
-      
-    } else if(win->mbs[m].modes.macroblock_motion_forward &&
-	      win->mbs[m].modes.macroblock_motion_backward) {
-      
-      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
-		      255, 0, 0, win->ximage);
-      
-    } else if(win->mbs[m].modes.macroblock_motion_forward) {
-      
-      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
-		      255, 255, 0, win->ximage);
-
-    } else if(win->mbs[m].modes.macroblock_motion_backward) {
-      
-      add_2_box_sides(&(win->data[m/45*win->ximage->width*4*16+(m%45)*16*4]),
-		      0, 0, 255, win->ximage);
-    }
-  }
-}
-
 
 Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
 {
@@ -665,23 +651,56 @@ void display(yuv_image_t *current_image)
 {
   XEvent ev;
   int nextframe = 0;  
+  static int sar_frac_n, sar_frac_d; 
+  int64_t scale_frac_n, scale_frac_d;
   
-  static int sar_x, sar_y;
-  
+  if(current_image->info->sar_frac_n != sar_frac_n ||
+     current_image->info->sar_frac_d != sar_frac_d) {
+    
+    int new_width, new_height;
 
-  if(current_image->info->sar_x != sar_x ||
-     current_image->info->sar_y != sar_y) {
+    sar_frac_n = current_image->info->sar_frac_n;
+    sar_frac_d = current_image->info->sar_frac_d;
+
+    // TODO replace image->sar.. with image->dar
+    scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
     
-    //resize...
+    scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
+    
+
+    fprintf(stderr, "resize: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
+	    sar_frac_n, sar_frac_d,
+	    dpy_sar_frac_n, dpy_sar_frac_d,
+	    scale_frac_n, scale_frac_d); 
+    
+    if(scale_frac_n > scale_frac_d) {
+      
+      new_width = (current_image->info->horizontal_size *
+		   scale_frac_n) / scale_frac_d;
+      
+      new_height = current_image->info->vertical_size;
+      
+    } else {
+      
+      new_width = current_image->info->horizontal_size;
+      
+      new_height = (current_image->info->vertical_size *
+		    scale_frac_d) / scale_frac_n;
+      
+    }
+
+    fprintf(stderr, "vo: resizing to %d x %d\n",
+	    new_width, new_height);
+    
+    display_change_size(current_image, new_width, new_height);
+    
     
   }
   
-  windows[0].image = current_image;
+  window.image = current_image;
   
-  if(show_window[0]) {
-    draw_win(&windows[0]);
-  }
-  
+  draw_win(&window);
+    
   while(!nextframe) {
 
     if(run) {
@@ -696,14 +715,13 @@ void display(yuv_image_t *current_image)
     
     switch(ev.type) {
     case Expose:
-      if(windows[0].win == ev.xexpose.window)
-	if(show_window[0])
-	  draw_win(&(windows[0]));
+      if(window.win == ev.xexpose.window)
+	  draw_win(&window);
       break;
 #if defined(HAVE_MLIB) || defined(HAVE_XV)
     case ConfigureNotify:
-      if(ev.xconfigure.window == windows[0].win) {
-	display_change_size( ev.xconfigure.width, ev.xconfigure.height );
+      if(ev.xconfigure.window == window.win) {
+	display_change_size(current_image, ev.xconfigure.width, ev.xconfigure.height );
       }
       break;    
 #endif /* HAVE_MLIB || HAVE_XV */
@@ -747,16 +765,13 @@ void display(yuv_image_t *current_image)
 	case 'd':
 	  debug_change = 1;
 	  break;
-	case 'w':
-	  show_window[0] = !show_window[0];
-	  break;
 	case 'r':
 	  run = !run;
 	  nextframe = 1;
 	  break;
 	case 'p':
 	  screenshot = 1;
-	  draw_win(&(windows[0]));
+	  draw_win(&(window));
 	  break;
 	case 'q':
 	  display_exit();
@@ -794,8 +809,8 @@ void display(yuv_image_t *current_image)
 	  else { /* Scale size */
 #if defined(HAVE_MLIB) || defined(HAVE_XV)
 	    int x = atoi(&buff[0]);
-	    display_change_size(windows[0].image->info->horizontal_size * x, 
-				windows[0].image->info->vertical_size * x);
+	    display_change_size(window.image->info->horizontal_size * x, 
+				window.image->info->vertical_size * x);
 #endif
 	  }
 	  break;
@@ -817,7 +832,7 @@ void display(yuv_image_t *current_image)
   return;
 }
 
-void draw_win_x11(debug_win *dwin)
+void draw_win_x11(window_info *dwin)
 { 
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
           dwin->image->info->padded_width,
@@ -825,14 +840,6 @@ void draw_win_x11(debug_win *dwin)
           dwin->image->info->padded_width*(pixel_stride/8),
           dwin->image->info->padded_width, dwin->image->info->padded_width/2 );
             
-  if(dwin->grid) {
-    if(dwin->color_grid) {
-      add_color_grid(dwin);
-    } else {  
-      add_grid(dwin->data, dwin->ximage);
-    }       
-  }       
-
   if(screenshot) {
     screenshot = 0;
     screenshot_jpg(dwin->data, dwin->ximage);
@@ -855,7 +862,7 @@ void draw_win_x11(debug_win *dwin)
 
 
 #ifdef HAVE_MLIB
-void draw_win(debug_win *dwin)
+void draw_win(window_info *dwin)
 {
   mlib_image *mimage_s;
   mlib_image *mimage_d;
@@ -893,14 +900,6 @@ void draw_win(debug_win *dwin)
   }
 #endif
 
-  if(dwin->grid) {
-    if(dwin->color_grid) {
-      add_color_grid(dwin);
-    } else {  
-      add_grid(dwin->data, dwin->ximage);
-    }       
-  }       
-  
   if( (scaled_image_width != dwin->image->info->horizontal_size) ||
       (scaled_image_height != dwin->image->info->vertical_size )) {
     /* Destination image */
@@ -961,10 +960,9 @@ Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
   }
 }
 
-void draw_win(debug_win *dwin)
+void draw_win(window_info *dwin)
 {
   unsigned char *dst;
-  int size;
   
   if (xv_port == 0) { /* No xv found */
     draw_win_x11(dwin);
@@ -1005,7 +1003,7 @@ void draw_win(debug_win *dwin)
 #endif /* HAVE_XV */
 
 #if !defined(HAVE_MLIB) && !defined(HAVE_XV)
-void draw_win(debug_win *dwin)
+void draw_win(window_info *dwin)
 {
    draw_win_x11(dwin);
 }

@@ -1913,8 +1913,11 @@ void picture_data(void)
 #endif
   
     { // Don't use floating point math!
-    double sar = 1.0;
-    uint16_t hsize,vsize;
+      
+      int sar_frac_n = 1;
+      int sar_frac_d = 1;
+      //double sar = 1.0;
+      uint16_t hsize,vsize;
     
     if(seq.dpy_ext.display_horizontal_size) {      
       hsize = seq.dpy_ext.display_horizontal_size;
@@ -1929,25 +1932,34 @@ void picture_data(void)
       break;
     case 0x1:
       DPRINTF(2, "SAR = 1.0\n");
-      sar = 1.0;
+      sar_frac_n = 1;
+      sar_frac_d = 1;
+      //sar = 1.0;
       break;
     case 0x2:
       DPRINTF(2, "DAR = 3/4\n");
-      sar = 3.0/4.0*(double)hsize/(double)vsize;
+      sar_frac_n = 3 * hsize;
+      sar_frac_d = 4 * vsize;
+      //sar = 3.0/4.0*(double)hsize/(double)vsize;
       break;
     case 0x3:
       DPRINTF(2, "DAR = 9/16\n");
-      sar = 9.0/16.0*(double)hsize/(double)vsize;
+      sar_frac_n = 9 * hsize;
+      sar_frac_d = 16 * vsize;
+      //sar = 9.0/16.0*(double)hsize/(double)vsize;
       break;
     case 0x4:
       DPRINTF(2, "DAR = 1/2.21\n");
-      sar = 1.0/2.21*(double)hsize/(double)vsize;
+      sar_frac_n = 100 * hsize;
+      sar_frac_d = 221 * vsize;
+      //sar = 1.0/2.21*(double)hsize/(double)vsize;
       break;
     default:
       DPRINTF(2, "reserved\n");
       break;
     }
-    pinfos[buf_id].picture.sar = sar;
+    pinfos[buf_id].picture.sar_frac_n = sar_frac_n;
+    pinfos[buf_id].picture.sar_frac_d = sar_frac_d;
     
   }
   
