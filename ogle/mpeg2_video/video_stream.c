@@ -924,6 +924,7 @@ void video_sequence(void) {
 
 }
   
+#ifdef DEBUG
 
 void marker_bit(void)
 {
@@ -933,6 +934,14 @@ void marker_bit(void)
   }
 }
 
+#else // DEBUG
+
+void marker_bit(void)
+{
+  dropbits(1);
+}
+
+#endif //DEBUG
 
 typedef struct {
 
