@@ -135,6 +135,10 @@ if [ "$debug" = "1" ]; then
 	     done
              #the devices that can read DVD
 	     echo  -n "Valid DVD devices:"
+	     if [ -z $DVD_DEV ]; then
+		 echo ""
+		 echo "WARNING: No DVD devices found"
+	     fi
 	     for dev in $DVD_DEV; do
 		 scsi_dev="`echo $dev | grep sr`"
 		 if [ -n "$scsi_dev" ]; then
