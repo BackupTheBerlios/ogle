@@ -4,16 +4,16 @@
 #
 msgid ""
 msgstr ""
-"Project-Id-Version: ogle_gui 0.8.3\n"
-"POT-Creation-Date: 2002-06-26 23:20+0200\n"
-"PO-Revision-Date: 2002-06-24 13:20+0200\n"
+"Project-Id-Version: ogle_gui 0.8.5\n"
+"POT-Creation-Date: 2002-08-12 00:06+0200\n"
+"PO-Revision-Date: 2002-08-12 00:00+0200\n"
 "Last-Translator: Andreas Hinz <news2@acci.dk>\n"
 "Language-Team: Danish <news2@acci.dk>\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=ISO-8859-15\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#. The name of the angle choice in the angle popup menu
+#. TRANSLATORS: The name of the angle choice in the angle popup menu
 #: src/angle.c:81
 #, c-format
 msgid "Angle %d"
@@ -27,8 +27,8 @@ msgstr "Andet"
 msgid "Unknown format"
 msgstr "Ukendt format"
 
-#. Language name followed by audio format in parenthesis
-#. for use in the audio choice menu
+#. TRANSLATORS: Language name followed by audio format in
+#. parenthesis for use in the audio choice menu
 #: src/audio.c:126
 #, c-format
 msgid "%s (%s)"
@@ -38,7 +38,7 @@ msgstr "%s (%s)"
 msgid "None"
 msgstr "Ingen"
 
-#. Translators:
+#. TRANSLATORS:
 #. See the Swedish translation for the correct iso-8859-1
 #. representations of these, and use them if possible
 #: src/callbacks.c:221
@@ -1231,7 +1231,7 @@ msgstr ""
 msgid "Norwegian"
 msgstr "Norsk"
 
-#. Translators, this is really Bokm&#229;l
+#. TRANSLATORS: this is really Bokm&#229;l
 #: src/language.c:328
 msgid "Norwegian Bokmal"
 msgstr "Norsk Bokmål"
@@ -1352,12 +1352,12 @@ msgstr "Portugisisk"
 msgid "Prakrit languages"
 msgstr ""
 
-#. Translators, this is really Proven&#231;al
+#. TRANSLATORS: this is really Proven&#231;al
 #: src/language.c:359
 msgid "Provencal; Occitan (post 1500) "
 msgstr ""
 
-#. Translators, this is really Proven&#231;al
+#. TRANSLATORS: this is really Proven&#231;al
 #: src/language.c:361
 msgid "Provencal, Old (to 1500)"
 msgstr ""
@@ -1760,7 +1760,7 @@ msgstr ""
 msgid "Vietnamese"
 msgstr "Vietnamesisk"
 
-#. Translators, this is really Volap&#252;k
+#. TRANSLATORS: this is really Volap&#252;k
 #: src/language.c:463
 msgid "Volapuk"
 msgstr "Volapyk"
@@ -1846,7 +1846,7 @@ msgstr "Zulu"
 msgid "Zuni"
 msgstr "Zuni"
 
-#. Unknown language
+#. TRANSLATORS: Unknown language
 #: src/language.c:507
 msgid "Unknown"
 msgstr "Ukendt"
@@ -1878,6 +1878,16 @@ msgstr "Titel"
 #: src/menu.c:52
 msgid "Resume"
 msgstr "Fortsæt"
+
+#: src/ptt.c:87
+#, c-format
+msgid "Title %i"
+msgstr "Titel %i"
+
+#: src/ptt.c:93
+#, c-format
+msgid "Chapter %i"
+msgstr "Kapitel %i"
 
 #. ogle_gui.glade:192
 #: pixmaps/glade-strings.c:10
