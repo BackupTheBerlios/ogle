@@ -36,6 +36,8 @@ DVDP_CTRL=$DVDP_ROOT/ctrl
 export DVDP_CTRL
 DVDP_DEMUX=$DVDP_ROOT/programstream
 export DVDP_DEMUX
+DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
+export DVDP_CLI_UI
 DVDP_UI=$DVDP_ROOT/ogle_gui
 export DVDP_UI
 DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
