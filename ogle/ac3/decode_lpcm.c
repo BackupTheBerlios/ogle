@@ -47,6 +47,24 @@ typedef struct {
 } adec_lpcm_handle_t;
 
 
+
+static int lpcm_ch_to_channels(int nr_ch)
+{
+  ChannelType_t chtypemask = 0;
+  
+  
+  switch(nr_ch) {
+  case 2:
+    chtypemask = ChannelType_Left | ChannelType_Right;
+    break;
+  default:
+    chtypemask = 0;
+    break;
+  }
+  
+  return chtypemask;
+}
+
 static 
 int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
 	       int pts_offset, uint64_t new_PTS, int scr_nr)
@@ -57,7 +75,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
   uint8_t audio_frame_number;
   uint8_t new_lpcm_info;
   uint8_t dynamic_range;
-
+  ChannelType_t chtypemask;
   
 
   //header data
@@ -86,6 +104,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     if((new_ch = (new_lpcm_info & 0x07))) {
       new_ch = new_ch + 1;
     } else {
+      DNOTE("REPORT BUG: is mono 2ch(dual mono) or really 1 ch"); 
       new_ch = 2; // is mono 2ch(dual mono) or really 1 ch ?
     }
     new_quantization_word_length = (new_lpcm_info & 0xC0) >> 6;
@@ -114,7 +133,8 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     handle->channels = new_ch;
     handle->quantization_word_length = new_quantization_word_length;
     handle->sample_frame_size = new_sample_frame_size;
-    audio_config(handle->handle.config, new_ch,
+    chtypemask = lpcm_ch_to_channels(new_ch);
+    audio_config(handle->handle.config, chtypemask,
 		 handle->sample_rate,
 		 handle->quantization_word_length);
 
