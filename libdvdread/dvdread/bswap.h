@@ -23,7 +23,7 @@
 #include <config.h>
 
 #if defined(WORDS_BIGENDIAN)
-/* All bigendian systems are fine, just ignoore the swaps. */  
+/* All bigendian systems are fine, just ignore the swaps. */  
 #define B2N_16(x) (void)(x)
 #define B2N_32(x) (void)(x)
 #define B2N_64(x) (void)(x)
@@ -35,6 +35,12 @@
 #define B2N_16(x) x = bswap_16(x)
 #define B2N_32(x) x = bswap_32(x)
 #define B2N_64(x) x = bswap_64(x)
+
+#elif defined(__NetBSD__)
+#include <sys/endian.h>
+#define B2N_16(x) BE16TOH(x)
+#define B2N_32(x) BE32TOH(x)
+#define B2N_64(x) BE64TOH(x)
 
 #elif defined(__OpenBSD__)
 #include <sys/endian.h>

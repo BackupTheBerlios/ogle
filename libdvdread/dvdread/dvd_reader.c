@@ -31,13 +31,13 @@
 
 #if defined(__sun)
 #include <sys/mnttab.h>
-#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 #include <fstab.h>
 #elif defined(__linux__)
 #include <mntent.h>
 #endif
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
 typedef off_t off64_t;
 #define lseek64 lseek
 #define stat64 stat
@@ -291,6 +291,23 @@ static char *sun_block2char( const char *path )
 }
 #endif
 
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+static char *bsd_block2char( const char *path )
+{
+  char *new_path;
+  
+  /* Must contain "/dev/cd" */ 
+  if( !strstr( path, "/dev/cd" ) ) return (char *) path;
+  
+  /* Replace "/dev/cd" with "/dev/rcd" */
+  new_path = malloc( strlen(path) + 2 );
+  strcpy( new_path, "/dev/rcd" ) );
+  strcat( new_path, path + strlen( "/dev/cd" ) );
+  
+  return new_path;
+}
+#endif
+
 dvd_reader_t *DVDOpen( const char *path )
 {
     struct stat64 fileinfo;
@@ -323,7 +340,7 @@ dvd_reader_t *DVDOpen( const char *path )
     } else if( S_ISDIR( fileinfo.st_mode ) ) {
         dvd_reader_t *auth_drive = 0;
         char *path_copy = strdup( path );
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
         struct fstab* fe;
 #elif defined(__sun) || defined(__linux__)
         FILE *mntfile;
@@ -365,14 +382,16 @@ dvd_reader_t *DVDOpen( const char *path )
 	    }
 	}
 	
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
         if( ( fe = getfsfile( path_copy ) ) ) {
+	    char *dev_name = bsd_block2char( fe->fs_spec );
 	    fprintf( stderr,
 		     "libdvdread: Attempting to use device %s"
 		     " mounted on %s for CSS authentication\n",
-		     fe->fs_spec,
+		     dev_name,
 		     fe->fs_file );
-	    auth_drive = DVDOpenImageFile( fe->fs_spec );
+	    auth_drive = DVDOpenImageFile( dev_name );
+	    free( dev_name );
         }
 #elif defined(__sun)
         mntfile = fopen( MNTTAB, "r" );
