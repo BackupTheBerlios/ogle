@@ -48,6 +48,7 @@ typedef struct {
 
 
 typedef struct {
+  int scr_id;
   offset_valid_t offset_valid;
   int sync_master;
   sync_point_t sync_point;

@@ -2356,7 +2356,7 @@ int get_buffer(int size)
 }
 
 
-void flush_all_streams(int scr_nr)
+void flush_all_streams(int scr_id)
 {
   MsgEvent_t ev;
   int n;
@@ -2364,7 +2364,7 @@ void flush_all_streams(int scr_nr)
   
   // send flush msg
   ev.type = MsgEventQFlushData;
-  ev.flushdata.to_scrnr = scr_nr;
+  ev.flushdata.to_scrid = scr_id;
   
   for(n = 0; n < 256; n++) {
     if((n != MPEG2_PRIVATE_STREAM_1) && (id_reg[n].state == STREAM_DECODE)) {
@@ -2404,6 +2404,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   MsgEvent_t ev;
   int nr_waits = 0;
   
+  static int scr_id = 0;
   static int scr_nr = 0;
   
   /* First find an entry in the big shared buffer pool. */
@@ -2490,13 +2491,15 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   if(scr_discontinuity || (demux_cmd & FlowCtrlFlush)) {
     scr_discontinuity = 0;
     scr_nr = (scr_nr+1)%32;
+    scr_id++;
+    ctrl_time[scr_nr].scr_id = scr_id;
     ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
     ctrl_time[scr_nr].sync_master = SYNC_NONE;
     fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
   }
   
   if(demux_cmd & FlowCtrlFlush) {
-    flush_all_streams(scr_nr);
+    flush_all_streams(scr_id);
     demux_cmd &= ~FlowCtrlFlush;
   }
 
