@@ -308,7 +308,7 @@ void pack_header()
     GETBITS(9, "system_clock_reference_extension");
   /* 2.5.2 or 2.5.3.4 (definition of system_clock_reference) */
   system_clock_reference = 
-    system_clock_reference_base * 300 + system_clock_reference_base;
+    system_clock_reference_base * 300 + system_clock_reference_extension;
   marker_bit();
   program_mux_rate = GETBITS(22, "program_mux_rate");
   marker_bit();
@@ -323,7 +323,7 @@ void pack_header()
   DPRINTF(3, "system_clock_reference_extension: %u\n",
       system_clock_reference_extension);
   DPRINTF(3, "system_clock_reference: %llu [%6f s]\n", 
-          system_clock_reference, ((double)system_clock_reference)/27E6);
+          system_clock_reference, ((double)system_clock_reference)/27000000.0);
   DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
       program_mux_rate, program_mux_rate*50*8);
   DPRINTF(3, "pack_stuffing_length: %u\n",
