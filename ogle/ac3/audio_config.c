@@ -105,7 +105,12 @@ int audio_config(audio_config_t *aconf,
       NOTE("Using audio driver '%s'\n", drivers[driver_n].name);
 	     
       if(drivers[driver_n].open != NULL) {
-	char *dev_string = get_audio_device();
+	char *dev_string;
+	if(!strcmp("alsa", drivers[driver_n].name)) {
+	  dev_string = get_audio_alsa_name();
+	} else {
+	  dev_string = get_audio_device();
+	}
 	aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
 	if(!aconf->adev_handle) {
 	  FATAL("failed opening the %s audio driver at %s\n",

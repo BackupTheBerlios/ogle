@@ -44,6 +44,9 @@ static int a52_drc = 0;
 
 static char *audio_driver = NULL;
 
+/* alsa specific interface name */
+static char *audio_alsa_name = NULL;
+
 /* sync */
 static char *sync_type = NULL;
 static int sync_resample = 0;
@@ -58,6 +61,39 @@ char *get_audio_device(void)
 {
   return audio_device;
 }
+
+char *get_audio_alsa_name(void)
+{
+  return audio_alsa_name;
+}
+
+
+static void parse_alsa(xmlDocPtr doc, xmlNodePtr cur)
+{
+  xmlChar *s = NULL;
+  
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("name", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(audio_alsa_name != NULL) {
+	    free(audio_alsa_name);
+	  }
+	  audio_alsa_name = strdup(s);
+	}
+      }
+      if(s) {
+	free(s);
+	s = NULL;
+      }
+    }
+    cur = cur->next;
+  }
+}
+
 
 static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
 {
@@ -82,6 +118,8 @@ static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
 	  }
 	  audio_driver = strdup(s);
 	}
+      } else if(!strcmp("alsa", cur->name)) {
+        parse_alsa(doc, cur);
       }
       if(s) {
 	free(s);
