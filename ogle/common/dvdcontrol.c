@@ -1,11 +1,11 @@
-
+#include <unistd.h>
+#include <stdio.h>
 
 #include "dvdcontrol.h"
 
 
 
-
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(int msgqid, msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("dvd: msgsnd1");
@@ -15,9 +15,7 @@ int send_msg(msg_t *msg, int mtext_size)
 }
 
 
-
-
-int send_cmd(msg_t *msg)
+int send_cmd(int msgqid, msg_t *msg)
 {
   int msize;
   cmd_t *cmd;
@@ -34,12 +32,12 @@ int send_cmd(msg_t *msg)
     msize = 0;
   }
   
-  send_msg(msg, msize);
+  send_msg(msgqid, msg, msize);
   
   return 0;
 }
 
-DVDResult_t DVDLeftButtonSelect(void)
+DVDResult_t DVDLeftButtonSelect(int msgqid)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -48,12 +46,12 @@ DVDResult_t DVDLeftButtonSelect(void)
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_LEFT_BUTTON;
   
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
   
   return DVD_E_OK;
 }
 
-DVDResult_t DVDRightButtonSelect(void)
+DVDResult_t DVDRightButtonSelect(int msgqid)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -62,12 +60,12 @@ DVDResult_t DVDRightButtonSelect(void)
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_RIGHT_BUTTON;
   
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDUpperButtonSelect(void)
+DVDResult_t DVDUpperButtonSelect(int msgqid)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -76,12 +74,12 @@ DVDResult_t DVDUpperButtonSelect(void)
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_UP_BUTTON;
   
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDLowerButtonSelect(void)
+DVDResult_t DVDLowerButtonSelect(int msgqid)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -90,12 +88,12 @@ DVDResult_t DVDLowerButtonSelect(void)
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_DOWN_BUTTON;
   
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDButtonActivate(void)
+DVDResult_t DVDButtonActivate(int msgqid)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -104,12 +102,12 @@ DVDResult_t DVDButtonActivate(void)
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_ACTIVATE_BUTTON;	
   
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDButtonSelect(int button)
+DVDResult_t DVDButtonSelect(int msgqid, int button)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -119,12 +117,12 @@ DVDResult_t DVDButtonSelect(int button)
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_BUTTON_NR;	
   cmd->cmd.dvdctrl_cmd.button_nr = button;
 
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDButtonSelectAndActivate(int button)
+DVDResult_t DVDButtonSelectAndActivate(int msgqid, int button)
 {
   msg_t msg;
   cmd_t *cmd;
@@ -134,37 +132,37 @@ DVDResult_t DVDButtonSelectAndActivate(int button)
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR;	
   cmd->cmd.dvdctrl_cmd.button_nr = button;
 
-  send_cmd(&msg);
+  send_cmd(msgqid, &msg);
 
   return DVD_E_OK;
 }
 
-DVDResult_t DVDMouseSelect(int x, int y)
+DVDResult_t DVDMouseSelect(int msgqid, int x, int y)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDMouseActivate(int x, int y)
+DVDResult_t DVDMouseActivate(int msgqid, int x, int y)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDMenuCall(DVDMenuID_t menuid)
+DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t menuid)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDResume(void)
+DVDResult_t DVDResume(int msgqid)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDGoUP(void)
+DVDResult_t DVDGoUP(int msgqid)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t lang)
+DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t lang)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }

@@ -4,23 +4,23 @@
 #include "dvd.h"
 
 
-DVDResult_t DVDLeftButtonSelect(void);
-DVDResult_t DVDRightButtonSelect(void);
-DVDResult_t DVDUpperButtonSelect(void);
-DVDResult_t DVDLowerButtonSelect(void);
+DVDResult_t DVDLeftButtonSelect(int msgqid);
+DVDResult_t DVDRightButtonSelect(int msgqid);
+DVDResult_t DVDUpperButtonSelect(int msgqid);
+DVDResult_t DVDLowerButtonSelect(int msgqid);
 
-DVDResult_t DVDButtonActivate(void);
-DVDResult_t DVDButtonSelect(int button);
-DVDResult_t DVDButtonSelectAndActivate(int button);
+DVDResult_t DVDButtonActivate(int msgqid);
+DVDResult_t DVDButtonSelect(int msgqid, int button);
+DVDResult_t DVDButtonSelectAndActivate(int msgqid, int button);
 
-DVDResult_t DVDMouseSelect(int x, int y);
-DVDResult_t DVDMouseActivate(int x, int y);
+DVDResult_t DVDMouseSelect(int msgqid, int x, int y);
+DVDResult_t DVDMouseActivate(int msgqid, int x, int y);
 
-DVDResult_t DVDMenuCall(DVDMenuID_t menuid);
-DVDResult_t DVDResume(void);
-DVDResult_t DVDGoUP(void);
+DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t menuid);
+DVDResult_t DVDResume(int msgqid);
+DVDResult_t DVDGoUP(int msgqid);
 
-DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t lang);
+DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t lang);
 
 void DVDPerror(const char *str, DVDResult_t errcode);
 
