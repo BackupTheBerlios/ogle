@@ -1569,20 +1569,32 @@ DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
 }
 
 /** 
- * @todo Implement function.
+ * Selects the default audio language.
+ * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param Lang Specifies the lanugage id.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDDefaultAudioLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlDefaultAudioLanguageSelect;
+  ev.dvdctrl.cmd.defaultaudiolanguageselect.langid = Lang;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
+
 
 /** 
  * @todo Implement function.
@@ -1664,19 +1676,30 @@ DVDResult_t DVDVideoPresentationModeChange(DVDNav_t *nav,
 
 
 /**
- * @todo Implement function
+ * Selects the default subpicture language.
+ * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param Lang Specifies the language id.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlDefaultSubpictureLanguageSelect;
+  ev.dvdctrl.cmd.defaultsubpicturelanguageselect.langid = Lang;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
 
 
@@ -1738,36 +1761,58 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
 
 
 /**
- * @todo Implement function
+ * Select the country for parental check.
+ * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param country Specifies the country id.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlParentalCountrySelect;
+  ev.dvdctrl.cmd.parentalcountryselect.countryid = country;
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
 
 
 /**
- * @todo Implement function
+ * Selects the parental level.
+ * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param level Specifies the parental level.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlParentalLevelSelect;
+  ev.dvdctrl.cmd.parentallevelselect.level = level;
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
 
   

@@ -66,6 +66,11 @@ typedef enum {
   DVDCtrlStop,
 
   DVDCtrlDefaultMenuLanguageSelect,
+  DVDCtrlDefaultAudioLanguageSelect,
+  DVDCtrlDefaultSubpictureLanguageSelect,
+
+  DVDCtrlParentalCountrySelect,
+  DVDCtrlParentalLevelSelect,
 
   DVDCtrlAudioStreamChange,
   DVDCtrlSubpictureStreamChange,
@@ -253,7 +258,19 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
   DVDLangID_t langid;
-} DVDCtrlMenuLanguageEvent_t;
+} DVDCtrlLanguageEvent_t;
+
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDCountryID_t countryid;
+} DVDCtrlCountryEvent_t;
+
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDParentalLevel_t level;
+} DVDCtrlParentalLevelEvent_t;
 
 
 typedef struct {
@@ -380,7 +397,12 @@ typedef union {
   DVDCtrlStopEvent_t stop;
   */
 
-  DVDCtrlMenuLanguageEvent_t defaultmenulanguageselect;
+  DVDCtrlLanguageEvent_t defaultmenulanguageselect;
+  DVDCtrlLanguageEvent_t defaultaudiolanguageselect;
+  DVDCtrlLanguageEvent_t defaultsubpicturelanguageselect;
+
+  DVDCtrlCountryEvent_t parentalcountryselect;
+  DVDCtrlParentalLevelEvent_t parentallevelselect;
 
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
   DVDCtrlSubpictureStreamChangeEvent_t subpicturestreamchange;
