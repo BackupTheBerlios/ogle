@@ -220,49 +220,30 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 
 int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
-  int numberofbits=1;
+  int numberofbits;
   int vlc;
-#if 1
-  while(table[pos].numberofbits != VLC_FAIL) {
-    vlc = nextbits(numberofbits);
-    while(table[pos].numberofbits == numberofbits) {
-      if(table[pos].vlc == vlc) {
-	DPRINTF(3, "get_vlc(%s): len: %d, vlc: %d, val: %d\n",
-		func, numberofbits, table[pos].vlc, table[pos].value);
-	dropbits(numberofbits);
-	return (table[pos].value);
-      }
-      pos++;
-    }
-    numberofbits++;
-  }
-#else
-  int found = 0;
-  numberofbits=0;
+  
+  vlc = nextbits(16);
   while(1) {
-    if(table[pos].numberofbits != numberofbits) {
-      numberofbits = table[pos].numberofbits;
-      if(numberofbits == VLC_FAIL)
-	break;
-      vlc = nextbits(numberofbits);
+    numberofbits = table[pos].numberofbits;
+    if(numberofbits == VLC_FAIL) {
+#if 0
+      fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching " 
+	      "bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
+      fprintbits(stderr, 32, nextbits(32));
+      fprintf(stderr, "\n");
+      //exit_program(1);
+#endif
+      return VLC_FAIL;
     }
-    if(table[pos].vlc == vlc) {
-      found = 1;
+    if(table[pos].vlc == (vlc>>(16-numberofbits)))
       break;
-    }
     pos++;
   }
-  if(found) {
-    dropbits(numberofbits);
-    return (table[pos].value);
-  }
-#endif
-  fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching " 
-	  "bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
-  fprintbits(stderr, 32, nextbits(32));
-  fprintf(stderr, "\n");
-  //exit_program(1);
-  return VLC_FAIL;
+  DPRINTF(3, "get_vlc(%s): len: %d, vlc: %d, val: %d\n",
+	  func, numberofbits, table[pos].vlc, table[pos].value);
+  dropbits(numberofbits);
+  return table[pos].value;
 }
 
 
