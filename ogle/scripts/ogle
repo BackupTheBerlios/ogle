@@ -5,11 +5,10 @@ DVDP_CMD=$0
 create_pipe() { 
     if [ ! -p $1 ]; then
 	rm -f $1;
-        mknod $1 p;
+        # So any other user can start the program / rm the pipes
+        mkfifo -m 666 $1;
     fi
     # chgrp dvd $1;
-    # So any other user can start the program / rm the pipes
-    chmod 666 $1;
 }
 
 create_pipe "/tmp/ac3"
