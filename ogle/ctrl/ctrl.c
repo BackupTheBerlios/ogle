@@ -224,6 +224,9 @@ static int streamid_to_capability(uint8_t stream_id, uint8_t subtype)
     } else if((subtype >= 0x88) && (subtype < 0x90)) {
       cap = DECODE_DTS_AUDIO;
       
+    } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
+      cap = DECODE_LPCM_AUDIO;
+      
     } else if((subtype >= 0x20) && (subtype < 0x40)) {
       cap = DECODE_DVD_SPU;
     }
