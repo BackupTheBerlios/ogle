@@ -1,0 +1,200 @@
+#ifndef DVDEVENTS_H
+#define DVDEVENTS_H
+
+#include "dvd.h"
+
+typedef enum {
+  DVDCtrlLeftButtonSelect,
+  DVDCtrlRightButtonSelect,
+  DVDCtrlUpperButtonSelect,
+  DVDCtrlLowerButtonSelect,
+
+  DVDCtrlButtonActivate,
+  DVDCtrlButtonSelect,
+  DVDCtrlButtonSelectAndActivate,
+
+  DVDCtrlMouseSelect,
+  DVDCtrlMouseActivate,
+
+  DVDCtrlEventMenuCall,
+  DVDCtrlEventResume,
+  DVDCtrlGoUp,
+
+  DVDCtrlForwardScan,
+  DVDCtrlBackwardScan,
+
+  DVDCtrlNextPGSearch,
+  DVDCtrlPrevPGSearch,
+  DVDCtrlTopPGSearch,
+
+  DVDCtrlPTTSearch,
+  DVDCtrlPTTPlay,
+
+  DVDCtrlTitlePlay,
+
+  DVDCtrlTimeSearch,
+  DVDCtrlTimePlay,
+
+  DVDCtrlPauseOn,
+  DVDCtrlPauseOff,
+
+  DVDCtrlStop,
+
+  DVDCtrlEventAudioStreamChange
+} DVDCtrlEventType_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlLeftButtonSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlRightButtonSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlUpperButtonSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlLowerButtonSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlButtonActivateEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int nr;
+} DVDCtrlButtonSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int nr;
+} DVDCtrlButtonSelectAndActivateEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int x;
+  int y;
+} DVDCtrlMouseSelectEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int x;
+  int y;
+} DVDCtrlMouseActivateEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDMenuID_t menuid;
+} DVDCtrlMenuCallEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlResumeEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlGoUpEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  double speed;
+} DVDCtrlForwardScanEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  double speed;
+} DVDCtrlBackwardScanEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlNextPGSearchEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlPrevPGSearchEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlTopPGSearchEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDPTT_t ptt;
+} DVDCtrlPTTSearchEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDTitle_t title;
+  DVDPTT_t ptt;
+} DVDCtrlPTTPlayEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDTitle_t title;
+} DVDCtrlTitlePlayEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDTimecode_t time;
+} DVDCtrlTimeSearchEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDTitle_t title;
+  DVDTimecode_t time;
+} DVDCtrlTimePlayEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlPauseOnEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlPauseOffEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlStopEvent_t;
+
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDAudioStream_t streamnr;
+} DVDCtrlAudioStreamChangeEvent_t;
+
+typedef union {
+  DVDCtrlEventType_t type;
+  DVDCtrlLeftButtonSelectEvent_t leftbuttonselect;
+  DVDCtrlLeftButtonSelectEvent_t rightbuttonselect;
+  DVDCtrlLeftButtonSelectEvent_t upperbuttonselect;
+  DVDCtrlLeftButtonSelectEvent_t lowerbuttonselect;
+  DVDCtrlButtonActivateEvent_t buttonactivate;
+  DVDCtrlButtonSelectEvent_t buttonselect;
+  DVDCtrlButtonSelectAndActivateEvent_t buttonselectandactivate;
+  DVDCtrlMouseSelectEvent_t mouseselect;
+  DVDCtrlMouseActivateEvent_t mouseactivate;
+  DVDCtrlMenuCallEvent_t menucall;
+  DVDCtrlResumeEvent_t resume;
+  DVDCtrlGoUpEvent_t goup;
+  DVDCtrlForwardScanEvent_t forwardscan;
+  DVDCtrlBackwardScanEvent_t backwardscan;
+  DVDCtrlNextPGSearchEvent_t nextpgsearch;
+  DVDCtrlPrevPGSearchEvent_t prevpgsearch;
+  DVDCtrlTopPGSearchEvent_t toppgsearch;
+  DVDCtrlPTTSearchEvent_t pttsearch;
+  DVDCtrlPTTPlayEvent_t pttplay;
+  DVDCtrlTitlePlayEvent_t titleplay;
+  DVDCtrlTimeSearchEvent_t timesearch;
+  DVDCtrlTimePlayEvent_t timeplay;
+  DVDCtrlPauseOnEvent_t pauseon;
+  DVDCtrlPauseOffEvent_t pauseoff;
+  DVDCtrlStopEvent_t stop;
+  
+  DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
+} DVDCtrlEvent_t;
+
+
+#endif /* DVDEVENTS_H */
