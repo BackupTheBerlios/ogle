@@ -18,8 +18,7 @@ AC_C_INLINE
 
 
 dnl Checks for header files.
-AC_CHECK_HEADERS(byteswap.h)
-
+AC_CHECK_HEADERS(byteswap.h sys/bswap.h sys/endian.h)
 
 dnl Find X Window System
 AC_PATH_XTRA
@@ -75,10 +74,10 @@ dnl beside -lname are needed. Then they the suggested path (+ some standard?)
 AC_CHECK_LIB(jpeg, main, 
   [ JPEG_LIBS="-L$jpeg_path/lib -rpath $jpeg_path/lib -ljpeg"
     JPEG_CFLAGS=-I$jpeg_path/include
-  ],, -L$jpeg_path/lib)
-if test -z "JPEG_LIBS"; then
-  AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])
-fi
+  ],
+  [ 
+    AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])
+  ], -L$jpeg_path/lib)
 
 AC_ARG_WITH(libjpeg-includes, 
   [  --with-libjpeg-includes=path specify location of libjpeg headers ], 
@@ -96,12 +95,6 @@ CPPFLAGS=$saved_CPPFLAGS
 AC_SUBST(JPEG_CFLAGS)
 AC_SUBST(JPEG_LIBS)
 
-dnl nanosleep is in librt on Solaris
-AC_CHECK_FUNC(nanosleep, , 
-  AC_CHECK_LIB(rt, nanosleep, , 
-    AC_MSG_ERROR(You need nanosleep)
-  )
-)
 
 dnl clock_gettime is in librt on Solaris
 AC_CHECK_FUNC(clock_gettime, [ AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]) ], 
@@ -110,6 +103,13 @@ AC_CHECK_FUNC(clock_gettime, [ AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]) ],
       LIBS="$LIBS -lrt"
     ],
     dnl AC_MSG_WARN(You need clock_gettime)
+  )
+)
+
+dnl nanosleep is in librt on Solaris
+AC_CHECK_FUNC(nanosleep, , 
+  AC_CHECK_LIB(rt, nanosleep, , 
+    AC_MSG_ERROR(You need nanosleep)
   )
 )
 
@@ -138,19 +138,20 @@ fi
 AC_CHECK_LIB(dvdread, DVDFileSize, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -rpath $dvd_path/lib -ldvdread" 
     DVDREAD_CFLAGS=-I$dvd_path/include
-  ],, -L$dvd_path/lib)
-if test -z "$DVDREAD_LIBS"; then
-  AC_CHECK_LIB(dvdread, DVDOpen, 
-    [ AC_MSG_ERROR([Upgrade libdvdread to 0.9.0 or later]) ],
-    [ AC_MSG_ERROR([Need libdvdread, install it or specify it's location])],
-    -L$dvd_path/lib)
-fi
+  ],
+  [
+    AC_CHECK_LIB(dvdread, DVDOpen, 
+      [ AC_MSG_WARN([Upgrade libdvdread to 0.9.0 or later]) ],
+      [ AC_MSG_ERROR([Need libdvdread, install it or specify it's location])],
+      -L$dvd_path/lib)
+  ], -L$dvd_path/lib)
 
 AC_ARG_WITH(dvdread-includes, 
   [  --with-dvdread-includes=path specify location of libdvdread headers ], 
   DVDREAD_CFLAGS=-I$with_dvdread_includes)
 
 dnl Linux and Solaris needs this to prototype lseek64 and others
+dnl Should really be taken from getconf...
 DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
 
 saved_CPPFLAGS=$CPPFLAGS
@@ -223,16 +224,20 @@ if test x$have_mlib = xyes; then
   AC_CHECK_LIB(a52, a52_init, 
     [ A52_LIBS="-L$a52_path/lib -rpath $a52_path/lib -la52" 
       A52_CFLAGS=-I$a52_path/include
-    ],, -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
+    ],
+    [
+      AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+    ], -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
 else
   AC_CHECK_LIB(a52, a52_init, 
     [ A52_LIBS="-L$a52_path/lib -rpath $a52_path/lib -la52" 
       A52_CFLAGS=-I$a52_path/include
-    ],, -L$a52_path/lib -lm)
+    ],
+    [
+      AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+    ], -L$a52_path/lib -lm)
 fi
-if test -z "$A52_LIBS"; then
-    AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
-fi
+
 AC_CHECK_LIB(ao, ao_drivers, 
     [ A52_LIBS="$A52_LIBS -lao" ],
     [ AC_MSG_ERROR([Need libao, install a52dec or specify it's location]) ],
