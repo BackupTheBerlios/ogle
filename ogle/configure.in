@@ -165,7 +165,7 @@ AC_SUBST(DVDREAD_LIBS)
 dnl Sun MediaLib
 have_mlib=no
 mlib_path="/opt/SUNWmlib"
-AC_ARG_WITH(mlib,
+AC_ARG_WITH(libmlib,
   [  --with-libmlib=path     specify where mediaLib is installed],
   if test x$with_libmlib != xyes; then
     mlib_path=$with_libmlib
@@ -200,13 +200,13 @@ fi
 
 
 a52_path=""
-AC_ARG_WITH(a52, 
-  [  --with-a52=path     specify the install prefix to liba52 (a52dec) ], 
-  if test x$with_a52 = xno; then
+AC_ARG_WITH(liba52, 
+  [  --with-liba52=path     specify the install prefix to liba52 (a52dec) ], 
+  if test x$with_liba52 = xno; then
     AC_MSG_ERROR([You must have/use a52dec])
   fi
-  if test x$with_a52 != xyes; then
-    a52_path=$with_a52
+  if test x$with_liba52 != xyes; then
+    a52_path=$with_liba52
   fi)
 if test -z "$a52_path"; then
   dnl We have nothing better to go on, guess that it's installed in prefix
@@ -235,9 +235,9 @@ AC_CHECK_LIB(ao, ao_drivers,
     [ AC_MSG_ERROR([Need libao, install a52dec or specify it's location]) ],
     -L$a52_path/lib)
 
-AC_ARG_WITH(a52-includes, 
-  [  --with-a52-includes=path specify location of liba52 headers ], 
-  A52_CFLAGS=-I$with_a52_includes)
+AC_ARG_WITH(liba52-includes, 
+  [  --with-liba52-includes=path specify location of liba52 headers ], 
+  A52_CFLAGS=-I$with_liba52_includes)
 
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $A52_CFLAGS"
