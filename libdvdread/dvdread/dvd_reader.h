@@ -126,6 +126,11 @@ int32_t DVDFileSeek( dvd_file_t *dvd_file, int32_t offset );
  */
 ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size );
 
+/**
+ * Returns the file size in blocks.
+ */
+ssize_t DVDFileSize( dvd_file_t *dvd_file );
+
 #ifdef __cplusplus
 };
 #endif

@@ -94,6 +94,9 @@ struct dvd_file_s {
     /* Information required for a directory path drive. */
     size_t title_sizes[ 9 ];
     int title_fds[ 9 ];
+
+    /* Calculated at open-time, size in blocks. */
+    ssize_t filesize;
 };
 
 static void setupCSS( void )
@@ -320,11 +323,13 @@ dvd_reader_t *DVDOpen( const char *path )
 
 void DVDClose( dvd_reader_t *dvd )
 {
-    if( dvd->dev ) dvdcss_close( dvd->dev );
-    if( dvd->fd ) close( dvd->fd );
-    if( dvd->path_root ) free( dvd->path_root );
-    free( dvd );
-    dvd = 0;
+    if( dvd ) {
+        if( dvd->dev ) dvdcss_close( dvd->dev );
+        if( dvd->fd ) close( dvd->fd );
+        if( dvd->path_root ) free( dvd->path_root );
+        free( dvd );
+        dvd = 0;
+    }
 }
 
 /**
@@ -336,17 +341,14 @@ static dvd_file_t *DVDOpenFileUDF( dvd_reader_t *dvd, char *filename )
     dvd_file_t *dvd_file;
 
     start = UDFFindFile( dvd, filename, &len );
-    if( !start ) {
-        fprintf( stderr, "libdvdread: Can't find file %s via UDF.\n",
-                 filename );
-        return 0;
-    }
+    if( !start ) return 0;
 
     dvd_file = (dvd_file_t *) malloc( sizeof( dvd_file_t ) );
     if( !dvd_file ) return 0;
     dvd_file->dvd = dvd;
     dvd_file->lb_start = start;
     dvd_file->seek_pos = 0;
+    dvd_file->filesize = len;
 
     return dvd_file;
 }
@@ -437,6 +439,7 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     dvd_file->title_sizes[ 0 ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
     dvd_file->title_sizes[ 1 ] = 0;
     dvd_file->title_fds[ 0 ] = fd;
+    dvd_file->filesize = dvd_file->title_sizes[ 0 ];
 
     return dvd_file;
 }
@@ -462,6 +465,18 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd,
     dvd_file->dvd = dvd;
     dvd_file->lb_start = start;
     dvd_file->seek_pos = 0;
+    dvd_file->filesize = len / DVD_VIDEO_LB_LEN;
+
+    /* Calculate the complete file size for every file in the VOBS */
+    if( !menu ) {
+        int cur;
+
+        for( cur = 2; cur < 10; cur++ ) {
+            sprintf( filename, "/VIDEO_TS/VTS_%02d_%d.VOB", title, cur );
+            if( !UDFFindFile( dvd, filename, &len ) ) break;
+            dvd_file->filesize += len / DVD_VIDEO_LB_LEN;
+        }
+    }
 
     /* Perform CSS key cracking for this title. */
     if( dvdcss_library ) {
@@ -488,6 +503,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd,
     dvd_file->dvd = dvd;
     dvd_file->lb_start = 0;
     dvd_file->seek_pos = 0;
+    dvd_file->filesize = 0;
 
     if( menu ) {
         int fd;
@@ -519,6 +535,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd,
         dvd_file->title_sizes[ 0 ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
         dvd_file->title_sizes[ 1 ] = 0;
         dvd_file->title_fds[ 0 ] = fd;
+        dvd_file->filesize = dvd_file->title_sizes[ 0 ];
 
     } else {
         for( i = 0; i < 9; ++i ) {
@@ -537,6 +554,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd,
 
             dvd_file->title_sizes[ i ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
             dvd_file->title_fds[ i ] = open( full_path, O_RDONLY );
+            dvd_file->filesize += dvd_file->title_sizes[ i ];
         }
         if( !(dvd_file->title_sizes[ 0 ]) ) {
             free( dvd_file );
@@ -598,15 +616,17 @@ void DVDCloseFile( dvd_file_t *dvd_file )
 {
     int i;
 
-    if( !dvd_file->dvd->isImageFile ) {
-        for( i = 0; i < 9; ++i ) {
-            if( !dvd_file->title_fds[ i ] ) break;
-            close( dvd_file->title_fds[ i ] );
+    if( dvd_file ) {
+        if( !dvd_file->dvd->isImageFile ) {
+            for( i = 0; i < 9; ++i ) {
+                if( !dvd_file->title_fds[ i ] ) break;
+                close( dvd_file->title_fds[ i ] );
+            }
         }
-    }
 
-    free( dvd_file );
-    dvd_file = 0;
+        free( dvd_file );
+        dvd_file = 0;
+    }
 }
 
 int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
@@ -788,5 +808,10 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
     } else {
         return DVDReadBytesPath( dvd_file, data, byte_size );
     }
+}
+
+ssize_t DVDFileSize( dvd_file_t *dvd_file )
+{
+    return dvd_file->filesize;
 }
 
