@@ -8,4 +8,5 @@ SUBDIRS= ogle \
 	mpeg_audio \
 	vmg \
 	ui \
+	dvd_cli \
 	scripts

@@ -38,7 +38,7 @@ AC_CHECK_LIB(Xext, XShmQueryExtension, XEXT_LIB=-lXext, AC_MSG_ERROR(You need li
 
 AC_CHECK_LIB(Xv, XvQueryExtension, XEXT_LIB="$XEXT_LIB -lXv", AC_MSG_WARN(You won't bw able to use Xv), $X_LIBS -lXext $X_EXTRA_LIBS)
 
-dnl AC_CHECK_LIB(jpeg, main, XEXT_LIB="$XEXT_LIB -ljpeg", AC_MSG_ERROR(You need libjpeg), $X_LIBS -lX11 $X_EXTRA_LIBS)
+AC_CHECK_LIB(jpeg, main, XEXT_LIB="$XEXT_LIB -ljpeg", AC_MSG_ERROR(You need libjpeg), $X_LIBS -lX11 $X_EXTRA_LIBS)
 AC_SUBST(XEXT_LIB)
 
 AC_CHECK_LIB(rt, nanosleep,, AC_MSG_WARN(You need nanosleep))
@@ -130,8 +130,5 @@ mpeg2_video/Makefile
 vmg/Makefile 
 mpeg_audio/Makefile 
 mpeg2_program/Makefile 
-scripts/Makefile)
-
-
-
-
+scripts/Makefile
+dvd_cli/Makefile)
