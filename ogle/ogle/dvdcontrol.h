@@ -27,7 +27,11 @@
 
 typedef struct DVDNav_s DVDNav_t;
 
+#ifdef SOCKIPC
+DVDResult_t DVDOpenNav(DVDNav_t **nav, char* msgqid);
+#else
 DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid);
+#endif
 DVDResult_t DVDCloseNav(DVDNav_t *nav);
 
 void DVDPerror(const char *str, DVDResult_t ErrCode);
@@ -93,8 +97,10 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
 /* end info commands */
 
 /* hack */
+#ifndef SOCKIPC
 #if (defined(BSD) && (BSD >= 199306))
 DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev);
+#endif
 #endif
 DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev);
 DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask);

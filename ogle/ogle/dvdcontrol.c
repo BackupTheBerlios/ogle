@@ -19,7 +19,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <sys/msg.h>
 #include <string.h>
 #include <errno.h>
 
@@ -135,7 +134,11 @@ static MsgEventClient_t get_vo_client(MsgEventQ_t *msq)
  * Get a connection to the DVD navigator
  * @todo something
  */
+#ifdef SOCKIPC
+DVDResult_t DVDOpenNav(DVDNav_t **nav, char* msgqid) {
+#else
 DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
+#endif
   MsgEvent_t ev;
 
   *nav = (DVDNav_t *)malloc(sizeof(DVDNav_t));
@@ -144,10 +147,19 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
   }
   (*nav)->serial = 0;
 
+#ifdef SOCKIPC
+  if(((*nav)->msgq = MsgOpen(MsgEventQType_socket, 
+			     msgqid, strlen(msgqid))) == NULL) {
+    free(*nav);
+    return DVD_E_Unspecified;
+  }
+
+#else
   if(((*nav)->msgq = MsgOpen(msgqid)) == NULL) {
     free(*nav);
     return DVD_E_Unspecified;
   }
+#endif
   
   ev.type = MsgEventQRegister;
   ev.registercaps.capabilities = UI_DVD_GUI;
@@ -1178,6 +1190,7 @@ DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
   return DVD_E_Ok;  
 } 
 
+#ifndef SOCKIPC
 #if (defined(BSD) && (BSD >= 199306))
 DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev)
 {
@@ -1188,6 +1201,7 @@ DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev)
   
   return DVD_E_Ok;
 } 
+#endif
 #endif
 
 DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask)
