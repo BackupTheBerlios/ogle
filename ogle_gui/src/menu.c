@@ -19,13 +19,13 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <gnome.h>
+#include <gtk/gtk.h>
 
 #include <ogle/dvdcontrol.h>
 
 #include "menu.h"
 #include "interface.h"
-#include "support.h"
+#include "callbacks.h"
 
 extern DVDNav_t *nav;
 
@@ -36,37 +36,41 @@ struct item_s {
   GtkWidget *item;
   char name[20];
   int flag;
+  void (*func) (GtkMenuItem *, gpointer);
 };
 
 struct item_s menuitem[] = {
-  { NULL, "ptt_pm",         UOP_FLAG_ChapterMenuCall  },
-  { NULL, "angle_pm",       UOP_FLAG_AngleMenuCall    },
-  { NULL, "audio_pm",       UOP_FLAG_AudioMenuCall    },
-  { NULL, "subpicture_pm",  UOP_FLAG_SubPicMenuCall   },
-  { NULL, "root_pm",        UOP_FLAG_RootMenuCall     },
-  { NULL, "title_pm",       UOP_FLAG_TitleMenuCall    },
-  { NULL, "resume_pm",      UOP_FLAG_Resume           },
-  { NULL, "",               0                         },
+  { NULL, "PTT",        UOP_FLAG_ChapterMenuCall, on_ptt_activate_pm },
+  { NULL, "Angle",      UOP_FLAG_AngleMenuCall,   on_angle_activate_pm },
+  { NULL, "Audio",      UOP_FLAG_AudioMenuCall,   on_audio_activate_pm },
+  { NULL, "Subpicture", UOP_FLAG_SubPicMenuCall,  on_subpicture_activate_pm},
+  { NULL, "Root",       UOP_FLAG_RootMenuCall,    on_root_activate_pm     },
+  { NULL, "Title",      UOP_FLAG_TitleMenuCall,   on_title_activate_pm    },
+  { NULL, "Resume",     UOP_FLAG_Resume,          on_resume_activate_pm },
+  { NULL, "",           0,                        NULL },
 };
 
 
 void menu_new(GtkWidget *mainwin) {
   int i;
   
-  menu = create_menus_popup();
+  if (menu != NULL)
+    gtk_widget_destroy(menu);
+
+  menu = gtk_menu_new();
   
-  i=0;
-  while(menuitem[i].flag != 0) {
-    menuitem[i].item = lookup_widget(menu, menuitem[i].name);
-    i++;
+  for(i=0; menuitem[i].flag != 0; i++) {
+    menuitem[i].item = gtk_menu_item_new_with_label(menuitem[i].name);
+    gtk_signal_connect(GTK_OBJECT(menuitem[i].item), "activate", 
+                       menuitem[i].func, NULL);
+    gtk_menu_append(GTK_MENU(menu), menuitem[i].item);
   }
-  
+  gtk_widget_show_all(menu);
 }
 
 void menu_show(GtkWidget *button) {
   menu_update();
-  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                  button, 0);
+  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 1, 0);
 }
 
 void menu_update(void) {
@@ -81,15 +85,10 @@ void menu_update(void) {
     return;
   }
   
-  i=0;
-  while(menuitem[i].flag != 0) {
-    gboolean val = (uop & menuitem[i].flag) ? TRUE : FALSE;
-    //gboolean val = TRUE;
+  for (i=0; menuitem[i].flag != 0; i++) {
+    //gboolean val = (uop & menuitem[i].flag) ? TRUE : FALSE;
+    gboolean val = TRUE;
     gtk_widget_set_sensitive(GTK_WIDGET(menuitem[i].item), val);
-    i++;
   }
 }
-
-
-
 

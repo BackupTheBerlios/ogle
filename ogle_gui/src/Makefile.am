@@ -2,8 +2,9 @@
 
 INCLUDES = \
 	-I$(top_srcdir)/intl \
-	$(GNOME_INCLUDEDIR) \
-	$(DVD_INCLUDEDIR)
+	$(DVD_INCLUDEDIR) \
+	$(GTK_CFLAGS) \
+	$(LIBGLADE_CFLAGS)
 
 # To get ogle_gui installed in the ogle pkglibdir
 pkglibdir=$(libdir)/ogle
@@ -11,8 +12,6 @@ pkglib_PROGRAMS = ogle_gui
 
 ogle_gui_SOURCES = \
 	main.c \
-	support.c support.h \
-	interface.c interface.h \
 	callbacks.c callbacks.h \
 	xsniffer.c xsniffer.h \
 	menu.c menu.h \
@@ -23,5 +22,5 @@ ogle_gui_SOURCES = \
 	fileselector.c fileselector.h
 
 
-ogle_gui_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVDLIBS) \
-	$(PTHREAD_LIB)
+ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(LIBGLADE_LIBS) $(INTLLIBS) \
+	@PTHREAD_LIB@

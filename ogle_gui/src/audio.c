@@ -22,19 +22,17 @@
 #include <strings.h>
 
 #include <glib.h>
-#include <gnome.h>
+#include <gtk/gtk.h>
 #include "audio.h"
 #include "language.h"
 
 #include <ogle/dvdcontrol.h>
 
+#define N_(x) x
+#define _(x) x
 
 extern DVDNav_t *nav;
-
 static GtkWidget *menu;
-static GnomeUIInfo *menu_items_uiinfo;
-static GSList *labellist = NULL;
-static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
 static const int OFF = 15;
 
@@ -71,8 +69,7 @@ void audio_menu_new(void) {
 void audio_menu_show(GtkWidget *button) {
   audio_menu_clear();
   audio_menu_update();
-  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                  button, 0);
+  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 0, 0);
 }
 
 void audio_menu_remove(void) {
@@ -81,17 +78,9 @@ void audio_menu_remove(void) {
 }
 
 void audio_menu_clear(void) {
-  if(labellist==NULL) {
-    return;
-  }
-
   //Why, why, why
   audio_menu_remove();
   audio_menu_new();
-
-  g_slist_foreach(labellist, (GFunc)free, NULL); 
-  g_slist_free(labellist);
-  labellist = NULL;
 }
 
 void audio_menu_update(void) {
@@ -100,10 +89,9 @@ void audio_menu_update(void) {
   DVDStream_t CurrentStream;
 
   GtkWidget *selecteditem;
-  int selectedpos=0;  
+  GtkWidget *menu_item;
 
   int stream=0;
-  int pos=0;
 
   char *strlangname;
   char *straudioformat;
@@ -114,22 +102,7 @@ void audio_menu_update(void) {
     return;
   }
 
-  menu_items_uiinfo = malloc( (StreamsAvailable +2) * sizeof(GnomeUIInfo));
-  if(menu_items_uiinfo==NULL) {
-    perror("audio.audio_menu_update");
-    return;
-  }
-
-  {
-    GnomeUIInfo tmp_info =  {
-      GNOME_APP_UI_ITEM, (gchar*) N_("None"),
-      NULL,
-      audio_item_activate, GINT_TO_POINTER(OFF), NULL,
-      GNOME_APP_PIXMAP_NONE, NULL,
-      0, 0, NULL
-    };
-    menu_items_uiinfo[pos++] = tmp_info;
-  }    
+  selecteditem = NULL;
 
   while(stream < StreamsAvailable) {
     DVDBool_t Enabled;
@@ -160,55 +133,28 @@ void audio_menu_update(void) {
       snprintf(label, stringlength-1, "%s (%s)",
 	       strlangname, straudioformat);
 
-      
-      labellist = g_slist_append (labellist, label);      
-
+      menu_item = gtk_check_menu_item_new_with_label(label);
       if(stream == CurrentStream) {
-	selectedpos = pos;
-      }
+        gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
+        selecteditem = menu_item;
+      } 
+      gtk_signal_connect(GTK_OBJECT(menu_item), "activate",
+                         audio_item_activate, GINT_TO_POINTER(stream));
+      gtk_menu_append(GTK_MENU(menu), menu_item);
 
-      {
-	GnomeUIInfo tmp_info =  {
-	  GNOME_APP_UI_ITEM, (gchar*)label,
-	  NULL,
-	  audio_item_activate, GINT_TO_POINTER(stream), NULL,
-	  GNOME_APP_PIXMAP_NONE, NULL,
-	  0, 0, NULL
-	};
-	menu_items_uiinfo[pos++] = tmp_info;
-      }	
     }
     stream++;
   }
   
-  menu_items_uiinfo[pos++] = infoend;
-
-  {
-    GnomeUIInfo menu_uiinfo[] =
-    {
-      {
-	GNOME_APP_UI_RADIOITEMS, NULL, NULL, menu_items_uiinfo,
-	NULL, NULL, 0, NULL, 0, 0, NULL
-      },
-      GNOMEUIINFO_END
-    };
-    
-    gnome_app_fill_menu (GTK_MENU_SHELL (menu), menu_uiinfo,
-			 NULL, FALSE, 0);
+  menu_item = gtk_check_menu_item_new_with_label(_("None"));
+  if (selecteditem == NULL) {
+    gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
   }
-  
-  selecteditem = g_list_nth_data(GTK_MENU_SHELL(menu)->children, selectedpos);
-  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
-				   audio_item_activate, 
-				   GINT_TO_POINTER( (selectedpos!=0) ?
-						    CurrentStream : OFF));
-  
-  gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(selecteditem), TRUE);
-  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
-				   audio_item_activate, 
-				   GINT_TO_POINTER( (selectedpos!=0) ?
-						    CurrentStream : OFF));
+  gtk_signal_connect(GTK_OBJECT(menu_item), "activate",
+                     audio_item_activate, GINT_TO_POINTER(OFF));
+  gtk_menu_prepend(GTK_MENU(menu), menu_item);
 
+  gtk_widget_show_all(menu);
 }
 
 

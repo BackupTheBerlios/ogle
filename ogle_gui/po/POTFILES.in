@@ -8,6 +8,5 @@ src/language.c
 src/main.c
 src/menu.c
 src/subpicture.c
-src/support.c
 
 

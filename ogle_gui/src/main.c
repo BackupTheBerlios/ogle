@@ -24,43 +24,23 @@
 #include <stdlib.h>
 #include <locale.h>
 
-#include <gnome.h>
-#include <libgnomeui/gnome-init.h>
+#include <gtk/gtk.h>
+#include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
 #include "interface.h"
-#include "support.h"
 #include "xsniffer.h"
 
 #include "menu.h"
 #include "audio.h"
 #include "subpicture.h"
 
+#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "ogle_gui.glade"
+
 DVDNav_t *nav;
 
 int msgqid;
-
-poptContext ctx;
-struct poptOption options[] = {
-  { 
-    "msgqid",
-    'm',
-    POPT_ARG_INT,
-    &msgqid,
-    0,
-    N_("message queue id of player"),
-    N_("msgqid")
-  },
-  {
-    NULL,
-    '\0',
-    0,
-    NULL,
-    0,
-    NULL,
-     NULL
-  }
-};
+GladeXML *xml;
 
 ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 GtkWidget *app;
@@ -73,13 +53,14 @@ main (int argc, char *argv[])
   bindtextdomain (PACKAGE, PACKAGE_LOCALE_DIR);
   textdomain (PACKAGE);
 #endif
-  //gnome_init ("ogle", VERSION, argc, argv);
-  gnome_init_with_popt_table("ogle", VERSION, argc, argv, options, 0, &ctx);
-
   if(argc==1) {
     fprintf(stderr, "Error: Do not start ogle_gui directly. Start ogle\n");
     exit(1);
   }
+  msgqid = atoi(argv[2]);
+
+  gtk_init(&argc, &argv);
+  glade_init();
 
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;
@@ -89,16 +70,18 @@ main (int argc, char *argv[])
       exit(1);
     }
   }
-  
-  //gnome_window_icon_set_default_from_file ("");
+  fprintf(stderr, "main: nav has ids %li %li\n", *((long*)nav),
+      ((long*)nav)[1]);
   
   xsniff_init();
   
   audio_menu_new();
   subpicture_menu_new();
   
-  app = create_app ();
-  gtk_widget_show (app);
+  xml = glade_xml_new(OGLE_GLADE_FILE, NULL);
+  glade_xml_signal_autoconnect(xml);
+  app = glade_xml_get_widget(xml, "app");
+  gtk_widget_show(app);
 
   menu_new(app);  
 

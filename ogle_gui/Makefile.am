@@ -1,17 +1,20 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = intl po macros src doc
+SUBDIRS = intl po src
+
+extra_DIST = ogle_gui.glade
 
 install-data-local:
 	@$(NORMAL_INSTALL)
 	if test -d $(srcdir)/pixmaps; then \
-	  $(mkinstalldirs) $(DESTDIR)$(datadir)/pixmaps/$(PACKAGE); \
+	  $(mkinstalldirs) $(DESTDIR)$(datadir)/$(PACKAGE); \
 	  for pixmap in $(srcdir)/pixmaps/*; do \
 	    if test -f $$pixmap; then \
-	      $(INSTALL_DATA) $$pixmap $(DESTDIR)$(datadir)/pixmaps/$(PACKAGE); \
+	      $(INSTALL_DATA) $$pixmap $(DESTDIR)$(datadir)/$(PACKAGE); \
 	    fi \
 	  done \
 	fi
+	$(INSTALL_DATA) ogle_gui.glade $(DESTDIR)$(datadir)/$(PACKAGE)
 
 dist-hook:
 	if test -d pixmaps; then \

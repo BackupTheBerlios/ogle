@@ -22,17 +22,16 @@
 #include <strings.h>
 
 #include <glib.h>
-#include <gnome.h>
+#include <gtk/gtk.h>
 #include "angle.h"
 #include "language.h"
 #include <ogle/dvdcontrol.h>
 
+#define _(x) x
+
 extern DVDNav_t *nav;
 
 static GtkWidget *menu;
-static GnomeUIInfo *menu_items_uiinfo;
-static GSList *labellist = NULL;
-static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
 void angle_menu_new(void) {
   menu = gtk_menu_new ();
@@ -42,8 +41,7 @@ void angle_menu_new(void) {
 void angle_menu_show(GtkWidget *button) {
   angle_menu_clear();
   angle_menu_update();
-  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                  button, 0);
+  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 0, 0);
 }
 
 void angle_menu_remove(void) {
@@ -54,11 +52,6 @@ void angle_menu_clear(void) {
   //Why, why, why
   angle_menu_remove();
   angle_menu_new();
-  if(labellist!=NULL) {
-    g_slist_foreach(labellist, (GFunc)free, NULL); 
-    g_slist_free(labellist);
-    labellist = NULL;
-  }
 }
 
 void angle_menu_update(void) {
@@ -67,21 +60,14 @@ void angle_menu_update(void) {
   DVDAngle_t CurrentStream;
 
   GtkWidget *selecteditem;
-  int selectedpos=0;  
+  GtkWidget *menu_item;
 
   int stream=1;
-  int pos=0;
   
   res = DVDGetCurrentAngle(nav, &StreamsAvailable, &CurrentStream);
   if(res != DVD_E_Ok) {
     DVDPerror("angle.angle_menu_update: DVDGetCurrentAngle",
 	      res);
-    return;
-  }
-
-  menu_items_uiinfo = malloc( (StreamsAvailable +2) * sizeof(GnomeUIInfo));
-  if(menu_items_uiinfo==NULL) {
-    perror("angle.angle_menu_update");
     return;
   }
 
@@ -94,54 +80,18 @@ void angle_menu_update(void) {
     
     snprintf(label, stringlength-1, "%s %d", _("angle"), (int)stream);
     
-    labellist = g_slist_append (labellist, label);      
-    
-    if( stream == CurrentStream) {
-      selectedpos = pos;
-    }
-    
-    {
-      GnomeUIInfo tmp_info =  {
-	GNOME_APP_UI_ITEM, (gchar*)label,
-	NULL,
-	angle_item_activate, GINT_TO_POINTER(stream), NULL,
-	GNOME_APP_PIXMAP_NONE, NULL,
-	0, 0, NULL
-      };
-      menu_items_uiinfo[pos++] = tmp_info;
-    }	
+    menu_item = gtk_check_menu_item_new_with_label(label);
+    if(stream == CurrentStream) {
+      gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
+      selecteditem = menu_item;
+    } 
+    gtk_signal_connect(GTK_OBJECT(menu_item), "activate",
+                       angle_item_activate, GINT_TO_POINTER(stream));
+    gtk_menu_append(GTK_MENU(menu), menu_item);
+
     stream++;
   }
-
-
-
-  menu_items_uiinfo[pos++] = infoend;
-  
-  {
-    GnomeUIInfo menu_uiinfo[] =
-    {
-      {
-	GNOME_APP_UI_RADIOITEMS, NULL, NULL, menu_items_uiinfo,
-	NULL, NULL, 0, NULL, 0, 0, NULL
-      },
-      GNOMEUIINFO_END
-    };
-    
-    // Insert
-    gnome_app_fill_menu (GTK_MENU_SHELL (menu), menu_uiinfo,
-			 NULL, FALSE, 0);
-  }
-
-  selecteditem = g_list_nth_data(GTK_MENU_SHELL(menu)->children, selectedpos);
-  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
-				   angle_item_activate, 
-				   GINT_TO_POINTER( (CurrentStream)));
-  gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(selecteditem), TRUE);
-  gtk_signal_handler_unblock_by_func(GTK_OBJECT(selecteditem), 
-				     angle_item_activate,
-				     GINT_TO_POINTER((CurrentStream)));
-  
-
+  gtk_widget_show_all(menu);
 }
 
 void angle_item_activate( GtkRadioMenuItem *item,

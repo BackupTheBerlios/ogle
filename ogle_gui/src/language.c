@@ -16,10 +16,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <stdio.h>
 #include <string.h>
 #include <ogle/dvdcontrol.h>
 #include "language.h"
 
+#define N_(x) x
+#define _(x) x
 // http://lcweb.loc.gov/standards/iso639-2/iso639jac.html
 
 langcodes_t language[] = {

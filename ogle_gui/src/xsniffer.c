@@ -27,11 +27,11 @@
 #include <X11/keysym.h>
 
 #include <gtk/gtk.h>
+#include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
 
-#include "support.h"
 #include "xsniffer.h"
 #include "callbacks.h"
 
@@ -43,6 +43,7 @@ extern ZoomMode_t zoom_mode;
 static DVDNav_t *nav2;
 pthread_t at;
 
+extern GladeXML *xml;
 
 void xsniff_init() {
   DVDResult_t res;
@@ -178,7 +179,7 @@ void* xsniff_mouse(void* args) {
 
 	    val = (zoom_mode == ZoomModeFullScreen) ? TRUE : FALSE;
 
-	    w = lookup_widget(app, "full_screen");
+            w = glade_xml_get_widget(xml, "full_screen");
 	    if(w==NULL) {
 	      fprintf(stderr, "xsniffer: failed to lookup_widget();\n");
 	    }

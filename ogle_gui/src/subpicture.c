@@ -22,17 +22,16 @@
 #include <strings.h>
 
 #include <glib.h>
-#include <gnome.h>
+#include <gtk/gtk.h>
 #include "subpicture.h"
 #include "language.h"
 #include <ogle/dvdcontrol.h>
 
+#define _(x) x
+
 extern DVDNav_t *nav;
 
 static GtkWidget *menu;
-static GnomeUIInfo *menu_items_uiinfo;
-static GSList *labellist = NULL;
-static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
 static const int OFF = 63;
 
@@ -44,8 +43,7 @@ void subpicture_menu_new(void) {
 void subpicture_menu_show(GtkWidget *button) {
   subpicture_menu_clear();
   subpicture_menu_update();
-  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL,
-                  button, 0);
+  gtk_menu_popup (GTK_MENU (menu), NULL, NULL, NULL, NULL, 0, 0);
 }
 
 void subpicture_menu_remove(void) {
@@ -53,17 +51,9 @@ void subpicture_menu_remove(void) {
 }
 
 void subpicture_menu_clear(void) {
-  if(labellist==NULL) {
-    return;
-  }
-
   //Why, why, why
   subpicture_menu_remove();
   subpicture_menu_new();
-
-  g_slist_foreach(labellist, (GFunc)free, NULL); 
-  g_slist_free(labellist);
-  labellist = NULL;
 }
 
 void subpicture_menu_update(void) {
@@ -73,10 +63,9 @@ void subpicture_menu_update(void) {
   DVDBool_t Shown;
 
   GtkWidget *selecteditem;
-  int selectedpos=0;  
+  GtkWidget *menu_item;
 
   int stream=0;
-  int pos=0;
   
   res = DVDGetCurrentSubpicture(nav, &StreamsAvailable, &CurrentStream,
 				&Shown);
@@ -85,23 +74,6 @@ void subpicture_menu_update(void) {
 	      res);
     return;
   }
-
-  menu_items_uiinfo = malloc( (StreamsAvailable +2) * sizeof(GnomeUIInfo));
-  if(menu_items_uiinfo==NULL) {
-    perror("subpicture.subpicture_menu_update");
-    return;
-  }
-
-  {
-    GnomeUIInfo tmp_info =  {
-      GNOME_APP_UI_ITEM, (gchar*) N_("None"),
-      NULL,
-      subpicture_item_activate, GINT_TO_POINTER(OFF), NULL,
-      GNOME_APP_PIXMAP_NONE, NULL,
-      0, 0, NULL
-    };
-    menu_items_uiinfo[pos++] = tmp_info;
-  }    
 
   while(stream < StreamsAvailable) {
     DVDBool_t Enabled;
@@ -131,55 +103,26 @@ void subpicture_menu_update(void) {
 	       language_name(Attr.Language));
       //DVDSubpictureFormat(Attr.SubpictureFormat) );
       
-      labellist = g_slist_append (labellist, label);      
-      
-      if( (stream == CurrentStream) && Shown) {
-	selectedpos = pos;
-      }
-      
-      {
-	GnomeUIInfo tmp_info =  {
-	  GNOME_APP_UI_ITEM, (gchar*)label,
-	  NULL,
-	  subpicture_item_activate, GINT_TO_POINTER(stream), NULL,
-	  GNOME_APP_PIXMAP_NONE, NULL,
-	  0, 0, NULL
-	};
-	menu_items_uiinfo[pos++] = tmp_info;
-      }	
+      menu_item = gtk_check_menu_item_new_with_label(label);
+      if((stream == CurrentStream) && Shown) {
+        gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
+        selecteditem = menu_item;
+      } 
+      gtk_signal_connect(GTK_OBJECT(menu_item), "activate",
+                         subpicture_item_activate, GINT_TO_POINTER(stream));
+      gtk_menu_append(GTK_MENU(menu), menu_item);
     }
     stream++;
   }
-
-  menu_items_uiinfo[pos++] = infoend;
-  
-  {
-    GnomeUIInfo menu_uiinfo[] =
-    {
-      {
-	GNOME_APP_UI_RADIOITEMS, NULL, NULL, menu_items_uiinfo,
-	NULL, NULL, 0, NULL, 0, 0, NULL
-      },
-      GNOMEUIINFO_END
-    };
-    
-    // Insert
-    gnome_app_fill_menu (GTK_MENU_SHELL (menu), menu_uiinfo,
-			 NULL, FALSE, 0);
+  menu_item = gtk_check_menu_item_new_with_label(_("None"));
+  if (selecteditem == NULL) {
+    gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
   }
+  gtk_signal_connect(GTK_OBJECT(menu_item), "activate",
+                     subpicture_item_activate, GINT_TO_POINTER(OFF));
+  gtk_menu_prepend(GTK_MENU(menu), menu_item);
 
-  selecteditem = g_list_nth_data(GTK_MENU_SHELL(menu)->children, selectedpos);
-  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
-				   subpicture_item_activate, 
-				   GINT_TO_POINTER( (Shown) ?
-						    CurrentStream : OFF));
-  gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(selecteditem), TRUE);
-  gtk_signal_handler_unblock_by_func(GTK_OBJECT(selecteditem), 
-				     subpicture_item_activate,
-				     GINT_TO_POINTER((Shown) ?
-						     CurrentStream : OFF));
-  
-
+  gtk_widget_show_all(menu);
 }
 
 void subpicture_item_activate( GtkRadioMenuItem *item,

@@ -1,13 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(configure.in)
-AM_INIT_AUTOMAKE(ogle_gui, 0.7.5)
+AM_INIT_AUTOMAKE(ogle_gui, 0.8.2)
 AM_CONFIG_HEADER(config.h)
-
 
 dnl Check that ogle is installed in the prefix, this is needed
 if test "x${exec_prefix}" = "xNONE"; then
-  if test "x${prefix}@" = "xNONE"; then
+  if test "x${prefix}" = "xNONE"; then
     ogle_pkglibdir=${ac_default_prefix}/lib/ogle
   else
     ogle_pkglibdir=${prefix}/lib/ogle
@@ -23,23 +22,19 @@ if test ! -x ${ogle_pkglibdir}/ogle_ctrl; then
 fi
 AC_MSG_RESULT(yes)
 
-dnl Pick up the Gnome macros.
-AM_ACLOCAL_INCLUDE(macros)
-
-GNOME_INIT
-AC_ISC_POSIX
 AC_PROG_CC
+AC_ISC_POSIX
 AM_PROG_CC_STDC
 AC_HEADER_STDC
 
 AM_PROG_LIBTOOL
 
-GNOME_COMPILE_WARNINGS
-GNOME_X_CHECKS
-
 dnl Add the languages which your application supports here.
 ALL_LINGUAS=""
 AM_GNU_GETTEXT
+
+AM_PATH_GTK
+AM_PATH_LIBGLADE
 
 dnl Set PACKAGE_LOCALE_DIR in config.h.
 if test "x${prefix}" = "xNONE"; then
@@ -48,18 +43,15 @@ else
   AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "${prefix}/${DATADIRNAME}/locale")
 fi
 
-dnl Subst PACKAGE_PIXMAPS_DIR.
-dnl PACKAGE_PIXMAPS_DIR="`gnome-config --datadir`/pixmaps/${PACKAGE}"
-dnl AC_SUBST(PACKAGE_PIXMAPS_DIR)
-
+dnl PACKAGE_PIXMAPS_DIR is where the pixmaps (and the glade file) for
+dnl the gui will reside
 if test "x${prefix}" = "xNONE"; then
-   PACKAGE_PIXMAPS_DIR="${ac_default_prefix}/share/pixmaps/"
+   PACKAGE_PIXMAPS_DIR="${ac_default_prefix}/share/ogle_gui/"
 else
-   PACKAGE_PIXMAPS_DIR="${prefix}/share/pixmaps/"
+   PACKAGE_PIXMAPS_DIR="${prefix}/share/ogle_gui/"
 fi
 AC_SUBST(PACKAGE_PIXMAPS_DIR)
 AC_DEFINE_UNQUOTED(PACKAGE_PIXMAPS_DIR, "$PACKAGE_PIXMAPS_DIR", [Get pixmaps])
-
 
 dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
@@ -89,6 +81,7 @@ AC_CHECK_LIB(dvdcontrol, DVDRequestInput,
 * For example ... --with-dvdcontrol=/usr/local ] )
   ],
   -L$dvd_path/lib/ogle -lmsgevents)
+AC_SUBST(DVDLIBS)
 
 AC_ARG_WITH(dvd-includes, 
   [  --with-dvd-includes=DIR Specify location of DVD headers ], 
@@ -103,10 +96,17 @@ AC_CHECK_HEADER(ogle/dvd.h, ,
   ]
 )
 CPPFLAGS=$saved_CPPFLAGS
-
-AC_SUBST(DVDLIBS)
 AC_SUBST(DVD_INCLUDEDIR)
 
+dnl check for pthreads
+AC_CHECK_LIB(pthread, pthread_create, PTHREAD_LIB="-lpthread",
+	[AC_CHECK_LIB(pthreads, pthread_create, PTHREAD_LIB="-lpthreads",
+	    [AC_CHECK_LIB(c_r, pthread_create, PTHREAD_LIB="-lc_r",
+		[AC_CHECK_FUNC(pthread_create)]
+	    )]
+	)]
+)
+AC_SUBST(PTHREAD_LIB)
 
 dnl Architecture specific stuff
 AC_CANONICAL_HOST

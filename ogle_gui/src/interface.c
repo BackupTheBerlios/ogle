@@ -29,7 +29,6 @@
 
 #include "callbacks.h"
 #include "interface.h"
-#include "support.h"
 
 static GnomeUIInfo menus_popup_uiinfo[] =
 {

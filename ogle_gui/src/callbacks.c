@@ -20,13 +20,15 @@
 #  include <config.h>
 #endif
 
-#include <gnome.h>
+#include <stdio.h>
+
+#include <ogle/dvdcontrol.h>
+#include <gtk/gtk.h>
+#include <glade/glade.h>
+
 
 #include "callbacks.h"
 #include "interface.h"
-#include "support.h"
-#include <ogle/dvdcontrol.h>
-
 #include "menu.h"
 #include "audio.h"
 #include "angle.h"
@@ -39,6 +41,7 @@
 extern ZoomMode_t zoom_mode;
 
 extern DVDNav_t *nav;
+extern GladeXML *xml;
 
 static int isPaused = 0;
 static double speed = 1.0;
@@ -217,7 +220,9 @@ void
 on_about_activate                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  gtk_widget_show(create_about());
+  GtkWidget *widget;
+  widget = glade_xml_get_widget(xml, "about");
+  gtk_widget_show(widget);
 }
 
 
@@ -411,7 +416,7 @@ void
 on_menus_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  menu_show(button);
+  menu_show(GTK_WIDGET(button));
 }
 
 
@@ -419,7 +424,7 @@ void
 on_audio_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  audio_menu_show(button);
+  audio_menu_show(GTK_WIDGET(button));
 }
 
 
@@ -427,7 +432,7 @@ void
 on_subpicture_button_clicked           (GtkButton       *button,
                                         gpointer         user_data)
 {
-  subpicture_menu_show(button);
+  subpicture_menu_show(GTK_WIDGET(button));
 }
 
 
@@ -435,7 +440,7 @@ void
 on_angle_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  angle_menu_show(button);
+  angle_menu_show(GTK_WIDGET(button));
 }
 
 

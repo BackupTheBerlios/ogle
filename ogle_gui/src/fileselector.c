@@ -18,13 +18,15 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <gnome.h>
+#include <gtk/gtk.h>
 
 #include <ogle/dvdcontrol.h>
 
 #include "fileselector.h"
 
 #include "xsniffer.h" //hack
+
+#define _(x) x
 
 extern DVDNav_t *nav;
 
