@@ -1029,7 +1029,11 @@ static link_t process_command(link_t link_values)
       assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
       if(get_VTS_PTT(state.vtsN, link_values.data1, link_values.data2) == -1)
 	assert(0);
-      link_values = play_PG();
+      /* Need to look closer at how this should be handled. */
+      if(link_values.data2 == 1) // hack !! see the 'de' game DVDs
+	link_values = play_PGC();
+      else
+	link_values = play_PG();
       break;
       
     case JumpSS_FP:
