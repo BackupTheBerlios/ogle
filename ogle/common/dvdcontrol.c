@@ -156,7 +156,13 @@ DVDResult_t DVDMouseActivate(int x, int y)
 
 DVDResult_t DVDMenuCall(DVDMenuID_t MenuId)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDMenuCall;
+  ev.menucall.menuid = MenuId;
+  
+  MsgSendEvent(msgq, nav_client, &ev);
+  
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDResume(void)
