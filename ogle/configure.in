@@ -16,8 +16,9 @@ AC_PATH_XTRA
 AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE(HAVE_XV))
 AC_CHECK_HEADER(X11/extensions/XShm.h, AC_DEFINE(HAVE_XSHM))
 
-CFLAGS="$CFLAGS -I. -I$(top_srcdir)/include -I- -I/usr/pd/include"
-AC_SUBST(INCLUDES)
+CFLAGS='$CFLAGS -I. -I$(top_srcdir)/include -I- -I/usr/pd/include'
+dnl AC_SUBST(INCLUDES)
+
 dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE(HAVE_XV))
 
 dnl Checks for typedefs, structures, and compiler characteristics.
