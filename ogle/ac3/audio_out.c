@@ -542,8 +542,36 @@ int get_q()
   if(ahandle && ctrl_data->speed == 1.0) {
     adec_decode(ahandle, data_buffer+decode_offset, decode_len, 
 		pts_offset, PTS, scr_nr);
+  } else {
+    if(PTS_DTS_flags &&
+       (ctrl_time[scr_nr].offset_valid != OFFSET_NOT_VALID)) {
+      clocktime_t time_left, real_time, scr_time;
+      clocktime_get(&real_time);
+      PTS_TO_CLOCKTIME(scr_time, PTS);
+      calc_realtime_left_to_scrtime(&time_left, &real_time, &scr_time,
+				    &(ctrl_time[scr_nr].sync_point));
+      
+      while((TIME_S(time_left) >= 0) && (TIME_SS(time_left) >= 0)) {
+	if((TIME_S(time_left)>0) || (TIME_SS(time_left) > (CT_FRACTION/10))) {
+	  TIME_S(time_left) = 0;
+	  TIME_SS(time_left) = CT_FRACTION/10;
+	}
+#ifndef HAVE_CLOCK_GETTIME
+	struct timespec tl;
+	tl.tv_sec = TIME_S(time_left);
+	tl.tv_nsec = TIME_SS(time_left) * 1000;
+	
+	nanosleep(&tl, NULL);
+#else
+	nanosleep(&time_left, NULL);
+#endif
+	clocktime_get(&real_time);
+	calc_realtime_left_to_scrtime(&time_left, &real_time, &scr_time,
+				      &(ctrl_time[scr_nr].sync_point));
+      }
+    }
   }
-
+  
   // release elem
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;
