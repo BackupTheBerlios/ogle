@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include <inttypes.h>
 
 #include "video_stream.h"
@@ -12,14 +13,23 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+
 #include <X11/extensions/XShm.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+static int shmem_flag;
+static XVisualInfo vinfo;
+static XShmSegmentInfo shm_info;
 
 unsigned char *ImageData;
 XImage *myximage;
 Display *mydisplay;
 Window mywindow;
 
+GC mygc;
 
+int bpp, mode;
+XWindowAttributes attribs;
 
 #define READ_SIZE 2048
 #define ALLOC_SIZE 2048
@@ -610,12 +620,49 @@ void sequence_extension(void) {
       dst_image->u = memalign(8, num_pels/4);
       dst_image->v = memalign(8, num_pels/4);
 
-      myximage = XGetImage(mydisplay, mywindow, 0, 0,
-			   seq.horizontal_size,
-			   seq.vertical_size,
-			   AllPlanes, ZPixmap);
+      if (shmem_flag) {
+        /* Create shared memory image */
+        myximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+                                   ZPixmap, NULL, &shm_info,
+                                   seq.horizontal_size,
+                                   seq.vertical_size);
+        if (myximage == NULL) {
+          fprintf(stderr, 
+                  "Shared memory: couldn't create Shm image\n");
+          goto shmemerror;
+        }
+        
+        /* Get a shared memory segment */
+        shm_info.shmid = shmget(IPC_PRIVATE,
+                                myximage->bytes_per_line * myximage->height, 
+                                IPC_CREAT | 0777);
+        if (shm_info.shmid < 0) {
+          XDestroyImage(myximage);
+          fprintf(stderr, "Shared memory: Couldn't get segment\n");
+          goto shmemerror;
+        }
+        
+        /* Attach shared memory segment */
+        shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+        if (shm_info.shmaddr == ((char *) -1)) {
+          XDestroyImage(myximage);
+          fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+          goto shmemerror;
+        }
+
+        myximage->data = shm_info.shmaddr;
+        shm_info.readOnly = False;
+        XShmAttach(mydisplay, &shm_info);
+        XSync(mydisplay, 0);
+      } else {
+shmemerror:
+        shmem_flag = 0;
+        myximage = XGetImage(mydisplay, mywindow, 0, 0,
+                             seq.horizontal_size,
+                             seq.vertical_size,
+                             AllPlanes, ZPixmap);
+      }
       ImageData = myximage->data;
-      
     }
   }
 }
@@ -2265,11 +2312,6 @@ int sign(int16_t num)
 }
 
 
-GC mygc;
-
-int bpp, mode;
-XWindowAttributes attribs;
-
 #define WORDS_BIGENDIAN 
 
 void display_init()
@@ -2278,7 +2320,6 @@ void display_init()
    unsigned int fg, bg;
    char *hello = "I hate X11";
    XSizeHints hint;
-   XVisualInfo vinfo;
    XEvent xev;
 
    XGCValues xgcv;
@@ -2294,6 +2335,14 @@ void display_init()
 
    if (mydisplay == NULL)
       fprintf(stderr,"Can not open display\n");
+
+   /* Check for availability of shared memory */
+   if (XShmQueryExtension(mydisplay))
+     shmem_flag = 1;
+   else {
+     shmem_flag = 0;
+     fprintf(stderr, "No shared memory available!\n");
+   }
 
    screen = DefaultScreen(mydisplay);
 
@@ -2393,9 +2442,14 @@ void display_init()
 void Display_Image(XImage *myximage, unsigned char *ImageData)
 {
 
-        XPutImage(mydisplay, mywindow, mygc, myximage, 0, 0,
-                0, 0, myximage->width, myximage->height);
-	XFlush(mydisplay);
+  if (shmem_flag) {
+    XShmPutImage(mydisplay, mywindow, mygc, myximage, 
+                 0, 0, 0, 0, myximage->width, myximage->height, 1);
+  } else {
+    XPutImage(mydisplay, mywindow, mygc, myximage, 0, 0,
+              0, 0, myximage->width, myximage->height);
+  }
+  XFlush(mydisplay);
 }
 
 
