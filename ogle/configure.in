@@ -16,6 +16,8 @@ AC_PATH_XTRA
 AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE(HAVE_XV))
 AC_CHECK_HEADER(X11/extensions/XShm.h, AC_DEFINE(HAVE_XSHM))
 
+CFLAGS="$CFLAGS -I/usr/pd/include"
+AC_SUBST(INCLUDES)
 dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE(HAVE_XV))
 
 dnl Checks for typedefs, structures, and compiler characteristics.
@@ -27,8 +29,8 @@ AC_SUBST(XEXT_LIB)
 
 AC_CHECK_LIB(Xv,XvQueryExtension,XEXT_LIB="$XEXT_LIB -lXv",AC_MSG_WARN(You won't bw able to use Xv),$X_LIBS -lXext)
 
-AC_CHECK_LIB(Xext,XShmQueryExtension,XEXT_LIB="$XEXT_LIB -lXext",AC_MSG_WARN(You won't be able to use XShm),$X_LIBS -lX11 -lXext)
-
+dnl AC_CHECK_LIB(Xext,XShmQueryExtension,XEXT_LIB="$XEXT_LIB -lXext",AC_MSG_WARN(You won't be able to use XShm),$X_LIBS -lX11)
+AC_CHECK_LIB(jpeg,main,XEXT_LIB="$XEXT_LIB -ljpeg",AC_MSG_ERROR(You need libjpeg),$X_LIBS -lX11 $X_EXTRA_LIBS)
 
 AC_SEARCH_LIBS(sem_init, [rt pthread posix4],,AC_MSG_ERROR(You need sem_init))
 
@@ -71,7 +73,7 @@ i?86)
 	CFLAGS="$CFLAGS -march=$host_cpu"
 	;;
 sparc)
-	CFLAGS="$CFLAGS -mcpu=ultrasparc"
+	CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
 esac
 AC_SUBST(USE_MMX)
 
