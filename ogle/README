@@ -1,29 +1,10 @@
 Playing a DVD
 
-To play a dvd you start ogle.
+  To play a dvd you start ogle.
   A simple player is included in the Ogle main package to start this do.
-  'ogle -u cli /dev/dvd' 
+  'ogle -u cli /dev/dvd' just 'ogle' will do to.
   where you can change /dev/dvd to point to your dvd reader or a directory
   containing the files of a dvd. (see ogle_gui examples below)
-
-Navigation in _both_ players if you have the mouse in the _video window_
-  '>', skips to the next chapter
-  '<', skips to the previous chapter
-  't', jumps to the Title menu
-  'r', jumps to the Root menu
-  'a', jumps to the Audio menu
-  's', jumps to the Subpicture menu
-  'g', jumps to the Angle menu
-  'p', jumps to the PTT (Chapter) menu
-  'c', does resume (if you have jumped to a menu from the movie)
-  'i', saves a screen shoot (as screenshoot.jpg in pwd)
-  'I', saves a screen shoot with the subpicture overlay intact
-  'f', toggle between fullscreen and window mode
-  '1'-'4' slow-motion, without sound
-  '5' normal playback speed
-  '6'-'9' fast-forward, without sound
-  'q', exit the player
-
 
 Ogle GUI
   If you install the ogle_gui package you will also have access to a 
@@ -45,11 +26,11 @@ Ogle GUI
   At the moment you have to exit ogle and restart to play another dvd.
 
 Solaris
-
   If you have a FFB2 frame buffer (a Creator 3D) then you can use it
 hardware yuv2rgb to gain faster playback speed.  This is still
 exprimental code be warned.  Enable it by setting the environment 
 variable USE_FFB2_YUV2RGB.
 
 
-For more information please visit http://www.dtek.chalmers.se/~dvd/
+For more information please read the man page 'man ogle' and 'man oglerc'
+or visit http://www.dtek.chalmers.se/~dvd/
