@@ -955,7 +955,7 @@ void macroblock(void)
 	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
 	  /* 7.6.6.4  B frame picture */
 	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	  //mb.motion_vector_count = 1;
+	  mb.motion_vector_count = 1;
 	  mb.mv_format = MV_FORMAT_FRAME;
 	  mb.dmv = 0;
 	}
@@ -1132,6 +1132,7 @@ void macroblock(void)
 	
 	mb.prediction_type = PRED_TYPE_FRAME_BASED;
 	mb.mv_format = MV_FORMAT_FRAME;
+	mb.motion_vector_count = 1;
 	reset_PMV();
       } else {
 

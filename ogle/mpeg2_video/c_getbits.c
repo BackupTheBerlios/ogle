@@ -466,7 +466,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   fprintf(stderr, "video_dec: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -563,7 +563,7 @@ int attach_ctrl_shm(int shmid)
   char *shmaddr;
   
   if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("attach_ctrl_data(), shmat()");
       return -1;
     }

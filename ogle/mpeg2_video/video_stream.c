@@ -801,7 +801,7 @@ void init_out_q(int nr_of_bufs)
   }
 
   /* Attach the shared memory to the process. */
-  buf_ctrl_shmaddr = shmat(buf_ctrl_shmid, NULL, 0);
+  buf_ctrl_shmaddr = shmat(buf_ctrl_shmid, NULL, SHM_SHARE_MMU);
   if(buf_ctrl_shmaddr == (char *) -1) {
     perror("shmat buf_ctrl");
     exit_program(1);
@@ -862,7 +862,7 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
   }
 
   // Attach the shared memory to the process
-  picture_buffers_shmaddr = shmat(picture_buffers_shmid, NULL, 0);
+  picture_buffers_shmaddr = shmat(picture_buffers_shmid, NULL, SHM_SHARE_MMU);
   if(picture_buffers_shmaddr == (char *) -1) {
     perror("shmat picture_buffers");
     exit_program(1);
@@ -1783,9 +1783,10 @@ void picture_data(void)
   // Check 'err' here?
 
   // Picture decoded
+  /*
   fprintf(stderr, "end of picture tempref: %d\n",
 	  pic.header.temporal_reference);
-  
+  */
   if((prev_coded_temp_ref == pic.header.temporal_reference) ||
      (pic.coding_ext.picture_structure == 0x3)) {
     
@@ -1824,6 +1825,7 @@ void picture_data(void)
       
       last_pts_to_dpy = pinfos[bwd_ref_buf_id].PTS;
       last_scr_nr_to_dpy = pinfos[bwd_ref_buf_id].scr_nr;
+      
       dpy_q_put(bwd_ref_buf_id);
       
     } else if(bwd_ref_temporal_reference < (last_temporal_ref_to_dpy+1)%1024) {
