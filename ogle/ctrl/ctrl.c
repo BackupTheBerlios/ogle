@@ -739,6 +739,10 @@ int main(int argc, char *argv[])
     input_file = NULL;
   }
   
+  
+  fprintf(stderr, "%s %s\n", PACKAGE, VERSION);
+  
+  
   ctrl_data_shmid = create_ctrl_data();
   
   /* create msgq */
