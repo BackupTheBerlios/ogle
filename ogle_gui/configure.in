@@ -127,8 +127,6 @@ po/Makefile.in
 Makefile
 pixmaps/Makefile
 src/Makefile
-doc/Makefile
-doc/C/Makefile
 ])
 
 
