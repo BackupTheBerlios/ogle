@@ -3,98 +3,15 @@
 
 #include <string.h>
 
-#include <ogle/dvdcontrol.h>
-
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
 #include "bindings.h"
+#include "debug_print.h"
+#include "interpret_config.h"
 
-extern DVDNav_t *nav;
+extern char *program_name;
 extern char *dvd_path;
-
-static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
-{
-  //  DVDResult_t res;
-  DVDLangID_t lang;
-  DVDCountryID_t country;
-  DVDParentalLevel_t plevel;
-  DVDPlayerRegion_t region;
-  xmlChar *s;
-
-  cur = cur->xmlChildrenNode;
-  
-  while(cur != NULL) {
-    
-    if(!strcmp("DefaultMenuLanguage", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "DefaultMenuLanguage = '%s'\n", s);
-	lang = s[0] << 8 | s[1];
-	DVDDefaultMenuLanguageSelect(nav, lang);
-	free(s);
-      }
-    } else if(!strcmp("DefaultAudioLanguage", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "DefaultAudioLanguage = %s\n", s);
-	lang = s[0] << 8 | s[1];
-	DVDDefaultAudioLanguageSelect(nav, lang);    
-	free(s);
-      }
-    } else if(!strcmp("DefaultSubtitleLanguage", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "DefaultSubtitleLanguage = %s\n", s);
-	lang = s[0] << 8 | s[1];
-	DVDDefaultSubpictureLanguageSelect(nav, lang);    
-	free(s);
-      } 
-    } else if(!strcmp("ParentalCountry", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "ParentalCountry = %s\n", s);
-	country = s[0] << 8 | s[1];
-	DVDParentalCountrySelect(nav, country);    
-	free(s);
-      } 
-    } else if(!strcmp("ParentalLevel", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "ParentalLevel = %s\n", s);
-	plevel = atoi(s);
-	DVDParentalLevelSelect(nav, plevel);    
-	free(s);
-      }
-    } else if(!strcmp("PlayerRegion", cur->name)) {
-      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "PlayerRegion = %s\n", s);
-	region = (uint8_t)atoi(s);
-	if((region >= 1) && (region <= 8)) {
-	  region = 1 << (region-1);
-	  DVDPlayerRegionSelect(nav, region);
-	} else {
-	  fprintf(stderr, "ERROR[dvd_cli]: interpret_nav_defaults(): <PlayerRegion> %u not in range [1,8]\n", region);
-	}
-	free(s);
-      }
-    }
-
-    cur = cur->next;
-  }
-
-}
-
-
-static void interpret_nav(xmlDocPtr doc, xmlNodePtr cur)
-{
-  cur = cur->xmlChildrenNode;
-
-  while(cur != NULL) {
-    
-    if(!xmlIsBlankNode(cur)) {
-      if(!strcmp("defaults", cur->name)) {
-	  interpret_nav_defaults(doc, cur);
-      }
-    }
-    cur = cur->next;
-  }
-}
 
 
 static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
@@ -109,24 +26,23 @@ static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("action", cur->name)) {
 	if(action != NULL) {
-	  fprintf(stderr,
-		  "ERROR[dvd_cli]: interpret_b(): more than one <action>\n");
+	  ERROR("interpret_b(): more than one <action>\n");
 	  break;
 	}
 	action = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(action == NULL) {
-	  fprintf(stderr, "ERROR[dvd_cli]: interpret_b(): <action> empty\n");
+	  ERROR("interpret_b(): <action> empty\n");
 	} else {
 	  //fprintf(stderr, "action: %s\n", action);
 	}
       } else if(!strcmp("key", cur->name)) {
 	if(action == NULL) {
-	  fprintf(stderr, "ERROR[dvd_cli]: interpret_b(): no <action>\n");
+	  ERROR("interpret_b(): no <action>\n");
 	  break;
 	}
 	key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(key == NULL) {
-	  fprintf(stderr, "WARNING[dvd_cli]: interpret_b(): <key> empty\n");
+	  WARNING("interpret_b(): <key> empty\n");
 	} else {
 	  add_keybinding(key, action);
 	  //fprintf(stderr, "key: %s\n", key);	
@@ -201,9 +117,7 @@ static void interpret_dvd(xmlDocPtr doc, xmlNodePtr cur)
   while(cur != NULL) {
     
     if(!xmlIsBlankNode(cur)) {
-      if(!strcmp("nav", cur->name)) {
-	interpret_nav(doc, cur);
-      } else if(!strcmp("device", cur->name)) {
+      if(!strcmp("device", cur->name)) {
 	interpret_device(doc, cur);
       }
     }
@@ -257,7 +171,7 @@ int interpret_oglerc(char *filename)
 
   } else {
 
-    fprintf(stderr, "WARNING[dvd_cli]: Couldn't load config file\n");
+    WARNING("Couldn't load config file\n");
 
     return -1;
 
@@ -272,13 +186,12 @@ int interpret_config(void)
 
 
   if((r+= interpret_oglerc(CONFIG_FILE)) == -1) {
-    fprintf(stderr,
-	    "ERROR[dvd_cli]: interpret_config(): Couldn't read "CONFIG_FILE"\n");
+    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n");
   }
 
   home = getenv("HOME");
   if(home == NULL) {
-    fprintf(stderr, "WARNING[dvd_cli]: No $HOME\n");
+    WARNING("No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -289,8 +202,7 @@ int interpret_config(void)
     strcat(rcpath, rcfile);
     
     if((r+= interpret_oglerc(rcpath)) == -1) {
-      fprintf(stderr,
-	      "WARNING[dvd_cli]: interpret_config(): Couldn't read '%s'\n", rcpath);
+      WARNING("interpret_config(): Couldn't read '%s'\n", rcpath);
     }
     
     free(rcpath);

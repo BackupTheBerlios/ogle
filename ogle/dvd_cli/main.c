@@ -42,7 +42,7 @@ char *dvd_path;
 int msgqid;
 extern int win;
 
-static char *program_name;
+char *program_name;
 void usage()
 {
   fprintf(stderr, "Usage: %s [-m <msgid>] path\n", 
@@ -50,8 +50,7 @@ void usage()
 }
 
 
-int
-main (int argc, char *argv[])
+int main (int argc, char *argv[])
 {
   DVDResult_t res;
 
