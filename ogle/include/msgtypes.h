@@ -46,11 +46,15 @@ typedef enum {
   DVDCTRL_CMD_RIGHT_BUTTON,
   DVDCTRL_CMD_ACTIVATE_BUTTON,
   DVDCTRL_CMD_SELECT_BUTTON_NR,
-  DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR
+  DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR,
+  DVDCTRL_CMD_CHECK_MOUSE_SELECT,
+  DVDCTRL_CMD_CHECK_MOUSE_ACTIVATE
 } mq_dvdctrl_cmd_t;
 
 typedef struct {
   mq_dvdctrl_cmd_t cmd;
+  unsigned int mouse_x;
+  unsigned int mouse_y;
   int button_nr;
 } mq_cmd_dvdctrl_cmd_t;
 

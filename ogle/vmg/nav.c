@@ -42,6 +42,7 @@ mq_cmd_t *chk_for_msg(mq_msg_t *msg);
 int send_msg(mq_msg_t *msg, int mtext_size);
 int eval_msg(mq_cmd_t *cmd);
 int wait_init_msg(void);
+int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
 
 static void get_next_nav_packet(char *buffer) {
   static int init_done = 0;
@@ -162,6 +163,31 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 	*btn_nr = cmd->cmd.dvdctrl_cmd.button_nr;
 	is_action = 1;
 	break;
+      case DVDCTRL_CMD_CHECK_MOUSE_SELECT:
+	{
+	  int button;
+	  unsigned int x = cmd->cmd.dvdctrl_cmd.mouse_x;
+	  unsigned int y = cmd->cmd.dvdctrl_cmd.mouse_y;
+	  
+	  button = mouse_over_hl(pci, x, y);
+	  if(button) {
+	    *btn_nr = button;
+	  }
+	}
+	break;
+      case DVDCTRL_CMD_CHECK_MOUSE_ACTIVATE:
+	{
+	  int button;
+	  unsigned int x = cmd->cmd.dvdctrl_cmd.mouse_x;
+	  unsigned int y = cmd->cmd.dvdctrl_cmd.mouse_y;
+	  
+	  button = mouse_over_hl(pci, x, y);
+	  if(button) {
+	    *btn_nr = button;
+	    is_action = 1;
+	  }
+	}
+	break;
       default:
 	fprintf(stderr, "vmg: Unknown dvdctrl_cmd.cmd\n");
 	break;
@@ -202,6 +228,24 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   return 0;
 }
 
+/** 
+ * Check if mouse coords are over any highlighted area 
+ * Returns the button number if the the coordinate is enclosed in the area.
+ * Zero otherwise.
+ */
+
+int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
+  int button = 1;
+  while(button <= pci->hli.hl_gi.btn_ns) {
+    if( (x >= pci->hli.btnit[button-1].x_start)
+	&& (x <= pci->hli.btnit[button-1].x_end) 
+	&& (y >= pci->hli.btnit[button-1].y_start) 
+	&& (y <= pci->hli.btnit[button-1].y_end )) 
+      return button;
+    button++;
+  }
+  return 0;
+}
 
 vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
 		   dvd_state_t *state) {
