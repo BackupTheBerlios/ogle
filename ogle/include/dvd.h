@@ -53,6 +53,11 @@ typedef uint16_t DVDLangID_t;
 
 typedef uint16_t DVDRegister;
 
+typedef enum {
+  DVDFalse = 0,
+  DVDTrue = 1
+} DVDBool_t; 
+
 typedef DVDRegister DVDGPRMArray_t[16];
 typedef DVDRegister DVDSPRMArray_t[24];
 
