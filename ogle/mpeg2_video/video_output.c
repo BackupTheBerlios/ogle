@@ -30,6 +30,8 @@
 #include <sys/time.h>
 #endif
 
+#include <X11/Xlib.h>
+
 #include <ogle/msgevents.h>
 #include "common.h"
 #include "timemath.h"
@@ -41,10 +43,9 @@
 #endif
 
 extern void display(yuv_image_t *current_image);
-extern void display_init(yuv_image_t *picture_data,
-			 data_buf_head_t *picture_data_head,
-			 char *picture_buf_base);
-
+extern Window display_init(yuv_image_t *picture_data,
+			   data_buf_head_t *picture_data_head,
+			   char *picture_buf_base);
 extern void display_exit(void);
 
 
@@ -187,11 +188,11 @@ static int attach_picture_buffer(int shmid)
 #ifdef HAVE_XV
     image_bufs = 
       malloc((picture_ctrl_head->nr_of_dataelems+1) * sizeof(yuv_image_t));
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
 #else
     image_bufs = 
       malloc(picture_ctrl_head->nr_of_dataelems * sizeof(yuv_image_t));
-    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
+    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
 #endif
       image_bufs[n].y = picture_buf_base + data_elems[n].picture.y_offset;
       image_bufs[n].u = picture_buf_base + data_elems[n].picture.u_offset;
@@ -504,6 +505,7 @@ static void display_process()
 		    ((double)TIME_S(oavg_time)+
 		     (double)TIME_SS(oavg_time)/CT_FRACTION))
 	      );
+
     }
     /*
     clocktime_get(&real_time2);

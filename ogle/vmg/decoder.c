@@ -517,7 +517,7 @@ bool eval(vm_cmd_t commands[], int num_commands,
       fprintf(stderr, "%04x|", state->GPRM[i]);
     fprintf(stderr, "\n");
   }
-  if(0) {
+  if(1) {
     int i;
     for(i = 0; i < num_commands; i++)
       vmPrint_CMD(i, &commands[i]);
@@ -527,7 +527,7 @@ bool eval(vm_cmd_t commands[], int num_commands,
   while(i < num_commands && total < 100000) {
     int line;
     
-    if(1) vmPrint_CMD(i, &commands[i]);
+    if(0) vmPrint_CMD(i, &commands[i]);
     line = eval_command(&commands[i].bytes[0], return_values);
     
     if (line < 0) { // Link command
