@@ -267,6 +267,7 @@ fi
 
 dnl Architecture specific stuff
 USE_MMX=
+USE_SPARCASM=
 case "$host_cpu" in
 i?86)
 	case "$host_cpu" in
@@ -289,10 +290,14 @@ i?86)
 sparc)
 	if test x"$GCC" = x"yes"; then
 	  CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
+	  AC_DEFINE([USE_SPARCASM],1,[use assembler routines])
+	  USE_SPARCASM=yes
 	fi
 esac
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
+AC_SUBST(USE_SPARCASM)
+AM_CONDITIONAL(USE_SPARCASM, test x$USE_SPARCASM = xyes)
 
 TOP_INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include'
 AC_SUBST(TOP_INCLUDES)

@@ -1391,9 +1391,8 @@ static void draw_win_x11(window_info *dwin)
     */
 
 
-#define FFB_ASM
 
-#ifdef FFB_ASM
+#ifdef USE_SPARCASM
     for(m = 0; m < src_area.height; m+=2) {
       uint8_t  *yp;
       uint8_t *up;
@@ -1411,7 +1410,7 @@ static void draw_win_x11(window_info *dwin)
 			       &yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/4)*2],
 			       src_area.width);
     }
-#else  /* FFB_ASM */
+#else  /* USE_SPARCASM */
     
     for(m = 0; m < src_area.height; m++) {
       int n;
@@ -1432,7 +1431,7 @@ static void draw_win_x11(window_info *dwin)
 	
       }
     }
-#endif /* INT_WRITE */
+#endif /* USE_SPARCASM */
 	
     
 #ifdef SPU

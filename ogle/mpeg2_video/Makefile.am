@@ -25,12 +25,18 @@ CSOURCES=c_mlib.c c_mlib.h
 endif
 endif
 
+if USE_SPARCASM
+SPARCASM=ffb_asm.s ffb_asm.h
+endif
+
+
 EXTRA_DIST = \
 	yuv2rgb_mlib.c yuv2rgb_mlib.h \
 	yuv2rgb_mmx.c yuv2rgb_mmx.h \
 	mmx_idct.S \
 	mmx_mlib.c mmx.h \
-	c_mlib.c c_mlib.h
+	c_mlib.c c_mlib.h \
+	ffb_asm.s ffb_asm.h
 
 bin_PROGRAMS = video_stream video_output
 
@@ -50,8 +56,7 @@ video_output_SOURCES = \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
-	ffb_asm.h ffb_asm.s \
-	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
+	$(MLIBSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 
 video_stream_LDADD = @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
 
