@@ -980,10 +980,11 @@ void draw_win(debug_win *dwin)
 		     dwin->image->info->padded_height, 1);
     }
 #endif
-    XDrawLine(mydisplay, dwin->win, mygc, 20, 20, 200, 200);
+
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
-                  dwin->image->info->horizontal_size, dwin->image->info->vertical_size,
+                  dwin->image->info->horizontal_size, 
+		  dwin->image->info->vertical_size,
                   0, 0, 
                   scaled_image_width, scaled_image_height,
                   True);
