@@ -1,5 +1,5 @@
-#ifndef __DECODER_H__
-#define __DECODER_H__
+#ifndef DECODER_H_INCLUDED
+#define DECODER_H_INCLUDED
 
 #include <inttypes.h>
 #include "ifo.h" // vm_cmd_t
@@ -61,10 +61,12 @@ typedef struct {
 typedef struct {
   uint16_t SPRM[24];
   uint16_t GPRM[16];
+  /* Need to have some thing to indicate normal/counter mode for every GPRM */
+  /* int GPRM_mode[16]; */
 } registers_t;
 
 bool
 eval(vm_cmd_t commands[], int num_commands, 
      registers_t *registers, link_t *return_values);
 
-#endif /* __DECODER_H__ */
+#endif /* DECODER_H_INCLUDED */
