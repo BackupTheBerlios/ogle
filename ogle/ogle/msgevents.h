@@ -25,9 +25,7 @@
 #include <ogle/dvd.h>
 #include <ogle/dvdevents.h>
 
-#if HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
 
 #if 0 /* One message queue for every listener */
 

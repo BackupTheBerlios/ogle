@@ -23,9 +23,7 @@
 #include <ogle/msgevents.h> /* Only for the hack with DVDNextEvent !! */
 #include <ogle/dvdbookmarks.h>
 
-#if HAVE_SYS_PARAM_H
 #include <sys/param.h>
-#endif
 
 typedef struct DVDNav_s DVDNav_t;
 
