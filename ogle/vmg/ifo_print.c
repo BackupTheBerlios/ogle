@@ -12,6 +12,7 @@
 #include "../include/common.h"
 
 #include "ifo.h"
+#include "vmcmd.h"
 
 
 #define PUT(level, text...) \

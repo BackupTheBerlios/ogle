@@ -32,9 +32,6 @@ int bits_avail (buffer_t *buffer);
 
 
 
-
-
-
 #define PS2_PCI_SUBSTREAM_ID 0x00
 #define PS2_DSI_SUBSTREAM_ID 0x01
 
@@ -131,7 +128,7 @@ typedef struct {
   unsigned int right : 6;
   unsigned int zero6 : 2;
 #endif
-  char cmd[8];
+  uint8_t cmd[8];
 } __attribute__ ((packed)) btni_t;
 
 typedef struct {
@@ -191,6 +188,5 @@ typedef struct {
   synci_t    synci;
   uint8_t    zero1[471];
 } __attribute__ ((packed)) dsi_t;
-
 
 

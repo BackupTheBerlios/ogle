@@ -15,6 +15,9 @@
 #include "ifo.h"
 #include "decoder.h"
 
+extern int demux_data(char *file_name, int start_sector, 
+		      int last_sector, command_data_t *cmd);
+
 
 #define PUT(level, text...) \
 if(level < debug) { \
@@ -114,7 +117,7 @@ int main(int argc, char *argv[])
   state.pgN = 0;
   state.cellN = 0;
   state.domain = FP_DOMAIN;
-  bzero(state.registers.GPRM, sizeof(uint16_t)*16);
+  memset(state.registers.GPRM, 0, sizeof(uint16_t)*16);
   
   
   ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");

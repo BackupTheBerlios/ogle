@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: nav.c,v 1.1 2000/12/29 23:04:20 d95hjort Exp $
+ * $Id: nav.c,v 1.2 2000/12/29 23:31:27 d95hjort Exp $
  */
 
 #include <stdio.h>
@@ -37,10 +37,10 @@
 
 #define COMMAND_BYTES 8
 
+#include "ifo.h" // command_data_t
 #include "nav.h"
 #include "nav_read.h"
 #include "nav_print.h"
-#include "ifo.h" // command_data_t
 
 pci_t pci;
 dsi_t dsi;
