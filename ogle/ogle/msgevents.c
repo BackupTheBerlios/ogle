@@ -114,6 +114,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQReqPicBuf",
   "MsgEventQGntPicBuf",
   "MsgEventQDestroyBuf",
+  "MsgEventQDemuxStreamEnable",
   NULL
 };
 
@@ -846,6 +847,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDemuxStreamChange2:
     size = sizeof(MsgQDemuxStreamChange2Event_t);
+    break;
+  case MsgEventQDemuxStreamEnable:
+    size = sizeof(MsgQDemuxStreamEnableEvent_t);
     break;
   case MsgEventQDemuxDefault:
     size = sizeof(MsgQDemuxDefaultEvent_t);

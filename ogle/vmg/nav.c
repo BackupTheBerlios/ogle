@@ -224,15 +224,15 @@ int main(int argc, char *argv[])
  */
 static uint32_t get_spustate(void)
 {
-  uint32_t spu_on;
-  int sN = vm_get_subp_active_stream();
+  uint32_t spu_on = 0;
+  int subpN = vm_get_subp_active_stream();
   
-  if(sN != -1) {
-    spu_on = sN & 0x40;
-  } else {
-    spu_on = 0;
+  if(subpN != 62) {
+    if(vm_get_subp_display_flag()) {
+      spu_on = 1;
+    }
   }
-  
+
   switch(subpicture_state) {
   case DVD_SUBPICTURE_STATE_OFF:
   case DVD_SUBPICTURE_STATE_ON:
@@ -288,8 +288,6 @@ static int send_spustate(uint32_t spustate)
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
   static int video_aspect = -1;
-  //  static int audio_stream_id = -1;
-  static int subp_stream_id = -1;
   MsgEvent_t ev;
   
   /* Tell video out what aspect ratio this pice has */ 
@@ -317,53 +315,58 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   }
   /* Tell the demuxer which audio stream to demux */ 
   {
-    int sN = vm_get_audio_active_stream();
-    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
-    {
-      static uint8_t old_id = 0xbd;
-      static uint8_t old_subtype = 0x80;
-      uint8_t new_id;
-      uint8_t new_subtype;
+    static uint8_t old_id = 0xbd;
+    static uint8_t old_subtype = 0x80;
+    static int old_audio_enabled = -1;
+    uint8_t new_id;
+    uint8_t new_subtype;
+    int new_audio_enabled;
+    int audioN = vm_get_audio_active_stream();
+    
+    new_id = 0;
+    new_subtype = 0;
+    new_audio_enabled = 0;
+
+    if(audioN != 15) {
       audio_attr_t attr;
-      int audio_stream_id = sN;
-      
-      new_id = 0;
-      new_subtype = 0;
-      
-      if(!vm_get_audio_attr(sN, &attr)) {
-	ERROR("Audio stream out of range: %d\n", sN);
-	new_id = 0xbd; //private stream 1
-	new_subtype = 0x80 + audio_stream_id; // AC-3
+      int sN = vm_get_audio_stream_id(audioN);
+
+      if(vm_get_audio_attr(audioN, &attr)) {
+	
+	switch(attr.audio_format) {
+	case 0:
+	  //af = DVD_AUDIO_FORMAT_AC3;
+	  new_id = 0xbd; //private stream 1
+	  new_subtype = 0x80 + sN; // AC-3
+	  break;
+	case 2:
+	  //af = DVD_AUDIO_FORMAT_MPEG1;
+	  new_id = 0xC0 + sN; //mpeg audio
+	case 3:
+	  //af = DVD_AUDIO_FORMAT_MPEG2;
+	  new_id = 0xC0 + sN; //mpeg audio
+	  break;
+	case 4:
+	  //af = DVD_AUDIO_FORMAT_LPCM;
+	  new_id = 0xbd; //private stream 1
+	  new_subtype = 0xA0 + sN; // lpcm
+	  break;
+	case 6:
+	  //af = DVD_AUDIO_FORMAT_DTS;
+	  new_id = 0xbd; //private stream 1
+	  new_subtype = 0x88 + sN; // dts
+	  break;
+	default:
+	  NOTE("%s", "please send a bug report, unknown Audio format!");
+	  break;
+	}
+	
       } else {
+	ERROR("send_demux: Audio stream out of range: %d\n", audioN);
+	new_id = 0xbd; //private stream 1
+	new_subtype = 0x80 + sN; // AC-3
+      }
       
-      switch(attr.audio_format) {
-      case 0:
-	//af = DVD_AUDIO_FORMAT_AC3;
-	new_id = 0xbd; //private stream 1
-	new_subtype = 0x80 + audio_stream_id; // AC-3
-	break;
-      case 2:
-	//af = DVD_AUDIO_FORMAT_MPEG1;
-	new_id = 0xC0 + audio_stream_id; //mpeg audio
-      case 3:
-	//af = DVD_AUDIO_FORMAT_MPEG2;
-	new_id = 0xC0 + audio_stream_id; //mpeg audio
-	break;
-      case 4:
-	//af = DVD_AUDIO_FORMAT_LPCM;
-	new_id = 0xbd; //private stream 1
-	new_subtype = 0xA0 + audio_stream_id; // lpcm
-	break;
-      case 6:
-	//af = DVD_AUDIO_FORMAT_DTS;
-	new_id = 0xbd; //private stream 1
-	new_subtype = 0x88 + audio_stream_id; // dts
-	break;
-      default:
-	NOTE("%s", "please send a bug report, unknown Audio format!");
-	break;
-      }
-      }
       if(old_id != new_id || old_subtype != new_subtype) {
 	DNOTE("sending audio demuxstream %d\n", sN);
 	DNOTE("oid: %02x, ost: %02x, nid: %02x, nst: %02x\n",
@@ -379,30 +382,76 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       }
       old_id = new_id;
       old_subtype = new_subtype;
+
+      new_audio_enabled = 1;
+    } else {
+      // no audio decoded
+      new_audio_enabled = 0;
     }
+    
+    if(old_audio_enabled != new_audio_enabled) {
+      DNOTE("sending audio demuxstream state %s\n", 
+	    (new_audio_enabled ? "enabled" : "disabled"));
+      DNOTE("id: %02x, st: %02x\n",
+	    old_id, old_subtype);
+      ev.type = MsgEventQDemuxStreamEnable;
+      ev.demuxstreamenable.state = new_audio_enabled;
+      ev.demuxstreamenable.stream_id = old_id;
+      ev.demuxstreamenable.subtype = old_subtype;
+      
+      if(send_demux(msgq, &ev) == -1) {
+	ERROR("%s", "failed to send audio demuxstreamenable\n");
+      }
+    }
+    old_audio_enabled = new_audio_enabled; 
+    
   }
 
   /* Tell the demuxer which subpicture stream to demux */ 
   {
-    int sN = vm_get_subp_active_stream();
+    static int old_subp_enabled = -1;
+    static int subp_stream_id = -1;
+    int new_subp_enabled = 0;
     
-    if(sN != -1) {
-      sN = sN & ~0x40;
+    int subpN = vm_get_subp_active_stream();
+    
+    if(subpN != 62) {
+      int sN = vm_get_subp_stream_id(subpN);
+      
+      if(sN != subp_stream_id) {
+	subp_stream_id = sN;
+	
+	DNOTE("sending subp demuxstream %d\n", sN);
+	
+	ev.type = MsgEventQDemuxStreamChange;
+	ev.demuxstreamchange.stream_id = 0xbd; // SPU
+	ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
+	if(send_demux(msgq, &ev) == -1) {
+	  ERROR("%s", "failed to send Subpicture demuxstream\n");
+	}
+      }
+    
+      new_subp_enabled = 1;
+    } else {
+      // no subpicture
+      new_subp_enabled = 0;
     }
-  
-    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
-    if(sN != subp_stream_id) {
-      subp_stream_id = sN;
+
+    if((subp_stream_id != -1) && (old_subp_enabled != new_subp_enabled)) {
+      DNOTE("sending subp demuxstream state %s\n", 
+	    (new_subp_enabled ? "enabled" : "disabled"));
+      DNOTE("id: %02x, st: %02x\n",
+	    0xbd, 0x20 | subp_stream_id);
+      ev.type = MsgEventQDemuxStreamEnable;
+      ev.demuxstreamenable.state = new_subp_enabled;
+      ev.demuxstreamenable.stream_id = 0xbd;
+      ev.demuxstreamenable.subtype = 0x20 | subp_stream_id;
       
-      DNOTE("sending subp demuxstream %d\n", sN);
-      
-      ev.type = MsgEventQDemuxStreamChange;
-      ev.demuxstreamchange.stream_id = 0xbd; // SPU
-      ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	ERROR("%s", "failed to send Subpicture demuxstream\n");
+	ERROR("%s", "failed to send audio demuxstreamenable\n");
       }
     }
+    old_subp_enabled = new_subp_enabled; 
 
     send_spustate(get_spustate());
     
@@ -892,7 +941,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
     break;
   case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
     state.SPST_REG &= 0x40; // Keep the on/off bit.
-    state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+    state.SPST_REG |= (ev.dvdctrl.cmd.subpicturestreamchange.streamnr & 0x3f);
     NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
     break;
   case DVDCtrlSetSubpictureState:
@@ -1001,7 +1050,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
       send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
       send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
-	(vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	(vm_audio_stream_enabled(streamN)) ? DVDTrue : DVDFalse;
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
     }
     break;
@@ -1153,7 +1202,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
       send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
       send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
-	(vm_get_subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	(vm_subp_stream_enabled(streamN)) ? DVDTrue : DVDFalse;
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
     }
     break;

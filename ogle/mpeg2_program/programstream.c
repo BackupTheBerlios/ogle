@@ -88,6 +88,7 @@ int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
 			  uint8_t newid, uint8_t newsubtype);
 int id_has_output(uint8_t stream_id, uint8_t subtype);
 int id_get_output(uint8_t id, int subtype);
+static int enable_stream(uint8_t id, uint8_t subtype, int state);
 
 typedef struct {
   uint8_t *buf_start;
@@ -2117,6 +2118,11 @@ static void handle_events(MsgEvent_t *ev)
   case MsgEventQDemuxStreamChange:
     switch_to_stream(ev->demuxstream.stream_id, ev->demuxstream.subtype);
     break;
+  case MsgEventQDemuxStreamEnable:
+    enable_stream(ev->demuxstreamenable.stream_id,
+		  ev->demuxstreamenable.subtype,
+		  ev->demuxstreamenable.state);
+    break;
   case MsgEventQDemuxStreamChange2:
     switch_from_to_stream(ev->demuxstreamchange2.old_stream_id,
 			  ev->demuxstreamchange2.old_subtype,
@@ -2438,6 +2444,25 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
     id_reg_ps1[oldid].shmaddr = NULL;
     id_reg_ps1[oldid].state = STREAM_DISCARD;
     id_reg_ps1[oldid].file = NULL;
+  }
+  return 1;
+}
+
+
+static int enable_stream(uint8_t id, uint8_t subtype, int state)
+{
+  stream_state_t sstate;
+
+  if(state) {
+    sstate = STREAM_DECODE;
+  } else {
+    sstate = STREAM_MUTED;
+  }
+  
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    id_reg[id].state = sstate;
+  } else {
+    id_reg_ps1[subtype].state = sstate;
   }
   return 1;
 }

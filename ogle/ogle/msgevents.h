@@ -178,7 +178,8 @@ typedef enum {
   MsgEventQSPUState,
   MsgEventQReqPicBuf,
   MsgEventQGntPicBuf,
-  MsgEventQDestroyPicBuf
+  MsgEventQDestroyPicBuf,
+  MsgEventQDemuxStreamEnable
 } MsgEventType_t;
 
 
@@ -411,6 +412,15 @@ typedef struct {
   MsgEventClient_t client;
   uint8_t stream_id;
   int subtype;
+  int state; /* 0 - diabled, 1 - enabled */
+} MsgQDemuxStreamEnableEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  uint8_t stream_id;
+  int subtype;
 } MsgQDemuxStreamEvent_t;
 
 typedef struct {
@@ -573,6 +583,7 @@ typedef union {
   MsgQDemuxStreamEvent_t demuxstream;
   MsgQDemuxStreamChangeEvent_t demuxstreamchange;
   MsgQDemuxStreamChange2Event_t demuxstreamchange2;
+  MsgQDemuxStreamEnableEvent_t demuxstreamenable;
   MsgQDemuxDefaultEvent_t demuxdefault;
   MsgQDVDCtrlLongEvent_t dvdctrllong;
   MsgQDemuxDVDEvent_t demuxdvd;

@@ -491,11 +491,24 @@ int vm_resume(void)
 }
 
 
+int vm_audio_stream_enabled(int audioN)
+{
+  
+  if(audioN >= 0 && audioN < 8) {
+    if(state.pgc->audio_control[audioN] & (1<<15)) {
+      return 1;
+    }
+  }
+  
+  return 0;
+}
+
 /**
- * Return the substream id for 'logical' audio stream audioN.
+ * Return the stream id for 'logical' audio stream audioN.
  *  0 <= audioN < 8
+ * returns -1 if the stream is not enabled
  */
-int vm_get_audio_stream(int audioN)
+int vm_get_audio_stream_id(int audioN)
 {
   int streamN = -1;
   
@@ -506,46 +519,59 @@ int vm_get_audio_stream(int audioN)
   }
   
   if(audioN < 8) {
-    /* Is there any contol info for this logical stream */ 
-    if(state.pgc->audio_control[audioN] & (1<<15)) {
+    /* Is there any control info for this logical stream */ 
+    if(vm_audio_stream_enabled(audioN)) {
       streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
     }
   }
   
-  if(state.domain == VTSM_DOMAIN 
-     || state.domain == VMGM_DOMAIN
-     || state.domain == FP_DOMAIN) {
-    if(streamN == -1)
-      streamN = 0;
-  }
-  
-  return streamN;
-}
-
-int vm_get_audio_active_stream(void)
-{
-  int audioN = state.AST_REG;
-  int streamN = vm_get_audio_stream(audioN);
-  
-  /* If no such stream, then select the first one that exists. */
-  if(streamN == -1) {
-    for(audioN = 0; audioN < 8; audioN++) {
-      if(state.pgc->audio_control[audioN] & (1<<15)) {
-	streamN = vm_get_audio_stream(audioN);
-	break;
-      }
-    }
-  }
-
   return streamN;
 }
 
 
 /**
- * Return the substream id for 'logical' subpicture stream subpN.
+ * Return the current active audio stream. 0-7 or 15 (0xf) if none
+ *
+ */
+int vm_get_audio_active_stream(void)
+{
+  int audioN = state.AST_REG;
+
+  if(!vm_audio_stream_enabled(audioN)) {
+    int n;
+    audioN = 0xf; // none
+    
+    for(n = 0; n < 8; n++) {
+      if(vm_audio_stream_enabled(n)) {
+	audioN = n;
+	break;
+      }
+    }
+  }
+  
+  return audioN;
+}
+
+
+int vm_subp_stream_enabled(int subpN)
+{
+
+  if(subpN >= 0 && subpN < 32) { /* a valid logical stream */
+    /* Is this logical stream present */ 
+    if(state.pgc->subp_control[subpN] >> 31) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+
+/**
+ * Return the stream id for 'logical' subpicture stream subpN.
  * 0 <= subpN < 32
  */
-int vm_get_subp_stream(int subpN)
+int vm_get_subp_stream_id(int subpN)
 {
   int streamN = -1;
   int source_aspect = get_video_aspect();
@@ -556,47 +582,39 @@ int vm_get_subp_stream(int subpN)
     subpN = 0;
   }
   
-  if(subpN < 32) { /* a valid logical stream */
-    /* Is this logical stream present */ 
-    if(state.pgc->subp_control[subpN] >> 31) {
-      if(source_aspect == 0) /* 4:3 */	     
-	streamN = (state.pgc->subp_control[subpN] >> 24) & 0x1f;  
-      if(source_aspect == 3) /* 16:9 */
-	streamN = (state.pgc->subp_control[subpN] >> 16) & 0x1f;
+  if(vm_subp_stream_enabled(subpN)) {
+    if(source_aspect == 0) { /* 4:3 */
+      streamN = (state.pgc->subp_control[subpN] >> 24) & 0x1f;  
+    } else if(source_aspect == 3) { /* 16:9 */
+      streamN = (state.pgc->subp_control[subpN] >> 16) & 0x1f;
     }
   }
   
-  /* Paranoia.. if no stream select 0 anyway */
-  if(state.domain == VTSM_DOMAIN 
-     || state.domain == VMGM_DOMAIN
-     || state.domain == FP_DOMAIN) {
-    if(streamN == -1)
-      streamN = 0;
-  }
-
   return streamN;
 }
 
 int vm_get_subp_active_stream(void)
 {
-  int subpN = state.SPST_REG & ~0x40;
-  int streamN = vm_get_subp_stream(subpN);
+  int subpN = state.SPST_REG & 0x3f;
   
-  /* If no such stream, then select the first one that exists. */
-  if(streamN == -1)
-    for(subpN = 0; subpN < 32; subpN++)
-      if(state.pgc->subp_control[subpN] >> 31) {
-	streamN = vm_get_subp_stream(subpN);
+  if(!vm_subp_stream_enabled(subpN)) {
+    int n;
+    subpN = 62; //none
+    
+    for(n = 0; n < 32; n++) {
+      if(vm_subp_stream_enabled(n)) {
+	subpN = n;
 	break;
       }
-  
-  /* We should instead send the on/off status to the spudecoder / mixer */
-  /* If we are in the title domain see if the spu mixing is on */
-  if(state.domain == VTS_DOMAIN && !(state.SPST_REG & 0x40)) {
-    return streamN | (state.SPST_REG & 0x40);
-  } else {
-    return streamN | (state.SPST_REG & 0x40);
+    }
   }
+  
+  return subpN;
+}
+
+int vm_get_subp_display_flag(void)
+{
+  return state.SPST_REG & 0x40;
 }
 
 void vm_get_angle_info(int *num_avail, int *current)
@@ -627,11 +645,11 @@ void vm_get_audio_info(int *num_avail, int *current)
     *num_avail = vtsi->vtsi_mat->nr_of_vts_audio_streams;
     *current = state.AST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_audio_streams; // 1
-    *current = 1;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_audio_streams; // 0 or 1
+    *current = 0;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_audio_streams; // 1
-    *current = 1;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_audio_streams; // 0 or 1
+    *current = 0;
   }
 }
 
@@ -641,11 +659,11 @@ void vm_get_subp_info(int *num_avail, int *current)
     *num_avail = vtsi->vtsi_mat->nr_of_vts_subp_streams;
     *current = state.SPST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_subp_streams; // 1
-    *current = 0x41;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_subp_streams; // 0 or 1
+    *current = 0x40;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams; // 1
-    *current = 0x41;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams; // 0 or 1
+    *current = 0x40;
   }
 }
 
@@ -714,12 +732,15 @@ user_ops_t vm_get_uops(void)
   return state.pgc->prohibited_ops;
 }
 
-int vm_get_audio_attr(int streamN, audio_attr_t *attr)
+/**
+ * Returns the audio attributes for 'logical' audio stream audioN
+ */
+int vm_get_audio_attr(int audioN, audio_attr_t *attr)
 {
   
   if(state.domain == VTS_DOMAIN) {
-    if((streamN >= 0) && (streamN < vtsi->vtsi_mat->nr_of_vts_audio_streams)) {
-      *attr = vtsi->vtsi_mat->vts_audio_attr[streamN];
+    if((audioN >= 0) && (audioN < vtsi->vtsi_mat->nr_of_vts_audio_streams)) {
+      *attr = vtsi->vtsi_mat->vts_audio_attr[audioN];
     } else {
       return 0;
     }
