@@ -267,7 +267,7 @@ int dvd_open_root(char *path)
   
   if((dvdroot = DVDOpen(path)) == NULL) {
     fprintf(stderr, "demux: couldn't open dvd\n");
-    return -1;
+    exit(1);
   }
   
   return 0;
@@ -285,17 +285,17 @@ static dvd_read_domain_t dvd_file_dom = -1;
 
 int dvd_change_file(int titlenum, dvd_read_domain_t domain)
 {
-  
+  // If same as current do nothing
   if(titlenum == dvd_file_num && domain == dvd_file_dom) {
     return 0;
   }
   if(dvdfile != NULL && dvdroot != NULL) {
-    fprintf(stderr, "demux: warning: closed open file when opening new\n");
+    fprintf(stderr, "demux: closing open file when opening new\n");
     DVDCloseFile(dvdfile);
   }
   if((dvdfile = DVDOpenFile(dvdroot, titlenum, domain)) == NULL) {
     fprintf(stderr, "demux: couldn't open dvdfile\n");
-    return -1;
+    exit(1);
   }
   dvd_file_num = titlenum;
   dvd_file_dom = domain;
@@ -319,17 +319,18 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
   switch(bytes_read) {
   case -1:
     fprintf(stderr, "demux: dvdreadblocks failed\n");
-    return -1;
+    exit(1);
   case 0:
     fprintf(stderr, "demux: dvdreadblocks returned 0\n");
     break;
   default:
     break;
   }
-  if(bytes_read != nblocks * 2048)
+  if(bytes_read != nblocks * 2048) {
     fprintf(stderr, "demux: dvdreadblocks only got %d, wanted %d\n",
 	    bytes_read, nblocks * 2048);
-  
+    exit(1);
+  }
   return 0;
 }
 
@@ -353,7 +354,7 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
   data_buf_head = (data_buf_head_t *)data_buf_addr;
   if(data_buf_head == NULL) {
     fprintf(stderr, "demux: fill_buffer, no buffer\n");
-    return -1;
+    exit(1);
   }
   blocks_in_buf = data_buf_head->buffer_size/2048;
   //fprintf(stderr, "blocks_in_buf: %d\n", blocks_in_buf);

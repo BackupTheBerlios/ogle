@@ -272,13 +272,9 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 static void cleanup(void)
 {
   fprintf(stderr, "ctrl: waiting for children to really die\n"); 
-  sleep(1);
-  sleep(1);
-  sleep(1);
-  sleep(1);
-  sleep(1);
-  sleep(1);
-  sleep(1);
+  
+  while(sleep(2)); // Continue sleeping if interupted 
+
   slay_children();
   cleanup_and_exit();
 }
@@ -634,13 +630,10 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 int main(int argc, char *argv[])
 {
   struct sigaction sig = { 0 };
-  pid_t demux_pid = -1;
   int c;
   MsgEventQ_t q;
   MsgEvent_t ev;
-  MsgEvent_t r_ev;
   MsgEventClient_t rcpt;
-  cap_state_t state;
 
   
   sig.sa_handler = int_handler;

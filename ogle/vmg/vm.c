@@ -109,15 +109,22 @@ int vm_reset(char *dvdroot) // , register_t regs)
   state.vtsN = -1;
   
   dvd = DVDOpen(dvdroot);
-
-  vmgi = ifoOpenVMGI(dvd); // Check for error?
-  ifoRead_FP_PGC(vmgi);
-  ifoRead_TT_SRPT(vmgi);
-  ifoRead_PGCI_UT(vmgi);
-  ifoRead_PTL_MAIT(vmgi);
-  ifoRead_VTS_ATRT(vmgi);
-  //ifoRead_TXTDT_MGI(vmgi);
-
+  if(!dvd)
+    return -1;
+  
+  if(vmgi = ifoOpenVMGI(dvd)) {
+    if(!ifoRead_FP_PGC(vmgi))
+      return -1;
+    if(!ifoRead_TT_SRPT(vmgi))
+      return -1;
+    if(!ifoRead_PGCI_UT(vmgi))
+      return -1;
+    if(!ifoRead_PTL_MAIT(vmgi))
+      return -1;
+    if(!ifoRead_VTS_ATRT(vmgi))
+      return -1;
+    //ifoRead_TXTDT_MGI(vmgi);
+  }
   return 0;
 }
 
@@ -451,6 +458,40 @@ audio_attr_t vm_get_audio_attr(int streamN)
 }
 
 
+void vm_get_video_res(int *width, int *height) {
+  video_attr_t attr;
+  
+  if(state.domain == VTS_DOMAIN) {
+    attr = vtsi->vtsi_mat->vts_video_attr;
+  } else if(state.domain == VTSM_DOMAIN) {
+    attr = vtsi->vtsi_mat->vtsm_video_attr;
+  } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
+    attr = vmgi->vmgi_mat->vmgm_video_attr;
+  }
+  if(attr.video_format != 0) 
+    *height = 576;
+  else
+    *height = 480;
+  switch(attr.picture_size) {
+  case 0:
+    *width = 720;
+    break;
+  case 1:
+    *width = 704;
+    break;
+  case 2:
+    *width = 352;
+    break;
+  case 3:
+    *width = 352;
+    *height /= 2;
+    break;
+  }
+}
+
+
+
+
 
 
 // Must be called before domain is changed (get_PGCN())
@@ -729,7 +770,7 @@ static link_t process_command(link_t link_values)
     case LinkNoLink:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      exit(-1);
+      exit(1);
       
     case LinkTopC:
       if(link_values.data1 != 0)
@@ -867,7 +908,7 @@ static link_t process_command(link_t link_values)
       break;
       
     case Exit:
-      exit(-1); // What should we do here??
+      exit(1); // What should we do here??
       
     case JumpTT:
       assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??

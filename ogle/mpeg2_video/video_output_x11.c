@@ -481,11 +481,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
     shmdt(shm_info.shmaddr);
     if(shm_info.shmaddr == ((char *) -1)) {
       fprintf(stderr, "Shared memory: Couldn't detach segment\n");
-      exit(-10);
+      exit(1);
     }
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
       perror("shmctl ipc_rmid");
-      exit(-10);
+      exit(1);
     }
     
     memset(&shm_info, 0, sizeof(XShmSegmentInfo));
@@ -501,7 +501,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
     
     if(window.ximage == NULL) {
       fprintf(stderr, "Shared memory: couldn't create Shm image\n");
-      exit(-10);
+      exit(1);
     }
     
     /* Get a shared memory segment */
@@ -512,14 +512,14 @@ static void display_change_size(yuv_image_t *img, int new_width,
     
     if(shm_info.shmid < 0) {
       fprintf(stderr, "Shared memory: Couldn't get segment\n");
-      exit(-10);
+      exit(1);
     }
   
     /* Attach shared memory segment */
     shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
     if(shm_info.shmaddr == ((char *) -1)) {
       fprintf(stderr, "Shared memory: Couldn't attach segment\n");
-      exit(-10);
+      exit(1);
     }
     
     window.ximage->data = shm_info.shmaddr;

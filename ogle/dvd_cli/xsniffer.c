@@ -1,3 +1,21 @@
+/* Ogle - A video player
+ * Copyright (C) 2000, 2001 Vilhelm Bergman
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -12,9 +30,9 @@
 #include "xsniffer.h"
 
 extern DVDNav_t *nav;
-Display *display;
-int win = 0;
-pthread_t at;
+static Display *display;
+Window win = 0;
+//pthread_t at;
 
 
 void xsniff_init() {
@@ -59,8 +77,16 @@ void* xsniff_mouse(void* args) {
 	  i--;
 	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	}
-
-	res = DVDMouseSelect(nav, ev.xbutton.x, ev.xbutton.y);
+	
+	{ 
+	  int x, y;
+	  XWindowAttributes xattr;
+	  XGetWindowAttributes(display, win, &xattr);
+	  // Represent the coordinate as a fixpoint numer btween 0..65536
+	  x = ev.xbutton.x * 65536 / xattr.width;
+	  y = ev.xbutton.y * 65536 / xattr.height;
+	  res = DVDMouseSelect(nav, x, y);
+	}
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
@@ -71,8 +97,13 @@ void* xsniff_mouse(void* args) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
-
-	  res = DVDMouseActivate(nav, ev.xbutton.x, ev.xbutton.y);
+	  int x, y;
+	  XWindowAttributes xattr;
+	  XGetWindowAttributes(display, win, &xattr);
+	  // Represent the coordinate as a fixpoint numer btween 0..65536
+	  x = ev.xbutton.x * 65536 / xattr.width;
+	  y = ev.xbutton.y * 65536 / xattr.height;
+	  res = DVDMouseActivate(nav, x, y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
 	  }

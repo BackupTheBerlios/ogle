@@ -90,6 +90,7 @@ void vm_get_audio_info(int *num_avail, int *current);
 void vm_get_subp_info(int *num_avail, int *current);
 subp_attr_t vm_get_subp_attr(int streamN);
 audio_attr_t vm_get_audio_attr(int streamN);
+void vm_get_video_res(int *width, int *height);
 
 #endif /* VM_HV_INCLUDED */
 

@@ -48,7 +48,7 @@ typedef enum {
 
   Exit,
 
-  JumpTT,
+  JumpTT, /* 22 */
   JumpVTS_TT,
   JumpVTS_PTT,
 
@@ -57,7 +57,7 @@ typedef enum {
   JumpSS_VTSM,
   JumpSS_VMGM_PGC,
 
-  CallSS_FP,
+  CallSS_FP, /* 29 */
   CallSS_VMGM_MENU,
   CallSS_VTSM,
   CallSS_VMGM_PGC,

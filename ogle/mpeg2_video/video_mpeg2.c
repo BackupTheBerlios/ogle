@@ -117,7 +117,7 @@ void reset_dc_dct_pred(void)
     break;
   default:
     fprintf(stderr, "*** reset_dc_dct_pred(), invalid intra_dc_precision\n");
-    exit_program(-1);
+    exit_program(1);
     break;
   }
   */
@@ -573,7 +573,7 @@ void coded_block_pattern(void)
 
   if((cbp == 0) && (seq.ext.chroma_format == 0x1)) {
     fprintf(stderr, "** shall not be used with 4:2:0 chrominance\n");
-    exit_program(-1);
+    exit_program(1);
   }
   mb.cbp = cbp;
   
@@ -680,7 +680,7 @@ void motion_vectors(unsigned int s)
       switch(mb.modes.frame_motion_type) {
       case 0x0:
 	fprintf(stderr, "*** reserved prediction type\n");
-	exit_program(-1);
+	exit_program(1);
 	break;
       case 0x1:
 	mb.prediction_type = PRED_TYPE_FIELD_BASED;
@@ -703,7 +703,7 @@ void motion_vectors(unsigned int s)
 	break;
       default:
 	fprintf(stderr, "*** impossible prediction type\n");
-	exit_program(-1);
+	exit_program(1);
 	break;
       }
     }
@@ -713,7 +713,7 @@ void motion_vectors(unsigned int s)
     switch(mb.modes.field_motion_type) {
     case 0x0:
       fprintf(stderr, "*** reserved field prediction type\n");
-      exit_program(-1);
+      exit_program(1);
       break;
     case 0x1:
       mb.prediction_type = PRED_TYPE_FIELD_BASED;
@@ -735,7 +735,7 @@ void motion_vectors(unsigned int s)
       break;
     default:
       fprintf(stderr, "*** impossible prediction type\n");
-      exit_program(-1);
+      exit_program(1);
       break;
     }
   }
@@ -780,7 +780,7 @@ int macroblock_modes(void)
   } else {
     fprintf(stderr, "*** Unsupported picture type %02x\n", 
 	    pic.header.picture_coding_type);
-    exit_program(-1);
+    exit_program(1);
   }
   
   if(mb.modes.macroblock_type == VLC_FAIL) {
@@ -990,8 +990,8 @@ void macroblock(void)
   }
 
 
-  macroblock_modes();
-  
+  if(macroblock_modes() == -1)
+    exit_program(1);
   
   if(!(mb.modes.macroblock_type & MACROBLOCK_INTRA)) {
     reset_dc_dct_pred();  
@@ -1063,7 +1063,7 @@ void macroblock(void)
 #ifdef DEBUG
       if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
 	fprintf(stderr, "*** invalid pred_type\n");
-	exit_program(-1);
+	exit_program(1);
       }
 #endif
       break;
@@ -1075,7 +1075,7 @@ void macroblock(void)
       break;
     default:
       fprintf(stderr, "*** invalid pred_type\n");
-      exit_program(-1);
+      exit_program(1);
       break;
     }
   }
@@ -1207,7 +1207,7 @@ void macroblock(void)
 	  if(mb.coded_block_pattern_1 & (1<<(7-i))) {
 	    block_non_intra(i);
 	    fprintf(stderr, "ni seq.ext.chroma_format == 0x02\n");
-	    //exit_program(-1);
+	    //exit_program(1);
 	  }
 	}
       }
@@ -1216,7 +1216,7 @@ void macroblock(void)
 	  if(mb.coded_block_pattern_2 & (1<<(11-i))) {
 	    block_non_intra(i);
 	    fprintf(stderr, "ni seq.ext.chroma_format == 0x03\n");
-	    //exit_program(-1);
+	    //exit_program(1);
 	  }
 	}
       }

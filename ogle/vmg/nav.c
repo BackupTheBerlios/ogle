@@ -83,37 +83,43 @@ int main(int argc, char *argv[])
     
     if((msgq = MsgOpen(msgqid)) == NULL) {
       fprintf(stderr, "nav: couldn't get message q\n");
-      exit(-1);
+      exit(1);
     }
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_DVD_NAV;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: register capabilities\n");
+      exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: didn't get demux cap\n");
+      exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DECODE_DVD_SPU;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: didn't get cap\n");
+      exit(1);
     }
     
     wait_for_init(msgq);
     
     /*  Call start here */
-    vm_reset(get_dvdroot()); // hack placed here becaus it calles DVDOpen...
+    // hack placed here because it calls DVDOpen...
+    if(vm_reset(get_dvdroot()) == -1)
+      exit(1);
 
     ev.type = MsgEventQDemuxDVDRoot;
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
     ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
     if(send_demux(msgq, &ev) == -1) {
       fprintf(stderr, "nav: didn't set dvdroot\n");
+      exit(1);
     }
     
     ev.type = MsgEventQDemuxStream;
@@ -121,6 +127,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
       fprintf(stderr, "nav: didn't set demuxstream\n");
+      exit(1);
     }
     
     ev.type = MsgEventQDemuxStream;
@@ -135,6 +142,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.subtype = 0x20;    
     if(send_demux(msgq, &ev) == -1) {
       fprintf(stderr, "nav: didn't set demuxstream\n");
+      exit(1);
     }
     
     ev.type = MsgEventQDemuxStream;
@@ -142,6 +150,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
       fprintf(stderr, "nav: didn't set demuxstream\n");
+      exit(1);
     }
   }
  
@@ -180,6 +189,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       ev.demuxstreamchange.subtype = 0x80 | audio_stream_id;
       if(send_demux(msgq, &ev) == -1) {
 	fprintf(stderr, "nav: error, didn't set demuxstream\n");
+	exit(1);
       }
     }
   }
@@ -198,6 +208,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
 	fprintf(stderr, "nav: error, didn't set demuxstream\n");
+	exit(1);
       }
     }
   }
@@ -217,6 +228,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   ev.demuxdvd.flowcmd = flush;
   if(send_demux(msgq, &ev) == -1) {
     fprintf(stderr, "nav: error, send_demux_dvd\n");
+    exit(1);
   }
   //fprintf(stderr, "nav: sent demux_dvd (%d,%d)\n", start_sector, nr_sectors);
 }
@@ -234,6 +246,7 @@ static void send_spu_palette(uint32_t palette[16]) {
   
   if(send_spu(msgq, &ev) == -1) {
     fprintf(stderr, "nav: send_spu_palette\n");
+    exit(1);
   }
 }
 
@@ -254,6 +267,7 @@ static void send_highlight(int x_start, int y_start, int x_end, int y_end,
 
   if(send_spu(msgq, &ev) == -1) {
     fprintf(stderr, "nav: send_highlight\n");
+    exit(1);
   }
 }
 
@@ -328,9 +342,12 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   case DVDCtrlMouseSelect:
     {
       int button;
-      unsigned int x = ce->mouse.x;
-      unsigned int y = ce->mouse.y;
+      int width, height;
+      unsigned int x, y;
       
+      vm_get_video_res(&width, &height);
+      x = (ce->mouse.x * width) / 65536;
+      y = (ce->mouse.y * height) / 65536;
       button = mouse_over_hl(pci, x, y);
       if(button)
 	button_nr = button;
@@ -519,7 +536,10 @@ static void do_run(void) {
       } else {
 	fprintf(stderr, "nav: end of cell\n");
 	; // end of cell!
-	
+	if(cell->still_time == 0xff) // Inf. still time
+	  fprintf(stderr, "nav: Still picture select an item to continue.\n");
+	else if(cell->still_time != 0)
+	  fprintf(stderr, "nav: Pause for %d seconds,\n", cell->still_time);
 #if 0 
 	/* TODO XXX $$$ This should only be done at the correct time */
 	/* Handle forced activate button here */

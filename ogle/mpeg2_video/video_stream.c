@@ -251,7 +251,7 @@ int get_vlc(const vlc_table_t *table, char *func) {
 	  "bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
   fprintbits(stderr, 32, nextbits(32));
   fprintf(stderr, "\n");
-  //exit_program(-1);
+  //exit_program(1);
   return VLC_FAIL;
 }
 
