@@ -97,8 +97,8 @@ DVDBookmark_t *DVDBookmarkOpen(const unsigned char dvdid[16],
       return NULL;
     } else {
       struct stat buf;
-      filename = malloc( strlen(home) + 1 + strlen(OGLE_RC_DIR) + 1 +
-			 strlen(OGLE_BOOKMARK_DIR) + 1 + strlen(dvdid_str) + 1 );
+      filename = malloc(strlen(home) + 1 + strlen(OGLE_RC_DIR) + 1 +
+			strlen(OGLE_BOOKMARK_DIR) + 1 + strlen(dvdid_str) + 1);
       if(filename == NULL) {
 	return NULL;
       }
@@ -568,6 +568,9 @@ int DVDBookmarkSave(DVDBookmark_t *bm, int compressed)
  */
 void DVDBookmarkClose(DVDBookmark_t *bm)
 {
+  if(!bm) {
+    return;
+  }
   if(bm->filename) {
     free(bm->filename);
     bm->filename = NULL;
