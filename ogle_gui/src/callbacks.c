@@ -39,6 +39,9 @@ extern ZoomMode_t zoom_mode;
 
 extern DVDNav_t *nav;
 
+static int isPaused = 0;
+
+
 void
 on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
@@ -229,13 +232,12 @@ void
 on_pause_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  static int isPaused = 0;
   if(isPaused) {
     DVDPauseOff(nav);
-    isPaused =1;
+    isPaused =0;
   } else {
     DVDPauseOn(nav);
-    isPaused =0;
+    isPaused =1;
   }
 }
 
@@ -276,7 +278,9 @@ void
 on_play_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+  DVDForwardScan(nav, 1.0);
+  if(isPaused)
+    DVDPauseOff(nav);
 }
 
 

@@ -941,11 +941,11 @@ create_app (void)
   gtk_widget_set_sensitive(GTK_WIDGET(rewind_button), FALSE);
   gtk_widget_set_sensitive(GTK_WIDGET(reverse_button), FALSE);
   gtk_widget_set_sensitive(GTK_WIDGET(stop_button), FALSE);
-  gtk_widget_set_sensitive(GTK_WIDGET(play_button), FALSE);
-  gtk_widget_set_sensitive(GTK_WIDGET(fastforward_button), FALSE); 
+  //gtk_widget_set_sensitive(GTK_WIDGET(play_button), FALSE);
+  //gtk_widget_set_sensitive(GTK_WIDGET(fastforward_button), FALSE); 
 
   gtk_widget_set_sensitive(GTK_WIDGET(step_reverse_button), FALSE);
-  gtk_widget_set_sensitive(GTK_WIDGET(pause_button), FALSE);
+  //gtk_widget_set_sensitive(GTK_WIDGET(pause_button), FALSE);
   gtk_widget_set_sensitive(GTK_WIDGET(step_forwards_button), FALSE);
 
   gtk_widget_set_sensitive(GTK_WIDGET(fast_button), FALSE);
