@@ -45,7 +45,7 @@
 #include "parse_config.h"
 
 /* A/52 */
-static ao_instance_t * output;
+static ao_instance_t * output = NULL;
 static sample_t * samples;
 static int disable_dynrng = 0;
 static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end);
@@ -81,6 +81,7 @@ static MsgEventQ_t *msgq;
 static int flush_to_scrid = -1;
 static int prev_scr_nr = 0;
 
+static int speaker_flags;
 
 
 void usage()
@@ -89,6 +90,103 @@ void usage()
 	  program_name);
 }
 
+static int get_speaker_flags(void)
+{
+  int front, rear, sub;
+  int result = 0;
+  
+  front = get_num_front_speakers();
+  rear = get_num_rear_speakers();
+  sub = get_num_sub_speakers();
+
+  if(front == 2 && rear == 0) {
+    result = A52_STEREO;
+  } else if(front == 3 && rear == 0) {
+    result = A52_3F;
+  } else if(front == 2 && rear == 2) {
+    result = A52_2F2R;
+  } else if(front == 3 && rear == 2) {
+    result = A52_3F2R;
+  } else if(front == 2 && rear == 1) {
+    result = A52_2F1R;
+  } else if(front == 3 && rear == 1) {
+    result = A52_3F1R;
+  }
+  if(sub == 1) {
+    result |= A52_LFE;
+  }
+  return result;
+}
+
+
+static void open_output(int flags)
+{
+  int i;
+  int driver_num = 0;
+  ao_driver_t * drivers;
+  int ch_avail;
+
+  /* Ideally, we would just pass `flags' through to liba52, since that
+   * seems to be how it works internally, however until it offers
+   * such an interface, we figure out which "driver" it needs.
+   */
+
+  switch(flags & A52_CHANNEL_MASK) {
+  case A52_CHANNEL:
+  case A52_STEREO:
+  case A52_DOLBY:
+    ch_avail = 2;
+    break;
+  case A52_3F:
+  case A52_2F1R:
+    ch_avail = 3;
+    break;
+  case A52_3F1R:
+  case A52_2F2R:
+    ch_avail = 4;
+    break;
+  case A52_3F2R:
+    ch_avail = 5;
+    break;
+  default:
+    ch_avail = 0;
+  }
+
+  if(flags & A52_LFE) {
+    ch_avail++;
+  }
+
+  drivers = ao_drivers ();
+  for(i = 0; drivers[i].name; i++) {
+    if(!strcmp("oss", drivers[i].name)
+      || !strcmp("solaris", drivers[i].name)) {
+      if(ch_avail == 2) {
+        printf("switching to 2 channel audio\n");
+        driver_num = i;
+      }
+    } else if(!strcmp("oss4", drivers[i].name)) {
+      if(ch_avail == 4) {
+        printf("switching to 4 channel audio\n");
+        driver_num = i;
+      }
+    } else if(!strcmp("oss6", drivers[i].name)) {
+      if(ch_avail == 6) {
+        printf("switching to 6 channel audio\n");
+        driver_num = i;
+      }
+    }
+  }
+
+  if(output) {
+    ao_close(output);
+    free(output);
+  }
+  output = ao_open(drivers[driver_num].open, get_audio_device());
+  if(output == NULL) {
+    fprintf(stderr, "Can not open audio output\n");
+    exit(1);
+  }
+}
 
 int main(int argc, char *argv[])
 {
@@ -121,16 +219,12 @@ int main(int argc, char *argv[])
   }
 
   {
-    ao_driver_t * drivers;
     uint32_t accel;
     accel = MM_ACCEL_MLIB;
-    
-    drivers = ao_drivers();
-    output = ao_open(drivers[0].open, get_audio_device());
-    if(output == NULL) {
-        fprintf(stderr, "Can not open audio output\n");
-        exit(1);
-    }
+
+    speaker_flags = get_speaker_flags();
+
+    open_output(speaker_flags);
 
     samples = a52_init(accel);
     if(samples == NULL) {
@@ -590,8 +684,6 @@ int get_q()
   return 0;
 }
 
-
-
 static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
   static a52_state_t state;
   
@@ -608,6 +700,7 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
   
   static int sample_rate;
   static int flags;
+  static int last_output_flags = 0;
   int bit_rate;
   int print_skip = 0, print_error = 0;
   
@@ -637,11 +730,16 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	  print_skip = 0;
 	  fprintf(stderr, "a52dec: Discarded data to find a valid frame\n");
 	}
+	flags = speaker_flags | A52_ADJUST_LEVEL;
+        if(flags != last_output_flags) {
+          open_output(flags);
+          last_output_flags = flags;
+        }
 	if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
 	  fprintf(stderr, "ao_setup() error\n");
 	  goto error;
 	}
-	flags |= A52_ADJUST_LEVEL;
+
 	memset(&state, 0, sizeof(a52_state_t));
 	if(a52_frame(&state, buf, &flags, &level, bias)) {
 	  fprintf(stderr, "a52_frame() error\n");

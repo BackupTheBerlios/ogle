@@ -9,6 +9,10 @@
 
 static char *audio_device;
 
+/* number of speakers */
+static int front = 2;
+static int rear = 0;
+static int sub = 0;
 
 char *get_audio_device(void)
 {
@@ -38,6 +42,51 @@ static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
   }
 }
 
+int get_num_front_speakers(void)
+{
+  return front;
+}
+
+int get_num_rear_speakers(void)
+{
+  return rear;
+}
+
+int get_num_sub_speakers(void)
+{
+  return sub;
+}
+
+static void parse_speakers(xmlDocPtr doc, xmlNodePtr cur)
+{
+  xmlChar *s = NULL;
+  
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("front", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+          front = atoi(s);
+	}
+      } else if(!strcmp("rear", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+          rear = atoi(s);
+	}
+      } else if(!strcmp("sub", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+          sub = atoi(s);
+	}
+      }
+      if(s) {
+	free(s);
+      }
+    }
+    cur = cur->next;
+  }
+}
+
 static void parse_audio(xmlDocPtr doc, xmlNodePtr cur)
 {
   cur = cur->xmlChildrenNode;
@@ -47,6 +96,8 @@ static void parse_audio(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("device", cur->name)) {
 	parse_device(doc, cur);
+      } else if(!strcmp("speakers", cur->name)) {
+        parse_speakers(doc, cur);
       }
     }
     cur = cur->next;
