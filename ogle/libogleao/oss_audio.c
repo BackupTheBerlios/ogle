@@ -32,14 +32,11 @@
 #include <sys/soundcard.h>
 #endif
 
-#if defined(__FreeBSD__)
 #ifndef AFMT_S16_NE
-#include <machine/endian.h>
-#if BYTE_ORDER == LITTLE_ENDIAN
-#define AFMT_S16_NE AFMT_S16_LE
-#else
+#if WORDS_BIGENDIAN == 1
 #define AFMT_S16_NE AFMT_S16_BE
-#endif
+#else
+#define AFMT_S16_NE AFMT_S16_LE
 #endif
 #endif
 
@@ -53,6 +50,16 @@ typedef struct oss_instance_s {
   int initialized;
 } oss_instance_t;
 
+static int log2(int val)
+{
+  int res = 0;
+
+  while(val != 1) {
+    val >>=1;
+    ++res;
+  }
+  return res;
+}
 
 static
 int oss_init(ogle_ao_instance_t *_instance,
@@ -61,11 +68,43 @@ int oss_init(ogle_ao_instance_t *_instance,
   oss_instance_t *instance = (oss_instance_t *)_instance;
   int single_sample_size;
   int number_of_channels, sample_format, original_sample_format, sample_speed;
+  uint32_t fragment; 
+  uint16_t nr_fragments;
+  uint16_t fragment_size;
+  audio_buf_info info;
   
   if(instance->initialized) {
     // SNDCTL_DSP_SYNC resets the audio device so we can set new parameters
     ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
     instance->initialized = 0;
+  }
+
+
+  // set fragment size if requested
+  // can only be done once after open
+
+  if(audio_info->fragment_size != -1) {
+    if(log2(audio_info->fragment_size) > 0xffff) {
+      fragment_size = 0xffff;
+    } else {
+      fragment_size = log2(audio_info->fragment_size);
+    }
+    if(audio_info->fragments != -1) {
+      if(audio_info->fragments > 0xffff) {
+	nr_fragments = 0xffff;
+      } else {
+	nr_fragments = audio_info->fragments;
+      }
+    } else {
+      nr_fragments = 0x7fff;
+    }
+    
+    fragment = (nr_fragments << 16) | fragment_size;
+    
+    if(ioctl(instance->fd, SNDCTL_DSP_SETFRAGMENT, &fragment) == -1) {
+      perror("SNDCTL_DSP_SETFRAGMENT");
+      //this is not fatal
+    }
   }
 
   // Set sample format, number of channels, and sample speed
@@ -75,14 +114,20 @@ int oss_init(ogle_ao_instance_t *_instance,
   case OGLE_AO_ENCODING_LINEAR:
     switch(audio_info->sample_resolution) {
       case 16:
-        sample_format = AFMT_S16_NE;
+	if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
+	  sample_format = AFMT_S16_BE;
+	} else {
+	  sample_format = AFMT_S16_LE;
+	}
         break;
       default:
+	audio_info->sample_resolution = -1;
         return -1;
         break;
     }
     break;
   default:
+    audio_info->encoding = -1;
     return -1;
     break;
   }
@@ -94,12 +139,27 @@ int oss_init(ogle_ao_instance_t *_instance,
 
   // Test if we got the right format
   if (sample_format != original_sample_format) {
-    return -1;
+    switch(sample_format) {
+    case AFMT_S16_BE:
+      audio_info->encoding = OGLE_AO_ENCODING_LINEAR;
+      audio_info->sample_resolution = 16;
+      audio_info->byteorder = OGLE_AO_BYTEORDER_BE;
+      break;
+    case AFMT_S16_LE:
+      audio_info->encoding = OGLE_AO_ENCODING_LINEAR;
+      audio_info->sample_resolution = 16;
+      audio_info->byteorder = OGLE_AO_BYTEORDER_LE;
+      break;      
+    default:
+      audio_info->encoding = OGLE_AO_ENCODING_NONE;
+      break;
+    }
   }
 
   number_of_channels = audio_info->channels;
   if(ioctl(instance->fd, SNDCTL_DSP_CHANNELS, &number_of_channels) == -1) {
     perror("SNDCTL_DSP_CHANNELS");
+    audio_info->channels = -1;
     return -1;
   }
   // report back (maybe we can't do stereo or something...)
@@ -108,6 +168,7 @@ int oss_init(ogle_ao_instance_t *_instance,
   sample_speed = audio_info->sample_rate;
   if(ioctl(instance->fd, SNDCTL_DSP_SPEED, &sample_speed) == -1) {
     perror("SNDCTL_DSP_SPEED");
+    audio_info->sample_rate = -1;
     return -1;
   }
   // report back the actual speed used
@@ -120,7 +181,18 @@ int oss_init(ogle_ao_instance_t *_instance,
   instance->sample_frame_size = single_sample_size*number_of_channels;
 
   audio_info->sample_frame_size = instance->sample_frame_size;
-
+  
+  
+  if(ioctl(instance->fd, SNDCTL_DSP_GETOSPACE, &info) == -1) {
+    perror("SNDCTL_DSP_GETOSPACE");
+    audio_info->fragment_size = -1;
+    audio_info->fragments = -1;
+  } else {
+    audio_info->fragment_size = info.fragsize;
+    audio_info->fragments = info.fragstotal;
+  }
+  
+  
   instance->initialized = 1;
   
   return 0;

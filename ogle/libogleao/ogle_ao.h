@@ -27,6 +27,16 @@ typedef enum {
   OGLE_AO_ENCODING_LINEAR
 } ogle_ao_encoding_t;
 
+typedef enum {
+  OGLE_AO_BYTEORDER_BE = 0,
+  OGLE_AO_BYTEORDER_LE = 1,
+#if WORDS_BIGENDIAN == 1
+  OGLE_AO_BYTEORDER_NE = 0
+#else
+  OGLE_AO_BYTEORDER_NE = 1
+#endif
+} ogle_ao_byteorder_t;
+
 /* A sample is a number representing the sound at a specific time.
  * The sample_resolution is the number of bits that encode information
  * in the sample.
@@ -36,13 +46,19 @@ typedef enum {
  * For normal CD audio (44.1kHz 16bit stereo) this would be:
  * sample_rate = 44100, sample_resolution = 16, channels = 2
  * encoding = OGLE_AO_ENCODING_LINEAR, sample_frame_size = 4
+ * A fragment is the smallest size of data that is transferred to
+ * the sound card.
+ * fragments together with fragment_size defines the sample buffer.
  */
 typedef struct {
-  uint32_t sample_rate;        // samples per second
-  uint32_t sample_resolution;  // bits per sample
-  uint32_t channels;           // number of channels (1 = mono, 2 = stereo,...)
+  int32_t sample_rate;        // samples per second
+  int32_t sample_resolution;  // bits per sample
+  int32_t channels;           // number of channels (1 = mono, 2 = stereo,...)
   ogle_ao_encoding_t encoding; // ( linear, ulaw, ac3, mpeg, ... )
   uint32_t sample_frame_size;  // the size in bytes of one sample frame
+  ogle_ao_byteorder_t byteorder;  // the endianess of the samples
+  int fragments;               // number of fragments
+  int fragment_size;           // size of a fragment
 } ogle_ao_audio_info_t;
 
 typedef struct ogle_ao_instance_s ogle_ao_instance_t;
