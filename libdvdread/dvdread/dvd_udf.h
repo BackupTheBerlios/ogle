@@ -30,6 +30,10 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
 
+#include <inttypes.h>
+
+#include "dvd_reader.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

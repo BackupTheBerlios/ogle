@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000 Håkan Hjort <d95hjort@dtek.chalmers.se>
+ * Copyright (C) 2000, 2001, 2002 Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
  * Much of the contents in this file is based on VOBDUMP.
  *
