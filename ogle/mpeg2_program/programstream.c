@@ -75,12 +75,6 @@ void usage()
 	  program_name);
 }
 
-#if 0
-void resync() {
-  fprintf(stderr, "Resyncing\n");
-  offs++;
-}
-#endif
 
 /* 2.3 Definition of bytealigned() function */
 int bytealigned(void)
@@ -377,7 +371,7 @@ void push_stream_data(uint8_t stream_id, int len)
     if(subtitle) {
       DPRINTF(4, "(subpicture)\n");
 
-      if(*data >= 0x20 && *data <= 0x2f) {
+      if(*data >= 0x20 && *data <= 0x3f) {
       DPRINTF(1, "subtitle 0x%02x exists\n", *data);
       }
             if(*data == subtitle_id ){ 
@@ -385,9 +379,6 @@ void push_stream_data(uint8_t stream_id, int len)
       	fwrite(data+1, len-1, 1, subtitle_file);
       }
     }
-#if 0
-  } else if(stream_id == MPEG2_PADDING_STREAM) {
-#endif  
   } else {
     DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
   }
@@ -648,35 +639,6 @@ void PES_packet()
     
     push_stream_data(stream_id, N);
     
-#if 0
-    if(stream_id == 0xe0) {
-      if(video) {
-	push_stream_data(N, video_file);
-      } else {
-	drop_bytes(N);
-      }
-      //fwrite(&data[i+0], PES_packet_length-i, 1, video_file);
-      //fprintf(stderr, "*len: %u\n", PES_packet_length-i);
-    } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-      if(audio) {
-
-	//if(data[i+0] == 0x80) {
-	  
-	  //fprintf(stderr, "%02x %02x\n", data[i], data[i+1]);
-	// fwrite(&data[i], PES_packet_length-i, 1, audio_file);
-	//}
-      }
-      if(subtitle) {
-	//if(data[i] >= 0x20 && data[i]<=0x2f) {
-	//fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
-	//}
-	//if(data[i+0] == subtitle_id ){ 
-	// fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
-	// fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
-	//}
-      }
-    }
-#endif
   } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
     push_stream_data(stream_id, PES_packet_length);
     //fprintf(stderr, "*PRIVATE_stream_2\n");
@@ -746,32 +708,6 @@ void MPEG2_program_stream()
     fprintf(stderr, "*** after: %u bytes\n", bytes_read);
   }
 }
-  
-#if 0
-int get_bytes(unsigned int len, unsigned char **data) 
-{
-  int n;
-
-  //  fprintf(stderr, "get_bytes(%u)\n", len);
-  //fprintf(stderr, "start: %d,  fill: %d,  len: %d\n",
-  //	  buf_start, buf_fill, buf_len);
-
-  if(len > buf_fill) {
-    get_data();
-  }
-
-  
-  if(buf_start+len > buf_len) {
-    /*TODO */
-    fprintf(stderr, "Hit a buffer boundary\n");
-    exit(0);
-  } else {
-    *data = &buf[buf_start];
-    return 1;
-  }
-}
-#endif
-
 
 
 void segvhandler (void)
@@ -818,7 +754,7 @@ int main(int argc, char **argv)
       break;
     case 'i':
       subtitle_id = atoi(optarg);
-      if(! (subtitle_id>=0x20 && subtitle_id<=0x2f)) {
+      if(! (subtitle_id>=0x20 && subtitle_id<=0x3f)) {
 	fprintf(stderr, "Invalid subtitle_id range.\n");
 	exit(1);
       } 
@@ -904,7 +840,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "Found Program Stream\n");
       MPEG2_program_stream();
     }
-    GETBITS(8, "resync");//    resync();
+    GETBITS(8, "resync");
     DPRINTF(1, "resyncing");
   }
 }
