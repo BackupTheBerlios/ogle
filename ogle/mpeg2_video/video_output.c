@@ -63,6 +63,8 @@ int msgqid = -1;
 MsgEventQ_t *msgq;
 
 
+static int flush_to_scrnr = -1;
+
 static picture_data_elem_t *picture_ctrl_data;
 static q_head_t *picture_q_head;
 static q_elem_t *picture_q_elems;
@@ -211,6 +213,11 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       return 0;
     }
     break;
+  case MsgEventQFlushData:
+    DPRINTF(1, "vo: got flush\n");
+    flush_to_scrnr = ev->flushdata.to_scrnr;
+    flush_subpicture(flush_to_scrnr);
+    break;
   case MsgEventQAttachQ:
     attach_picture_buffer(ev->attachq.q_shmid);
     break;
@@ -241,6 +248,16 @@ void redraw_done(void)
 
 static void redraw_screen(void)
 {
+
+  if(flush_to_scrnr != -1) {
+    if(flush_to_scrnr != video_scr_nr) {
+      redraw_done();
+      return;
+    } else {
+      flush_to_scrnr = -1;
+    }
+  }
+
   if(last_image_buf != NULL) {
     display(last_image_buf);    
   }
@@ -378,15 +395,17 @@ static void display_process()
       
       if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
-	  //fprintf(stderr, "vo: set_time_base()\n");
+	  fprintf(stderr, "vo: set_time_base()\n");
 	  set_time_base(pinfos[buf_id].PTS,
 			ctrl_time, pinfos[buf_id].scr_nr, time_offset);
 	}
       }
+      /*
       if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
 	time_offset = get_time_base_offset(pinfos[buf_id].PTS,
 					   ctrl_time, pinfos[buf_id].scr_nr);
       }
+      */
       prev_scr_nr = pinfos[buf_id].scr_nr;
     }
     //#endif
@@ -455,8 +474,27 @@ static void display_process()
 		wait_time.tv_sec, wait_time.tv_nsec);
 	
       }
-      nanosleep(&wait_time, NULL);
+      if(flush_to_scrnr != -1) {
+	if(flush_to_scrnr != video_scr_nr) {
+
+	} else {
+	  flush_to_scrnr = -1;
+	  nanosleep(&wait_time, NULL);
+	}
+      } else {
+	nanosleep(&wait_time, NULL);
+      }
+      
     } else {
+
+      if(flush_to_scrnr != -1) {
+	if(flush_to_scrnr != video_scr_nr) {
+	  
+	} else {
+	  flush_to_scrnr = -1;
+	}
+      }
+
       if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
 	//TODO fix this time mess
 	if(wait_time.tv_nsec < -300000000 || wait_time.tv_sec < 0) {
@@ -498,8 +536,18 @@ static void display_process()
     */
 
     if(!drop) {
-      display(&image_bufs[buf_id]);
-      redraw_done();
+      if(flush_to_scrnr != -1) {
+	if(flush_to_scrnr != video_scr_nr) {
+	  redraw_done();
+	} else {
+	  flush_to_scrnr = -1;
+	  display(&image_bufs[buf_id]);
+	  redraw_done();
+	}
+      } else {
+	display(&image_bufs[buf_id]);
+	redraw_done();
+      }
     } else {
       fprintf(stderr, "#");
       drop = 0;

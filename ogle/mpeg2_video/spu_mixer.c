@@ -119,6 +119,8 @@ extern int msgqid;
 
 extern MsgEventQ_t *msgq;
 
+static int flush_to_scrnr = -1;
+
 #define MAX_BUF_SIZE 65536
 
 
@@ -942,9 +944,8 @@ int next_spu_cmd_pending(spu_t *spu_info) {
       start_time = ((spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
-
-    TIME_S(spu_info->next_time)  = start_time/(90000/1100);
-    TIME_SS(spu_info->next_time) = (start_time%(90000/1100)) * CT_FRACTION/100;
+    /* starttime measured in 1100/90000 seconds */
+    PTS_TO_CLOCKTIME(spu_info->next_time, 1100 * start_time);
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
 
@@ -955,6 +956,15 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     return 1;
   if(spu_info->scr_nr != video_scr_nr) {
     return 1;
+  }
+  
+  if(flush_to_scrnr != -1) {
+    if(flush_to_scrnr != spu_info->scr_nr) {
+      //fprintf(stderr, "spu: flush\n");
+      return 1;
+    } else {
+      flush_to_scrnr = -1;
+    }
   }
   
   return 0;
@@ -1057,3 +1067,39 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
 
 
 
+void flush_subpicture(int scr_nr)
+{
+  /*
+   * Check for, and execute all pending spu command sequences.
+   */
+
+  //ugly hack
+  if(!initialized) {
+    return;
+  }
+  
+  flush_to_scrnr = scr_nr;
+
+  while(next_spu_cmd_pending(&spu_info)) {
+
+    if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
+      unsigned char *swap;
+      /* Change to the next buffer and recycle the old */
+      swap = spu_info.buffer;
+      spu_info.buffer = spu_info.next_buffer;
+      spu_info.next_buffer = swap;
+      
+      decode_dcsqt(&spu_info);
+    }
+
+    decode_dcsq(&spu_info);
+
+    /* 
+     * The 'next command' is no longer the same, the time needs to
+     * be recomputed. 
+     */
+    TIME_S(spu_info.next_time) = 0;
+  }
+
+
+}

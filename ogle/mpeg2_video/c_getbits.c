@@ -59,6 +59,8 @@ char *stream_shmaddr;
 int data_buf_shmid = -1;
 char *data_buf_shmaddr;
 
+int flush_to_scrnr = -1;
+
 int get_q();
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
@@ -346,6 +348,10 @@ void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQNotify:
     DPRINTF(1, "video_decode: got notification\n");
     break;
+  case MsgEventQFlushData:
+    DPRINTF(1, "vs: got flush\n");
+    flush_to_scrnr = ev->flushdata.to_scrnr;
+    break;
   case MsgEventQDecodeStreamBuf:
     DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
 	    ev->decodestreambuf.stream_id,
@@ -537,6 +543,15 @@ int get_q()
       data_buffer = tmp_base;
     } 
     break;
+  }
+
+  if(PTS_DTS_flags & 0x2) {
+    if(flush_to_scrnr != -1) {
+      if(flush_to_scrnr != scr_nr) {
+      } else {
+	flush_to_scrnr = -1;
+      }
+    }
   }
   
   packet_offset = off;
