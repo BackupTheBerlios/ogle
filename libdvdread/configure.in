@@ -70,23 +70,22 @@ dnl dlopen libdvdcss
 else
 dnl link with libdvdcss
   if test -z "$dvdcss_path"; then
-    AC_CHECK_LIB(dvdcss, dvdcss_interface_2, 
-        [ CSS_LIBS=-ldvdcss ], 
-        AC_MSG_ERROR(You need libdvdcss.so.2 or later)
-        )
     AC_CHECK_HEADERS(dvdcss/dvdcss.h, 
       [ ],
       AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
     )
+    AC_MSG_CHECKING([for dvdcss_interface_2 in -ldvdcss])
+    saved_LDFLAGS=$LDFLAGS
+    LDFLAGS="$LDFLAGS -ldvdcss"
+    AC_TRY_LINK([#include <dvdcss/dvdcss.h>], 
+                [if(!dvdcss_interface_2) { return 1; }],
+        [ CSS_LIBS=-ldvdcss ],
+        [ AC_MSG_RESULT([no])
+          AC_MSG_ERROR(You need libdvdcss.so.2 or later)
+        ] )
+    LDFLAGS=$saved_LDFLAGS
+    AC_MSG_RESULT([yes])
   else
-    saved_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -L$dvdcss_path/lib"
-    AC_CHECK_LIB(dvdcss, dvdcss_interface_2, 
-        [ CSS_LIBS="-L$dvdcss_path/lib -R$dvdcss_path/lib -ldvdcss" 
-	  CSS_CFLAGS=-I$dvdcss_path/include ], 
-        AC_MSG_ERROR(You need libdvdcss.so.2 or later)
-        )
-    CFLAGS=$saved_CFLAGS
     dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
     saved_CPPFLAGS=$CPPFLAGS
     CPPFLAGS="-w $CPPFLAGS -I$dvdcss_path/include"
@@ -95,6 +94,18 @@ dnl link with libdvdcss
       AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
     )
     CPPFLAGS=$saved_CPPFLAGS
+    saved_CFLAGS=$CFLAGS
+    CFLAGS="$CFLAGS -I$dvdcss_path/include -L$dvdcss_path/lib -ldvdcss"
+    AC_MSG_CHECKING([for dvdcss_interface_2 in -ldvdcss])
+    AC_TRY_LINK([#include <dvdcss/dvdcss.h>], 
+                [if(!dvdcss_interface_2) { return 1; }],
+        [ CSS_LIBS="-L$dvdcss_path/lib -R$dvdcss_path/lib -ldvdcss"
+          CSS_CFLAGS=-I$dvdcss_path/include ],
+        [ AC_MSG_RESULT([no])
+          AC_MSG_ERROR(You need libdvdcss.so.2 or later)
+        ] )
+    CFLAGS=$saved_CFLAGS
+    AC_MSG_RESULT([yes])
   fi
 fi
 
