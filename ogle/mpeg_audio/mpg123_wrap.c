@@ -23,7 +23,7 @@ int get_q();
 int attach_ctrl_shm(int shmid);
 
 void print_time_base_offset(uint64_t PTS, int scr_nr);
-int set_time_base(uint64_t PTS, int scr_nr);
+int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
 
 
 char *program_name;
@@ -176,7 +176,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   fprintf(stderr, "mpeg audio: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -220,19 +220,32 @@ int get_q()
   len = q_elems[elem].len;
 
 
-
-  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
-    if(PTS_DTS_flags && 0x2) {
-      set_time_base(PTS, scr_nr);
-    }
+  if(prev_scr_nr != scr_nr) {
+    ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
   }
   
-  // print_time_base_offset(PTS, scr_nr);
+  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+    if(PTS_DTS_flags && 0x2) {
+      set_time_base(PTS, scr_nr, time_offset);
+    }
+  }
+  if(PTS_DTS_flags && 0x2) {
+    time_offset = get_time_base_offset(PTS, scr_nr);
+  }
+  prev_scr_nr = scr_nr;
+  
 
   /*
-  fprintf(stderr, "mpeg audio: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
-	  PTS_DTS_flags, PTS, DTS, off, len);
-  */
+   * primitive resync in case output buffer is emptied 
+   */
+  if(time_offset.tv_nsec < 0) {
+    time_offset.tv_sec = 0;
+    time_offset.tv_nsec = 0;
+ 
+    set_time_base(PTS, scr_nr, time_offset);
+  }
+  
+
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
   fwrite(mmap_base+off, len, 1, outfile);
@@ -315,26 +328,28 @@ void timeadd(struct timespec *d,
   }
 }  
 
-
-int set_time_base(uint64_t PTS, int scr_nr)
+int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
 {
   struct timespec curtime;
   struct timespec ptstime;
+  struct timespec modtime;
   
   ptstime.tv_sec = PTS/90000;
   ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
 
   clock_gettime(CLOCK_REALTIME, &curtime);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &curtime, &ptstime);
+  timeadd(&modtime, &curtime, &offset);
+  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
   ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
   
-  fprintf(stderr, "audio: setting offset[%d]: %ld.%09ld\n",
+  fprintf(stderr, "ac3: setting offset[%d]: %ld.%09ld\n",
 	  scr_nr,
 	  ctrl_time[scr_nr].realtime_offset.tv_sec,
 	  ctrl_time[scr_nr].realtime_offset.tv_nsec);
   
   return 0;
 }
+
   
 void print_time_base_offset(uint64_t PTS, int scr_nr)
 {
@@ -361,7 +376,7 @@ int attach_ctrl_shm(int shmid)
   char *shmaddr;
   
   if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("attach_ctrl_data(), shmat()");
       return -1;
     }
