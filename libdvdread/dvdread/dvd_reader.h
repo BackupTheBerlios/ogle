@@ -214,7 +214,7 @@ int DVDDiscID( dvd_reader_t *, unsigned char * );
  * @return 0 on success, -1 on error.
  */
 int DVDUDFVolumeInfo( dvd_reader_t *, char *, unsigned int,
-		      char *, unsigned int );
+		      unsigned char *, unsigned int );
 
 /**
  * Get the ISO9660 VolumeIdentifier and VolumeSetIdentifier
@@ -238,7 +238,7 @@ int DVDUDFVolumeInfo( dvd_reader_t *, char *, unsigned int,
  * @return 0 on success, -1 on error.
  */
 int DVDISOVolumeInfo( dvd_reader_t *, char *, unsigned int,
-		      char *, unsigned int );
+		      unsigned char *, unsigned int );
 
 /**
  * Sets the level of caching that is done when reading from a device

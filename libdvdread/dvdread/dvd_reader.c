@@ -1022,7 +1022,7 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 
 int DVDISOVolumeInfo( dvd_reader_t *dvd,
 		      char *volid, unsigned int volid_size,
-		      char *volsetid, unsigned int volsetid_size )
+		      unsigned char *volsetid, unsigned int volsetid_size )
 {
   unsigned char *buffer;
   int ret;
@@ -1078,7 +1078,7 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
 
 int DVDUDFVolumeInfo( dvd_reader_t *dvd,
 		      char *volid, unsigned int volid_size,
-		      char *volsetid, unsigned int volsetid_size )
+		      unsigned char *volsetid, unsigned int volsetid_size )
 {
   int ret;
   /* Check arguments. */
