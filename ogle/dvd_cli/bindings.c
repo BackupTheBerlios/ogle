@@ -610,6 +610,7 @@ void actionSubtitleStreamChange(void *data)
   DVDSubpictureStream_t cur_stream;
   DVDSubpictureStream_t new_stream;
   DVDBool_t subp_on;
+  DVDSubpictureAttributes_t sp_attr;
 
   struct action_number *user = (struct action_number *)data;
   
@@ -648,18 +649,94 @@ void actionSubtitleStreamChange(void *data)
 	  if(res != DVD_E_Ok) {
 	    DVDPerror("DVDSubpictureStreamChange: ", res);
 	  }
+	} else {
+	  new_stream = cur_stream;
 	}
 
 	res = DVDSetSubpictureState(nav, DVDTrue);
 	if(res != DVD_E_Ok) {
 	  DVDPerror("DVDSetSubpictureState: ", res);
 	}
-      }  
+      }
+      DNOTE("get subpattr snr %d\n", new_stream);
+      res = DVDGetSubpictureAttributes(nav, new_stream, &sp_attr);
+      if(res != DVD_E_Ok) {
+	DVDPerror("DVDGetSubpictureAttributes: ", res);
+      } else {
+	char *t_str;
+	switch(sp_attr.Type) {
+	case   DVD_SUBPICTURE_TYPE_NotSpecified:
+	  t_str = "Not Specified";
+	  break;
+	case   DVD_SUBPICTURE_TYPE_Language:
+	  t_str = "Language";
+	  break;
+	case   DVD_SUBPICTURE_TYPE_Other:
+	  t_str = "Other";
+	  break;
+	}
+	DNOTE("sp_attr: type: %s", t_str);
+	
+	switch(sp_attr.CodingMode) {
+	case DVD_SUBPICTURE_CODING_RunLength:
+	  t_str = "RLE";
+	  break;
+	case DVD_SUBPICTURE_CODING_Extended:
+	  t_str = "Extended";
+	  break;
+	case DVD_SUBPICTURE_CODING_Other:
+	  t_str = "Other";
+	  break;
+	}	
+	DNOTEC(" codemode: %s", t_str);
+
+	if(sp_attr.Type == DVD_SUBPICTURE_TYPE_Language) {
+	  DNOTEC(" lang: %c%c", 
+	    sp_attr.Language >> 8,
+	    sp_attr.Language & 0xff);
+	  
+	  switch(sp_attr.LanguageExtension) {
+	  case DVD_SUBPICTURE_LANG_EXT_NotSpecified:
+	    t_str = "Not Specified";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_NormalCaptions:
+	    t_str = "Normal Captions";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_BigCaptions:
+	    t_str = "Big Captions";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_ChildrensCaptions:
+	    t_str = "Childrend Captions";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_NormalCC:
+	    t_str = "Normal CC";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_BigCC:
+	    t_str = "Big CC";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_Forced:
+	    t_str = "Forced";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_NormalDirectorsComments:
+	    t_str = "Normal Directors Comments";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_BigDirectorsComments:
+	    t_str = "Big Directors Comments";
+	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments:
+	    t_str = "Childrens Directors Comments";
+	    break;
+	  }	    
+	DNOTEC(" lang_ext: %s", t_str);
+	}
+	DNOTEC("%s", "\n");
+      }
     }     
   } else {
     DVDPerror("DVDGetCurrentSubpicture: ", res);
   }
 
+  
 }
 
 /* Calls vfun() with the data parameter set to a pointer
