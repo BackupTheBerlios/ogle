@@ -651,11 +651,13 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
     res = vm_jump_title(ev.dvdctrl.cmd.titleplay.title);
     break;
   case DVDCtrlTimeSearch:
+    // not in One_Random_PGC_Title or Multi_PGC_Title
     //dsi.dsi_gi.c_eltm; /* Current 'nav' time */
     //ev.dvdctrl.cmd.timesearch.time; /* wanted time */
     //dsi.vobu_sri.[FWDA|BWDA]; /* Table for small searches */
     break;
   case DVDCtrlTimePlay:
+    // not in One_Random_PGC_Title or Multi_PGC_Title
     DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
 	  ev.dvdctrl.cmd.type);
     break;
@@ -924,7 +926,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       MsgEvent_t send_ev;
       char *state_str;
       DVDCtrlLongStateEvent_t *state_ev;
-      state_str = get_state_str();
+      state_str = vm_get_state_str(block);
       
       send_ev.type = MsgEventQDVDCtrlLong;
       send_ev.dvdctrllong.cmd.type = DVDCtrlLongState;
@@ -959,7 +961,7 @@ int process_long_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
   
   switch(ev.dvdctrllong.cmd.type) {
   case DVDCtrlLongSetState:
-    res = set_state_str(ev.dvdctrllong.cmd.state.xmlstr);
+    res = vm_set_state_str(ev.dvdctrllong.cmd.state.xmlstr);
     break;
   default:
     DNOTE("unknown (not handled) DVDCtrlLongEvent %d\n",

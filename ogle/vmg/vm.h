@@ -53,8 +53,8 @@ typedef struct {
   int vtsN; // 0 is vmgm?
   int pgcN; // either this or *pgc is enough. Which to use?
   int pgN;  // is this needed? can allways fid pgN from cellN?
-  int cellN;
-  int blockN;
+  int cellN; // current cell
+  int blockN; // block offset to the VOPBU within the current cell
   
   player_mode_t mode;
   
@@ -124,7 +124,7 @@ void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN);
 unsigned int bcd2int(unsigned int bcd);
 unsigned int int2bcd(unsigned int number);
 
-char *get_state_str(void);
-int set_state_str(char *state_str);
+char *vm_get_state_str(int blockN);
+int vm_set_state_str(char *state_str);
 
 #endif /* VM_H_INCLUDED */

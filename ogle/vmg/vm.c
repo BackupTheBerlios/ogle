@@ -87,7 +87,7 @@ static int get_PGCN(void);
 
 
 
-int serialize_registers_t (xmlNodePtr cur, registers_t *regs)
+static int serialize_registers_t (xmlNodePtr cur, registers_t *regs)
 {
   char str_buf[121];
   char *buf;
@@ -145,7 +145,7 @@ int serialize_registers_t (xmlNodePtr cur, registers_t *regs)
 
 #define NAVSTATE_VERSION "0.0.0"
 
-char *serialize_dvd_state_t(dvd_state_t *state)
+static char *serialize_dvd_state_t(dvd_state_t *state)
 {
   char str_buf[26];
   int len = sizeof(str_buf);
@@ -261,6 +261,7 @@ char *serialize_dvd_state_t(dvd_state_t *state)
   }
   
   if((xmlbuf = xmlBufferCreate()) == NULL) {
+    xmlFreeDoc(doc);
     return NULL;
   }
   
@@ -307,7 +308,7 @@ int deserialize_dvd_state_t(char *xmlstr, dvd_state_t *state)
 	for(i = 0; i < 16; i++) {
 	  char regmode;
 	  c = 0;
-	  sscanf(reg, "%c%hx%n", &regmode, &(state->registers.SPRM[i]), &c);
+	  sscanf(reg, "%c%hx%n", &regmode, &(state->registers.GPRM[i]), &c);
 	  reg+=c;
 	  if(regmode == ',') {
 	    //register mode
@@ -387,23 +388,25 @@ int deserialize_dvd_state_t(char *xmlstr, dvd_state_t *state)
     
     cur = cur->next;
   }
+  xmlFreeDoc(doc);
 
   return 1;
 }
 
-char *get_state_str(void)
+char *vm_get_state_str(int blockN)
 {
   dvd_state_t save_state;
   char *state_str = NULL;
   
   save_state = state;
+  save_state.blockN = blockN;
   save_state.pgcN = get_PGCN();
   state_str = serialize_dvd_state_t(&save_state);
   
   return state_str;
 }
 
-int set_state_str(char *state_str)
+int vm_set_state_str(char *state_str)
 {
   dvd_state_t save_state;
   
@@ -412,7 +415,7 @@ int set_state_str(char *state_str)
   }
   
   if(!deserialize_dvd_state_t(state_str, &save_state)) {
-    fprintf(stderr, "state_str wrong\n");
+    WARNING("%s", "state_str wrong\n");
     return 0;
   }
   
@@ -430,6 +433,7 @@ int set_state_str(char *state_str)
   //        state.pgN
   //        state.TT_PGCN_REG
   get_PGC(save_state.pgcN);
+  save_state.pgc = state.pgc;
   /* set the rest of state after the call */
   state = save_state;
 
@@ -490,32 +494,32 @@ int vm_init(char *dvdroot) // , register_t regs)
 {
   dvd = DVDOpen(dvdroot);
   if(!dvd) {
-    fprintf(stderr, "vm: faild to open/read the DVD\n");
+    ERROR("%s", "faild to open/read the DVD\n");
     return -1;
   }
   vmgi = ifoOpenVMGI(dvd);
   if(!vmgi) {
-    fprintf(stderr, "vm: faild to read VIDEO_TS.IFO\n");
+    ERROR("%s", "faild to read VIDEO_TS.IFO\n");
     return -1;
   }
   if(!ifoRead_FP_PGC(vmgi)) {
-    fprintf(stderr, "vm: ifoRead_FP_PGC faild\n");
+    ERROR("%s", "ifoRead_FP_PGC faild\n");
     return -1;
   }
   if(!ifoRead_TT_SRPT(vmgi)) {
-    fprintf(stderr, "vm: ifoRead_TT_SRPT faild\n");
+    ERROR("%s", "ifoRead_TT_SRPT faild\n");
     return -1;
   }
   if(!ifoRead_PGCI_UT(vmgi)) {
-    fprintf(stderr, "vm: ifoRead_PGCI_UT faild\n");
+    ERROR("%s", "ifoRead_PGCI_UT faild\n");
     return -1;
   }
   if(!ifoRead_PTL_MAIT(vmgi)) {
-    fprintf(stderr, "vm: ifoRead_PTL_MAIT faild\n");
+    ERROR("%s", "ifoRead_PTL_MAIT faild\n");
     ; // return -1; Not really used for now..
   }
   if(!ifoRead_VTS_ATRT(vmgi)) {
-    fprintf(stderr, "vm: ifoRead_VTS_ATRT faild\n");
+    ERROR("%s", "ifoRead_VTS_ATRT faild\n");
     ; // return -1; Not really used for now..
   }
   //ifoRead_TXTDT_MGI(vmgi); Not implemented yet
