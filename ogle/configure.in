@@ -39,9 +39,9 @@ AC_SUBST(MLIB_LIBS)
 
 dnl Architecture specific stuff
 USE_MMX=
-case "$target_cpu" in
+case "$host_cpu" in
 i?86)
-	case "$target_cpu" in
+	case "$host_cpu" in
 	i386)
 		;;
 	*)
@@ -49,7 +49,7 @@ i?86)
 		USE_MMX=yes
 		;;
 	esac
-	CFLAGS="$CFLAGS -march=$target_cpu"
+	CFLAGS="$CFLAGS -march=$host_cpu"
 	;;
 sparc)
 	CFLAGS="$CFLAGS -mcpu=ultrasparc"
