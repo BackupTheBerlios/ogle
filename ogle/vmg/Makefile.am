@@ -15,14 +15,19 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS = vmg dump ifo_dump vm vmg_dump
+bin_PROGRAMS = vmg vmg_dump dump ifo_dump vm 
 
 vmg_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 vmg_SOURCES = vmg.c com.c
 
-dump_SOURCES = \
-	dump.c print_ifo_vm.c vobdump.c \
+vmg_dump_SOURCES = vmg_dump.c \
+	nav_read.c nav_read.h \
+	nav_print.c nav_print.h \
+	nav.h \
+	vmcmd.c vmcmd.h
+
+dump_SOURCES = dump.c \
 	vmcmd.c vmcmd.h \
 	decoder.c decoder.h \
 	ifo.h
@@ -34,8 +39,7 @@ ifo_dump_SOURCES = ifo_dump.c \
 
 vm_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
-vm_SOURCES = \
-	vm.c vm.h \
+vm_SOURCES = vm.c vm.h \
 	ifo_read.c ifo_read.h \
 	ifo_print.c ifo_print.h \
 	decoder.c decoder.h \
@@ -45,10 +49,3 @@ vm_SOURCES = \
 	vmcmd.c vmcmd.h \
 	com.c ifo.h
 
-vmg_dump_SOURCES = vmg_dump.c \
-	nav_read.c nav_read.h \
-	nav_print.c nav_print.h \
-	nav.h \
-	vmcmd.c vmcmd.h
-vmg_dump_LDADD = $(top_builddir)/common/libcommon.a \
-		$(top_builddir)/ogle/libmsgevents.la 

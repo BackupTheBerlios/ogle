@@ -97,6 +97,7 @@ static int eval_special_instruction(bool cond) {
   switch(bits(1, 4, 4)) {
     case 0: // NOP
       line = 0;
+      return cond ? line : 0;
     case 1: // Goto line
       line = bits(7, 0, 8);
       return cond ? line : 0;
