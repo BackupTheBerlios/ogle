@@ -4,6 +4,7 @@ AM_INIT_AUTOMAKE(ogle, 0.8.5-cvs)
 dnl AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
+AC_CANONICAL_TARGET
 
 dnl Checks for programs.
 AC_PROG_CC
@@ -95,12 +96,16 @@ if test -z "$jpeg_path"; then
 fi
 dnl Both this and the libdvdread should first test and see if any flags
 dnl beside -lname are needed. Then they the suggested path (+ some standard?)
+TMPCFLAGS=$CFLAGS
+CFLAGS="-L$jpeg_path/lib"
 AC_CHECK_LIB(jpeg, main, 
   [ JPEG_LIBS="-L$jpeg_path/lib -R$jpeg_path/lib -ljpeg"
     JPEG_CFLAGS=-I$jpeg_path/include
   ],
   [AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])], 
   -L$jpeg_path/lib)
+
+CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(libjpeg-includes, 
   [  --with-libjpeg-includes=path  specify location of libjpeg headers ], 
@@ -171,6 +176,10 @@ if test -z "$dvd_path"; then
     dvd_path=$ac_default_prefix
   fi
 fi
+
+TMPCFLAGS=$CFLAGS
+CFLAGS="-L$dvd_path/lib"
+
 AC_CHECK_LIB(dvdread, DVDFileSize, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
     DVDREAD_CFLAGS=-I$dvd_path/include
@@ -181,6 +190,8 @@ AC_CHECK_LIB(dvdread, DVDFileSize,
       [ AC_MSG_ERROR([Need libdvdread, install it or specify it's location])],
       -L$dvd_path/lib)
   ], -L$dvd_path/lib)
+
+CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(dvdread-includes, 
   [  --with-dvdread-includes=path  specify location of libdvdread headers ], 
@@ -289,6 +300,10 @@ if test -z "$a52_path"; then
     a52_path=$ac_default_prefix
   fi
 fi
+
+TMPCFLAGS=$CFLAGS
+CFLAGS="-L$a52_path/lib"
+
 dnl a52_free is a new function in 0.7.3
 AC_CHECK_LIB(a52, a52_free, 
   [ 
@@ -310,6 +325,8 @@ AC_CHECK_LIB(a52, a52_free,
         ], -L$a52_path/lib -lm)
     fi
   ], [-L$a52_path/lib -lm])
+
+CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(liba52-includes, 
   [  --with-liba52-includes=path  specify location of liba52 headers ], 
@@ -362,11 +379,17 @@ if test -z "$mad_path"; then
   fi
 fi
 
+TMPCFLAGS=$CFLAGS
+CFLAGS="-L$mad_path/lib"
+
 AC_CHECK_LIB(mad, mad_frame_decode, 
   [ 
     MAD_LIBS="-L$mad_path/lib -R$mad_path/lib -lmad" 
     MAD_CFLAGS=-I$mad_path/include
-  ],,[-L$mad_path/lib])
+  ],[AC_MSG_ERROR([Need libmad, install it or specify it's location])],
+    [-L$mad_path/lib])
+
+CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(libmad-includes, 
   [  --with-libmad-includes=path  specify location of libmad headers ], 
