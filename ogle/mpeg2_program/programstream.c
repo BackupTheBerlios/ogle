@@ -398,45 +398,45 @@ void push_stream_data(uint8_t stream_id, int len)
 
 void PES_packet()
 {
-  unsigned short PES_packet_length;
+  uint16_t PES_packet_length;
   uint8_t stream_id;
-  unsigned char PES_scrambling_control;
-  unsigned char PES_priority;
-  unsigned char data_alignment_indicator;
-  unsigned char copyright;
-  unsigned char original_or_copy;
-  unsigned char PTS_DTS_flags;
-  unsigned char ESCR_flag;
-  unsigned char ES_rate_flag;
-  unsigned char DSM_trick_mode_flag;
-  unsigned char additional_copy_info_flag;
-  unsigned char PES_CRC_flag;
-  unsigned char PES_extension_flag;
-  unsigned char PES_header_data_length;
+  uint8_t PES_scrambling_control;
+  uint8_t PES_priority;
+  uint8_t data_alignment_indicator;
+  uint8_t copyright;
+  uint8_t original_or_copy;
+  uint8_t PTS_DTS_flags;
+  uint8_t ESCR_flag;
+  uint8_t ES_rate_flag;
+  uint8_t DSM_trick_mode_flag;
+  uint8_t additional_copy_info_flag;
+  uint8_t PES_CRC_flag;
+  uint8_t PES_extension_flag;
+  uint8_t PES_header_data_length;
   
-  unsigned long int PTS;
-  unsigned long int DTS;
-  unsigned long int ESCR_base;
-  unsigned short ESCR_extension;
+  uint64_t PTS;
+  uint64_t DTS;
+  uint64_t ESCR_base;
+  uint32_t ESCR_extension;
   
-  unsigned int ES_rate;
-  unsigned char trick_mode_control;
-  unsigned char field_id;
-  unsigned char intra_slice_refresh;
-  unsigned char frequency_truncation;
+  uint32_t ES_rate;
+  uint8_t trick_mode_control;
+  uint8_t field_id;
+  uint8_t intra_slice_refresh;
+  uint8_t frequency_truncation;
 
-  unsigned char field_rep_cntrl;
+  uint8_t field_rep_cntrl;
 
-  unsigned char additional_copy_info;
-  unsigned short previous_PES_packet_CRC;
-  unsigned char PES_private_data_flag = 0;
-  unsigned char pack_header_field_flag = 0;
-  unsigned char program_packet_sequence_counter_flag = 0;
+  uint8_t additional_copy_info;
+  uint16_t previous_PES_packet_CRC;
+  uint8_t PES_private_data_flag = 0;
+  uint8_t pack_header_field_flag = 0;
+  uint8_t program_packet_sequence_counter_flag = 0;
   uint8_t program_packet_sequence_counter = 0;
-  unsigned char P_STD_buffer_flag = 0;
-  unsigned char PES_extension_field_flag = 0;
-  unsigned char pack_field_length = 0;
-  unsigned char PES_extension_field_length = 0;
+  uint8_t P_STD_buffer_flag = 0;
+  uint8_t PES_extension_field_flag = 0;
+  uint8_t pack_field_length = 0;
+  uint8_t PES_extension_field_length = 0;
   unsigned int bytes_read = 0;
 
   uint8_t original_stuff_length;
@@ -483,6 +483,7 @@ void PES_packet()
       marker_bit();
       
       bytes_read += 5;
+      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
     }
 
     if(PTS_DTS_flags == 0x3) {
@@ -493,6 +494,7 @@ void PES_packet()
       marker_bit();
       PTS                    |= GETBITS(15, "PTS [14..0]");
       marker_bit();
+      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
 
       GETBITS(4, "0001");
       DTS                     = GETBITS(3, "DTS [32..30]")<<30;
@@ -501,9 +503,11 @@ void PES_packet()
       marker_bit();
       DTS                    |= GETBITS(15, "DTS [14..0]");
       marker_bit();
+      DPRINTF(3, "DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
       
       bytes_read += 10;
     }
+
 
     if(ESCR_flag == 0x01) {
 
@@ -679,9 +683,9 @@ void PES_packet()
 
 void pack()
 {
-  unsigned int start_code;
-  unsigned char stream_id;
-  unsigned char is_PES = 0;
+  uint32_t start_code;
+  uint8_t stream_id;
+  uint8_t is_PES = 0;
 
   //fprintf(stderr, "pack()\n");
   
