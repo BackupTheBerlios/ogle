@@ -294,7 +294,8 @@ typedef struct {
 typedef struct {
   DVDTitle_t title;     /**< TT number not VTS_TT number */
   DVDPTT_t ptt;
-  DVDTimecode_t time;
+  DVDTimecode_t title_current;
+  DVDTimecode_t title_total;
 } DVDLocation_t;
 
 /* hack */

@@ -589,15 +589,6 @@ DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
   }  
 }
 
-/** 
- * Backwards compatablility. Deprecated.  Use DVDGetNumberOfPTTs.
- */
-DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title, 
-			       int *const PartsAvailable)
-{
-  return DVDGetNumberOfPTTs(nav, Title, PartsAvailable);
-}  
-
 
 /** 
  * Querry the number of Part's (Chapters) for a Title track.

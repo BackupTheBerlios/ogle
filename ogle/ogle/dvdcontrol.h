@@ -47,20 +47,20 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 			       DVDAudioStream_t *const CurrentStream);
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				    DVDBool_t *const Enabled);
-DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav, DVDLangID_t *const Language,
+DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav, 
+				       DVDLangID_t *const Language,
 				       DVDAudioLangExt_t *const AudioExtension);
 DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle);
-DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, DVDVideoAttributes_t *const Attr);
+DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, 
+					 DVDVideoAttributes_t *const Attr);
 
 DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain);
-DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location);
+DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, 
+				  DVDLocation_t *const Location);
 
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable);
 
-/* Just for backwards compatibility. */
-DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title,
-			       int *const PartsAvailable);
 DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title,
 			       int *const PartsAvailable);
 
