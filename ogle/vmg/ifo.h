@@ -86,7 +86,7 @@ typedef struct {
   unsigned int sample_frequency       : 2;
   unsigned int quantization           : 2;
 #endif
-  char lang_code[2];
+  unsigned char lang_code[2];
   uint8_t lang_extension; // ?? and if so use a [3] instead?
   uint8_t audio_type;
   uint16_t unknown2;
@@ -114,7 +114,7 @@ typedef struct {
    */
   uint8_t user_selectable; //?? 
   uint8_t zero1;
-  char lang_code[2];
+  unsigned char lang_code[2];
   uint8_t zero2; // lang ext?
   uint8_t lang_extension;
 } __attribute__ ((packed)) subp_attr_t;
@@ -323,7 +323,7 @@ typedef struct { // Program Chain Information Table
 #define PGCIT_SIZE 8
 
 typedef struct { // Menu PGCI Language Unit Table
-  char     lang_code[2];
+  unsigned char lang_code[2];
   uint8_t  zero_1;
   uint8_t  exists;
   uint32_t lang_start_byte; // prt
@@ -341,7 +341,7 @@ typedef struct { // Menu PGCI Unit Table
 
 
 typedef struct { // Parental Management Information Unit Table
-  char country_code[2];
+  unsigned char country_code[2];
   uint16_t zero_1;
   uint16_t pf_ptl_mai_start_byte;
   uint16_t zero_2;
@@ -415,7 +415,7 @@ typedef struct { // Text Data
 
   
 typedef struct { // Text Data Language Unit 
-  char     lang_code[2];
+  unsigned char lang_code[2];
   uint16_t unknown; // 0x0001, title 1? disc 1? side 1?
   uint32_t _start_byte; // prt, rel start of vmg_txtdt_mgi
   txtdt_t  *txtdt;

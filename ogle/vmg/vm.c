@@ -70,11 +70,12 @@ int debug = 8;
 
 
 //int start_vm(void);
-int reset_vm(void);
-int run_vm(void);
-int eval_cmd(vm_cmd_t *cmd);
-int get_next_cell();
+int vm_reset(void);
+int vm_run(void);
+int vm_eval_cmd(vm_cmd_t *cmd);
+int vm_get_next_cell(void);
 
+static void saveRSMinfo(int cellN, int blockN);
 static link_t play_PGC(void);
 static link_t play_PG(void);
 static link_t play_Cell(void);
@@ -201,9 +202,9 @@ int main(int argc, char *argv[])
   }
   
   /*  Call start here */
-  reset_vm();
+  vm_reset();
 
-  do_run();
+  do_run(); // In nav.c
   
   return -1;
 }
@@ -212,7 +213,7 @@ int main(int argc, char *argv[])
 
 
 
-int reset_vm(void)
+int vm_reset(void)
 { 
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
@@ -251,7 +252,7 @@ int reset_vm(void)
 
 
 // FIXME TODO XXX $$$ Handle error condition too...
-int start_vm(void)
+int vm_start(void)
 {
   link_t link_values;
 
@@ -271,7 +272,7 @@ int start_vm(void)
 }
 
 
-int eval_cmd(vm_cmd_t *cmd)
+int vm_eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
   
@@ -293,7 +294,7 @@ int eval_cmd(vm_cmd_t *cmd)
 
 // FIXME TODO XXX $$$ Handle error condition too...
 // How to tell if there is any need to do a Flush?
-int get_next_cell(void)
+int vm_get_next_cell(void)
 {
   link_t link_values;
   // Calls play_Cell wich either returns PlayThis or a command
@@ -345,31 +346,10 @@ int vm_prev_pg(void)
   return vm_top_pg();
 }
 
-// Must be called before domain is changed 
-void saveRSMinfo(int cellN, int blockN)
-{
-  int i;
-  
-  if(cellN != 0) {
-    state.rsm_cellN = cellN;
-    state.rsm_blockN = 0;
-  } else {
-    state.rsm_cellN = state.cellN;
-    state.rsm_blockN = blockN;
-  }
-  state.rsm_vtsN = state.vtsN;
-  state.rsm_pgcN = get_PGCN();
-  
-  assert(state.rsm_pgcN == state.PGC_REG); // ??
-  
-  for(i = 0; i < 5; i++) {
-    state.rsm_regs[i] = state.registers.SPRM[4 + i];
-  }
-}
 
-domain_t menuid2domain(DVDMenuID_t menuid)
+static domain_t menuid2domain(DVDMenuID_t menuid)
 {
-  domain_t result;
+  domain_t result = VTSM_DOMAIN; // Really shouldn't have to..
   
   switch(menuid) {
   case DVD_MENU_Title:
@@ -382,8 +362,6 @@ domain_t menuid2domain(DVDMenuID_t menuid)
   case DVD_MENU_Part:
     result = VTSM_DOMAIN;
     break;
-  default:
-    /* Handle error ? */
   }
   
   return result;
@@ -479,7 +457,7 @@ int vm_resume(void)
   return 1; // Jump
 }
 
-int get_Audio_stream(int audioN)
+int vm_get_Audio_stream(int audioN)
 {
   int streamN = -1;
   
@@ -508,7 +486,7 @@ int get_Audio_stream(int audioN)
   return streamN;
 }
 
-int get_Spu_stream(int spuN)
+int vm_get_Subp_stream(int subpN)
 {
   int streamN = -1;
   int source_aspect = get_video_aspect();
@@ -516,16 +494,16 @@ int get_Spu_stream(int spuN)
   if(state.domain == VTSM_DOMAIN 
      || state.domain == VMGM_DOMAIN
      || state.domain == FP_DOMAIN) {
-    spuN = 0;
+    subpN = 0;
   }
   
-  if(spuN < 32) { /* a valid logical stream */
+  if(subpN < 32) { /* a valid logical stream */
     /* Is this logical stream present */ 
-    if(state.pgc->subp_control[spuN] & (1<<31)) {
+    if(state.pgc->subp_control[subpN] & (1<<31)) {
       if(source_aspect == 0) /* 4:3 */	     
-	streamN = (state.pgc->subp_control[spuN] >> 24) & 0x1f;  
+	streamN = (state.pgc->subp_control[subpN] >> 24) & 0x1f;  
       if(source_aspect == 3) /* 16:9 */
-	streamN = (state.pgc->subp_control[spuN] >> 16) & 0x1f;
+	streamN = (state.pgc->subp_control[subpN] >> 16) & 0x1f;
     }
   }
   
@@ -540,48 +518,118 @@ int get_Spu_stream(int spuN)
   return streamN;
 }
 
-int get_Spu_active_stream(void)
+int vm_get_Subp_active_stream(void)
 {
-  int spuN = state.SPST_REG;
+  int subpN = state.SPST_REG;
   
-  if(state.domain == VTS_DOMAIN && !(spuN & 0x40)) { /* Is the spu off? */
+  if(state.domain == VTS_DOMAIN && !(subpN & 0x40)) { /* Is the subp off? */
     return -1;
   } else {
-    return get_Spu_stream(spuN & ~0x40);
+    return vm_get_Subp_stream(subpN & ~0x40);
   }
 }
 
-void get_Audio_info(int *num_avail, int *current)
+void vm_get_Audio_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vts_audio_streams;
+    *current = state.AST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vtsm_audio_streams;
+    *current = 1;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
     ifoOpenVMGI();
     *num_avail = vmgi.vmgi_mat->nr_of_vmgm_audio_streams;
+    *current = 1;
   }
-  *current = state.AST_REG;
 }
 
-void get_Spu_info(int *num_avail, int *current)
+void vm_get_Subp_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vts_subp_streams;
+    *current = state.SPST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vtsm_subp_streams;
+    *current = 0x41;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
     ifoOpenVMGI();
     *num_avail = vmgi.vmgi_mat->nr_of_vmgm_subp_streams;
+    *current = 0x41;
   }
-  *current = state.SPST_REG;
 }
 
+subp_attr_t vm_get_Subp_attr(int streamN)
+{
+  subp_attr_t attr;
+  
+  if(state.domain == VTS_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    attr = vtsi.vtsi_mat->vts_subp_attributes[streamN];
+  } else if(state.domain == VTSM_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    attr = vtsi.vtsi_mat->vtsm_subp_attributes[0];
+  } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
+    ifoOpenVMGI();
+    attr = vmgi.vmgi_mat->vmgm_subp_attributes[0];
+  }
+  return attr;
+}
 
+audio_attr_t vm_get_Audio_attr(int streamN)
+{
+  audio_attr_t attr;
+  
+  if(state.domain == VTS_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    attr = vtsi.vtsi_mat->vts_audio_attributes[streamN];
+  } else if(state.domain == VTSM_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    attr = vtsi.vtsi_mat->vtsm_audio_attributes[0];
+  } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
+    ifoOpenVMGI();
+    attr = vmgi.vmgi_mat->vmgm_audio_attributes[0];
+  }
+  return attr;
+}
+
+uint16_t vm_get_Subp_lang(int streamN)
+{
+  subp_attr_t attr = vm_get_Subp_attr(streamN);
+  return (attr.lang_code[0] << 8) | attr.lang_code[1];
+}
+
+uint16_t vm_get_Audio_lang(int streamN)
+{
+  audio_attr_t attr = vm_get_Audio_attr(streamN);
+  return (attr.lang_code[0] << 8) | attr.lang_code[1];
+}
+
+// Must be called before domain is changed 
+static void saveRSMinfo(int cellN, int blockN)
+{
+  int i;
+  
+  if(cellN != 0) {
+    state.rsm_cellN = cellN;
+    state.rsm_blockN = 0;
+  } else {
+    state.rsm_cellN = state.cellN;
+    state.rsm_blockN = blockN;
+  }
+  state.rsm_vtsN = state.vtsN;
+  state.rsm_pgcN = get_PGCN();
+  
+  assert(state.rsm_pgcN == state.PGC_REG); // ??
+  
+  for(i = 0; i < 5; i++) {
+    state.rsm_regs[i] = state.registers.SPRM[4 + i];
+  }
+}
 
 static link_t play_PGC(void) 
 {    

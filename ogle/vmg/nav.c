@@ -40,20 +40,22 @@ extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 // vm.c
 extern MsgEventQ_t *msgq;
 extern dvd_state_t state;
-extern int reset_vm(void);
-extern int start_vm(void);
-extern int eval_cmd(vm_cmd_t *cmd);
-extern int get_next_cell();
+extern int vm_reset(void);
+extern int vm_start(void);
+extern int vm_eval_cmd(vm_cmd_t *cmd);
+extern int vm_get_next_cell();
 extern int vm_menuCall(int menuid, int block);
 extern int vm_resume(void);
 extern int vm_top_pg(void);
 extern int vm_next_pg(void);
 extern int vm_prev_pg(void);
-extern int get_Audio_stream(int audioN);
-extern int get_Spu_stream(int spuN);
-extern int get_Spu_active_stream(void);
-extern void get_Audio_info(int *num_avail, int *current);
-extern void get_Spu_info(int *num_avail, int *current);
+extern int vm_get_Audio_stream(int audioN);
+extern int vm_get_Subp_stream(int subpN);
+extern int vm_get_Subp_active_stream(void);
+extern void vm_get_Audio_info(int *num_avail, int *current);
+extern void vm_get_Subp_info(int *num_avail, int *current);
+extern uint16_t vm_get_Subp_lang(int streamN);
+extern uint16_t vm_get_Audio_lang(int streamN);
 
 
 
@@ -63,13 +65,13 @@ extern void get_Spu_info(int *num_avail, int *current);
  */
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
-  static int audio_stream_id = -1, spu_stream_id = -1; // FIXME ??? static
+  static int audio_stream_id = -1, subp_stream_id = -1; // FIXME ??? static
   MsgEvent_t ev;
 
 #if 1
   /* Tell the demuxer which audio track to demux */ 
   {
-    int sN = get_Audio_stream(state.AST_REG);
+    int sN = vm_get_Audio_stream(state.AST_REG);
     if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
     if(sN != audio_stream_id) {
       audio_stream_id = sN;
@@ -88,18 +90,18 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 #endif
 
 #if 1
-  /* Tell the demuxer which spu track to demux */ 
+  /* Tell the demuxer which subp track to demux */ 
   {
-    int sN = get_Spu_active_stream();
+    int sN = vm_get_Subp_active_stream();
     if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
-    if(sN != spu_stream_id) {
-      spu_stream_id = sN;
+    if(sN != subp_stream_id) {
+      subp_stream_id = sN;
       
-      fprintf(stderr, "nav: sending spu demuxstream %d\n", sN);
+      fprintf(stderr, "nav: sending subp demuxstream %d\n", sN);
     
       ev.type = MsgEventQDemuxStreamChange;
       ev.demuxstreamchange.stream_id = 0xbd; // SPU
-      ev.demuxstreamchange.subtype = 0x20 | spu_stream_id;
+      ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
 	fprintf(stderr, "vm: didn't set demuxstream\n");
       }
@@ -370,7 +372,7 @@ void do_init_cell(int flush) {
 void do_next_cell(void) {
   
   // New_cell
-  get_next_cell();
+  vm_get_next_cell();
   block = 0; // or rsm_block??, get it from get_next_cell()!!
 
   do_init_cell(0);
@@ -385,7 +387,7 @@ void do_run(void) {
   memset(&pci, 0, sizeof(pci_t));
   memset(&dsi, 0, sizeof(dsi_t));
   
-  start_vm();
+  vm_start();
   block = 0;
   do_init_cell(0);
   dsi.dsi_gi.nv_pck_lbn = -1;
@@ -454,7 +456,7 @@ void do_run(void) {
 	    ; // error selected but out of range...
 	  state.HL_BTNN_REG = button_nr << 10;
 	  
-	  if(eval_cmd(&pci.hli.btnit[button_nr - 1].cmd)) {
+	  if(vm_eval_cmd(&pci.hli.btnit[button_nr - 1].cmd)) {
 	    do_init_cell(/* ?? */ 0);
 	    dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
@@ -531,7 +533,7 @@ void do_run(void) {
 	    /* Update selected/activated button, send highlight info to spu */
 	    /* Returns true if a button is activated */
 	    if(process_button(&ev.dvdctrl.cmd, &pci, &state.HL_BTNN_REG)) {
-	      res = eval_cmd(&pci.hli.btnit[(state.HL_BTNN_REG>>10) - 1].cmd);
+	      res = vm_eval_cmd(&pci.hli.btnit[(state.HL_BTNN_REG>>10) - 1].cmd);
 	    }
 	  }
 	  break;
@@ -590,7 +592,7 @@ void do_run(void) {
 	  {
 	    MsgEvent_t send_ev;
 	    int nS, cS;
-	    get_Audio_info(&nS, &cS);
+	    vm_get_Audio_info(&nS, &cS);
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
 	    send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
@@ -606,7 +608,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
 	    send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
-	      (get_Audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	      (vm_get_Audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -619,6 +621,8 @@ void do_run(void) {
 	      = ev.dvdctrl.cmd.audioattributes.streamnr;
 	    memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
 		   sizeof(DVDAudioAttributes_t)); //TBD
+	    send_ev.dvdctrl.cmd.audioattributes.attr.Language =
+	      vm_get_Audio_lang(ev.dvdctrl.cmd.audioattributes.streamnr);
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -626,11 +630,13 @@ void do_run(void) {
 	  {
 	    MsgEvent_t send_ev;
 	    int nS, cS;
-	    get_Spu_info(&nS, &cS);
+	    vm_get_Subp_info(&nS, &cS);
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
 	    send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
-	    send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS;
+	    send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS & ~0x40;
+	    send_ev.dvdctrl.cmd.currentsubpicture.display 
+	      = (cS & 0x40) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);
 	  }
 	  break;
@@ -642,7 +648,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
-	      (get_Spu_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	      (vm_get_Subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -655,6 +661,8 @@ void do_run(void) {
 	      = ev.dvdctrl.cmd.subpictureattributes.streamnr;
 	    memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
 		   sizeof(DVDSubpictureAttributes_t)); //TBD
+	    send_ev.dvdctrl.cmd.subpictureattributes.attr.Language =
+	      vm_get_Subp_lang(ev.dvdctrl.cmd.subpictureattributes.streamnr);
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);
 	  }	  
 	  break;
