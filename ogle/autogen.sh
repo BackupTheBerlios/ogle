@@ -2,8 +2,7 @@
 set -x
 
 aclocal
-## Should we have this? 
-libtoolize --copy --force --automake
+libtoolize --copy --automake
 ##autoheader
 automake --copy --add-missing
 autoconf

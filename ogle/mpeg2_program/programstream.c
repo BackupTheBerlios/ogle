@@ -1985,6 +1985,7 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
     } else {
       id_reg_ps1[subtype].state = STREAM_DISCARD;
     }
+    return 1;
   }
   
   if(id != MPEG2_PRIVATE_STREAM_1) {

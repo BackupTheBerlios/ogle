@@ -8,6 +8,7 @@ AC_CANONICAL_HOST
 dnl Checks for programs.
 AC_PROG_CC
 
+dnl AM_DISABLE_SHARED
 AM_PROG_LIBTOOL
 
 dnl Checks for libraries.
