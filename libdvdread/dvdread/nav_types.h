@@ -90,15 +90,21 @@ typedef struct {
 
 /** 
  * Highlight General Information 
+ *
+ * For btngrX_dsp_ty the bits have the following meaning:
+ * 000b: normal 4/3 only buttons
+ * XX1b: wide (16/9) buttons
+ * X1Xb: letterbox buttons
+ * 1XXb: pan&scan buttons
  */
 typedef struct {
-  uint16_t hli_ss; /**< status, only low 2 bits 0: no, 1: different 2: equal 3: eual except for button cmds */
+  uint16_t hli_ss; /**< status, only low 2 bits 0: no buttons, 1: different 2: equal 3: eual except for button cmds */
   uint32_t hli_s_ptm;              /**< start ptm of hli */
   uint32_t hli_e_ptm;              /**< end ptm of hli */
   uint32_t btn_se_e_ptm;           /**< end ptm of button select */
 #ifdef WORDS_BIGENDIAN
   unsigned int zero1 : 2;          /**< reserved */
-  unsigned int btngr_ns : 2;       /**< number of button groups */
+  unsigned int btngr_ns : 2;       /**< number of button groups 1, 2 or 3 with 36/18/12 buttons */
   unsigned int zero2 : 1;          /**< reserved */
   unsigned int btngr1_dsp_ty : 3;  /**< display type of subpic stream for button group 1 */
   unsigned int zero3 : 1;          /**< reserved */
@@ -115,9 +121,9 @@ typedef struct {
   unsigned int btngr2_dsp_ty : 3;
   unsigned int zero3 : 1;
 #endif
-  uint8_t btn_ofn;     /**< button offset number */
-  uint8_t btn_ns;      /**< number of valid buttons   (low 6 bits) */  
-  uint8_t nsl_btn_ns;  /**< number of buttons selectable by U_BTNNi (low 6 bits)     nsl_btn_ns <= btn_ns */
+  uint8_t btn_ofn;     /**< button offset number range 0-255 */
+  uint8_t btn_ns;      /**< number of valid buttons  <= 36/18/12 (low 6 bits) */  
+  uint8_t nsl_btn_ns;  /**< number of buttons selectable by U_BTNNi (low 6 bits)   nsl_btn_ns <= btn_ns */
   uint8_t zero5;       /**< reserved */
   uint8_t fosl_btnn;   /**< forcedly selected button  (low 6 bits) */
   uint8_t foac_btnn;   /**< forcedly activated button (low 6 bits) */
