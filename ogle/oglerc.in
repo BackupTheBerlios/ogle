@@ -176,6 +176,18 @@
 	  <key>q</key>
 	  <key>Q</key>
   	</b>
+	<b>	
+	  <action>BookmarkAdd</action>
+	  <key>Insert</key>
+  	</b>
+	<b>	
+	  <action>BookmarkRemove</action>
+	  <key>Delete</key>
+  	</b>
+	<b>	
+	  <action>BookmarkRestore</action>
+	  <key>b</key>
+  	</b>
     </bindings>
   </user_interface>
 </ogle_conf>
