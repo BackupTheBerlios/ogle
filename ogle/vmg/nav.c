@@ -173,10 +173,35 @@ int main(int argc, char *argv[])
  */
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
+  static int video_aspect = -1;
   static int audio_stream_id = -1;
   static int subp_stream_id = -1;
   MsgEvent_t ev;
   
+  /* Tell video out what aspect ratio this pice has */ 
+  {
+    video_attr_t attr = vm_get_video_attr();
+    if(attr.display_aspect_ratio != video_aspect) {
+      video_aspect = attr.display_aspect_ratio;
+      
+      fprintf(stderr, "nav: sending aspect %s\n", 
+	      video_aspect ? "16:9" : "4:3");
+      
+      ev.type = MsgEventQSetSrcAspect;
+      ev.setsrcaspect.mode_src = AspectModeSrcVM;
+      if(video_aspect) {
+	ev.setsrcaspect.aspect_frac_n = 16;
+	ev.setsrcaspect.aspect_frac_d = 9;
+      } else {
+	ev.setsrcaspect.aspect_frac_n = 4;
+	ev.setsrcaspect.aspect_frac_d = 3;
+      }
+      /* !!! FIXME should be sent to video out not spu */
+      if(send_spu(msgq, &ev) == -1) {
+	fprintf(stderr, "nav: error, didn't send aspect info\n");
+      }
+    }     
+  }
   /* Tell the demuxer which audio stream to demux */ 
   {
     int sN = vm_get_audio_stream(state.AST_REG);
@@ -712,7 +737,7 @@ static void do_run(void) {
 	    state.SPST_REG |= 0x40; // Turn it on
 	  else
 	    state.SPST_REG &= ~0x40; // Turn it off
-	  fprintf(stderr, "DVDCtrlSetSubpictureState %x\n",state.SPST_REG);
+	  fprintf(stderr, "DVDCtrlSetSubpictureState 0x%x\n",state.SPST_REG);
 	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {

@@ -103,7 +103,7 @@ int vm_reset(void) // , register_t regs)
   state.registers.SPRM[12] = ('U'<<8)|'S'; // Parental Management Country Code
   state.registers.SPRM[16] = ('e'<<8)|'n'; // Initial Language Code for Audio
   state.registers.SPRM[18] = ('e'<<8)|'n'; // Initial Language Code for Spu
-  state.registers.SPRM[20] = 1; // Player Regional Code
+  state.registers.SPRM[20] = 1; // Player Regional Code (bit mask?)
   
   state.pgN = 0;
   state.cellN = 0;
@@ -399,18 +399,28 @@ int vm_get_subp_stream(int subpN)
       streamN = 0;
   }
 
-  /* Should also check in vtsi/vmgi status that what kind of stream it is. */
   return streamN;
 }
 
 int vm_get_subp_active_stream(void)
 {
-  int subpN = state.SPST_REG;
+  int subpN = state.SPST_REG & ~0x40;
+  int streamN = vm_get_subp_stream(subpN);
   
-  if(state.domain == VTS_DOMAIN && !(subpN & 0x40)) { /* Is the subp off? */
+  /* If no such stream, then select the first one that exists. */
+  if(streamN == -1)
+    for(subpN = 0; subpN < 32; subpN++)
+      if(state.pgc->subp_control[subpN] & (1<<31)) {
+	streamN = vm_get_subp_stream(subpN);
+	break;
+      }
+  
+  /* We should instead send the on/off status to the spudecoder / mixer */
+  /* If we are in the title domain see if the spu mixing is on */
+  if(state.domain == VTS_DOMAIN && !(state.SPST_REG & 0x40)) { 
     return -1;
   } else {
-    return vm_get_subp_stream(subpN & ~0x40);
+    return streamN;
   }
 }
 
@@ -492,8 +502,8 @@ audio_attr_t vm_get_audio_attr(int streamN)
   return attr;
 }
 
-
-void vm_get_video_res(int *width, int *height) {
+video_attr_t vm_get_video_attr(void)
+{
   video_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
@@ -503,6 +513,15 @@ void vm_get_video_res(int *width, int *height) {
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
     attr = vmgi->vmgi_mat->vmgm_video_attr;
   }
+  return attr;
+}
+
+void vm_get_video_res(int *width, int *height)
+{
+  video_attr_t attr;
+  
+  attr = vm_get_video_attr();
+  
   if(attr.video_format != 0) 
     *height = 576;
   else
@@ -1271,10 +1290,10 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
 	&& h->pgci_ut->lu[i].lang_code != lang)
     i++;
   if(i == h->pgci_ut->nr_of_lus) {
-    fprintf(stderr, "** Wrong language, using %c%c instead of %c%c\n",
+    fprintf(stderr, "Language '%c%c' not found, using '%c%c' instead\n",
+	    (char)(lang >> 8), (char)(lang & 0xff),
 	    (char)(h->pgci_ut->lu[0].lang_code >> 8),
-	    (char)(h->pgci_ut->lu[0].lang_code & 0xff),
-	    (char)(lang >> 8), (char)(lang & 0xff));
+	    (char)(h->pgci_ut->lu[0].lang_code & 0xff));
     i = 0; // error?
   }
   
