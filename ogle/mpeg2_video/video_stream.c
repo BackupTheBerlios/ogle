@@ -62,14 +62,31 @@
 #endif
 
 
+
+typedef struct _data_q_t {
+  int in_use;
+  int eoq;
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  picture_data_elem_t *data_elems;
+  yuv_image_t *image_bufs;
+  struct _data_q_t *next;
+} data_q_t;
+
 extern void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 //extern int chk_for_msg();
 extern MsgEventQ_t *msgq;
 
 extern int flush_to_scrid;
 
-int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs);
-
+int get_output_buffer(data_q_t *data_q,
+		      int padded_width, int padded_height, int nr_of_bufs);
+void remove_output_buffer(void);
+data_q_t *new_data_q(data_q_t **data_q_list,
+		     int padded_width, int padded_height,
+		     int nr_of_bufs);
+void dpy_q_put(int id, data_q_t *data_q);
 
 int output_client;
 int input_stream;
@@ -97,24 +114,20 @@ int total_calls = 0;
 
 
 unsigned int debug = 0;
+
+
+
+
+data_q_t *data_q_head;
+static data_q_t *cur_data_q;
+
 int shm_ready = 0;
 static int shmem_flag = 1;
 
 long int frame_interval;
 int forced_frame_rate = -1;
-int nr_of_buffers = 4;
-//buf_ctrl_head_t *buf_ctrl_head;
-int picture_buffers_shmid;
-int buf_ctrl_shmid;
-char *buf_ctrl_shmaddr;
-char *picture_buffers_shmaddr;
+int nr_of_buffers = 5;
 
-static char *picture_buf_base;
-static data_buf_head_t *picture_ctrl_head;
-static picture_data_elem_t *picture_ctrl_data;
-
-static q_head_t *picture_q_head;
-static q_elem_t *picture_q_elems;
 
 //void init_out_q(int nr_of_bufs);
 //void setup_shm(int horiz_size, int vert_size, int nr_of_bufs);
@@ -142,7 +155,6 @@ slice_t slice_data;
 macroblock_t ATTRIBUTE_ALIGNED(32) mb;
 
 
-yuv_image_t *image_bufs;
 
 yuv_image_t *fwd_ref_image;
 yuv_image_t *bwd_ref_image;
@@ -158,15 +170,13 @@ int last_gop_had_repeat_field_progressive_frame = 0;
 
 
 //prototypes
-int bytealigned(void);
 void next_start_code(void);
 void resync(void);
 void drop_to_next_picture(void);
 void video_sequence(void);
-void marker_bit(void);
 void sequence_header(void);
 void sequence_extension(void);
-void sequence_display_extension();
+void sequence_display_extension(void);
 void extension_and_user_data(unsigned int i);
 void picture_coding_extension(void);
 void user_data(void);
@@ -176,16 +186,16 @@ void picture_data(void);
 int  mpeg1_slice(void);
 void mpeg2_slice(void);
 
-void reset_to_default_intra_quantiser_matrix();
-void reset_to_default_non_intra_quantiser_matrix();
-void reset_to_default_quantiser_matrix();
+void reset_to_default_intra_quantiser_matrix(void);
+void reset_to_default_non_intra_quantiser_matrix(void);
+void reset_to_default_quantiser_matrix(void);
 
 
 void user_control(macroblock_t *cur_mbs,
 		  macroblock_t *ref1_mbs,
 		  macroblock_t *ref2_mbs);
 
-void motion_comp();
+void motion_comp(void);
 void motion_comp_add_coeff(unsigned int i);
 
 void extension_data(unsigned int i);
@@ -202,11 +212,11 @@ void reader_free(int);
 
 
 // Not implemented
-void quant_matrix_extension();
-void picture_display_extension();
-void picture_spatial_scalable_extension();
-void picture_temporal_scalable_extension();
-void sequence_scalable_extension();
+void quant_matrix_extension(void);
+void picture_display_extension(void);
+void picture_spatial_scalable_extension(void);
+void picture_temporal_scalable_extension(void);
+void sequence_scalable_extension(void);
 
 
 
@@ -253,7 +263,7 @@ void sighandler(int dummy)
 }
 
 
-void init_program()
+void init_program(void)
 {
   struct sigaction sig;
   
@@ -449,14 +459,30 @@ void video_sequence(void) {
     
     sequence_extension();
 
-    /* Display init */
-    if(!shm_ready) {
-      //setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
-      get_output_buffer(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
-      shm_ready = 1;
-    }
     DINDENT(1);
     do {
+      static int lastwidth = 0;
+      static int lastheight = 0;
+      /* Display init */
+      if(!shm_ready) {
+	cur_data_q = new_data_q(&data_q_head, 
+				seq.mb_width * 16, seq.mb_height * 16,
+				nr_of_buffers);
+	shm_ready = 1;
+	lastwidth = seq.mb_width;
+	lastheight = seq.mb_height;
+      } else if((lastwidth != seq.mb_width) ||
+		(lastheight != seq.mb_height)) {
+	dpy_q_put(-1, cur_data_q);
+
+	cur_data_q = new_data_q(&data_q_head, 
+				seq.mb_width * 16, seq.mb_height * 16,
+				nr_of_buffers);
+
+	lastwidth = seq.mb_width;
+	lastheight = seq.mb_height;
+      }
+	
       extension_and_user_data(0);
       DINDENT(1);
       do {
@@ -506,8 +532,10 @@ void video_sequence(void) {
 
     /* Display init */
     if(!shm_ready) {
-      //setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
-      get_output_buffer(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
+      cur_data_q = new_data_q(&data_q_head, 
+			      seq.mb_width * 16, seq.mb_height * 16,
+			      nr_of_buffers);
+
       shm_ready = 1;
     }
 
@@ -599,8 +627,6 @@ void sequence_header(void)
     }
   }
 
-  
-  
   DPRINTFI(2, "horizontal_size_value: %u\n", seq.header.horizontal_size_value);
   DPRINTFI(2, "vertical_size_value: %u\n", seq.header.vertical_size_value);
   DPRINTFI(2, "aspect_ratio_information:(0x%01x) ",  seq.header.aspect_ratio_information);
@@ -711,9 +737,90 @@ void sequence_header(void)
 
 #define INC_8b_ALIGNMENT(a) ((a+7)/8*8)
 
+int detach_data_q(int q_shmid, data_q_t **data_q_list)
+{
+  MsgEvent_t ev;
+  data_q_t **data_q_p;
+  data_q_t *data_q_tmp;
+  q_head_t *q_head;
+  data_buf_head_t *data_head;
+  int data_shmid;
+  
+  //  fprintf(stderr, "DEBUG[vs]: detach_data_q q_shmid: %d\n", q_shmid);
+  
+  for(data_q_p=data_q_list;
+      *data_q_p != NULL && (*data_q_p)->q_head->qid != q_shmid;
+      data_q_p = &(*data_q_p)->next) {
+  }
+
+  if(*data_q_p == NULL) {
+    fprintf(stderr, "ERROR[vs]: detach_data_q q_shmid not found\n");
+    return -1;
+  }
+
+  q_head = (*data_q_p)->q_head;
+  data_head = (*data_q_p)->data_head;
+  data_shmid = (*data_q_p)->data_head->shmid;
+  
+  if(shmdt((char *)data_head) == -1) {
+    perror("ERROR[vs]: detach_data_q data_head");
+  }
+  
+  if(shmdt((char *)q_head) == -1) {
+    perror("ERROR[vs]: detach_data_q q_head");
+  }
+
+  //TODO ugly hack
+
+  free((*data_q_p)->image_bufs);
+
+  data_q_tmp = *data_q_p;
+  *data_q_p = (*data_q_p)->next;
+  free(data_q_tmp);
 
 
-int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
+  ev.type = MsgEventQDestroyQ;
+  ev.detachq.q_shmid = q_shmid;
+
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+    fprintf(stderr, "**video_decoder: couldn't send destroyq\n");
+  }
+  
+  ev.type = MsgEventQDestroyBuf;
+  ev.destroybuf.shmid = data_shmid;
+
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+    fprintf(stderr, "**video_decoder: couldn't send destroybuf\n");
+  }
+
+  return 0;
+}
+
+
+data_q_t *new_data_q(data_q_t **data_q_list,
+		     int padded_width, int padded_height,
+		     int nr_of_bufs)
+{
+  data_q_t **data_q_p;
+
+  for(data_q_p = data_q_list; *data_q_p != NULL; data_q_p =&(*data_q_p)->next);
+    
+  *data_q_p = malloc(sizeof(data_q_t));
+  
+  if(get_output_buffer(*data_q_p,
+		       padded_width, padded_height,
+		       nr_of_bufs) == -1) {
+    free(*data_q_p);
+    *data_q_p = NULL;
+  }
+  
+  return *data_q_p;
+}
+
+
+int get_output_buffer(data_q_t *data_q,
+		      int padded_width, int padded_height,
+		      int nr_of_bufs)
 {
   int picture_size;
   int picture_bufs_size;
@@ -725,13 +832,19 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   int y_size   = INC_8b_ALIGNMENT(num_pels);
   int uv_size  = INC_8b_ALIGNMENT(num_pels/4);
   int yuv_size = y_size + 2 * uv_size; 
-  int bufshmid;
-  int qshmid;
-  char *shmaddr;
-  char *qshmaddr;
-  picture_data_elem_t *data_elems;
+  int data_shmid;
+  int q_shmid;
   int picture_data_offset;
   int n;
+
+  char *data_shmaddr;
+  char *q_shmaddr;
+  q_head_t *q_head = NULL;
+  q_elem_t *q_elems = NULL;
+  data_buf_head_t *data_head = NULL;
+  picture_data_elem_t *data_elems = NULL;
+  yuv_image_t *image_bufs = NULL;
+
 
   fprintf(stderr,"vs: get ouput buffer\n");
   picture_size = ((yuv_size + (pagesize-1))/pagesize*pagesize);
@@ -773,7 +886,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
       DPRINTF(1, "video_decoder: got buffer id %d, size %d\n",
 	      ev.gntbuf.shmid,
 	      ev.gntbuf.size);
-      bufshmid = ev.gntbuf.shmid;
+      data_shmid = ev.gntbuf.shmid;
       break;
     } else {
       handle_events(msgq, &ev);
@@ -781,42 +894,45 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   }
   
 
-  if(bufshmid >= 0) {
-    if((shmaddr = shmat(bufshmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+  if(data_shmid >= 0) {
+    if((data_shmaddr = shmat(data_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("**video_decode: attach_buffer(), shmat()");
       return -1;
     }
-    
-    picture_buf_base = shmaddr;
-    picture_ctrl_head = (data_buf_head_t *)picture_buf_base;
-    picture_ctrl_head->shmid = bufshmid;
-    picture_ctrl_head->nr_of_dataelems = nr_of_bufs;
-    picture_ctrl_head->write_nr = 0;
+
+    data_head = (data_buf_head_t *)data_shmaddr;
+    data_head->shmid = data_shmid;
+    data_head->info.type = DataBufferType_Video;
+    data_head->info.video.format = 0;
+    data_head->info.video.width = padded_width;
+    data_head->info.video.height = padded_height;
+    data_head->info.video.stride = padded_width;
+    data_head->nr_of_dataelems = nr_of_bufs;
+    data_head->write_nr = 0;
     
     
 
     image_bufs = malloc(nr_of_bufs*sizeof(yuv_image_t));
     
-    data_elems =(picture_data_elem_t *)(picture_buf_base + 
+    data_elems =(picture_data_elem_t *)(data_shmaddr + 
 					sizeof(data_buf_head_t));
-    picture_ctrl_data = data_elems;
 
     picture_data_offset = picture_ctrl_size;
 
   // TODO this is an ugly hack for not mixing in ref.frames
 #ifdef HAVE_XV
-    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
+    for(n = 0; n < (data_head->nr_of_dataelems+1); n++) {
 #else
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+    for(n = 0; n < data_head->nr_of_dataelems; n++) {
 #endif
       data_elems[n].displayed = 1;
       data_elems[n].is_reference = 0;
       data_elems[n].picture.y_offset = picture_data_offset;
-      image_bufs[n].y = picture_buf_base + picture_data_offset;
+      image_bufs[n].y = data_shmaddr + picture_data_offset;
       data_elems[n].picture.v_offset = picture_data_offset + y_size;
-      image_bufs[n].v = picture_buf_base + picture_data_offset + y_size;
+      image_bufs[n].v = data_shmaddr + picture_data_offset + y_size;
       data_elems[n].picture.u_offset = picture_data_offset + y_size + uv_size;
-      image_bufs[n].u = picture_buf_base + picture_data_offset+y_size+uv_size;
+      image_bufs[n].u = data_shmaddr + picture_data_offset+y_size+uv_size;
 
       data_elems[n].picture.horizontal_size = seq.horizontal_size;
       data_elems[n].picture.vertical_size = seq.vertical_size;
@@ -838,7 +954,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     ev.type = MsgEventQReqPicBuf;
     
     ev.reqpicbuf.nr_of_elems = nr_of_bufs;
-    ev.reqpicbuf.data_buf_shmid = bufshmid;
+    ev.reqpicbuf.data_buf_shmid = data_shmid;
       
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "**video_decode: couldn't send picbuf request\n");
@@ -849,22 +965,21 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     while(1) {
       MsgNextEvent(msgq, &ev);
       if(ev.type == MsgEventQGntPicBuf) {
-	qshmid = ev.gntpicbuf.q_shmid;
+	q_shmid = ev.gntpicbuf.q_shmid;
 	break;
       } else {
 	handle_events(msgq, &ev);
       }
     }
     
-    if(qshmid >= 0) {
-      if((qshmaddr = shmat(qshmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+    if(q_shmid >= 0) {
+      if((q_shmaddr = shmat(q_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
 	perror("**video_decode: attach_picq_buffer(), shmat()");
 	return -1;
       }
       
-
-      picture_q_head = (q_head_t *)qshmaddr;
-      picture_q_elems = (q_elem_t *)(qshmaddr+sizeof(q_head_t));
+      q_head = (q_head_t *)q_shmaddr;
+      q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
       
     } else {
       fprintf(stderr, "** video_decode: couldn't get qbuffer\n");
@@ -874,6 +989,15 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     fprintf(stderr, "** video_decode: couldn't get buffer\n");
   }
   
+
+
+
+  data_q->q_head = q_head;
+  data_q->q_elems = q_elems;
+  data_q->data_head = data_head;
+  data_q->data_elems = data_elems;
+  data_q->image_bufs = image_bufs;
+    
 #ifdef HAVE_MMX
     emms();
 #endif
@@ -1305,6 +1429,7 @@ void group_of_pictures_header(void)
 void picture_header(void)
 {
   uint32_t picture_start_code;
+
   DPRINTFI(1, "picture_header()\n");
   DINDENT(2);
   
@@ -1339,8 +1464,10 @@ void picture_header(void)
   
   if(PTS_DTS_flags & 0x02) {
     if(last_scr_nr != prev_scr_nr) {   
+      /*
       fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
 	      last_scr_nr, prev_scr_nr);
+      */
       /*
       fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
 	      TIME_S (ctrl_time[last_scr_nr].realtime_offset),
@@ -1348,7 +1475,9 @@ void picture_header(void)
 	      TIME_S (ctrl_time[prev_scr_nr].realtime_offset),
 	      TIME_SS(ctrl_time[prev_scr_nr].realtime_offset));
       */
+      /*
       fprintf(stderr, "+++ last_pts: %lld\n", last_pts);
+      */
     }
   }
 
@@ -1437,28 +1566,23 @@ void picture_header(void)
 
 
 // Get id of empty buffer
-int get_picture_buf()
+int get_picture_buf(data_q_t *data_q)
 {
   int n;
   MsgEvent_t ev;
+  data_buf_head_t *data_head;
+
+  data_head = data_q->data_head;
   
   //fprintf(stderr, "vs: searching for free picture\n");
   //  search for empty buffer
   while(1) {
-    /*
-      for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
-      fprintf(stderr, "vs: [%d] is_ref: @%d, disp: @%d\n",
-      n+4,
-      picture_ctrl_data[n].is_reference,
-      picture_ctrl_data[n].displayed);
-      }
-    */
     ev.type = MsgEventQNone;
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+    for(n = 0; n < data_head->nr_of_dataelems; n++) {
       
-      if((picture_ctrl_data[n].is_reference == 0) &&
-	 (picture_ctrl_data[n].displayed == 1)) {
-	picture_ctrl_data[n].displayed = 0;
+      if((data_q->data_elems[n].is_reference == 0) &&
+	 (data_q->data_elems[n].displayed == 1)) {
+	data_q->data_elems[n].displayed = 0;
 	// found buf
 	//fprintf(stderr, "vs: found free picture buf: @%d\n", n);
 	//fprintf(stderr, "|\n");
@@ -1468,10 +1592,10 @@ int get_picture_buf()
     }
     
     // no empty buffer
-    picture_q_head->writer_requests_notification = 1;
+    data_q->q_head->writer_requests_notification = 1;
     //fprintf(stderr, "vs: didn't find free picture, setting notification\n");
     /*
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+    for(n = 0; n < data_q->data_head->nr_of_dataelems; n++) {
       fprintf(stderr, "vs: [%d] is_ref: @%d, disp: @%d\n",
 	      n+4,
 	      picture_ctrl_data[n].is_reference,
@@ -1480,11 +1604,11 @@ int get_picture_buf()
     */
     while(ev.type != MsgEventQNotify) {
       //fprintf(stderr, ".");
-      for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+      for(n = 0; n < data_q->data_head->nr_of_dataelems; n++) {
 	
-	if((picture_ctrl_data[n].is_reference == 0) &&
-	   (picture_ctrl_data[n].displayed == 1)) {
-	  picture_ctrl_data[n].displayed = 0;
+	if((data_q->data_elems[n].is_reference == 0) &&
+	   (data_q->data_elems[n].displayed == 1)) {
+	  data_q->data_elems[n].displayed = 0;
 	  // found buf;
 	  //fprintf(stderr, "vs: found free2 picture buf: @%d\n", n);
 	  //fprintf(stderr, "+\n");
@@ -1509,21 +1633,21 @@ int get_picture_buf()
 
 
 // Put decoded picture into display queue
-void dpy_q_put(int id)
+void dpy_q_put(int id, data_q_t *data_q)
 {
   MsgEvent_t ev;
   int elem;
   
-  elem = picture_q_head->write_nr;
+  elem = data_q->q_head->write_nr;
   /*
-  fprintf(stderr, "vs: try put picture in q, elem: @%d, bufid: @%d\n",
+  fprintf(stderr, "DEBUG[vs]: try put picture in q, elem: @%d, bufid: @%d\n",
 	  elem, id);
   */
-  if(picture_q_elems[elem].in_use) {
-    picture_q_head->writer_requests_notification = 1;
+  if(data_q->q_elems[elem].in_use) {
+    data_q->q_head->writer_requests_notification = 1;
     //fprintf(stderr, "vs:  elem in use, setting notification\n");
     
-    while(picture_q_elems[elem].in_use) {
+    while(data_q->q_elems[elem].in_use) {
       //fprintf(stderr, "video_decode: waiting for notification2\n");
       MsgNextEvent(msgq, &ev);
       handle_events(msgq, &ev);
@@ -1532,19 +1656,19 @@ void dpy_q_put(int id)
 
   //fprintf(stderr, "vs:  elem free to fill\n");  
   
-  picture_q_elems[elem].data_elem_index = id;
-  picture_q_elems[elem].in_use = 1;
+  data_q->q_elems[elem].data_elem_index = id;
+  data_q->q_elems[elem].in_use = 1;
   
-  picture_q_head->write_nr =
-    (picture_q_head->write_nr + 1) % picture_q_head->nr_of_qelems;
+  data_q->q_head->write_nr =
+    (data_q->q_head->write_nr + 1) % data_q->q_head->nr_of_qelems;
   
-  if(picture_q_head->reader_requests_notification) {
+  if(data_q->q_head->reader_requests_notification) {
     //fprintf(stderr, "vs:  reader wants notify, sending...\n");  
 
-    picture_q_head->reader_requests_notification = 0;
+    data_q->q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    ev.notify.qid = picture_q_head->qid;
-    if(MsgSendEvent(msgq, picture_q_head->reader, &ev, 0) == -1) {
+    ev.notify.qid = data_q->q_head->qid;
+    if(MsgSendEvent(msgq, data_q->q_head->reader, &ev, 0) == -1) {
       fprintf(stderr, "video_decode: couldn't send notification\n");
     }
   }
@@ -1564,7 +1688,8 @@ void picture_data(void)
   static int last_timestamped_temp_ref = -1;
   static int drop_frame = 0;
   int temporal_reference_error = 0;
-  pinfos = picture_ctrl_data;
+
+  pinfos = cur_data_q->data_elems;
  
   DPRINTFI(1, "picture_data()\n");
   DINDENT(2);
@@ -1625,7 +1750,7 @@ void picture_data(void)
 	  pinfos[bwd_ref_buf_id].displayed = 1;
 	} else {
 	  
-	  dpy_q_put(bwd_ref_buf_id);
+	  dpy_q_put(bwd_ref_buf_id, cur_data_q);
 	}	
       }
       DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
@@ -1638,8 +1763,8 @@ void picture_data(void)
       }
       
       /* get new buffer */
-      buf_id = get_picture_buf();
-      dst_image = &image_bufs[buf_id];
+      buf_id = get_picture_buf(cur_data_q);
+      dst_image = &cur_data_q->image_bufs[buf_id];
 
       
       /* Age the reference frame */
@@ -1659,8 +1784,8 @@ void picture_data(void)
     case PIC_CODING_TYPE_B:
       
       /* get new buffer */
-      buf_id = get_picture_buf();
-      dst_image = &image_bufs[buf_id];
+      buf_id = get_picture_buf(cur_data_q);
+      dst_image = &cur_data_q->image_bufs[buf_id];
       
       break;
     }
@@ -2024,7 +2149,7 @@ void picture_data(void)
 	  
 	} else {
 	  
-	  dpy_q_put(buf_id);
+	  dpy_q_put(buf_id, cur_data_q);
 	  
 	}
 	
@@ -2048,7 +2173,7 @@ void picture_data(void)
 	last_pts_to_dpy = pinfos[buf_id].PTS;
 	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
 	
-	dpy_q_put(buf_id);
+	dpy_q_put(buf_id, cur_data_q);
       }
     }
     /*
@@ -2076,7 +2201,7 @@ void picture_data(void)
 	pinfos[bwd_ref_buf_id].displayed = 1;
       } else {
 	
-	dpy_q_put(bwd_ref_buf_id);
+	dpy_q_put(bwd_ref_buf_id, cur_data_q);
       }
     } else if(bwd_ref_temporal_reference < (last_temporal_ref_to_dpy+1)%1024) {
       
@@ -2134,7 +2259,7 @@ void extension_data(unsigned int i)
 }
 
  
-void reset_to_default_quantiser_matrix()
+void reset_to_default_quantiser_matrix(void)
 {
   memcpy(seq.header.intra_inverse_quantiser_matrix,
 	 default_intra_inverse_quantiser_matrix,
@@ -2146,14 +2271,14 @@ void reset_to_default_quantiser_matrix()
   
 }
 
-void reset_to_default_intra_quantiser_matrix()
+void reset_to_default_intra_quantiser_matrix(void)
 {
   memcpy(seq.header.intra_inverse_quantiser_matrix,
 	 default_intra_inverse_quantiser_matrix,
 	 sizeof(seq.header.intra_inverse_quantiser_matrix));
 }
 
-void reset_to_default_non_intra_quantiser_matrix()
+void reset_to_default_non_intra_quantiser_matrix(void)
 {
   memcpy(seq.header.non_intra_inverse_quantiser_matrix,
 	 default_non_intra_inverse_quantiser_matrix,
@@ -2163,7 +2288,7 @@ void reset_to_default_non_intra_quantiser_matrix()
 
 
 /* 6.2.3.2 Quant matrix extension */
-void quant_matrix_extension()
+void quant_matrix_extension(void)
 {
   GETBITS(4, "extension_start_code_identifier");
   
@@ -2201,7 +2326,7 @@ void quant_matrix_extension()
 }
 
 
-void picture_display_extension()
+void picture_display_extension(void)
 {
   uint8_t extension_start_code_identifier;
   uint16_t frame_centre_horizontal_offset;
@@ -2241,28 +2366,28 @@ void picture_display_extension()
 }
 
 
-void picture_spatial_scalable_extension()
+void picture_spatial_scalable_extension(void)
 {
   fprintf(stderr, "***ni picture_spatial_scalable_extension()\n");
   exit(1);
 }
 
 
-void picture_temporal_scalable_extension()
+void picture_temporal_scalable_extension(void)
 {
   fprintf(stderr, "***ni picture_temporal_scalable_extension()\n");
   exit(1);
 }
 
 
-void sequence_scalable_extension()
+void sequence_scalable_extension(void)
 {
   fprintf(stderr, "***ni sequence_scalable_extension()\n");
   exit(1);
 }
 
 
-void sequence_display_extension()
+void sequence_display_extension(void)
 {
   
   DPRINTFI(1, "sequence_display_extension()\n");
@@ -2429,13 +2554,14 @@ void sequence_display_extension()
 
 void exit_program(int exitcode)
 {
+  /*
   // Detach the shared memory segments from this process  
   shmdt(picture_buffers_shmaddr);
   shmdt(buf_ctrl_shmaddr);
   
   shmctl(picture_buffers_shmid, IPC_RMID, 0);
   shmctl(buf_ctrl_shmid, IPC_RMID, 0);
-
+  */
   exit(exitcode);
 }
 
