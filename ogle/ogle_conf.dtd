@@ -41,9 +41,11 @@
 <!ELEMENT geometry_src (#PCDATA)>
 <!ELEMENT resolution_src (#PCDATA)>
 <!ELEMENT switch_resolution (#PCDATA)>
+<!ELEMENT fullscreen (#PCDATA)>
+<!ELEMENT initial_state (fullscreen)?>
 <!ELEMENT display (name, (geometry | resolution | geometry_src |
-        resolution_src | switch_resolution)*)>
-<!ELEMENT video (display)?>
+        resolution_src | switch_resolution | initial_state)*)>
+<!ELEMENT video (display)*>
 
 <!ELEMENT action (#PCDATA)>
 <!ELEMENT key (#PCDATA)>

@@ -124,6 +124,9 @@ This is used to change the sync forwards/backwards. A positive value will output
         <geometry_src>X11</geometry_src>
         <resolution_src>Xinerama</resolution_src>
         <switch_resolution>no</switch_resolution>
+        <initial_state>
+          <fullscreen>no</fullscreen>
+        </initial_state>
     </display>
   </video>
 
@@ -181,6 +184,9 @@ For a normal tv you should use something like 400/300.
 This tells us to only use 720x576 pixels in fullscreen and not the entire
 space available on your monitor/desktop.
 
+<initial_state> contains information about the state of the video window
+at start up.
+If <fullscreen> is set to yes, the video will start in fullscreen mode (default is no).
 
   <user_interface>
     <bindings>

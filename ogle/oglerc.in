@@ -51,6 +51,9 @@
 	<geometry_src>X11</geometry_src>
 	<resolution_src>Xinerama</resolution_src>
 	<switch_resolution>no</switch_resolution>
+	<initial_state>
+	  <fullscreen>no</fullscreen>
+	</initial_state>
     </display>
   </video>
   <user_interface>
