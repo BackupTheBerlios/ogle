@@ -24,16 +24,42 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/shm.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <glib.h> // for byte swapping only
+#include <sys/msg.h>
+#include <semaphore.h>
 #include "programstream.h"
+#include "../include/msgtypes.h"
+#include "../include/queue.h"
 
 
+typedef enum {
+  STREAM_NOT_REGISTERED = 0,
+  STREAM_DISCARD = 1,
+  STREAM_DECODE = 2,
+  STREAM_MUTED = 3
+} stream_state_t;
+  
+typedef struct {
+  int shmid;
+  char *shmaddr;
+  stream_state_t state; // not_registerd, in_use, muted, ...
+} buf_data_t;
 
-
-
-
+int register_id(uint8_t id, int subtype);
+int id_registered(uint8_t id, uint8_t subtype);
+int init_id_reg();
+int wait_for_msg(cmdtype_t cmdtype);
+int eval_msg(cmd_t *cmd);
+int get_buffer(int size);
+int send_msg(msg_t *msg, int mtext_size);
+int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
+int id_stat(uint8_t id, uint8_t subtype);
+char *id_qaddr(uint8_t id, uint8_t subtype);
+int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
+	     uint64_t PTS, uint64_t DTS);
 
 typedef struct {
   uint8_t *buf_start;
@@ -41,14 +67,17 @@ typedef struct {
   int in_use;
 } q_elem;
 
-#define A_BUFS 44
-q_elem audio_q[A_BUFS];
-uint8_t *audio_buf;
-int q_write_pos = 0;
-int q_read_pos = 0;
+int msgqid = -1;
 
 
-#define BUF_SIZE 2048
+
+int scr_discontinuity = 0;
+uint64_t SCR_base;
+uint16_t SCR_ext;
+uint8_t SCR_flags;
+
+
+int packnr = 0;
 
 
 #define MPEG1 0x0
@@ -56,6 +85,9 @@ int q_read_pos = 0;
 
 uint8_t    *buf;
 
+int shmid;
+char *shmaddr;
+int shmsize;
 unsigned int bytes_read = 0;
 
 extern char *optarg;
@@ -267,6 +299,14 @@ void dprintf_stream_id (int debuglevel, int stream_id)
 #endif
 }
 
+
+/* demuxer state */
+
+int system_header_set = 0;
+int stream_open = 0;
+
+
+
 void system_header()
 {
   uint16_t header_length;
@@ -280,9 +320,10 @@ void system_header()
   uint8_t  stream_id;
   uint8_t  P_STD_buffer_bound_scale;
   uint16_t P_STD_buffer_size_bound;
-
-  DPRINTF(2, "system_header()\n");
+  int min_bufsize = 0;
   
+  DPRINTF(1, "system_header()\n");
+
   GETBITS(32, "system_header_start_code");
   header_length          = GETBITS(16,"header_length");
   marker_bit();
@@ -297,29 +338,37 @@ void system_header()
   video_bound            = GETBITS(5,"video_bound");
   GETBITS(8, "reserved_byte");
 
-  DPRINTF(3, "header_length:          %hu\n", header_length);
-  DPRINTF(3, "rate_bound:             %u [%u bits/s]\n",
+  DPRINTF(1, "header_length:          %hu\n", header_length);
+  DPRINTF(1, "rate_bound:             %u [%u bits/s]\n",
           rate_bound, rate_bound*50*8);
-  DPRINTF(3, "audio_bound:            %u\n", audio_bound);
-  DPRINTF(3, "fixed_flag:             %u\n", fixed_flag);
-  DPRINTF(3, "CSPS_flag:              %u\n", CSPS_flag);
-  DPRINTF(3, "system_audio_lock_flag: %u\n", system_audio_lock_flag);
-  DPRINTF(3, "system_video_lock_flag: %u\n", system_video_lock_flag);
-  DPRINTF(3, "video_bound:            %u\n", video_bound);
+  DPRINTF(1, "audio_bound:            %u\n", audio_bound);
+  DPRINTF(1, "fixed_flag:             %u\n", fixed_flag);
+  DPRINTF(1, "CSPS_flag:              %u\n", CSPS_flag);
+  DPRINTF(1, "system_audio_lock_flag: %u\n", system_audio_lock_flag);
+  DPRINTF(1, "system_video_lock_flag: %u\n", system_video_lock_flag);
+  DPRINTF(1, "video_bound:            %u\n", video_bound);
   
   while(nextbits(1) == 1) {
     stream_id = GETBITS(8, "stream_id");
     GETBITS(2, "11");
     P_STD_buffer_bound_scale = GETBITS(1, "P_STD_buffer_bound_scale");
     P_STD_buffer_size_bound  = GETBITS(13, "P_STD_buffer_size_bound");
-    DPRINTF(3, "stream_id:                ");
-    dprintf_stream_id(3, stream_id);
-    DPRINTF(3, "P-STD_buffer_bound_scale: %u\n", P_STD_buffer_bound_scale);
-    DPRINTF(3, "P-STD_buffer_size_bound:  %u [%u bytes]\n",
+    DPRINTF(1, "stream_id:                ");
+    dprintf_stream_id(1, stream_id);
+    DPRINTF(1, "P-STD_buffer_bound_scale: %u\n", P_STD_buffer_bound_scale);
+    DPRINTF(1, "P-STD_buffer_size_bound:  %u [%u bytes]\n",
         P_STD_buffer_size_bound,
-        P_STD_buffer_size_bound*(P_STD_buffer_bound_scale?1024:128));
+	    P_STD_buffer_size_bound*(P_STD_buffer_bound_scale?1024:128));
+    min_bufsize+= P_STD_buffer_size_bound*(P_STD_buffer_bound_scale?1024:128);
   }
+
+  if(!system_header_set) {
+    system_header_set = 1;
+    get_buffer(min_bufsize);    
+  }
+  
 }
+
 
 
 int pack_header()
@@ -332,7 +381,8 @@ int pack_header()
   int i;
   uint8_t fixed_bits;
   int version;
-
+  static uint64_t prev_scr = 0;
+  
   DPRINTF(2, "pack_header()\n");
 
   GETBITS(32,"pack_start_code");
@@ -366,6 +416,17 @@ int pack_header()
     /* 2.5.2 or 2.5.3.4 (definition of system_clock_reference) */
     system_clock_reference = 
       system_clock_reference_base * 300 + system_clock_reference_extension;
+    SCR_base = system_clock_reference_base;
+    SCR_ext = system_clock_reference_extension;
+    SCR_flags = 0x3;
+
+    /*
+    fprintf(stderr, "**** scr base %llx, ext %x, tot %llx\n",
+	    system_clock_reference_base,
+	    system_clock_reference_extension,
+	    system_clock_reference);
+    */
+
     marker_bit();
     program_mux_rate = GETBITS(22, "program_mux_rate");
     marker_bit();
@@ -375,13 +436,32 @@ int pack_header()
     for(i=0;i<pack_stuffing_length;i++) {
       GETBITS(8 ,"stuffing_byte");
     }
-    DPRINTF(3, "system_clock_reference_base: %llu\n",
+    DPRINTF(1, "system_clock_reference_base: %llu\n",
 	    system_clock_reference_base);
-    DPRINTF(3, "system_clock_reference_extension: %u\n",
+    DPRINTF(1, "system_clock_reference_extension: %u\n",
 	    system_clock_reference_extension);
-    DPRINTF(3, "system_clock_reference: %llu [%6f s]\n", 
+    DPRINTF(1, "system_clock_reference: %llu [%6f s]\n", 
 	    system_clock_reference, ((double)system_clock_reference)/27000000.0);
-    DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
+
+    if(system_clock_reference < prev_scr) {
+      scr_discontinuity = 1;
+      fprintf(stderr, "*** Backward scr discontinuity\n");
+      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
+	      ((double)system_clock_reference)/27000000.0);
+      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
+	      ((double)prev_scr)/27000000.0);
+      
+    } else if((system_clock_reference - prev_scr) > 2700000) {
+      scr_discontinuity = 1;
+      fprintf(stderr, "*** Forward scr discontinuity\n");
+      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
+	      ((double)system_clock_reference)/27000000.0);
+      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
+	      ((double)prev_scr)/27000000.0);
+    }
+    prev_scr = system_clock_reference;
+    
+    DPRINTF(1, "program_mux_rate: %u [%u bits/s]\n",
 	    program_mux_rate, program_mux_rate*50*8);
     DPRINTF(3, "pack_stuffing_length: %u\n",
 	    pack_stuffing_length);
@@ -401,10 +481,38 @@ int pack_header()
     marker_bit();
     program_mux_rate = GETBITS(22, "program_mux_rate");
     marker_bit();
-    DPRINTF(3, "system_clock_reference_base: %llu\n",
+    DPRINTF(2, "system_clock_reference_base: %llu\n",
 	    system_clock_reference_base);
-    DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
+    DPRINTF(2, "program_mux_rate: %u [%u bits/s]\n",
 	    program_mux_rate, program_mux_rate*50*8);
+
+    // no extension in MPEG-1 ??
+    system_clock_reference = system_clock_reference_base * 300;
+    SCR_base = system_clock_reference_base;
+    SCR_flags = 0x1;
+    DPRINTF(1, "system_clock_reference: %llu [%6f s]\n", 
+	    system_clock_reference, ((double)system_clock_reference)/27000000.0);
+
+    
+    if(system_clock_reference < prev_scr) {
+      scr_discontinuity = 1;
+      fprintf(stderr, "*** Backward scr discontinuity ******\n");
+      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
+	      ((double)system_clock_reference)/27000000.0);
+      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
+	      ((double)prev_scr)/27000000.0);
+      
+    } else if((system_clock_reference - prev_scr) > 1890000) {
+      scr_discontinuity = 1;
+      fprintf(stderr, "*** Forward scr discontinuity ******\n");
+      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
+	      ((double)system_clock_reference)/27000000.0);
+      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
+	      ((double)prev_scr)/27000000.0);
+    }
+    prev_scr = system_clock_reference;
+    
+    
     break;
   }
   if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
@@ -415,14 +523,30 @@ int pack_header()
 
 }
 
-void push_stream_data(uint8_t stream_id, int len)
+void push_stream_data(uint8_t stream_id, int len,
+		      uint8_t PTS_DTS_flags,
+		      uint64_t PTS,
+		      uint64_t DTS)
 {
   uint8_t *data = &buf[offs-(bits_left/8)];
-
+  uint8_t subtype;
   static struct {
     uint32_t type;
     struct off_len_packet body;
   } ol_pack = {PACK_TYPE_OFF_LEN};
+
+  //  fprintf(stderr, "pack nr: %d, stream_id: %02x (%02x), offs: %d, len: %d",
+  //	  packnr, stream_id, data[0], offs-(bits_left/8), len);
+  //  if(SCR_flags) {
+  //    fprintf(stderr, ", SCR_base: %llx", SCR_base);
+  //  }
+  
+  //  if(PTS_DTS_flags & 0x2) {
+  //    fprintf(stderr, ", PTS: %llx", PTS);
+  //  }
+
+  //  fprintf(stderr, "\n");
+  //fprintf(stderr, "stream_id: %02x\n", stream_id);
 
   ol_pack.body.offset = offs - (bits_left/8);
   ol_pack.body.length = len;
@@ -433,39 +557,58 @@ void push_stream_data(uint8_t stream_id, int len)
 
   DPRINTF(5, "bitsleft: %d\n", bits_left);
 
-  if(stream_id == 0xe0) {
-    if(video) {
-      fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
-
-#ifdef STATS
-      stat_video_n_packets++;
-      if(ol_pack.body.offset%4 != 0)
-	stat_video_unaligned_packet_offset++;
-      if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
-	stat_video_unaligned_packet_end++;
-#endif //STATS
-
-    }
-    DPRINTF(4, "Video packet: %u bytes\n", len);    
-  } else   if(stream_id == 0xc0) {
-    if(audio) {
-      if(audio_q[q_write_pos].in_use) {
-	fwrite(audio_q[q_read_pos].buf_start,
-	       audio_q[q_read_pos].len,
-	       1, audio_file);
-	q_read_pos = (q_read_pos + 1) % A_BUFS;
+  if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+    subtype = data[0];
+  } else {
+    subtype = 0;
+  }
+  if((!id_registered(stream_id, subtype)) && system_header_set) {
+    register_id(stream_id, subtype);
+  }
+  
+  if(id_stat(stream_id, subtype) == STREAM_DECODE) {
+    //  if(stream_id == MPEG2_PRIVATE_STREAM_1) { 
+    if((stream_id == 0xe0) || (stream_id == 0xc0) ||
+       ((stream_id == MPEG2_PRIVATE_STREAM_1) &&
+	(subtype == 0x80)) ||
+       (stream_id == MPEG2_PRIVATE_STREAM_2)) {
+      //fprintf(stderr, "demux: put_in_q stream_id: %x %x\n",
+      //      stream_id, subtype);
+      if(subtype == 0x80) {
+	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
+		 PTS_DTS_flags, PTS, DTS);
+      } else {
+	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
+		 PTS_DTS_flags, PTS, DTS);
       }
-      memcpy(audio_q[q_write_pos].buf_start, data, len);
-      audio_q[q_write_pos].len = len;
-      audio_q[q_write_pos].in_use = 1;
-      q_write_pos = (q_write_pos + 1) % A_BUFS;
-      
+    }
+      //}
+    if(stream_id == 0xe0) {
+
+#if 0      
+      if(video) {
+	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+	
 #ifdef STATS
-      stat_video_n_packets++;
-      if(ol_pack.body.offset%4 != 0)
-	stat_video_unaligned_packet_offset++;
-      if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
-	stat_video_unaligned_packet_end++;
+	stat_video_n_packets++;
+	if(ol_pack.body.offset%4 != 0)
+	  stat_video_unaligned_packet_offset++;
+	if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
+	  stat_video_unaligned_packet_end++;
+#endif //STATS
+	
+      }
+      DPRINTF(4, "Video packet: %u bytes\n", len);    
+#endif
+    } else   if(stream_id == 0xc0) {
+      if(audio) {
+	
+#ifdef STATS
+	stat_video_n_packets++;
+	if(ol_pack.body.offset%4 != 0)
+	  stat_video_unaligned_packet_offset++;
+	if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
+	  stat_video_unaligned_packet_end++;
 #endif //STATS
 
     }
@@ -478,10 +621,12 @@ void push_stream_data(uint8_t stream_id, int len)
 	fwrite(&ol_pack, sizeof(ol_pack), 1, audio_file);
 
 #ifdef STATS
-	stat_audio_n_packets++;
+	  stat_audio_n_packets++;
 #endif //STATS
-	
+	  
+	}
       }
+
     }
     if(subtitle) {
       DPRINTF(4, "(subpicture)\n");
@@ -493,16 +638,23 @@ void push_stream_data(uint8_t stream_id, int len)
       	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
 	fwrite(&ol_pack, sizeof(ol_pack), 1, subtitle_file);
 	
+	if(*data >= 0x20 && *data <= 0x3f) {
+	  DPRINTF(1, "subtitle 0x%02x exists\n", *data);
+	}
+	if(*data == subtitle_id ){ 
+	  DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
+	  fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+	  
 #ifdef STATS
-	stat_subpicture_n_packets++;
+	  stat_subpicture_n_packets++;
 #endif //STATS
-
+	  
+	}
       }
+    } else {
+      DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
     }
-  } else {
-    DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
   }
-   
   drop_bytes(len);
 
 }
@@ -561,12 +713,14 @@ void PES_packet()
   GETBITS(24 ,"packet_start_code_prefix");
   stream_id = GETBITS(8, "stream_id");
   PES_packet_length = GETBITS(16, "PES_packet_length");
-  DPRINTF(3, "stream_id:         ");
-  dprintf_stream_id(3, stream_id);
-  DPRINTF(3, "PES_packet_length: %u\n", PES_packet_length);
+  DPRINTF(2, "stream_id:         ");
+  dprintf_stream_id(2, stream_id);
+  DPRINTF(2, "PES_packet_length: %u\n", PES_packet_length);
   
   if((stream_id != MPEG2_PRIVATE_STREAM_2) &&
      (stream_id != MPEG2_PADDING_STREAM)) {
+
+    DPRINTF(1, "packet() stream: %02x\n", stream_id);
 
     GETBITS(2, "10");
     PES_scrambling_control    = GETBITS(2, "PES_scrambling_control");
@@ -595,7 +749,7 @@ void PES_packet()
       marker_bit();
       
       bytes_read += 5;
-      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
+      DPRINTF(1, "PES_packet() PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
     }
 
     if(PTS_DTS_flags == 0x3) {
@@ -606,7 +760,7 @@ void PES_packet()
       marker_bit();
       PTS                    |= GETBITS(15, "PTS [14..0]");
       marker_bit();
-      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
+      DPRINTF(1, "PES_packet() PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
 
       GETBITS(4, "0001");
       DTS                     = GETBITS(3, "DTS [32..30]")<<30;
@@ -615,7 +769,7 @@ void PES_packet()
       marker_bit();
       DTS                    |= GETBITS(15, "DTS [14..0]");
       marker_bit();
-      DPRINTF(3, "DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
+      DPRINTF(1, "PES_packet() DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
       
       bytes_read += 10;
     }
@@ -632,6 +786,7 @@ void PES_packet()
       marker_bit();
       ESCR_extension                = GETBITS(9, "ESCR_extension");
       marker_bit();
+      DPRINTF(1, "ESCR_base: %llu [%6f s]\n", ESCR_base, ((double)ESCR_base)/90E3);
 
       bytes_read += 6;
     }
@@ -751,15 +906,15 @@ void PES_packet()
 
     N = PES_packet_length-bytes_read;
     
-    
     //FIXME  kolla specen...    
     //FIXME  push pes..    
 
     
-    push_stream_data(stream_id, N);
+    push_stream_data(stream_id, N, PTS_DTS_flags, PTS, DTS);
     
   } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
-    push_stream_data(stream_id, PES_packet_length);
+    push_stream_data(stream_id, PES_packet_length,
+		     PTS_DTS_flags, PTS, DTS);
     //fprintf(stderr, "*PRIVATE_stream_2\n");
   } else if(stream_id == MPEG2_PADDING_STREAM) {
     drop_bytes(PES_packet_length);
@@ -780,7 +935,8 @@ void packet()
   uint64_t PTS;
   uint64_t DTS;
   int N;
-  
+  uint8_t pts_dts_flags = 0;
+
   GETBITS(24 ,"packet_start_code_prefix");
   stream_id = GETBITS(8, "stream_id");
   packet_length = GETBITS(16, "packet_length");
@@ -788,6 +944,7 @@ void packet()
   
   if(stream_id != MPEG2_PRIVATE_STREAM_2) {
     
+    DPRINTF(1, "packet() stream: %02x\n", stream_id);
     while(nextbits(8) == 0xff) {
       GETBITS(8, "stuffing byte");
       N--;
@@ -801,6 +958,7 @@ void packet()
       N -= 2;
     }
     if(nextbits(4) == 0x2) {
+      pts_dts_flags = 0x2;
       GETBITS(4, "0010");
       PTS                     = GETBITS(3, "PTS [32..30]")<<30;
       marker_bit();
@@ -809,9 +967,11 @@ void packet()
       PTS                    |= GETBITS(15, "PTS [14..0]");
       marker_bit();
       
+      DPRINTF(1, "packet() PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
+      
       N -= 5;
     } else if(nextbits(4) == 0x3) {
-
+      pts_dts_flags = 0x3;
       GETBITS(4, "0011");
       PTS                     = GETBITS(3, "PTS [32..30]")<<30;
       marker_bit();
@@ -819,7 +979,7 @@ void packet()
       marker_bit();
       PTS                    |= GETBITS(15, "PTS [14..0]");
       marker_bit();
-      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
+      DPRINTF(1, "packet() PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
 
       GETBITS(4, "0001");
       DTS                     = GETBITS(3, "DTS [32..30]")<<30;
@@ -828,7 +988,7 @@ void packet()
       marker_bit();
       DTS                    |= GETBITS(15, "DTS [14..0]");
       marker_bit();
-      DPRINTF(3, "DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
+      DPRINTF(1, "packet() DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
 
       N -= 10;
     } else {
@@ -838,7 +998,7 @@ void packet()
     }
   }
 
-  push_stream_data(stream_id, N);
+  push_stream_data(stream_id, N, pts_dts_flags, PTS, DTS);
   
 }
 
@@ -850,8 +1010,9 @@ void pack()
   uint8_t stream_id;
   uint8_t is_PES = 0;
   int mpeg_version;
-  //fprintf(stderr, "pack()\n");
   
+
+  SCR_flags = 0;
   mpeg_version = pack_header();
   switch(mpeg_version) {
   case MPEG1:
@@ -868,14 +1029,25 @@ void pack()
       stream_id = (start_code&0xff);
       
       is_PES = 0;
-      if(((stream_id&0xc0) == 0xc0) || ((stream_id&0xe0) == 0x0e0)) {
+      if((stream_id >= 0xc0) && (stream_id < 0xe0)) {
+	/* ISO/IEC 11172-3/13818-3 audio stream */
 	is_PES = 1;
+	
+      } else if((stream_id >= 0xe0) && (stream_id < 0xf0)) {
+	/* ISO/IEC 11172-3/13818-3 video stream */
+	is_PES = 1;
+
       } else {
 	switch(stream_id) {
 	case 0xBC:
+	  /* program stream map */
+	  fprintf(stderr, "Program Stream map\n");
 	case 0xBD:
+	  /* private stream 1 */
 	case 0xBE:
+	  /* padding stream */
 	case 0xBF:
+	  /* private stream 2 */
 	  is_PES = 1;
 	  break;
 	case 0xBA:
@@ -893,9 +1065,13 @@ void pack()
       }
       
       PES_packet();
+      SCR_flags = 0;
     }
     break;
   }
+
+  packnr++;
+
 }
 
 
@@ -908,9 +1084,10 @@ void MPEG2_program_stream()
   } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
   if(GETBITS(32, "MPEG2_PS_PROGRAM_END_CODE") == MPEG2_PS_PROGRAM_END_CODE) {
     DPRINTF(1, "MPEG Program End\n");
+    system_header_set = 0;
   } else {
     fprintf(stderr, "*** Lost Sync\n");
-    fprintf(stderr, "*** after: %u bytes\n", bytes_read);
+    fprintf(stderr, "*** at offset: %u bytes\n", offs);
   }
 }
 
@@ -1007,7 +1184,7 @@ int main(int argc, char **argv)
   program_name = argv[0];
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "v:a:s:i:d:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "v:a:s:i:d:m:o:h?")) != EOF) {
     switch (c) {
     case 'v':
       video_file = fopen(optarg,"w");
@@ -1043,6 +1220,12 @@ int main(int argc, char **argv)
     case 'd':
       debug = atoi(optarg);
       break;
+    case 'm':
+      msgqid = atoi(optarg);
+      break;
+    case 'o':
+      offs = atoi(optarg);
+      break;
     case 'h':
     case '?':
       usage();
@@ -1050,22 +1233,21 @@ int main(int argc, char **argv)
     }
   }
 
-  if(argc - optind != 1){
-    usage();
-    return 1;
-  }
-
-  if(audio) {
-    int n;
-    audio_buf = malloc(A_BUFS*2352);
-    for(n = 0; n < A_BUFS; n++) {
-      audio_q[n].in_use = 0;
-      audio_q[n].buf_start = audio_buf+n*2352;
-      audio_q[n].len = 0;      
+  if(msgqid == -1) {
+    if(argc - optind != 1){
+      usage();
+      return 1;
     }
   }
-  loadinputfile(argv[optind]);
 
+
+  if(msgqid != -1) {
+    init_id_reg();
+    /* wait for load_file command */
+    wait_for_msg(CMD_FILE_OPEN);
+  } else {
+    loadinputfile(argv[optind]);
+  }
   // Setup signal handler for SEGV, to detect that we ran 
   // out of file without a test.
   
@@ -1100,3 +1282,272 @@ int main(int argc, char **argv)
   }
 }
 
+/*
+int create_shm(int size)
+{
+  
+  if((shmid =
+      shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0600)) = -1) {
+    perror("shmget shmid");
+    exit(-1);
+  }
+
+  shmaddr = shmat(shmid, NULL, 0);
+  if(shmaddr == -1) {
+    perror("shmat");
+    exit(-1);
+  }
+
+  return 0;
+}  
+*/
+
+buf_data_t id_reg[256];
+buf_data_t id_reg_ps1[256];
+
+int register_id(uint8_t id, int subtype)
+{
+  msg_t msg;
+  cmd_t *cmd;
+
+  cmd = (cmd_t *)&msg.mtext;
+  
+  /* send create decoder request msg*/
+  msg.mtype = MTYPE_CTL;
+  cmd->cmdtype = CMD_DEMUX_NEW_STREAM;
+  cmd->cmd.new_stream.stream_id = id;
+  cmd->cmd.new_stream.subtype = subtype; // different private streams
+  cmd->cmd.new_stream.nr_of_elems = 300;
+  send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_new_stream_t));
+
+  /* wait for answer */
+  
+  while(!id_registered(id, subtype)) {
+    //fprintf(stderr, "waiting for answer\n");
+    wait_for_msg(CMD_DEMUX_STREAM_BUFFER);
+  }
+  //fprintf(stderr, "got answer\n");
+  //TODO maybe not set buffer in wait_for_msg ?
+  
+  return 0;
+}
+
+int id_stat(uint8_t id, uint8_t subtype)
+{
+    if(id != MPEG2_PRIVATE_STREAM_1) {
+      return id_reg[id].state;
+    } else {
+      return id_reg_ps1[subtype].state;
+    }
+}
+
+char *id_qaddr(uint8_t id, uint8_t subtype)
+{
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    return id_reg[id].shmaddr;
+  } else {
+    return id_reg_ps1[subtype].shmaddr;
+  }
+}
+
+int id_registered(uint8_t id, uint8_t subtype)
+{
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    if(id_reg[id].state != STREAM_NOT_REGISTERED) {
+      return 1;
+    }
+  } else {
+    if(id_reg_ps1[subtype].state != STREAM_NOT_REGISTERED) {
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+int init_id_reg()
+{
+  int n;
+  
+  for(n = 0; n < 256; n++) {
+    id_reg[n].state = STREAM_NOT_REGISTERED;
+  }
+
+  for(n = 0; n < 256; n++) {
+    id_reg_ps1[n].state = STREAM_NOT_REGISTERED;
+  }
+  
+  id_reg[0xBE].state = STREAM_DISCARD; //padding stream
+  
+  return 0;
+}
+
+
+
+int wait_for_msg(cmdtype_t cmdtype)
+{
+  msg_t msg;
+  cmd_t *cmd;
+  cmd = (cmd_t *)(msg.mtext);
+  cmd->cmdtype = CMD_NONE;
+  
+  while(cmd->cmdtype != cmdtype) {
+    if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_DEMUX, 0) == -1) {
+      perror("msgrcv");
+      return -1;
+    } else {
+      //fprintf(stderr, "demux: got msg\n");
+      eval_msg(cmd);
+    }
+  }
+  return 0;
+}
+
+int eval_msg(cmd_t *cmd)
+{
+  
+  switch(cmd->cmdtype) {
+  case CMD_FILE_OPEN:
+    fprintf(stderr, "demux: open file: %s\n", cmd->cmd.file_open.file);
+    loadinputfile(cmd->cmd.file_open.file);
+    break;
+  case CMD_DEMUX_GNT_BUFFER:
+    fprintf(stderr, "demux: got buffer id %d, size %d\n",
+	    cmd->cmd.gnt_buffer.shmid,
+	    cmd->cmd.gnt_buffer.size);
+    break;
+  case CMD_DEMUX_STREAM_BUFFER:
+    fprintf(stderr, "demux: got stream %x, %x buffer \n",
+	    cmd->cmd.stream_buffer.stream_id,
+	    cmd->cmd.stream_buffer.subtype);
+    attach_decoder_buffer(cmd->cmd.stream_buffer.stream_id,
+			  cmd->cmd.stream_buffer.subtype,
+			  cmd->cmd.stream_buffer.q_shmid);
+
+    break;
+  default:
+    fprintf(stderr, "demux: unrecognized command\n");
+    return -1;
+    break;
+  }
+  
+  return 0;
+}
+
+
+int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
+{
+  char *shmaddr;
+
+  fprintf(stderr, "demux: shmid: %d\n", shmid);
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+      perror("attach_decoder_buffer(), shmat()");
+      return -1;
+    }
+    if(stream_id != MPEG2_PRIVATE_STREAM_1) {
+      id_reg[stream_id].shmid = shmid;
+      id_reg[stream_id].shmaddr = shmaddr;
+      id_reg[stream_id].state = STREAM_DECODE;
+    } else {
+      id_reg_ps1[subtype].shmid = shmid;
+      id_reg_ps1[subtype].shmaddr = shmaddr;
+      id_reg_ps1[subtype].state = STREAM_DECODE;
+    }
+    
+  } else {
+    if(stream_id != MPEG2_PRIVATE_STREAM_1) {
+      id_reg[stream_id].state = STREAM_DISCARD;
+    } else {
+      id_reg_ps1[subtype].state = STREAM_DISCARD;
+    }
+  }
+    
+  return 0;
+  
+}
+
+
+int get_buffer(int size)
+{
+  msg_t msg;
+  cmd_t *cmd;
+  
+  msg.mtype = MTYPE_CTL;
+  cmd = (cmd_t *)&msg.mtext;
+  
+  cmd->cmdtype = CMD_DEMUX_REQ_BUFFER;
+  cmd->cmd.req_buffer.size = size;
+  
+  if(msgsnd(msgqid, &msg,
+	    sizeof(cmdtype_t)+sizeof(cmd_req_buffer_t),
+	    0) == -1) {
+    perror("msgsnd");
+  }
+
+  wait_for_msg(CMD_DEMUX_GNT_BUFFER);
+  
+  return 0;
+}
+
+int send_msg(msg_t *msg, int mtext_size)
+{
+  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
+    perror("ctrl: msgsnd1");
+    return -1;
+  }
+  return 0;
+}
+
+
+int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
+	     uint64_t PTS, uint64_t DTS)
+{
+  q_head_t *q_head;
+  q_elem_t *q_elem;
+  int elem;
+  
+  static int scr_nr = 0;
+  
+  //  fprintf(stderr, "demux: put_in_q() off: %d, len %d\n",
+  //	  off, len);
+  q_head = (q_head_t *)q_addr;
+  q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
+  elem = q_head->write_nr;
+  
+  if(sem_wait(&q_head->bufs_empty) == -1) {
+    perror("demux: put_in_q(), sem_wait()");
+    return -1;
+  }
+  if(PTS_DTS_flags & 0x2) {
+    DPRINTF(1, "PTS: %llu.%09llu\n", PTS/90000, (PTS%90000)*(1000000000/90000));
+  }
+  q_elem[elem].PTS_DTS_flags = PTS_DTS_flags;
+  q_elem[elem].PTS = PTS;
+  q_elem[elem].DTS = DTS;
+  q_elem[elem].SCR_base = SCR_base;
+  q_elem[elem].SCR_ext = SCR_ext;
+  q_elem[elem].SCR_flags = SCR_flags;
+  q_elem[elem].off = off;
+  q_elem[elem].len = len;
+  
+    
+  if(scr_discontinuity) {
+    scr_discontinuity = 0;
+    scr_nr = (scr_nr+1)%16;
+    fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
+  }
+
+  q_elem[elem].scr_nr = scr_nr;
+
+  q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
+  
+  if(sem_post(&q_head->bufs_full) == -1) {
+    perror("demux: put_in_q(), sem_post()");
+    return -1;
+  }
+  
+  
+  return 0;
+}
