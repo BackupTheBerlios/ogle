@@ -41,7 +41,7 @@
 #undef ATTRIBUTE_NORETURN
 
 #if defined(__GNUC__)
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 91)
 #define ATTRIBUTE_NORETURN  __attribute__ ((noreturn))
 #define PRAGMA_NORETURN 0
 #endif
