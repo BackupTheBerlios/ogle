@@ -114,6 +114,7 @@ typedef struct {
   MsgEventClient_t client;
   int caps;
   cap_state_t state;
+  char *executable_file;
 } caps_t;
 
 static caps_t *caps_array = NULL;
@@ -786,7 +787,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   int n;
   
   if(decode_path == NULL) {
-    fprintf(stderr, "decoder not set\n");
+    fprintf(stderr, "*ctrl: init_decoder(): decoder not set\n");
     return(-1);
   }
   
@@ -794,11 +795,11 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     decode_name = decode_path;
   }
   if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
+    fprintf(stderr, "*ctrl: init_decoder(): illegal file name?\n");
     return -1;
   }
   
-  fprintf(stderr, "ctrl: init decoder %s\n", decode_name);
+  fprintf(stderr, "ctrl: init_decoder(): %s\n", decode_name);
 
   //starting_decoder = 1;
 
@@ -835,8 +836,8 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     eargv[n++] = NULL;
     
     if(execv(decode_path, eargv) == -1) {
-      perror("execv decode");
-      fprintf(stderr, "path: %s\n", decode_path);
+      perror("ctrl: init_decoder(): execv()");
+      fprintf(stderr, "ctrl: init_decoder(): path: %s\n", decode_path);
     }
     exit(1);
     break;
@@ -1242,6 +1243,19 @@ void int_handler(int sig)
 }
 
 
+// freebsd compatibility
+// where are these defined on freebsd?
+#ifndef CLD_EXITED
+// from /usr/include/sys/siginfo.h on solaris
+#define CLD_EXITED      1       /* child has exited */
+#define CLD_KILLED      2       /* child was killed */
+#define CLD_DUMPED      3       /* child has coredumped */
+#define CLD_TRAPPED     4       /* traced child has stopped */
+#define CLD_STOPPED     5       /* child has stopped on signal */
+#define CLD_CONTINUED   6       /* stopped child has continued */
+
+#endif
+
 void sigchld_handler(int sig, siginfo_t *info, void* context)
 {
   /* 
@@ -1275,8 +1289,12 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 	    info->si_pid, info->si_status);
     died = 1;
     break;
+  case SI_NOINFO:
+    fprintf(stderr, "ctrl: sigchld with no info\n");
+    break;
   default:
-    fprintf(stderr, "**ctrl: unknown cause of sigchld\n");
+    fprintf(stderr, "**ctrl: unknown cause of sigchld, si_code: %d\n",
+	    info->si_code);
     break;
   }
 
@@ -1290,10 +1308,12 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
     perror("waitpid");
   }
   if(WIFEXITED(stat_loc)) {
+    died = 1;
     fprintf(stderr, "pid: %d exited with status: %d\n",
 	    info->si_pid,
 	    WEXITSTATUS(stat_loc));
   } else if(WIFSIGNALED(stat_loc)) {
+    died = 1;
     fprintf(stderr, "pid: %d terminated on signal: %d\n",
 	    info->si_pid,
 	    WTERMSIG(stat_loc));
