@@ -1,8 +1,27 @@
-#include <inttypes.h>
+/* 
+ * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>, 
+ *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include <assert.h>
 
@@ -45,7 +64,7 @@ void ifoClose(void) {
 
 
 int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
-  int i, j;
+  int i;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
@@ -78,7 +97,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   B2N_32(vmgi_mat->vmg_txtdt_mgi);
   B2N_32(vmgi_mat->vmgm_c_adt);
   B2N_32(vmgi_mat->vmgm_vobu_admap);
-  B2N_16(vmgi_mat->vmgm_video_attributes);
+  //B2N_16(vmgi_mat->vmgm_video_attributes);
   
   
 #ifndef NDEBUG
@@ -90,6 +109,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   CHECK_ZERO(vmgi_mat->zero_6);
   CHECK_ZERO(vmgi_mat->zero_7);
   CHECK_ZERO(vmgi_mat->zero_8);
+  CHECK_ZERO(vmgi_mat->zero_9);
   assert(vmgi_mat->vmg_last_sector != 0);
   assert(vmgi_mat->vmgi_last_sector != 0);
   assert(vmgi_mat->vmgi_last_sector * 2 <= vmgi_mat->vmg_last_sector);
@@ -115,12 +135,10 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
   assert(vmgi_mat->vmgm_vobu_admap <= vmgi_mat->vmgi_last_sector);
   assert(vmgi_mat->nr_of_vmgm_audio_streams <= 8);
   for(i = vmgi_mat->nr_of_vmgm_audio_streams; i < 8; i++)
-    for(j = 0; j < 8; j++)
-      CHECK_ZERO(vmgi_mat->vmgm_audio_attributes[i][j]);
+    CHECK_ZERO(vmgi_mat->vmgm_audio_attributes[i]);
   assert(vmgi_mat->nr_of_vmgm_subp_streams <= 28);
   for(i = vmgi_mat->nr_of_vmgm_subp_streams; i < 28; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vmgi_mat->vmgm_subp_attributes[i][j]);      
+    CHECK_ZERO(vmgi_mat->vmgm_subp_attributes[i]);      
 #endif
   
   return 0;
@@ -128,7 +146,7 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
 
 
 int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
-  int i, j;
+  int i;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
@@ -158,8 +176,8 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   B2N_32(vtsi_mat->vtsm_vobu_admap);
   B2N_32(vtsi_mat->vts_c_adt);
   B2N_32(vtsi_mat->vts_vobu_admap);
-  B2N_16(vtsi_mat->vtsm_video_attributes);
-  B2N_16(vtsi_mat->vts_video_attributes);
+  //B2N_16(vtsi_mat->vtsm_video_attributes);
+  //B2N_16(vtsi_mat->vts_video_attributes);
 
 #ifndef NDEBUG
   CHECK_ZERO(vtsi_mat->zero_1);
@@ -179,6 +197,9 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   CHECK_ZERO(vtsi_mat->zero_15);
   CHECK_ZERO(vtsi_mat->zero_16);
   CHECK_ZERO(vtsi_mat->zero_17);
+  CHECK_ZERO(vtsi_mat->zero_18);
+  CHECK_ZERO(vtsi_mat->zero_19);
+  CHECK_ZERO(vtsi_mat->zero_20);
   assert(vtsi_mat->vtsi_last_sector*2 <= vtsi_mat->vts_last_sector);
   assert(vtsi_mat->vtsi_last_byte/DVD_BLOCK_LEN <= vtsi_mat->vtsi_last_sector);
   assert(vtsi_mat->vtsm_vobs == 0 || 
@@ -198,21 +219,17 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
   
   assert(vtsi_mat->nr_of_vtsm_audio_streams <= 8);
   for(i = vtsi_mat->nr_of_vtsm_audio_streams; i < 8; i++)
-    for(j = 0; j < 8; j++)
-      CHECK_ZERO(vtsi_mat->vtsm_audio_attributes[i][j]);
+    CHECK_ZERO(vtsi_mat->vtsm_audio_attributes[i]);
   assert(vtsi_mat->nr_of_vtsm_subp_streams <= 28);
   for(i = vtsi_mat->nr_of_vtsm_subp_streams; i < 28; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vtsi_mat->vtsm_subp_attributes[i][j]);      
+    CHECK_ZERO(vtsi_mat->vtsm_subp_attributes[i]);      
 
   assert(vtsi_mat->nr_of_vts_audio_streams <= 8);
   for(i = vtsi_mat->nr_of_vts_audio_streams; i < 8; i++)
-    for(j = 0; j < 8; j++)
-      CHECK_ZERO(vtsi_mat->vts_audio_attributes[i][j]);
+    CHECK_ZERO(vtsi_mat->vts_audio_attributes[i]);
   assert(vtsi_mat->nr_of_vts_subp_streams <= 32);
   for(i = vtsi_mat->nr_of_vts_subp_streams; i < 32; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vtsi_mat->vts_subp_attributes[i][j]);      
+    CHECK_ZERO(vtsi_mat->vts_subp_attributes[i]);      
 #endif  
   return 0;
 }
@@ -762,51 +779,47 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
 }
 
 
-void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
-  int i, j;
+void ifoRead_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes, int offset) {
+  int i;
   
   fseek(ifo_file, offset, SEEK_SET);
-  if(fread(vts_atributes, VMG_VTS_ATRIBUTES_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATRIBUTES");
+  if(fread(vts_attributes, VMG_VTS_ATTRIBUTES_SIZE, 1, ifo_file) != 1) {
+    perror("VMG_VTS_ATTRIBUTES");
     exit(1);
   }
-  B2N_32(vts_atributes->last_byte);
-  B2N_32(vts_atributes->vts_cat);
-  B2N_16(vts_atributes->vtsm_vobs_attributes);
-  B2N_16(vts_atributes->vtstt_vobs_video_attributes);
+  B2N_32(vts_attributes->last_byte);
+  B2N_32(vts_attributes->vts_cat);
+  //B2N_16(vts_attributes->vtsm_vobs_attributes);
+  //B2N_16(vts_attributes->vtstt_vobs_video_attributes);
   
 #ifndef NDEBUG
-  CHECK_ZERO(vts_atributes->zero_1);
-  CHECK_ZERO(vts_atributes->zero_2);
-  CHECK_ZERO(vts_atributes->zero_3);
-  CHECK_ZERO(vts_atributes->zero_4);
-  CHECK_ZERO(vts_atributes->zero_5);
-  CHECK_ZERO(vts_atributes->zero_6);
-  CHECK_ZERO(vts_atributes->zero_7);
-  assert(vts_atributes->nr_of_vtsm_audio_streams <= 8);
-  for(i = vts_atributes->nr_of_vtsm_audio_streams; i < 8; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vts_atributes->vtsm_audio_attributes[i][j]);
-  assert(vts_atributes->nr_of_vtsm_subp_streams <= 28);
-  for(i = vts_atributes->nr_of_vtsm_subp_streams; i < 28; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vts_atributes->vtsm_subp_attributes[i][j]);      
-  assert(vts_atributes->nr_of_vtstt_audio_streams <= 8);
-  for(i = vts_atributes->nr_of_vtstt_audio_streams; i < 8; i++)
-    for(j = 0; j < 6; j++)
-      CHECK_ZERO(vts_atributes->vtstt_audio_attributes[i][j]);
+  CHECK_ZERO(vts_attributes->zero_1);
+  CHECK_ZERO(vts_attributes->zero_2);
+  CHECK_ZERO(vts_attributes->zero_3);
+  CHECK_ZERO(vts_attributes->zero_4);
+  CHECK_ZERO(vts_attributes->zero_5);
+  CHECK_ZERO(vts_attributes->zero_6);
+  CHECK_ZERO(vts_attributes->zero_7);
+  assert(vts_attributes->nr_of_vtsm_audio_streams <= 8);
+  for(i = vts_attributes->nr_of_vtsm_audio_streams; i < 8; i++)
+    CHECK_ZERO(vts_attributes->vtsm_audio_attributes[i]);
+  assert(vts_attributes->nr_of_vtsm_subp_streams <= 28);
+  for(i = vts_attributes->nr_of_vtsm_subp_streams; i < 28; i++)
+    CHECK_ZERO(vts_attributes->vtsm_subp_attributes[i]);      
+  assert(vts_attributes->nr_of_vtstt_audio_streams <= 8);
+  for(i = vts_attributes->nr_of_vtstt_audio_streams; i < 8; i++)
+    CHECK_ZERO(vts_attributes->vtstt_audio_attributes[i]);
   {
     int nr_coded;
-    assert(vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE >= 0);  
-    nr_coded = (vts_atributes->last_byte + 1 - VMG_VTS_ATRIBUTES_MIN_SIZE)/6;
+    assert(vts_attributes->last_byte + 1 - VMG_VTS_ATTRIBUTES_MIN_SIZE >= 0);  
+    nr_coded = (vts_attributes->last_byte + 1 - VMG_VTS_ATTRIBUTES_MIN_SIZE)/6;
     // This is often nr_coded = 70, how do you know how many there really are?
     if(nr_coded > 32) { // We haven't read more from disk/file anyway
       nr_coded = 32;
     }
-    assert(vts_atributes->nr_of_vtstt_subp_streams <= nr_coded);
-    for(i = vts_atributes->nr_of_vtstt_subp_streams; i < nr_coded; i++)
-      for(j = 0; j < 6; j++)
-	CHECK_ZERO(vts_atributes->vtstt_subp_attributes[i][j]);
+    assert(vts_attributes->nr_of_vtstt_subp_streams <= nr_coded);
+    for(i = vts_attributes->nr_of_vtstt_subp_streams; i < nr_coded; i++)
+      CHECK_ZERO(vts_attributes->vtstt_subp_attributes[i]);
   }
 #endif
 }
@@ -828,7 +841,7 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   CHECK_ZERO(vts_atrt->zero_1);
   assert(vts_atrt->nr_of_vtss != 0);
   assert(vts_atrt->nr_of_vtss < 100); //??
-  assert(vts_atrt->nr_of_vtss * (4 + VMG_VTS_ATRIBUTES_MIN_SIZE) + 
+  assert(vts_atrt->nr_of_vtss * (4 + VMG_VTS_ATTRIBUTES_MIN_SIZE) + 
 	 VMG_VTS_ATRT_SIZE < vts_atrt->last_byte + 1);
 #endif
   
@@ -843,18 +856,18 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   
 #ifndef NDEBUG
   for(i = 0; i < vts_atrt->nr_of_vtss; i++)
-    assert(data[i] + VMG_VTS_ATRIBUTES_MIN_SIZE < vts_atrt->last_byte + 1);
+    assert(data[i] + VMG_VTS_ATTRIBUTES_MIN_SIZE < vts_atrt->last_byte + 1);
 #endif
   
-  info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATRIBUTES_SIZE;
-  vts_atrt->vts_atributes = malloc(info_length);
+  info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATTRIBUTES_SIZE;
+  vts_atrt->vts_attributes = malloc(info_length);
   for(i = 0; i < vts_atrt->nr_of_vtss; i++) {
     int offset = data[i];
-    ifoRead_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i], 
+    ifoRead_VTS_ATTRIBUTES(&vts_atrt->vts_attributes[i], 
 			  sector * DVD_BLOCK_LEN + offset);
 #ifndef NDEBUG
-    // This assert cant be in ifoRead_VTS_ATRIBUTES
-    assert(offset + vts_atrt->vts_atributes[i].last_byte 
+    // This assert cant be in ifoRead_VTS_ATTRIBUTES
+    assert(offset + vts_atrt->vts_attributes[i].last_byte 
 	   <= vts_atrt->last_byte + 1); // Check if this is correct
 #endif
   }

@@ -1,6 +1,25 @@
 #ifndef __IFO_H__
 #define __IFO_H__
 
+/* 
+ * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>, 
+ *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <inttypes.h>
 
 #ifndef DVD_BLOCK_LEN
@@ -14,6 +33,73 @@ typedef struct {
   uint8_t second;
   uint8_t frame_u; // The two high bits are the frame rate.
 }  __attribute__ ((packed)) dvd_time_t;
+
+typedef struct {
+#ifdef WORDS_BIGENDIAN
+  unsigned int mpeg_version         : 2;
+  unsigned int video_format         : 2;
+  unsigned int display_aspect_ratio : 2;
+  unsigned int permitted_df         : 2;
+  
+  unsigned int unknown1             : 2; // Mostly 00 but sometimes 10
+  unsigned int line21_CC_1          : 1;
+  unsigned int line21_CC_2          : 1;
+  
+  unsigned int picture_size         : 2;
+  unsigned int letterboxed          : 1;
+  unsigned int film_mode            : 1;
+#else
+  unsigned int display_aspect_ratio : 2;
+  unsigned int permitted_df         : 2;
+  unsigned int video_format         : 2;
+  unsigned int mpeg_version         : 2;
+  
+  unsigned int film_mode            : 1;
+  unsigned int letterboxed          : 1;
+  unsigned int picture_size         : 2;
+  
+  unsigned int line21_CC_2          : 1;
+  unsigned int line21_CC_1          : 1;
+  unsigned int unknown1             : 2;
+#endif
+} __attribute__ ((packed)) video_attr_t;
+
+typedef struct {
+#ifdef WORDS_BIGENDIAN
+  unsigned int audio_format           : 3;
+  unsigned int multichannel_extension : 1;
+  unsigned int lang_type              : 2;
+  unsigned int application_mode       : 2;
+  
+  unsigned int quantization           : 2;
+  unsigned int sample_frequency       : 2;
+  unsigned int unknown1               : 1;
+  unsigned int channels               : 3;
+#else
+  unsigned int application_mode       : 2;
+  unsigned int lang_type              : 2;
+  unsigned int multichannel_extension : 1;
+  unsigned int audio_format           : 3;
+  
+  unsigned int channels               : 3;
+  unsigned int unknown1               : 1;
+  unsigned int sample_frequency       : 2;
+  unsigned int quantization           : 2;
+#endif
+  char lang_code[2];
+  uint8_t lang_extension; // ?? and if so use a [3] instead?
+  uint8_t audio_type;
+  uint16_t unknown2;
+} __attribute__ ((packed)) audio_attr_t;
+
+typedef struct {
+  uint8_t user_selectable; //??
+  uint8_t zero1;
+  char lang_code[2];
+  uint8_t zero2; // lang ext?
+  uint8_t zero3;
+} __attribute__ ((packed)) subp_attr_t;
+
 
 
 /* -------------------------------- VMGM ----------------------------------- */
@@ -46,13 +132,15 @@ typedef struct { // Video Manager Information Management Table
   uint32_t vmgm_c_adt;		// sector
   uint32_t vmgm_vobu_admap;	// sector
   uint8_t  zero_6[32];
-  uint16_t vmgm_video_attributes; // new type video_attributes
+  
+  video_attr_t vmgm_video_attributes;
   uint8_t  zero_7;
   uint8_t  nr_of_vmgm_audio_streams;
-  uint8_t  vmgm_audio_attributes[8][8]; // new type?
-  uint8_t  zero_8[17];
+  audio_attr_t vmgm_audio_attributes[8]; //10?
+  uint8_t  zero_8[16];
+  uint8_t  zero_9;
   uint8_t  nr_of_vmgm_subp_streams;
-  uint8_t  vmgm_subp_attributes[28][6]; // new type?
+  subp_attr_t vmgm_subp_attributes[28]; //32?
   //how much 'padding' here?
 } __attribute__ ((packed)) vmgi_mat_t;
 
@@ -186,34 +274,34 @@ typedef struct { // Video Title Set Attribute
   uint32_t last_byte;
   uint32_t vts_cat;
   
-  uint16_t vtsm_vobs_attributes; // new type video_attributes
-  uint8_t  zero_1;
-  uint8_t  nr_of_vtsm_audio_streams;
-  uint8_t  vtsm_audio_attributes[8][8]; //? 10
-  uint8_t  zero_2[16];
-  uint8_t  zero_3;
-  uint8_t  nr_of_vtsm_subp_streams;
-  uint8_t  vtsm_subp_attributes[28][6]; // Why not all 32??
-  uint8_t  zero_4[2];
+  video_attr_t vtsm_vobs_attributes;
+  uint8_t zero_1;
+  uint8_t nr_of_vtsm_audio_streams;
+  audio_attr_t vtsm_audio_attributes[8]; //10?
+  uint8_t zero_2[16];
+  uint8_t zero_3;
+  uint8_t nr_of_vtsm_subp_streams;
+  subp_attr_t vtsm_subp_attributes[28]; // Why not 32??
   
-  uint16_t vtstt_vobs_video_attributes;
-  uint8_t  zero_5;
-  uint8_t  nr_of_vtstt_audio_streams;
-  uint8_t  vtstt_audio_attributes[8][8]; //? 10
-  uint8_t  zero_6[16];
-  uint8_t  zero_7;
-  uint8_t  nr_of_vtstt_subp_streams;
-  uint8_t  vtstt_subp_attributes[32][6]; // Are there room for 32 here? (no?)
-  /* ? */
-} __attribute__ ((packed)) vts_atributes_t;
-#define VMG_VTS_ATRIBUTES_SIZE 546
-#define VMG_VTS_ATRIBUTES_MIN_SIZE 354
+  uint8_t zero_4[2];
+  
+  video_attr_t vtstt_vobs_video_attributes;
+  uint8_t zero_5;
+  uint8_t nr_of_vtstt_audio_streams;
+  audio_attr_t vtstt_audio_attributes[8]; //10?
+  uint8_t zero_6[16];
+  uint8_t zero_7;
+  uint8_t nr_of_vtstt_subp_streams;
+  subp_attr_t vtstt_subp_attributes[32]; // not allways room for 32...
+} __attribute__ ((packed)) vts_attributes_t;
+#define VMG_VTS_ATTRIBUTES_SIZE 546
+#define VMG_VTS_ATTRIBUTES_MIN_SIZE 354
 
 typedef struct { // Video Title Set Attribute Table
   uint16_t nr_of_vtss;
   uint16_t zero_1;
   uint32_t last_byte;
-  vts_atributes_t *vts_atributes;
+  vts_attributes_t *vts_attributes;
 } __attribute__ ((packed)) vmg_vts_atrt_t;
 #define VMG_VTS_ATRT_SIZE 8
 
@@ -315,23 +403,25 @@ typedef struct { // Video Title Set Information Management Table
   uint32_t vts_vobu_admap;	// sector ptr
   uint8_t  zero_13[24];
   
-  uint16_t vtsm_video_attributes;
-  uint8_t  zero_14;
-  uint8_t  nr_of_vtsm_audio_streams;
-  uint8_t  vtsm_audio_attributes[8][8]; // new type
-  uint8_t  zero_15[17];//??
-  uint8_t  nr_of_vtsm_subp_streams;
-  uint8_t  vtsm_subp_attributes[28][6]; // new type
-  uint8_t  zero_16[2];//??
+  video_attr_t vtsm_video_attributes;
+  uint8_t zero_14;
+  uint8_t nr_of_vtsm_audio_streams;
+  audio_attr_t vtsm_audio_attributes[8]; //10?
+  uint8_t zero_15[16];
+  uint8_t zero_16;
+  uint8_t nr_of_vtsm_subp_streams;
+  subp_attr_t vtsm_subp_attributes[28]; // Why not 32??
   
-  uint16_t vts_video_attributes;
-  uint8_t  zero_17;
-  uint8_t  nr_of_vts_audio_streams;
-  uint8_t  vts_audio_attributes[8][8]; // new type
-  uint8_t  zero_18[17];//??
-  uint8_t  nr_of_vts_subp_streams;
-  uint8_t  vts_subp_attributes[32][6]; // new type
-  //how much 'padding' here, if any?
+  uint8_t zero_17[2];
+  
+  video_attr_t vts_video_attributes;
+  uint8_t zero_18;
+  uint8_t nr_of_vts_audio_streams;
+  audio_attr_t vts_audio_attributes[8]; //10?
+  uint8_t zero_19[16];
+  uint8_t zero_20;
+  uint8_t nr_of_vts_subp_streams;
+  subp_attr_t vts_subp_attributes[32];
 } __attribute__ ((packed)) vtsi_mat_t;
 
 typedef struct { // PartOfTitle Unit Information

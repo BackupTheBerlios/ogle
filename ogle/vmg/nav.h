@@ -64,7 +64,7 @@ typedef struct {
   uint32_t hli_s_ptm;
   uint32_t hli_e_ptm;
   uint32_t btn_se_e_ptm;
-#if WORDS_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
   unsigned int zero1 : 2;
   unsigned int btngr_ns : 2;
   unsigned int zero2 : 1;
@@ -96,7 +96,7 @@ typedef struct {
 } __attribute__ ((packed)) btn_colit_t;
 
 typedef struct {
-#if WORDS_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
   unsigned int btn_coln : 2;
   unsigned int x_start : 10;
   unsigned int zero1 : 2;

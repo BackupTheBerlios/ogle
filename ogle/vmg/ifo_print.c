@@ -1,15 +1,29 @@
+/* 
+ * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>, 
+ *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <string.h>
+#include <inttypes.h>
 
 #include <assert.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/shm.h>
-
-#include "../include/common.h"
 
 #include "ifo.h"
 #include "ifo_print.h"
@@ -17,22 +31,11 @@
 
 
 #define PUT(level, text...) \
-if(level < debug) { \
-  fprintf(stdout, ## text); \
-}
-
-#define CHECK_ZERO(arg) \
-if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
- int i; \
- fprintf(stderr, "*** Zero check failed in %s:%i\n    for %s = 0x", \
-	   __FILE__, __LINE__, # arg ); \
- for(i=0;i<sizeof(arg);i++) \
-   fprintf(stderr, "%02x", *((uint8_t *)&arg + i)); \
- fprintf(stderr, "\n"); \
-}
-static const uint8_t my_friendly_zeros[2048];
-
-
+do { \
+  if(level < debug) { \
+    fprintf(stdout, ## text); \
+  } \
+} while(0)
 
 extern int debug;
 
@@ -40,17 +43,17 @@ extern int debug;
 
 void ifoPrint_time(int level, dvd_time_t *time) {
   char *rate;
-  assert((time->hour>>4) < 0xa && (time->hour&0xf) < 0xa);
-  assert((time->minute>>4) < 0x7 && (time->minute&0xf) < 0xa);
-  assert((time->second>>4) < 0x7 && (time->second&0xf) < 0xa);
-  assert((time->frame_u&0xf) < 0xa);
+  assert((time->hour >> 4) <= 9 && (time->hour & 0xf) <= 9);
+  assert((time->minute >> 4) <= 6 && (time->minute & 0xf) <= 9);
+  assert((time->second >> 4) <= 6 && (time->second & 0xf) <= 9);
+  assert((time->frame_u & 0xf) <= 9);
   
   PUT(level, "%02x:%02x:%02x.%02x", 
       time->hour,
       time->minute,
       time->second,
       time->frame_u & 0x3f);
-  switch((time->frame_u & 0xc0) >> 6) {
+  switch((time->frame_u >> 6) & 0x03) {
   case 0: 
     rate = "(please send a bug report)";
     break;
@@ -67,6 +70,210 @@ void ifoPrint_time(int level, dvd_time_t *time) {
   PUT(level, " @ %s fps", rate);
 }
 
+void ifoPrint_video_attributes(int level, video_attr_t *attr) {
+  
+  switch(attr->mpeg_version) {
+  case 0:
+    PUT(level,"mpeg1 ");
+    break;
+  case 1:
+    PUT(level,"mpeg2 ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  switch(attr->video_format) {
+  case 0:
+    PUT(level,"ntsc ");
+    break;
+  case 1:
+    PUT(level,"pal ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  switch(attr->display_aspect_ratio) {
+  case 0:
+    PUT(level,"4:3 ");
+    break;
+  case 3:
+    PUT(level,"16:9 ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  switch(attr->permitted_df) {
+  case 0:
+    PUT(level,"pan&scan+letterboxed ");
+    break;
+  case 1:
+    PUT(level,"only pan&scan "); //??
+    break;
+  case 2:
+    PUT(level,"only letterboxed ");
+    break;
+  case 3:
+    // not specified
+    break;
+  default:
+    PUT(0, "(please send a bug report)");
+  }
+  
+  PUT(level, "%x ", attr->unknown1);
+  
+  if(attr->line21_CC_1 || attr->line21_CC_2) {
+    PUT(level, "CC line21 ");
+    if(attr->line21_CC_1)
+      PUT(level, "1 ");
+     if(attr->line21_CC_2)
+      PUT(level, "2 ");
+  }
+  
+  {
+    int height = 480;
+    if(attr->video_format != 0) 
+      height = 576;
+    switch(attr->picture_size) {
+    case 0:
+      PUT(level, "720x%d ", height);
+      break;
+    case 1:
+      PUT(level, "704x%d ", height);
+      break;
+    case 2:
+      PUT(level, "352x%d ", height);
+      break;
+    case 3:
+      PUT(level, "352x%d ", height/2);
+      break;      
+    default:
+      PUT(0, "(please send a bug report) ");
+    }
+  }
+
+  if(attr->letterboxed)
+    PUT(level, "letterboxed ");
+  
+  if(attr->film_mode)
+    PUT(level, "film");
+  else
+    PUT(level, "video"); //camera
+}
+
+void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
+  
+  switch(attr->audio_format) {
+  case 0:
+    PUT(level, "ac3 ");
+    break;
+  case 1:
+    PUT(0, "(please send a bug report) ");
+    break;
+  case 2:
+    PUT(level, "mpeg1 ");
+    break;
+  case 3:
+    PUT(level, "mpeg2ext ");
+    break;
+  case 4:
+    PUT(level, "lpcm ");
+    break;
+  case 5:
+    PUT(level, "dts ");
+    break;
+  case 6:
+    PUT(level, "sdds ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  if(attr->multichannel_extension)
+    PUT(level, "multichannel_extension ");
+  
+  switch(attr->lang_type) {
+  case 0:
+    // not specified
+    break;
+  case 1:
+    PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
+    break;
+  default:
+    PUT(level, "(please send a bug report) ");
+  }
+
+  switch(attr->application_mode) {
+  case 0:
+    // not specified
+    break;
+  case 1:
+    PUT(level, "karaoke mode ");
+    break;
+  case 2:
+    PUT(level, "surround sound mode ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  switch(attr->quantization) {
+  case 0:
+    PUT(level, "16bit ");
+    break;
+  case 1:
+    PUT(level, "20bit ");
+    break;
+  case 2:
+    PUT(level, "24bit ");
+    break;
+  case 3:
+    PUT(level, "drc ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  switch(attr->sample_frequency) {
+  case 0:
+    PUT(level, "48kHz ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+  
+  PUT(level, "%dCh ", attr->channels + 1);
+  
+  switch(attr->audio_type) {
+  case 0:
+    // not specified
+    break;
+    //case 1: // Normal ?
+    //case 3: // Directors Comments
+    //case 4: // Music score 1
+    //case 4: // Music score 2    
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+    
+  PUT(level, "%d ", attr->unknown1);
+  PUT(level, "%d ", attr->unknown2);
+}
+
+void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
+  
+  if(attr->user_selectable & 0x80)
+    PUT(level, "user_selectable ");
+  
+  PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
+  
+  PUT(level, "%d ", attr->zero1);
+  PUT(level, "%d ", attr->zero2);
+  PUT(level, "%d ", attr->zero3);
+  
+}
 
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   int i, j;
@@ -96,22 +303,21 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   PUT(5, "Start sector of VMGM_C_ADT: %08x\n", vmgi_mat->vmgm_c_adt);
   PUT(5, "Start sector of VMGM_VOBU_ADMAP: %08x\n", 
       vmgi_mat->vmgm_vobu_admap);
-  PUT(5, "Video attributes of VMGM_VOBS: %04x\n", 
-      vmgi_mat->vmgm_video_attributes);
+  PUT(5, "Video attributes of VMGM_VOBS: ");
+  ifoPrint_video_attributes(5, &vmgi_mat->vmgm_video_attributes);
+  PUT(5, "\n");
   PUT(5, "VMGM Number of Audio attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_audio_streams);
   for(i = 0; i < vmgi_mat->nr_of_vmgm_audio_streams; i++) {
     PUT(5, "\tAudio stream %i status: ", i+1);
-    for(j = 0; j < 8; j++)  /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vmgi_mat->vmgm_audio_attributes[i][j]);
+    ifoPrint_audio_attributes(5, &vmgi_mat->vmgm_audio_attributes[i]);
     PUT(5, "\n");
   }
   PUT(5, "VMGM Number of Sub-picture attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_subp_streams);
   for(i = 0; i < vmgi_mat->nr_of_vmgm_subp_streams; i++) {
     PUT(5, "\tSub-picture stream %2i status: ", i+1);
-    for(j = 0; j < 6; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vmgi_mat->vmgm_subp_attributes[i][j]);
+    ifoPrint_subp_attributes(5, &vmgi_mat->vmgm_subp_attributes[i]);
     PUT(5, "\n");
   }
 }
@@ -138,45 +344,43 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "Start sector of VTS_C_ADT:       %08x\n", vtsi_mat->vts_c_adt);
   PUT(5, "Start sector of VTS_VOBU_ADMAP:  %08x\n", vtsi_mat->vts_vobu_admap);
   
-  PUT(5, "Video attributes of VTSM_VOBS: %04x\n", 
-      vtsi_mat->vtsm_video_attributes);
+  PUT(5, "Video attributes of VTSM_VOBS: ");
+  ifoPrint_video_attributes(5, &vtsi_mat->vtsm_video_attributes);
+  PUT(5, "\n");
+  
   PUT(5, "VTSM Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vtsm_audio_streams);
-
   for(i = 0; i < vtsi_mat->nr_of_vtsm_audio_streams; i++) {
     PUT(5, "\tAudio stream %i status: ", i+1);
-    for(j = 0; j < 8; j++)  /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vtsi_mat->vtsm_audio_attributes[i][j]);
-    PUT(5, "\n");
-  }
-  PUT(5, "VTSM Number of Sub-picture attributes: %i\n", 
-      vtsi_mat->nr_of_vtsm_subp_streams);
-
-  for(i = 0; i < vtsi_mat->nr_of_vtsm_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);
-    for(j = 0; j < 6; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vtsi_mat->vtsm_subp_attributes[i][j]);
+    ifoPrint_audio_attributes(5, &vtsi_mat->vtsm_audio_attributes[i]);
     PUT(5, "\n");
   }
   
-  PUT(5, "Video attributes of VTS_VOBS: %04x\n", 
-      vtsi_mat->vts_video_attributes);
+  PUT(5, "VTSM Number of Sub-picture attributes: %i\n", 
+      vtsi_mat->nr_of_vtsm_subp_streams);
+  for(i = 0; i < vtsi_mat->nr_of_vtsm_subp_streams; i++) {
+    PUT(5, "\tSub-picture stream %2i status: ", i+1);
+    ifoPrint_subp_attributes(5, &vtsi_mat->vtsm_subp_attributes[i]);
+    PUT(5, "\n");
+  }
+  
+  PUT(5, "Video attributes of VTS_VOBS: ");
+  ifoPrint_video_attributes(5, &vtsi_mat->vts_video_attributes);
+  PUT(5, "\n");
+  
   PUT(5, "VTS Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vts_audio_streams);
-
   for(i = 0; i < vtsi_mat->nr_of_vts_audio_streams; i++) {
     PUT(5, "\tAudio stream %i status: ", i+1);
-    for(j = 0; j < 8; j++)  /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vtsi_mat->vts_audio_attributes[i][j]);
+    ifoPrint_audio_attributes(5, &vtsi_mat->vts_audio_attributes[i]);
     PUT(5, "\n");
-  }      
+  }
+  
   PUT(5, "VTS Number of Subpicture attributes: %i\n", 
       vtsi_mat->nr_of_vts_subp_streams);
-
   for(i = 0; i < vtsi_mat->nr_of_vts_subp_streams; i++) {
     PUT(5, "\tSub-picture stream %2i status: ", i+1);
-    for(j = 0; j < 6; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vtsi_mat->vts_subp_attributes[i][j]);
+    ifoPrint_subp_attributes(5, &vtsi_mat->vts_subp_attributes[i]);
     PUT(5, "\n");
   }
 }
@@ -450,51 +654,46 @@ void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut) {
   }
 }
 
-void ifoPrint_VTS_ATRIBUTES(vts_atributes_t *vts_atributes) {
-  int i, j;
+void ifoPrint_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes) {
+  int i;
   
-  PUT(5, "VTS_CAT Application type: %08x\n", vts_atributes->vts_cat);
+  PUT(5, "VTS_CAT Application type: %08x\n", vts_attributes->vts_cat);
   
-  PUT(5, "Video Attributes of VTSM_VOBS: %04x\n", 
-      vts_atributes->vtsm_vobs_attributes);  
+  PUT(5, "Video attributes of VTSM_VOBS: ");
+  ifoPrint_video_attributes(5, &vts_attributes->vtsm_vobs_attributes);
+  PUT(5, "\n");
   PUT(5, "Number of Audio streams: %i\n", 
-      vts_atributes->nr_of_vtsm_audio_streams);
+      vts_attributes->nr_of_vtsm_audio_streams);
   
-  for(i = 0; i < vts_atributes->nr_of_vtsm_audio_streams; i++) {
-    PUT(5, "\tAudio stream %i status: ", i+1);
-    for(j = 0; j < 8; j++)  /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vts_atributes->vtsm_audio_attributes[i][j]);
+  for(i = 0; i < vts_attributes->nr_of_vtsm_audio_streams; i++) {
+    PUT(5, "\tAudio stream %i attributes: ", i+1);
+    ifoPrint_audio_attributes(5, &vts_attributes->vtsm_audio_attributes[i]);
     PUT(5, "\n");
-  }      
+  }
   PUT(5, "Number of Subpicture streams: %i\n", 
-      vts_atributes->nr_of_vtsm_subp_streams);
-  for(i = 0; i < vts_atributes->nr_of_vtsm_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);
-    for(j = 0; j < 6; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vts_atributes->vtsm_subp_attributes[i][j]);
+      vts_attributes->nr_of_vtsm_subp_streams);
+  for(i = 0; i < vts_attributes->nr_of_vtsm_subp_streams; i++) {
+    PUT(5, "\tSub-picture stream %2i attributes: ", i+1);
+    ifoPrint_subp_attributes(5, &vts_attributes->vtsm_subp_attributes[i]);
     PUT(5, "\n");
   }
    
-  PUT(5, "Video Attributes of VTSTT_VOBS: %04x\n", 
-      vts_atributes->vtstt_vobs_video_attributes);  
+  PUT(5, "Video attributes of VTSTT_VOBS: ");
+  ifoPrint_video_attributes(5, &vts_attributes->vtstt_vobs_video_attributes);
+  PUT(5, "\n");
   PUT(5, "Number of Audio streams: %i\n", 
-      vts_atributes->nr_of_vtstt_audio_streams);
-  for(i = 0; i < vts_atributes->nr_of_vtstt_audio_streams; i++) {
-    PUT(5, "\tAudio stream %i status: ", i+1);
-    for(j = 0; j < 8; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vts_atributes->vtstt_audio_attributes[i][j]);
+      vts_attributes->nr_of_vtstt_audio_streams);
+  for(i = 0; i < vts_attributes->nr_of_vtstt_audio_streams; i++) {
+    PUT(5, "\tAudio stream %i attributes: ", i+1);
+    ifoPrint_audio_attributes(5, &vts_attributes->vtstt_audio_attributes[i]);
     PUT(5, "\n");
   }
   
-  /* I've had to cut down on the max number of streams here 
-     because in 'Alien' it gets garbage in the last two entries. 
-     Should really check last_byte to see how many there are room for. */ 
   PUT(5, "Number of Subpicture streams: %i\n", 
-      vts_atributes->nr_of_vtstt_subp_streams);
-  for(i = 0; i < vts_atributes->nr_of_vtstt_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);    
-    for(j = 0; j < 6; j++) /* This should be a function (and more verbose) */
-      PUT(5, "%02x ", vts_atributes->vtstt_subp_attributes[i][j]);
+      vts_attributes->nr_of_vtstt_subp_streams);
+  for(i = 0; i < vts_attributes->nr_of_vtstt_subp_streams; i++) {
+    PUT(5, "\tSub-picture stream %2i attributes: ", i+1);    
+    ifoPrint_subp_attributes(5, &vts_attributes->vtstt_subp_attributes[i]);
     PUT(5, "\n");
   }
 }
@@ -505,7 +704,7 @@ void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
   PUT(5, "Number of Video Title Sets: %3i\n", vts_atrt->nr_of_vtss);
   for(i = 0; i < vts_atrt->nr_of_vtss; i++) {
     PUT(5, "\nVideo Title Set %i\n", i+1);
-    ifoPrint_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i]);
+    ifoPrint_VTS_ATTRIBUTES(&vts_atrt->vts_attributes[i]);
   }
 }
 

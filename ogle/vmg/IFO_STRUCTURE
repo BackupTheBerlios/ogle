@@ -81,7 +81,7 @@ VIDEO_TS.IFO
     VMGM_PGCI_UT:    Video Manager Menu PGCI Unit Table
     VMGM_LUI:        Video Manager Menu Language Unit Table
     VMG_MAIT:        Parental Management Information Table
-    VMG_ATRT:        Video Title Set Attribute Table
+    VMG_VTS_ATRT:    Video Title Set Attribute Table
     VMG_TXTDT_MGI:   Text Data Manager information
     VMGM_C_ADT:      VMGM Cell Address Table information
     VMGM_VOBU_ADMAP: Video Title Set Menu VOBU Address Map

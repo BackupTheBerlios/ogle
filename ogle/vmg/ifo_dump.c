@@ -1,15 +1,25 @@
+/* 
+ * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>, 
+ *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
-#include <assert.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/shm.h>
-
-#include "../include/common.h"
 
 #include "ifo.h"
 #include "ifo_read.h"
@@ -18,16 +28,17 @@
 
 
 #define PUT(level, text...) \
-if(level < debug) { \
-  fprintf(stdout, ## text); \
-}
+do { \
+  if(level < debug) { \
+    fprintf(stdout, ## text); \
+  } \
+} while(0)
 
 void ifoPrint(char *filename);
 
 int debug = 6;
-char *program_name;
 
-
+static char *program_name;
 
 void usage()
 {
@@ -124,7 +135,7 @@ void ifoPrint(char *filename) {
     PUT(1,   "-----------------------------\n");
     if(vmgi_mat.vmg_txtdt_mgi != 0) {
       ifoRead_VMG_TXTDT_MGI(&vmg_txtdt_mgi, vmgi_mat.vmg_txtdt_mgi);
-      //ifoPrint_VMG_VTS_ATRT(&vmg_txtdt_mgi);
+      //ifoPrint_VMG_TXTDT_MGI(&vmg_txtdt_mgi);
     } else
       PUT(5, "No Text Data Manager Information present\n");
       
