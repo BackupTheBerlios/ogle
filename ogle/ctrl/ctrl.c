@@ -214,6 +214,11 @@ int init_ctrl(char *msgqid_str)
 
   //TODO clean up filename handling
   
+  if(ctrl_path == NULL) {
+    fprintf(stderr, "DVDP_UI not set\n");
+    return(-1);
+  }
+
   if((ctrl_name = strrchr(ctrl_path, '/')+1) == NULL) {
     ctrl_name = ctrl_path;
   }
@@ -262,6 +267,11 @@ int init_demux(char *msgqid_str)
   char *eargv[16];
   char *demux_name;
   char *demux_path = getenv("DVDP_DEMUX");
+
+  if(demux_path == NULL) {
+    fprintf(stderr, "DVDP_DEMUX not set\n");
+    return(-1);
+  }
 
   if((demux_name = strrchr(demux_path, '/')+1) == NULL) {
     demux_name = demux_path;
@@ -317,6 +327,11 @@ int init_mpeg_video_decoder(char *msgqid_str)
   char *decode_name;
   char *decode_path = getenv("DVDP_VIDEO");
   int n;
+
+  if(decode_path == NULL) {
+    fprintf(stderr, "DVDP_VIDEO not set\n");
+    return(-1);
+  }
 
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
     decode_name = decode_path;
@@ -377,6 +392,11 @@ int init_dolby_ac3_decoder(char *msgqid_str)
   char *decode_name;
   char *decode_path = getenv("DVDP_AC3");
 
+  if(decode_path == NULL) {
+    fprintf(stderr, "DVDP_AC3 not set\n");
+    return(-1);
+  }
+
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
     decode_name = decode_path;
   }
@@ -420,6 +440,12 @@ int init_spu_decoder(char *msgqid_str)
   char *decode_path = getenv("DVDP_SPU");
 
   
+  if(decode_path == NULL) {
+    fprintf(stderr, "DVDP_SPU not set\n");
+    return(-1);
+  }
+
+
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
     decode_name = decode_path;
   }
@@ -463,7 +489,7 @@ int init_mpeg_private_stream_2_decoder(char *msgqid_str)
 
   if(decode_path == NULL) {
     fprintf(stderr, "DVDP_VMG not set\n");
-    exit(-1);
+    return(-1);
   }
   
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
@@ -508,7 +534,10 @@ int init_mpeg_audio_decoder(char *msgqid)
   char *decode_name;
   char *decode_path = getenv("DVDP_MPEGAUDIO");
 
-
+  if(decode_path == NULL) {
+    fprintf(stderr, "DVDP_MPEGAUDIO not set\n");
+    return(-1);
+  }
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
     decode_name = decode_path;
   }
