@@ -39,6 +39,16 @@ done
 
 export OGLE_DLEVEL
 
+#fix for buggy KWin
+KDE_3_1_X=`kwin --version 2> /dev/null | grep KDE | grep "3.1."`
+if [ x"$KDE_3_1_X" != x"" ]; then
+  KWIN_0_95=`kwin --version 2> /dev/null | grep KWin | grep "0.95"`
+  if [ x"$KWIN_0_95" != x"" ]; then
+    OGLE_KWIN_BUG=1
+    export OGLE_KWIN_BUG
+  fi
+fi
+
 if [ "$debug" = "1" ]; then
  # information on the build 
  echo "Build: @BUILDINFO@"
