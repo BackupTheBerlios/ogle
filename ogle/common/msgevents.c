@@ -31,10 +31,9 @@ static char *MsgEventType_str[] = {
   "MsgEventQAttachQ",
   "MsgEventQSPUPalette",
   "MsgEventQSPUHighlight",
-  "MsgEventQUserInput",
   "MsgEventQSpeed",
-  "MsgEventQDVDMenuCall",
-  "MsgEventQDVDAudioStreamChange",
+  "MsgEventQDVDCtrl",
+  "MsgEventQFlow",
   NULL
 };
 
@@ -198,20 +197,17 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQSPUHighlight:
     size = sizeof(MsgQSPUHighlightEvent_t);
     break;
-  case MsgEventQUserInput:
-    size = sizeof(MsgQUserInputEvent_t);
-    break;
   case MsgEventQSpeed:
     size = sizeof(MsgQSpeedEvent_t);
     break;
-  case MsgEventQDVDMenuCall:
-    size = sizeof(MsgQDVDMenuCallEvent_t);
+  case MsgEventQDVDCtrl:
+    size = sizeof(MsgQDVDCtrlEvent_t);
     break;
-  case MsgEventQDVDAudioStreamChange:
-    size = sizeof(MsgQDVDAudioStreamChangeEvent_t);
+  case MsgEventQFlow:
+    size = sizeof(MsgQFlowEvent_t);
     break;
   default:
-    fprintf(stderr, "MsgSendEvent: Unknown event\n");
+    fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);
     return -1;
   }
 
