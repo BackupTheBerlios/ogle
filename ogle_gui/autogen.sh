@@ -7,7 +7,7 @@ gettextize --copy --force < /dev/null
 cat >> po/Makefile.in.in << "EOF"
 
 # Added by autogen.sh
-../po/glade-files.c: ../ogle_gui.glade
+../po/glade-files.c: ../pixmaps/ogle_gui.glade
 	libglade-xgettext -o $@ $<
 POFILES: glade-files.c
 EOF
