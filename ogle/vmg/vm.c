@@ -761,8 +761,13 @@ static void time_add(dvd_time_t *acc, dvd_time_t *diff)
   unsigned int acc_s, diff_s;
   int frame_rate, frames;
   
-  assert((acc->frame_u & 0xc0) == (diff->frame_u & 0xc0));
-  // conver from bcd to seconds
+  if((acc->frame_u & 0xc0) != (diff->frame_u & 0xc0)) {
+    // argh.. frame rates differ.. what?!?
+    // at most it will cause 5/25 fault for each addition
+    DNOTE("frame rates differ in time_add %i %i\n", 
+	  acc->frame_u>>6, diff->frame_u>>6)
+  }
+  // convert from bcd to seconds
   acc_s = bcd2int(acc->hour) * 60 * 60;
   acc_s += bcd2int(acc->minute) * 60;
   acc_s += bcd2int(acc->second);
