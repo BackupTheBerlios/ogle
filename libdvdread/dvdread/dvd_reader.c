@@ -1057,7 +1057,7 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
 
   /* Check arguments. */
   if( dvd == NULL )
-    return 0;
+    return -1;
   
   if( dvd->dev == NULL ) {
     /* No block access, so no ISO... */
