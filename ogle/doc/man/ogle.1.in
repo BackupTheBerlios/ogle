@@ -59,6 +59,12 @@ If mlib is used for scaling of video, OGLE_MLIB_SCALEMODE will decide which type
 .br
 NEAREST, BILINEAR, BICUBIC and BICUBIC2.
 .TP
+OGLE_USE_XV
+If set to 0, it disables the use of the XVideo extension.
+.TP
+OGLE_USE_XSHM
+If set to 0, it disables the use of the XShm extension.
+.TP
 OGLE_OSS_RESET_BUG
 If set, enables a workaround for buggy OSS audio drivers.
 It closes/reopens the audio device instead of resetting it when changing
