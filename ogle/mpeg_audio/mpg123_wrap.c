@@ -35,6 +35,10 @@ ctrl_time_t *ctrl_time;
 
 int stream_shmid;
 char *stream_shmaddr;
+
+int data_buf_shmid;
+char *data_buf_shmaddr;
+
 int msgqid = -1;
 
 void usage()
@@ -173,12 +177,13 @@ int eval_msg(cmd_t *cmd)
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
+  q_head_t *q_head;
 
   fprintf(stderr, "mpeg audio: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_decoder_buffer(), shmat()");
+      perror("mpeg_audio: attach_decoder_buffer(), shmat()");
       return -1;
     }
     
@@ -186,6 +191,23 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     stream_shmaddr = shmaddr;
     
   }    
+
+  q_head = (q_head_t *)stream_shmaddr;
+  shmid = q_head->data_buf_shmid;
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("mpeg_audio: attach_data_buffer(), shmat()");
+      return -1;
+    }
+    
+    data_buf_shmid = shmid;
+    data_buf_shmaddr = shmaddr;
+    
+  }    
+  
+
+
   return 0;
   
 }
@@ -195,6 +217,9 @@ int get_q()
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  data_elem_t *data_elems;
+  data_elem_t *data_elem;
   int elem;
   
   uint8_t PTS_DTS_flags;
@@ -214,13 +239,19 @@ int get_q()
     perror("mpeg audio: get_q(), sem_wait()");
     return -1;
   }
+
+  data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
   
-  PTS_DTS_flags = q_elems[elem].PTS_DTS_flags;
-  PTS = q_elems[elem].PTS;
-  DTS = q_elems[elem].DTS;
-  scr_nr = q_elems[elem].scr_nr;
-  off = q_elems[elem].off;
-  len = q_elems[elem].len;
+  data_elem = &data_elems[q_elems[elem].data_elem_index];
+
+  
+  PTS_DTS_flags = data_elem->PTS_DTS_flags;
+  PTS = data_elem->PTS;
+  DTS = data_elem->DTS;
+  scr_nr = data_elem->scr_nr;
+  off = data_elem->off;
+  len = data_elem->len;
 
 
   if(prev_scr_nr != scr_nr) {
@@ -253,6 +284,8 @@ int get_q()
 
   fwrite(mmap_base+off, len, 1, outfile);
   
+  data_elem->in_use = 0;
+
   // release elem
   if(sem_post(&q_head->bufs_empty) == -1) {
     perror("mpeg audio: get_q(), sem_post()");

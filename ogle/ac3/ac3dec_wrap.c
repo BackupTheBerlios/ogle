@@ -35,6 +35,10 @@ ctrl_time_t *ctrl_time;
 
 int stream_shmid;
 char *stream_shmaddr;
+
+int data_buf_shmid;
+char *data_buf_shmaddr;
+
 int msgqid = -1;
 
 void usage()
@@ -175,12 +179,13 @@ int eval_msg(cmd_t *cmd)
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
+  q_head_t *q_head;
 
   fprintf(stderr, "ac3: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_decoder_buffer(), shmat()");
+      perror("ac3: attach_decoder_buffer(), shmat()");
       return -1;
     }
     
@@ -188,6 +193,22 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     stream_shmaddr = shmaddr;
     
   }    
+
+  q_head = (q_head_t *)stream_shmaddr;
+  shmid = q_head->data_buf_shmid;
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("ac3: attach_data_buffer(), shmat()");
+      return -1;
+    }
+    
+    data_buf_shmid = shmid;
+    data_buf_shmaddr = shmaddr;
+    
+  }    
+  
+
   return 0;
   
 }
@@ -196,6 +217,9 @@ int get_q()
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  data_elem_t *data_elems;
+  data_elem_t *data_elem;
   int elem;
   
   uint8_t PTS_DTS_flags;
@@ -217,12 +241,17 @@ int get_q()
     return -1;
   }
 
-  PTS_DTS_flags = q_elems[elem].PTS_DTS_flags;
-  PTS = q_elems[elem].PTS;
-  DTS = q_elems[elem].DTS;
-  scr_nr = q_elems[elem].scr_nr;
-  off = q_elems[elem].off;
-  len = q_elems[elem].len;
+  data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
+  
+  data_elem = &data_elems[q_elems[elem].data_elem_index];
+  
+  PTS_DTS_flags = data_elem->PTS_DTS_flags;
+  PTS = data_elem->PTS;
+  DTS = data_elem->DTS;
+  scr_nr = data_elem->scr_nr;
+  off = data_elem->off;
+  len = data_elem->len;
 
   
     
@@ -251,19 +280,21 @@ int get_q()
   /*
    * primitive resync in case output buffer is emptied 
    */
+  
   if(time_offset.tv_nsec < 0) {
     time_offset.tv_sec = 0;
     time_offset.tv_nsec = 0;
  
     set_time_base(PTS, scr_nr, time_offset);
   }
-  
-  
+    
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
   fwrite(mmap_base+off, len, 1, outfile);
   
   // release elem
+  data_elem->in_use = 0;
+
   if(sem_post(&q_head->bufs_empty) == -1) {
     perror("ac3: get_q(), sem_post()");
     return -1;

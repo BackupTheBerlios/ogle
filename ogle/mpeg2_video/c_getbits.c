@@ -32,7 +32,7 @@
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
 
-extern ctrl_data_shmid;
+extern int ctrl_data_shmid;
 extern ctrl_data_t *ctrl_data;
 extern ctrl_time_t *ctrl_time;
 
@@ -44,6 +44,9 @@ extern int scr_nr;
 extern int msgqid;
 int stream_shmid = -1;
 char *stream_shmaddr;
+
+int data_buf_shmid = -1;
+char *data_buf_shmaddr;
 
 int wait_for_msg(cmdtype_t cmdtype);
 int chk_for_msg();
@@ -464,12 +467,13 @@ int eval_msg(cmd_t *cmd)
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
-
+  q_head_t *q_head;
+  
   fprintf(stderr, "video_dec: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_decoder_buffer(), shmat()");
+      perror("video_stream: attach_decoder_buffer(), shmat()");
       return -1;
     }
     
@@ -477,6 +481,22 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     stream_shmaddr = shmaddr;
     
   }    
+
+  q_head = (q_head_t *)stream_shmaddr;
+  shmid = q_head->data_buf_shmid;
+  fprintf(stderr, "video_dec: data_buf shmid: %d\n", shmid);
+
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("video_stream: attach_buffer(), shmat()");
+      return -1;
+    }
+    
+    data_buf_shmid = shmid;
+    data_buf_shmaddr = shmaddr;
+    
+  }    
+  
   return 0;
   
 }
@@ -486,8 +506,12 @@ int get_q()
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  data_elem_t *data_elems;
+  static data_elem_t *data_elem;
   int elem;
-  
+  static int delayed_posts = 0;
+  int n;
   //  uint8_t PTS_DTS_flags;
   //  uint64_t PTS;
   //  uint64_t DTS;
@@ -501,14 +525,28 @@ int get_q()
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
-
-
+  
+  
   // release prev elem
 
   if(have_buf) {
-    if(sem_post(&q_head->bufs_empty) == -1) {
-      perror("video_decode: get_q(), sem_post()");
-      return -1;
+    int sval;
+   
+    data_elem->in_use = 0;
+    
+    
+    sem_getvalue(&q_head->bufs_full, &sval);
+    
+    if(sval < 50) {
+      for(n = 0; n < delayed_posts+1; n++) {
+	if(sem_post(&q_head->bufs_empty) == -1) {
+	  perror("video_decode: get_q(), sem_post()");
+	  return -1;
+	}
+      }
+      delayed_posts = 0;
+    } else {
+      delayed_posts++;
     }
   }
   
@@ -528,7 +566,26 @@ int get_q()
 
   have_buf = 1;
 
+  data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
+
+  data_elem = &data_elems[q_elems[elem].data_elem_index];
   
+  PTS_DTS_flags = data_elem->PTS_DTS_flags;
+  if(PTS_DTS_flags & 0x2) {
+    PTS = data_elem->PTS;
+    scr_nr = data_elem->scr_nr;
+  }
+  if(PTS_DTS_flags & 0x1) {
+    DTS = data_elem->DTS;
+  }
+  
+
+  
+  off = data_elem->off;
+  len = data_elem->len;
+  
+  /*
   PTS_DTS_flags = q_elems[elem].PTS_DTS_flags;
   if(PTS_DTS_flags & 0x2) {
     PTS = q_elems[elem].PTS;
@@ -542,10 +599,11 @@ int get_q()
   
   off = q_elems[elem].off;
   len = q_elems[elem].len;
-  
+  */
+
   packet.offset = off;
   packet.length = len;
-
+  
   //fprintf(stderr, "video_dec: got q off: %d, len: %d\n",
   //  packet.offset, packet.length);
   /*
