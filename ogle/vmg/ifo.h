@@ -97,7 +97,7 @@ typedef struct {
   uint8_t zero1;
   char lang_code[2];
   uint8_t zero2; // lang ext?
-  uint8_t zero3;
+  uint8_t lang_extension;
 } __attribute__ ((packed)) subp_attr_t;
 
 

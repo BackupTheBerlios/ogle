@@ -281,14 +281,21 @@ void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   
   switch(attr->audio_type) {
   case 0:
-    // not specified
+    PUT(level, "Not specified ");
     break;
   case 1: // Normal audio
-    PUT(level, "Normal audio ");
+    PUT(level, "Normal Caption ");
     break;
-    //case 3: // Directors Comments
-    //case 4: // Music score 1
-    //case 4: // Music score 2    
+  case 2: // visually imparied
+    PUT(level, "Audio for visually impaired ");
+    break;
+  case 3: // Directors 1
+    PUT(level, "Director's comments 1 ");
+    break;
+  case 4: // directors 2
+    PUT(level, "Director's comments 2 ");
+    break;
+    //case 4: // Music score ?    
   default:
     PUT(0, "(please send a bug report) ");
   }
@@ -304,7 +311,7 @@ void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
      && attr->lang_code[1] == 0
      && attr->zero1 == 0
      && attr->zero2 == 0
-     && attr->zero3== 0) {
+     && attr->lang_extension== 0) {
     PUT(level,"-- Unspecified --");
     return;
   }
@@ -318,7 +325,60 @@ void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
   
   PUT(level, "%d ", attr->zero1);
   PUT(level, "%d ", attr->zero2);
-  PUT(level, "%d ", attr->zero3);
+
+  switch(attr->lang_extension) {
+  case 0:
+    PUT(level, "Not specified ");
+    break;
+  case 1:
+    PUT(level, "Caption with normal size character ");
+    break;
+  case 2:
+    PUT(level, "Caption with bigger size character ");
+    break;
+  case 3: 
+    PUT(level, "Caption for children ");
+    break;
+  case 4:
+    PUT(level, "reserved ");
+    break;
+  case 5:
+    PUT(level, "Closed Caption with normal size character ");
+    break;
+  case 6:
+    PUT(level, "Closed Caption with bigger size character ");
+    break;
+  case 7:
+    PUT(level, "Closed Caption for children ");
+    break;
+  case 8:
+    PUT(level, "reserved ");
+    break;
+  case 9:
+    PUT(level, "Forced Caption");
+    break;
+  case 10:
+    PUT(level, "reserved ");
+    break;
+  case 11:
+    PUT(level, "reserved ");
+    break;
+  case 12:
+    PUT(level, "reserved ");
+    break;
+  case 13:
+    PUT(level, "Director's comments with normal size character ");
+    break;
+  case 14:
+    PUT(level, "Director's comments with bigger size character ");
+    break;
+  case 15:
+    PUT(level, "Director's comments for children ");
+    break;
+  default:
+    PUT(0, "(please send a bug report) ");
+  }
+
 }
 
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
