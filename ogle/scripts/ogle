@@ -54,4 +54,4 @@ DVDP_SPU=$DVDP_ROOT/video_output
 export DVDP_SPU
 DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
 export DVDP_VIDEO_OUT
-$DVDP_CTRL -u dvd $*
+$DVDP_CTRL -u gui $*
