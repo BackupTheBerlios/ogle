@@ -49,14 +49,13 @@ void xsniff_init() {
     DVDPerror("xsniffer: xsniff_init() DVDOpen", res);
     exit(1);
   }
-  fprintf(stderr, "sniff_init\n");
+
   sleep(1);
   DVDRequestInput(nav2,
 		  INPUT_MASK_KeyPress | INPUT_MASK_ButtonPress |
 		  INPUT_MASK_PointerMotion);
   pthread_create(&at, NULL, xsniff_mouse, NULL);
   
-  fprintf(stderr, "sniff_init  out\n");
 }
 
 void* xsniff_mouse(void* args) {
@@ -64,7 +63,6 @@ void* xsniff_mouse(void* args) {
 
   init_actions(nav2);
   
-  fprintf(stderr, "xsniff_mouse\n");
   while(1) {
     DVDNextEvent(nav2, &mev);
     

@@ -23,7 +23,6 @@ void init_interpret_config(char *pgm_name,
 		      void(*dvd_path_cb)(char *))
 {
   program_name = pgm_name;
-  DNOTE("init_interpret_config\n");
   add_keybinding = keybinding_cb;
   set_dvd_path = dvd_path_cb;
 }
@@ -58,7 +57,6 @@ static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
 	if(key == NULL) {
 	  WARNING("interpret_b(): <key> empty\n");
 	} else {
-	  DNOTE("add_keybinding\n");
 	  if(add_keybinding != NULL) {
 	    add_keybinding(key, action);
 	  }
@@ -115,7 +113,6 @@ static void interpret_device(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("path", cur->name)) {
 	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	  DNOTE("set_dvd_path\n");
 	  if(set_dvd_path != NULL) {
 	    set_dvd_path(s);
 	  }
@@ -147,7 +144,6 @@ static void interpret_ogle_conf(xmlDocPtr doc, xmlNodePtr cur)
 {
   cur = cur->xmlChildrenNode;
   
-  DNOTE("interpret_ogle_conf\n");
 
   while(cur != NULL) {
     
@@ -168,24 +164,19 @@ int interpret_oglerc(char *filename)
   xmlDocPtr doc;
   xmlNodePtr cur;
   
-  DNOTE("interpret_oglerc: %s\n", filename);
   
   doc = xmlParseFile(filename);
 
-  DNOTE("file parsed\n");
 
   if(doc != NULL) {
 
     cur = xmlDocGetRootElement(doc); 
 
-    DNOTE("got root\n");
 
     while(cur != NULL) {
-      DNOTE("cur != NULL\n");
       
       if(!xmlIsBlankNode(cur)) {
 	if(!strcmp("ogle_conf", cur->name)) {
-	  DNOTE("call interpret_ogle_conf\n");
 	  interpret_ogle_conf(doc, cur);
 	}
       }
@@ -211,7 +202,6 @@ int interpret_config(void)
   int r = 0;
   char *home;
   
-  DNOTE("interpret_config: config file name: %s\n", CONFIG_FILE);
 
   if((r+= interpret_oglerc(CONFIG_FILE)) == -1) {
     ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n");

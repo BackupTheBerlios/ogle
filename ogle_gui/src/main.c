@@ -71,15 +71,11 @@ main (int argc, char *argv[])
   }
   msgqid = atoi(argv[2]);
 
-  DNOTE("call init_interpret_config\n");
   init_interpret_config(program_name,
 			add_keybinding,
 			set_dvd_path);
-  DNOTE("return init_interpret_config\n");
 
-  DNOTE("call interpret_config\n");
   interpret_config();
-  DNOTE("return interpret_config\n");
   
   gtk_init(&argc, &argv);
 
