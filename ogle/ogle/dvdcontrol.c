@@ -91,7 +91,8 @@ static MsgEventClient_t get_nav_client(MsgEventQ_t *msq)
  * @todo something
  */
 DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
-  
+  MsgEvent_t ev;
+
   *nav = (DVDNav_t *)malloc(sizeof(DVDNav_t));
   if(*nav == NULL) {
     return DVD_E_NOMEM;
@@ -101,7 +102,14 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
     free(*nav);
     return DVD_E_Unspecified;
   }
-
+  
+  ev.type = MsgEventQRegister;
+  ev.registercaps.capabilities = UI_DVD_GUI;
+  if(MsgSendEvent((*nav)->msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+    free(*nav);
+    return DVD_E_Unspecified;    
+  }
+  
   (*nav)->client = get_nav_client((*nav)->msgq);
   
   switch((*nav)->client) {
@@ -616,6 +624,34 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 
 /** @} end of dvdinfo */
 
+/** 
+ * @todo Remove this function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param windowid Is the X11 Window that the video is displayed in.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
+			    const void *windowid)
+{
+  MsgEvent_t ev;
+  
+  /* Hack, wait for window id */
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if(ev.type == MsgEventQXWindowID){
+      *(unsigned long *)windowid = ev.xwindowid.window;
+      return DVD_E_Ok;
+    }
+  }
+} 
 
 
 /** @defgroup dvdctrl DVD control functions

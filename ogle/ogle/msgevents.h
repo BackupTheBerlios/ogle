@@ -87,7 +87,8 @@ typedef enum {
   MsgEventQDemuxDefault,
   MsgEventQDVDCtrlLong,
   MsgEventQDemuxDVD,
-  MsgEventQDemuxDVDRoot
+  MsgEventQDemuxDVDRoot,
+  MsgEventQXWindowID
 } MsgEventType_t;
 
 
@@ -279,6 +280,13 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  unsigned long window;
+} MsgQXWindowIDEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
   char filename[PATH_MAX+1];
 } MsgQChangefileEvent_t;
 
@@ -370,6 +378,7 @@ typedef union {
   MsgQDVDCtrlLongEvent_t dvdctrllong;
   MsgQDemuxDVDEvent_t demuxdvd;
   MsgQDemuxDVDRootEvent_t demuxdvdroot;
+  MsgQXWindowIDEvent_t xwindowid;
 } MsgEvent_t;
 
 typedef struct {

@@ -58,6 +58,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDVDCtrlLong",
   "MsgEventQDemuxDVD", // 29
   "MsgEventQDemuxDVDRoot",
+  "MsgEventQXWindowID",
   NULL
 };
 
@@ -279,6 +280,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDemuxDVDRoot:
     size = sizeof(MsgQAnyEvent_t)+strlen(event_send->demuxdvdroot.path)+1;
+    break;
+  case MsgEventQXWindowID:
+    size = sizeof(MsgQXWindowIDEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

@@ -70,6 +70,9 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 
 /* end info commands */
 
+/* hack */
+DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
+			    const void *windowid);
 
 /* control commands */
 
