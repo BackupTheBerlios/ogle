@@ -19,6 +19,14 @@ static int fs = 0;
 static int isPaused = 0;
 static double speed = 1.0;
 
+struct action_number{
+  int valid;
+  int32_t nr;
+};
+
+static struct action_number user_nr = { 0, 0 };
+
+
 void actionUpperButtonSelect(void *data)
 {
   DVDUpperButtonSelect(nav);	  
@@ -266,6 +274,7 @@ void actionBookmarkAdd(void *data)
 
 void actionBookmarkRemove(void *data)
 {
+  struct action_number *user = (struct action_number *)data;
   DVDBookmark_t *bm;
   unsigned char id[16];
   int n;
@@ -285,6 +294,13 @@ void actionBookmarkRemove(void *data)
   if(n == -1) {
     NOTE("%s", "DVDBookmarkGetNr failed\n");
   } else if(n > 0) {
+    if(user != NULL) {
+      if(user->valid && (user->nr < n) && (user->nr > 0)) {
+	n = user->nr;
+      }
+      user->valid = 0;
+    }
+
     if(DVDBookmarkRemove(bm, n-1) != -1) {
       NOTE("Bookmark %d removed\n", n-1);
       
@@ -301,10 +317,12 @@ void actionBookmarkRemove(void *data)
 
 void actionBookmarkRestore(void *data)
 {
+  struct action_number *user = (struct action_number *)data;
   DVDBookmark_t *bm;
   unsigned char id[16];
   char *state = NULL;
   int n;
+
 
   if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
     NOTE("%s", "GetDiscID failed\n");
@@ -321,6 +339,13 @@ void actionBookmarkRestore(void *data)
   if(n == -1) {
     NOTE("%s", "DVDBookmarkGetNr failed\n");
   } else if(n > 0) {
+    if(user != NULL) {
+      if(user->valid && (user->nr < n) && (user->nr > 0)) {
+	n = user->nr;
+      }
+      user->valid = 0;
+    }
+
     DVDBookmarkGet(bm, n-1, &state, NULL, NULL, NULL);
     
     if(DVDSetState(nav, state) != DVD_E_Ok) {
@@ -331,12 +356,6 @@ void actionBookmarkRestore(void *data)
   DVDBookmarkClose(bm);
 }
 
-struct action_number{
-  int valid;
-  int32_t nr;
-};
-
-static struct action_number user_nr = { 0, 0 };
 
 void actionDigit(void *data)
 {
@@ -444,8 +463,8 @@ static action_mapping_t actions[] = {
   { "SubtitleToggle", actionSubpictureToggle, NULL },
   { "Quit", actionQuit, NULL },
   { "BookmarkAdd", actionBookmarkAdd, NULL },
-  { "BookmarkRemove", actionBookmarkRemove, NULL },
-  { "BookmarkRestore", actionBookmarkRestore, NULL },
+  { "BookmarkRemove", actionBookmarkRemove, &user_nr },
+  { "BookmarkRestore", actionBookmarkRestore, &user_nr },
   { "DigitZero", actionDigit, (void *)&digits[0] },
   { "DigitOne",  actionDigit, (void *)&digits[1] },
   { "DigitTwo",  actionDigit, (void *)&digits[2] },
