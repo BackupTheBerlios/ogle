@@ -313,6 +313,7 @@ int main(int argc, char *argv[])
     goto play_Cell;
   
   case Exit:
+    exit(-1); // What should we do here??
   case JumpTT:
     assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
     state.domain = VTS_DOMAIN;
