@@ -27,5 +27,5 @@ ogle_gui_SOURCES = \
 	my_glade.c my_glade.h \
 	debug_print.h
 
-ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(LIBGLADE_LIBS) $(INTLLIBS) \
+ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(INTLLIBS) \
 	@PTHREAD_LIB@ @XML_LIBS@
