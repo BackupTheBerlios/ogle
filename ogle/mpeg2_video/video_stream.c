@@ -79,6 +79,7 @@ int last_scr_nr;
 int prev_scr_nr;
 int last_pts_valid;
 uint64_t last_pts_to_dpy;
+int last_scr_nr_to_dpy;
 
 
 int dctstat[128];
@@ -1175,7 +1176,22 @@ void picture_header(void)
   } else {
     last_pts_valid = 0;
   }
+  
+  if(PTS_DTS_flags & 0x02) {
+    if(last_scr_nr != prev_scr_nr) {   
+      fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
+	      last_scr_nr, prev_scr_nr);
+      fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
+	      ctrl_time[last_scr_nr].realtime_offset.tv_sec,
+	      ctrl_time[last_scr_nr].realtime_offset.tv_nsec,
+	      ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
+	      ctrl_time[prev_scr_nr].realtime_offset.tv_nsec);
+      fprintf(stderr, "+++ last_pts: %lld\n", last_pts);
+    }
+  }
 
+  
+  
   //  print_time_offset(PTS);
   
   if(picture_start_code != MPEG2_VS_PICTURE_START_CODE) {
@@ -1344,30 +1360,43 @@ void picture_data(void)
   yuv_image_t *reserved_image;
   static int prev_ref_buf_id = -1;
   static int old_ref_buf_id  = -1;
+  uint64_t calc_pts;
   
   DPRINTF(3, "picture_data\n");
 
 
-
+  /* If this is a I/P picture then we must release the reference 
+     frame that is going to be replace. (It might not have been 
+     displayed yet so it is not nessesary free for reuse.) */
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
-    //I,P picture
     if(old_ref_buf_id != -1) {
       buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
     }
     break;
-  default:
+  case 0x3:
     break;
   }
-
+  
+  
   buf_id = get_picture_buf();
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
-  //  fprintf(stderr, "decode: decode start buf %d\n", buf_id);
-  //fprintf(stderr, "reserved_image->y: %u\n", reserved_image->y);
+  //fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  
+  /* This is just a marker to later know if there is a real time 
+     stamp for this picure. */
   buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = -1;
-
-  //TODO fix sync
+  
+  /* 
+     If the packet containing the picture header start code hade 
+     a time stamp, that time stamp used.
+     
+     Otherwise a time stamp is calculated from the last picture 
+     produce for viewing. 
+     Iff we predict the time stamp then we must also use the scr 
+     from that picure.
+  */
   if(last_pts_valid) {
     buf_ctrl_head->picture_infos[buf_id].PTS = last_pts;
     buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = last_pts/90000;
@@ -1375,182 +1404,122 @@ void picture_data(void)
       (last_pts%90000)*(1000000000/90000);
     buf_ctrl_head->picture_infos[buf_id].realtime_offset =
       ctrl_time[last_scr_nr].realtime_offset;
-    
-    
-  }
-  
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-    if(last_pts_valid) {
-      /*
-      fprintf(stderr, "\n\nI-picture: valid pts %lld.%09lld\n\n",
-	      last_pts/90000,
-	      (last_pts%90000)*(1000000000/90000));
-      */
-    } else {
-      // fprintf(stderr, "\n\nI-picture: no valid pts\n\n");
+    buf_ctrl_head->picture_infos[buf_id].scr_nr = last_scr_nr;
+  } else {
+    switch(pic.header.picture_coding_type) {
+    case 0x1:
+    case 0x2:
+      /* TODO: Is this correct? */
       buf_ctrl_head->picture_infos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr].realtime_offset;
-    }
-    break;
-  case 0x2:
-    if(last_pts_valid) {
-      /*
-      fprintf(stderr, "\n\nP-picture: valid pts %lld.%09lld\n\n",
-	      last_pts/90000,
-	      (last_pts%90000)*(1000000000/90000));
-      */
-    } else {
-      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
-	ctrl_time[last_scr_nr].realtime_offset;
-      /*
-      fprintf(stderr, "\n\nP-picture: no valid pts\n\n");
-      */
-    }
-    break;
-  case 0x3:
-    if(last_pts_valid) {
-      /*
-      fprintf(stderr, "\n\nB-picture: valid pts %lld.%09lld\n\n",
-	      last_pts/90000,
-	      (last_pts%90000)*(1000000000/90000));
-      */
-    } else {
-      uint64_t calc_pts;
-      calc_pts = last_pts_to_dpy+90000/(1000000000/buf_ctrl_head->frame_interval);
-      /*
-      fprintf(stderr, "\n\nB-picture: no valid pts\n");
-      fprintf(stderr, "B-picture: calculatedpts %lld.%09lld\n\n",
-	      calc_pts/90000,
-	      (calc_pts%90000)*(1000000000/90000));
-      */
+      break;
+    case 0x3:
+      /* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from. */
+      calc_pts = last_pts_to_dpy + 90000/(1000000000/buf_ctrl_head->frame_interval);
       buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
       buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
       buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
 	(calc_pts%90000)*(1000000000/90000);
 
-      if(last_scr_nr != prev_scr_nr) {
-
-	fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
-		last_scr_nr, prev_scr_nr);
-	fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
-		ctrl_time[last_scr_nr].realtime_offset.tv_sec,
-		ctrl_time[last_scr_nr].realtime_offset.tv_nsec,
-		ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
-		ctrl_time[prev_scr_nr].realtime_offset.tv_nsec);
-
-	if(last_pts < buf_ctrl_head->picture_infos[buf_id].PTS) {
-	  fprintf(stderr, "+++ last_pts: %lld, buf_pts: %lld\n",
-		  last_pts,
-		  buf_ctrl_head->picture_infos[buf_id].PTS);
-	  
-	  buf_ctrl_head->picture_infos[buf_id].realtime_offset =
-	    ctrl_time[prev_scr_nr].realtime_offset;
-	} else {
-	  if(last_pts < buf_ctrl_head->picture_infos[buf_id].PTS) {
-	    fprintf(stderr, "+*+*+ last_pts: %lld, buf_pts: %lld\n",
-		    last_pts,
-		    buf_ctrl_head->picture_infos[buf_id].PTS);
-	  }
-
-	  buf_ctrl_head->picture_infos[buf_id].realtime_offset =
-	    ctrl_time[last_scr_nr].realtime_offset;
-	}
-      } else {
-	buf_ctrl_head->picture_infos[buf_id].realtime_offset =
-	  ctrl_time[last_scr_nr].realtime_offset;
-      }
+      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+	ctrl_time[last_scr_nr_to_dpy].realtime_offset;
+      buf_ctrl_head->picture_infos[buf_id].scr_nr = last_scr_nr_to_dpy;
+      /*
+      fprintf(stderr, "\n\nB-picture: no valid pts\n");
+      fprintf(stderr, "B-picture: calculatedpts %lld.%09lld\n\n",
+	      calc_pts/90000, (calc_pts%90000)*(1000000000/90000));
+      */
+      break;
     }
-    break;
   }
+  
+  /* 
+     If it's a I or P picture that we are about to decode then we can 
+     prepare the old picuture (prev_ref_buf_id) for output (viewing).
+     
+     If it didn't get a pts from the stream, predict one like we do
+     for B pictures above.
+     
+     If it's a B picutre that we are about to decode then we must now
+     decide if we shall decode it or skipp it.
+  */ 
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
-    //I,P picture
     buf_ctrl_head->picture_infos[buf_id].in_use = 1;
-    //    fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
-    ref_image1 = ref_image2;
-
-    ref_image2 = reserved_image;
+    
+    ref_image1 = ref_image2; // Age the reference frame.
+    ref_image2 = reserved_image; // and add the new (to be decoded) frame.
+    
     dst_image = reserved_image;
     
+    /* Only if we have a prev_ref_buf. */
     if(prev_ref_buf_id != -1) {
       
-      if(buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec != -1) {
-	/*
-	fprintf(stderr, "\n\nI/P-picture: valid pts %lld.%09lld\n\n",
-		buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS/90000,
-		(buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS%90000)*(1000000000/90000));
-	*/
-      } else {
-	uint64_t calc_pts;
-	calc_pts = last_pts_to_dpy+90000/(1000000000/buf_ctrl_head->frame_interval);
-	/*	
-	fprintf(stderr, "\n\nI/P-picture: no valid pts\n");
-	fprintf(stderr, "I/P-picture: calculatedpts %lld.%09lld\n\n",
-		calc_pts/90000,
-		(calc_pts%90000)*(1000000000/90000));
-	*/
+      /* Predict if we don't already have a pts for the frame. */
+      if(buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec == -1) {
+	calc_pts = last_pts_to_dpy + 90000/(1000000000/buf_ctrl_head->frame_interval);
 	buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS = calc_pts;
 	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec = calc_pts/90000;
 	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_nsec =
 	  (calc_pts%90000)*(1000000000/90000);
-	//	buf_ctrl_head->picture_infos[prev_ref_buf_id].realtime_offset =
-	//  ctrl_time[last_scr_nr].realtime_offset;
-	
+	buf_ctrl_head->picture_infos[prev_ref_buf_id].realtime_offset =
+	  ctrl_time[last_scr_nr_to_dpy].realtime_offset;
+	buf_ctrl_head->picture_infos[prev_ref_buf_id].scr_nr = last_scr_nr_to_dpy;
+	/*	
+	fprintf(stderr, "\n\nI/P-picture: no valid pts\n");
+	fprintf(stderr, "I/P-picture: calculatedpts %lld.%09lld\n\n",
+		calc_pts/90000, (calc_pts%90000)*(1000000000/90000));
+	*/
       }
       
-      
-      
+      /* Put it in the display queue. */
       last_pts_to_dpy = buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS;
+      last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[prev_ref_buf_id].scr_nr;
       dpy_q_put(prev_ref_buf_id);
       old_ref_buf_id = prev_ref_buf_id;
     }
-    prev_ref_buf_id = buf_id;
     
-
+    prev_ref_buf_id = buf_id;
     break;
   case 0x3:
-    // B-picture
-    //    fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
     dst_image = reserved_image;
 
-    // check if in time
+    /* Calculate the time remaining until this picutre shall be viewed. */
     {
       struct timespec realtime, calc_rt, err_time;
       
       clock_gettime(CLOCK_REALTIME, &realtime);
-      
       
       timeadd(&calc_rt,
 	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
 	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
       timesub(&err_time, &calc_rt, &realtime);
 
+      /* If the picture should already have been displayed then drop it. */
+      /* TODO: More investigation needed. */
       if(err_time.tv_nsec < 0) {
-	//drop frame
-	fprintf(stderr, "***Drop B-frame in decoder\n\n");
+	fprintf(stderr, "\n***Drop B-frame in decoder\n");
 	fprintf(stderr, "errpts %ld.%+010ld\n\n",
 		err_time.tv_sec,
 		err_time.tv_nsec);
 	buf_ctrl_head->picture_infos[buf_id].in_use = 0;
 	buf_ctrl_head->picture_infos[buf_id].displayed = 1;
 	last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
+	last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[buf_id].scr_nr;//?
 	do {
 	  GETBITS(8, "drop");
 	  next_start_code();
 	} while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 		(nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
+	/* Start processing the next picture. */
 	return;
       }
-
     }
     break;
   }
   
-  DPRINTF(2," switching buffers\n");
-  
-  
+  /* Decode the slices. */
   if( MPEG2 )
     do {
       mpeg2_slice();
@@ -1563,7 +1532,7 @@ void picture_data(void)
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   }
   
-  //  fprintf(stderr, "decode: decoding finished buf %d\n", buf_id);
+
   // Picture decoded
   switch(pic.header.picture_coding_type) {
   case 0x1:
@@ -1572,9 +1541,13 @@ void picture_data(void)
   case 0x3:
     // B-picture
     if(prev_ref_buf_id == -1) {
-      fprintf(stderr, "decode: B-frame before reference frame\n");
+      fprintf(stderr, "decode: B-frame before any frame!!! (Error).\n");
+    }
+    if(old_ref_buf_id == -1) { // Test closed_gop too....
+      fprintf(stderr, "decode: B-frame before forward ref frame\n");
     }
     last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
+    last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[buf_id].scr_nr;//?
     dpy_q_put(buf_id);
     break;
   default:
@@ -1582,7 +1555,8 @@ void picture_data(void)
     break;
   }
 
-
+  
+/* Temporarily broken :) */
 #if 0  
 
   {
@@ -1654,7 +1628,7 @@ void picture_data(void)
 	otva.tv_usec = tva.tv_usec;
 	gettimeofday(&tva, NULL);
 	
-	fprintf(stderr, "decode: frame rate: %f fps\t",
+	fprintf(stderr, "decode: frame rate: %f fps\n",
 		25.0/(((double)tva.tv_sec+
 		       (double)(tva.tv_usec)/1000000.0)-
 		      ((double)otva.tv_sec+
@@ -2523,6 +2497,7 @@ void exit_program(int exitcode)
   emms();
 #endif
   
+#if 0
   { /* Print some frame rate info. */
     int n;
     for(n=0; n<4; n++) {
@@ -2532,7 +2507,8 @@ void exit_program(int exitcode)
       fprintf(stderr,"fps: %.4f\n", num_pic[n]/time_pic[n]);
     }
   }
-
+#endif
+  
 #ifdef TIMESTAT
   timestat_print();
 #endif
