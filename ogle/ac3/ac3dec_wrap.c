@@ -394,7 +394,7 @@ int get_q()
   }
 
   /** TODO this is just so we don't buffer alot in the pipe **/
-  /*
+  
   {
     clocktime_t apa = {0, 100000000};
     timesub(&apa, &time_offset, &apa);
@@ -402,7 +402,7 @@ int get_q()
       nanosleep(&apa, NULL);
     }
   }
-  */
+  
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
   change_file(data_elem->filename);
