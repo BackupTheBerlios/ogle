@@ -37,11 +37,11 @@ typedef struct { // Video Manager Information Management Table
   uint32_t vmgm_vobs;		// sector ptr
   uint32_t vmg_ptt_srpt;	// sector ptr
   uint32_t vmgm_pgci_ut;	// sector ptr
-  uint32_t vmg_plt_mait;	// sector ptr
+  uint32_t vmg_ptl_mait;	// sector ptr
   uint32_t vmg_vts_atrt;	// sector ptr
   uint32_t vmg_txtdt_mg;	// sector ptr
   uint32_t vmgm_c_adt;		// sector ptr
-  uint32_t vmgm_voubu_admap; // sector ptr
+  uint32_t vmgm_vobu_admap; // sector ptr
   uint8_t  zero_6[32];
   uint16_t vmgm_video_attributes;
   uint8_t  zero_7;
@@ -67,7 +67,7 @@ typedef struct {
 } __attribute__ ((packed)) pgc_command_tbl_t;
 #define PGC_COMMAND_TBL_SIZE 8
 
-typedef uint8_t pgc_progam_map_t; 
+typedef uint8_t __attribute__ ((packed)) pgc_progam_map_t; 
 
 typedef struct {
   uint32_t category;
@@ -129,11 +129,28 @@ typedef struct {
 
 
 typedef struct {
+  uint32_t vmgm_pgc_category;
+  uint32_t start_byte_of_vmgm_pgc;
+  pgc_t *pgc;
+} __attribute__ ((packed)) vmgm_pgci_srp_t;
+#define VMGM_PGCI_SRP_SIZE 8
+
+typedef struct {
+  uint16_t nr_of_vmgm_pgci_srp;
+  uint16_t zero_1;
+  uint32_t last_byte;
+  vmgm_pgci_srp_t *vmgm_pgci_srp;
+} __attribute__ ((packed)) vmgm_pgciti_t;
+#define VMGM_PGCITI_SIZE 8
+
+typedef struct {
   uint16_t lang_code;
   uint8_t  zero_1;
   uint8_t  exists;
   uint32_t lang_start_byte; // prt
+  vmgm_pgciti_t *menu_pgciti;
 } __attribute__ ((packed)) vmgm_pgci_lu_t;
+#define VMGM_PGCI_LU_SIZE 8
 
 typedef struct {
   uint16_t nr_of_lang_units;
@@ -141,6 +158,7 @@ typedef struct {
   uint32_t last_byte;
   vmgm_pgci_lu_t *menu_lu;
 } __attribute__ ((packed)) vmgm_pgci_ut_t;
+#define VMGM_PGCI_UT_SIZE 8
 
 
 typedef struct {
@@ -149,38 +167,42 @@ typedef struct {
   uint16_t start_byte_of_pf_ptl_mai;
   uint16_t zero_2;
 } __attribute__ ((packed)) ptl_mait_country_t;
+#define VMG_PTL_MAIT_COUNTRY_SIZE 8
 
 typedef struct {
-  uint8_t  nr_of_countries;
-  uint8_t  nr_of_vtss;
+  uint16_t  nr_of_countries;
+  uint16_t  nr_of_vtss;
   uint32_t last_byte;
   ptl_mait_country_t *countries;
 } __attribute__ ((packed)) vmg_ptl_mait_t;
-
+#define VMG_PTL_MAIT_SIZE 8
 
 
 typedef struct {
   uint32_t last_byte;
   uint32_t vts_cat;
-  uint16_t vtsm_vobs_attributes; // maybe video_attributes ?? 
+  
+  uint16_t vtsm_vobs_attributes; // maybe video_attributes ??
   uint8_t  zero_1;
-  uint8_t  nr_of_vtsm_audio_strams;
-  uint8_t  vtsm_audio_attributes[8];
-  uint8_t  zero_2[72];
+  uint8_t  nr_of_vtsm_audio_streams;
+  uint8_t  vtsm_audio_attributes[8][8]; //? 10
+  uint8_t  zero_2[16];
   uint8_t  zero_3;
   uint8_t  nr_of_vtsm_subp_streams;
-  uint8_t  vtsm_subp_attributes[32];
-  uint8_t  zero_4[138];
+  uint8_t  vtsm_subp_attributes[28][6]; // Why not all 32??
+  uint8_t  zero_4[2];
   
   uint16_t vtstt_vobs_video_attributes;
   uint8_t  zero_5;
   uint8_t  nr_of_vtstt_audio_streams;
-  uint8_t  vtstt_audio_attributes[8];
-  uint8_t  zero_6[72];
+  uint8_t  vtstt_audio_attributes[8][8]; //? 10
+  uint8_t  zero_6[16];
   uint8_t  zero_7;
   uint8_t  nr_of_vtstt_subp_streams;
-  uint8_t  vtstt_subp_attributes[32];
+  uint8_t  vtstt_subp_attributes[26][6]; // Are there room for 32 here? (no)
+  /* ? */
 } __attribute__ ((packed)) vts_atributes_t;
+#define VMG_VTS_ATRIBUTES_SIZE 510
 
 typedef struct {
   uint16_t nr_of_vtss;
@@ -188,7 +210,7 @@ typedef struct {
   uint32_t last_byte;
   vts_atributes_t *vts_atributes;
 } __attribute__ ((packed)) vmg_vts_atrt_t;
-
+#define VMG_VTS_ATRT_SIZE 8
 
 
 typedef struct {
@@ -204,14 +226,15 @@ typedef struct {
   uint16_t zero_1;
   uint32_t last_byte;
   cell_adr_t *cell_adr_table;
-} __attribute__ ((packed)) vmgm_c_adt_t;
-
+} __attribute__ ((packed)) c_adt_t;
+#define C_ADT_SIZE 8
 
 
 typedef struct {
   uint32_t last_byte;
   uint32_t *vobu_start_sectors;
-} __attribute__ ((packed)) vmgm_vobu_admap_t;
+} __attribute__ ((packed)) vobu_admap_t;
+#define VOBU_ADMAP_SIZE 4
 
 
 
@@ -245,9 +268,9 @@ typedef struct { // Video Manager Information Management Table
   uint32_t vtsm_pgci_ut;	// sector ptr
   uint32_t vts_tmapt;		// sector ptr
   uint32_t vtsm_c_adt;		// sector ptr
-  uint32_t vtsm_voubu_admap;	// sector ptr
+  uint32_t vtsm_vobu_admap;	// sector ptr
   uint32_t vts_c_adt;		// sector ptr
-  uint32_t vts_voubu_admap;	// sector ptr
+  uint32_t vts_vobu_admap;	// sector ptr
   uint8_t  zero_13[24];
   uint16_t vtsm_video_attributes;
   uint8_t  zero_14;
