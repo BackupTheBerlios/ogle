@@ -37,6 +37,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 
+#include "dvd_reader.h"
 #include "dvd_udf.h"
 
 extern int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,

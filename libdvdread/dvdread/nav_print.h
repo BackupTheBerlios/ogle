@@ -1,3 +1,6 @@
+#ifndef NAV_PRINT_H_INCLUDED
+#define NAV_PRINT_H_INCLUDED
+
 /**
  * Copyright (C) 2001 Billy Biggs <vektor@dumbterm.net>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
@@ -17,10 +20,6 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef NAV_PRINT_H_INCLUDED
-#define NAV_PRINT_H_INCLUDED
-
-#include <stdio.h>
 #include <dvdread/nav_types.h>
 
 #ifdef __cplusplus
@@ -32,8 +31,8 @@ extern "C" {
  * packet to stdout.
  */
 
-void navPrint_PCI(pci_t *pci);
-void navPrint_DSI(dsi_t *dsi);
+void navPrint_PCI(pci_t *);
+void navPrint_DSI(dsi_t *);
 
 #ifdef __cplusplus
 };

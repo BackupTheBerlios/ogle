@@ -1,3 +1,6 @@
+#ifndef DVD_READER_H_INCLUDED
+#define DVD_READER_H_INCLUDED
+
 /**
  * Copyright (C) 2001 Billy Biggs <vektor@dumbterm.net>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
@@ -17,11 +20,7 @@
  * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
-#ifndef DVD_READER_H_INCLUDED
-#define DVD_READER_H_INCLUDED
-
 #include <sys/types.h>
-#include <inttypes.h>
 
 /**
  * The length of one Logical Block of a DVD Video.
@@ -41,6 +40,8 @@ typedef struct dvd_reader_s dvd_reader_t;
 typedef struct dvd_file_s dvd_file_t;
 
 /**
+ * dvd = DVDOpen(path);
+ *
  * Opens a block device of a DVD-ROM file, or an image file, or a directory
  * name for a mounted DVD or HD copy of a DVD.  Returns 0 if we can't get any
  * of those methods to work.
@@ -58,13 +59,15 @@ typedef struct dvd_file_s dvd_file_t;
  *   path/VTS_01_1.VOB
  *   path/vts_01_1.vob
  */
-dvd_reader_t *DVDOpen( const char *path );
+dvd_reader_t *DVDOpen( const char * );
 
 /**
+ * DVDClose(dvd);
+ *
  * Closes and cleans up the DVD reader object.  You must close all open files
  * before calling this function.
  */
-void DVDClose( dvd_reader_t *dvd );
+void DVDClose( dvd_reader_t * );
 
 /**
  * INFO_FILE       : VIDEO_TS.IFO     (manager)
@@ -88,48 +91,58 @@ typedef enum {
 } dvd_read_domain_t;
 
 /**
+ * dvd_file = DVDOpenFile(dvd, titlenum, domain);
+ *
  * Opens a file on the DVD given the title number and domain.  If the title
  * number is 0, the video manager information is opened
  * (VIDEO_TS.[IFO,BUP,VOB]).  Returns a file structure which may be used for
  * reads, or 0 if the file was not found.
  */
-dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum, 
-			 dvd_read_domain_t domain );
+dvd_file_t *DVDOpenFile( dvd_reader_t *, int, 
+			 dvd_read_domain_t );
 
 /**
+ * DVDCloseFile(dvd_file);
+ *
  * Closes a file and frees the associated structure.
  */
-void DVDCloseFile( dvd_file_t *dvd_file );
+void DVDCloseFile( dvd_file_t * );
 
 /**
+ * blocks_read = DVDReadBlocks(dvd_file, offset, block_count, data);
  * Reads block_count number of blocks from the file at the given block offset.
  * Returns number of blocks read on success, -1 on error.  This call is only
  * for reading VOB data, and should not be used when reading the IFO files.  
  * When reading from an encrypted drive, blocks are decrypted using libdvdcss 
  * where required.
  */
-ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset,
-		       size_t block_count, unsigned char *data );
+ssize_t DVDReadBlocks( dvd_file_t *, int, size_t, unsigned char * );
 
 /**
+ * offset_set = DVDFileSeek(dvd_file, seek_offset);
+ *
  * Seek to the given position in the file.  Returns the resulting position in
  * bytes from the beginning of the file.  The seek position is only used for
  * byte reads from the file, the block read call always reads from the given
  * offset.
  */
-int DVDFileSeek( dvd_file_t *dvd_file, int offset );
+int DVDFileSeek( dvd_file_t *, int );
 
 /**
+ * bytes_read = DVDReadBytes(dvd_file, data, bytes);
+ *
  * Reads the given number of bytes from the file.  This call can only be used
  * on the information files, and may not be used for reading from a VOB.  This
  * reads from and increments the currrent seek position for the file.
  */
-ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size );
+ssize_t DVDReadBytes( dvd_file_t *, void *, size_t );
 
 /**
+ * blocks = DVDFileSize(dvd_file);
+ *
  * Returns the file size in blocks.
  */
-ssize_t DVDFileSize( dvd_file_t *dvd_file );
+ssize_t DVDFileSize( dvd_file_t * );
 
 #ifdef __cplusplus
 };

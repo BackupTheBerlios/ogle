@@ -1,3 +1,6 @@
+#ifndef DVD_UDF_H_INCLUDED
+#define DVD_UDF_H_INCLUDED
+
 /**
  * This code is based on dvdudf by:
  *   Christian Wolff <scarabaeus@convergence.de>.
@@ -26,11 +29,6 @@
  * 02111-1307, USA.  Or, point your browser to
  * http://www.gnu.org/copyleft/gpl.html
  */
-
-#ifndef DVD_UDF_H_INCLUDED
-#define DVD_UDF_H_INCLUDED
-
-#include "dvd_reader.h"
 
 #ifdef __cplusplus
 extern "C" {

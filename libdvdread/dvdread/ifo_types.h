@@ -1,3 +1,6 @@
+#ifndef IFO_TYPES_H_INCLUDED
+#define IFO_TYPES_H_INCLUDED
+
 /**
  * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
@@ -16,9 +19,6 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
-
-#ifndef IFO_TYPES_H_INCLUDED
-#define IFO_TYPES_H_INCLUDED
 
 #include <inttypes.h>
 #include <dvdread/dvd_reader.h>

@@ -1,3 +1,6 @@
+#ifndef NAV_READ_H_INCLUDED
+#define NAV_READ_H_INCLUDED
+
 /**
  * Copyright (C) 2000, 2001 Håkan Hjort <d95hjort@dtek.chalmers.se>.
  *
@@ -16,9 +19,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#ifndef NAV_READ_H_INCLUDED
-#define NAV_READ_H_INCLUDED
-
 #include <dvdread/nav_types.h>
 
 #ifdef __cplusplus
@@ -26,14 +26,18 @@ extern "C" {
 #endif
 
 /**
+ * navRead_PCI(pci, buffer);
+ *
  * Reads the PCI packet which begins at buffer into pci.
  */
-void navRead_PCI(pci_t *pci, unsigned char *buffer);
+void navRead_PCI(pci_t *, unsigned char *);
 
 /**
+ * navRead_DSI(dsi, buffer);
+ *
  * Reads the DSI packet which begins at buffer into dsi.
  */
-void navRead_DSI(dsi_t *dsi, unsigned char *buffer);
+void navRead_DSI(dsi_t *, unsigned char *);
 
 #ifdef __cplusplus
 };

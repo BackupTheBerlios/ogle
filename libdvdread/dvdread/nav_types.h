@@ -1,3 +1,6 @@
+#ifndef NAV_TYPES_H_INCLUDED
+#define NAV_TYPES_H_INCLUDED
+
 /**
  * Copyright (C) 2000 Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
@@ -25,9 +28,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  * USA
  */
-
-#ifndef NAV_TYPES_H_INCLUDED
-#define NAV_TYPES_H_INCLUDED
 
 #include <inttypes.h>
 #include <dvdread/ifo_types.h> // only dvd_time_t, vm_cmd_t and user_ops_t

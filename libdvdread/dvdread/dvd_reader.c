@@ -54,8 +54,8 @@ typedef struct dvdcss_s* dvdcss_handle;
 #define DVDCSS_INIT_DEBUG      (1 << 1)
 #define DVDCSS_READ_DECRYPT    (1 << 0)
 
-#include "dvd_udf.h"
 #include "dvd_reader.h"
+#include "dvd_udf.h"
 
 /**
  * Handle to the loaded dvdcss library.
@@ -116,7 +116,7 @@ static void setupCSS( void )
             fprintf( stderr, "libdvdread: Can't open libdvdcss: %s.\n",
                      dlerror() );
         } else {
-#if defined(__OpenBSD__)
+#if defined(__OpenBSD__) && !defined(__ELF__)
 #define U_S "_"
 #else
 #define U_S
@@ -192,7 +192,7 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 	        fprintf( stderr, "libdvdread: Get key for %s at 0x%08x\n", 
 			 filename, start );
 		if( dvdcss_title( dvd->dev, (int)start ) < 0 ) {
-		    fprintf( stderr, "libdvdread: Error cracking CSS key!!\n");
+		    fprintf( stderr, "libdvdread: Error cracking CSS key for %s (0x%08x)\n", filename, start);
 		}
 		gettimeofday( &t_e, NULL );
 		fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
@@ -210,7 +210,7 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 	    fprintf( stderr, "libdvdread: Get key for %s at 0x%08x\n", 
 		     filename, start );
 	    if( dvdcss_title( dvd->dev, (int)start ) < 0 ) {
-	        fprintf( stderr, "libdvdread: Error cracking CSS key!!\n");
+	        fprintf( stderr, "libdvdread: Error cracking CSS key for %s (0x%08x!!\n", filename, start);
 	    }
 	    gettimeofday( &t_e, NULL );
 	    fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
@@ -305,10 +305,10 @@ static char *sun_block2char( const char *path )
 #endif
 
 #if defined(SYS_BSD)
-/* FreeBSD /dev/(r)(a)cd0 (a is for atapi, should work without r)
-   OpenBSD /dev/rcd0c
-   NetBSD  /dev/rcd0d or /dev/rcd0c (for non x86)
-   BSD/OS  /dev/sr0 (if not mounted) or /dev/rsr0 */
+/* FreeBSD /dev/(r)(a)cd0c (a is for atapi), recomended to _not_ use r
+   OpenBSD /dev/rcd0c, it needs to be the raw device
+   NetBSD  /dev/rcd0[d|c|..] d for x86, c (for non x86), perhaps others
+   BSD/OS  /dev/sr0c (if not mounted) or /dev/rsr0c ('c' any letter will do) */
 static char *bsd_block2char( const char *path )
 {
     char *new_path;
@@ -330,6 +330,7 @@ dvd_reader_t *DVDOpen( const char *path )
 {
     struct stat64 fileinfo;
     int ret;
+    char *dev_name = 0;
 
     if( !path ) return 0;
 
@@ -405,14 +406,13 @@ dvd_reader_t *DVDOpen( const char *path )
 
 #if defined(SYS_BSD)
 	if( ( fe = getfsfile( path_copy ) ) ) {
-	    char *dev_name = bsd_block2char( fe->fs_spec );
+	    dev_name = bsd_block2char( fe->fs_spec );
 	    fprintf( stderr,
 		     "libdvdread: Attempting to use device %s"
 		     " mounted on %s for CSS authentication\n",
 		     dev_name,
 		     fe->fs_file );
 	    auth_drive = DVDOpenImageFile( dev_name );
-	    free( dev_name );
 	}
 #elif defined(__sun)
 	mntfile = fopen( MNTTAB, "r" );
@@ -422,14 +422,13 @@ dvd_reader_t *DVDOpen( const char *path )
 
 	    while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
 		if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
-		    char *dev_name = sun_block2char( mp.mnt_special );
+		    dev_name = sun_block2char( mp.mnt_special );
 		    fprintf( stderr, 
 			     "libdvdread: Attempting to use device %s"
 			     " mounted on %s for CSS authentication\n",
 			     dev_name,
 			     mp.mnt_mountp );
 		    auth_drive = DVDOpenImageFile( dev_name );
-		    free( dev_name );
 		    break;
 		}
 	    }
@@ -444,10 +443,11 @@ dvd_reader_t *DVDOpen( const char *path )
                 if( !strcmp( me->mnt_dir, path_copy ) ) {
 		    fprintf( stderr, 
 			     "libdvdread: Attempting to use device %s"
-                             " mounted on %s for CSS authentication\n",
-                             me->mnt_fsname,
+                            " mounted on %s for CSS authentication\n",
+                           me->mnt_fsname,
 			     me->mnt_dir );
                     auth_drive = DVDOpenImageFile( me->mnt_fsname );
+		    dev_name = strdup(me->mnt_fsname);
                     break;
                 }
             }
@@ -455,10 +455,11 @@ dvd_reader_t *DVDOpen( const char *path )
 	}
 #endif
 	if( !auth_drive ) {
-	    fprintf( stderr, "libdvdread: Device inaccessible, "
-		     "CSS authentication not available.\n" );
+	    fprintf( stderr, "libdvdread: Device %s inaccessible, "
+		     "CSS authentication not available.\n", dev_name );
 	}
 
+	free(dev_name);
 	free( path_copy );
 
         /**
