@@ -271,6 +271,21 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 
 
 
+static void cleanup(void)
+{
+  fprintf(stderr, "ctrl: waiting for children to really die\n"); 
+  sleep(1);
+  sleep(1);
+  sleep(1);
+  sleep(1);
+  sleep(1);
+  sleep(1);
+  sleep(1);
+  slay_children();
+  cleanup_and_exit();
+}
+
+
 
 int request_capability(MsgEventQ_t *q, int cap,
 		       MsgEventClient_t *capclient, int *retcaps)
@@ -308,6 +323,9 @@ int request_capability(MsgEventQ_t *q, int cap,
 			    retcaps,
 			    &state) &&
 	(state != CAP_running)) {
+    if(child_killed) {
+      cleanup();
+    }
     if(MsgNextEvent(q, &r_ev) == -1) {
       switch(errno) {
       case EINTR:
@@ -435,6 +453,9 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	
 	while(!search_capabilities(capability, &rcpt, NULL, &state) ||
 	      (state != CAP_running)) {
+	  if(child_killed) {
+	    cleanup();
+	  }
 	  if(MsgNextEvent(q, &r_ev) == -1) {
 	    switch(errno) {
 	    case EINTR:
@@ -528,6 +549,9 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       while(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, &state) ||
 	    (state != CAP_running)) {
+	if(child_killed) {
+	  cleanup();
+	}
 	if(MsgNextEvent(q, &r_ev) == -1) {
 	  switch(errno) {
 	  case EINTR:
@@ -752,16 +776,7 @@ int main(int argc, char *argv[])
   */
   while(1){
     if(child_killed) {
-      fprintf(stderr, "ctrl: waiting for children to really die\n"); 
-      sleep(1);
-      sleep(1);
-      sleep(1);
-      sleep(1);
-      sleep(1);
-      sleep(1);
-      sleep(1);
-      slay_children();
-      cleanup_and_exit();
+      cleanup();
     }
     if(MsgNextEvent(&q, &ev) == -1) {
       switch(errno) {
