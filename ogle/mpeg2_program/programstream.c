@@ -76,7 +76,8 @@ char *id_qaddr(uint8_t id, uint8_t subtype);
 FILE *id_file(uint8_t id, uint8_t subtype);
 void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid, char *shmaddr, FILE *file);
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd);
+	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd,
+	     PacketType_t packet_type, uint32_t packet_offset);
 int attach_buffer(int shmid, int size);
 //int chk_for_msg(void);
 void loadinputfile(char *infilename);
@@ -377,7 +378,7 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
 	off = blocks_in_buf;
 	free_block_offs = 0;
       } else {
-	off = data_elems[data_elem_nr].off / 2048;
+	off = data_elems[data_elem_nr].packet_offset / 2048;
       }
       
       if(off < free_block_offs) {
@@ -562,7 +563,7 @@ void get_next_demux_q(void)
   int new_demux_range = 0;
   if(id_stat(0xe0, 0) == STREAM_DECODE) {
     if(demux_cmd & FlowCtrlCompleteVideoUnit) {
-      put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd);
+      put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd, 0, 0);
     }
   }
   while(!new_demux_range) {
@@ -854,13 +855,17 @@ int pack_header(void)
 
 }
 
+
 void push_stream_data(uint8_t stream_id, int len,
 		      uint8_t PTS_DTS_flags,
 		      uint64_t PTS,
-		      uint64_t DTS)
+		      uint64_t DTS,
+		      PacketType_t packet_type,
+		      uint32_t packet_offs)
 {
   uint8_t *data = &disk_buf[offs-(bits_left/8)];
   uint8_t subtype;
+  uint32_t packet_data_offset = offs-(bits_left/8);
 
   //  fprintf(stderr, "pack nr: %d, stream_id: %02x (%02x), offs: %d, len: %d",
   //	  packnr, stream_id, data[0], offs-(bits_left/8), len);
@@ -886,12 +891,13 @@ void push_stream_data(uint8_t stream_id, int len,
   } else {
     subtype = 0;
   }
+
   if((!id_registered(stream_id, subtype)) && system_header_set) {
     register_id(stream_id, subtype);
   }
 
   //fprintf(stderr, "Packet id: %02x, %02x\n", stream_id, subtype);
-  
+
   if(id_stat(stream_id, subtype) == STREAM_DECODE) {
     if(!id_has_output(stream_id, subtype)) {
       id_get_output(stream_id, subtype);
@@ -929,69 +935,75 @@ void push_stream_data(uint8_t stream_id, int len,
 	    p[2]<<8 | p[3] is the starting index of the frame for which 
 		           the PTS value corresponds
 	  */
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	  put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		   packet_type, packet_offs);
 	} else if((subtype >= 0x88) && (subtype < 0x90)) {
 	  // dts
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	  put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		   packet_type, packet_offs);
 	} else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	  // pcm
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	  put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		   packet_type, packet_offs);
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  // spu
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	  put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		   packet_type, packet_offs);
 	} else {
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	  put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		   packet_type, packet_offs);
 	}
       } else {
-	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		 PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	put_in_q(id_qaddr(stream_id, subtype), packet_data_offset, len,
+		 PTS_DTS_flags, PTS, DTS, is_newfile, 0,
+		 packet_type, packet_offs);
       }
     } else {
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
 	if((subtype >= 0x80) && (subtype < 0x88)) {
 	  // ac3
-#if 0
-	  fwrite(&disk_buf[offs-(bits_left/8)+4], len-4, 1,
+#if 1
+	  fwrite(&disk_buf[packet_data_offset+4], len-4, 1,
 		 id_file(stream_id, subtype));
 #else
-	  fwrite(&disk_buf[offs-(bits_left/8)], 4, 1,
+	  fwrite(&disk_buf[packet_data_offset], 4, 1,
 		 id_file(stream_id, subtype));
 #endif	
 	  
 	} else if((subtype >= 0x88) && (subtype < 0x90)) {
 	  // dts
-#if 0
-	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
+#if 1
+	  fwrite(&disk_buf[packet_data_offset+1], len-1, 1,
 		 id_file(stream_id, subtype));
 #else
-	  fwrite(&disk_buf[offs-(bits_left/8)], 64, 1,
+	  fwrite(&disk_buf[packet_data_offset], 64, 1,
 		 id_file(stream_id, subtype));
 #endif
 	} else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	  // pcm
-#if 0
-	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
+#if 1
+	  fwrite(&disk_buf[packet_data_offset+1], len-1, 1,
 		 id_file(stream_id, subtype));
 #else
-	  fwrite(&disk_buf[offs-(bits_left/8)], 64, 1,
+	  fwrite(&disk_buf[packet_data_offset], 64, 1,
 		 id_file(stream_id, subtype));
 #endif
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  // spu
-	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
+	  fwrite(&disk_buf[packet_data_offset+1], len-1, 1,
 		 id_file(stream_id, subtype));
 	} else {
-	  fwrite(&disk_buf[offs-(bits_left/8)], len, 1,
+	  fwrite(&disk_buf[packet_data_offset], len, 1,
 		 id_file(stream_id, subtype));
 	}
       } else {
-	fwrite(&disk_buf[offs-(bits_left/8)], len, 1,
+	fwrite(&disk_buf[packet_data_offset], len, 1,
 	       id_file(stream_id, subtype));
       }
       
@@ -1051,8 +1063,11 @@ void PES_packet(void)
   uint8_t P_STD_buffer_scale;
   uint16_t P_STD_buffer_size;
   uint16_t N;
-  
+  uint32_t pes_packet_offs;
+
   DPRINTF(2, "PES_packet()\n");
+
+  pes_packet_offs = offs-(bits_left/8);
 
   GETBITS(24 ,"packet_start_code_prefix");
   stream_id = GETBITS(8, "stream_id");
@@ -1259,11 +1274,13 @@ void PES_packet(void)
     //FIXME  push pes..    
 
     
-    push_stream_data(stream_id, N, PTS_DTS_flags, PTS, DTS);
+    push_stream_data(stream_id, N, PTS_DTS_flags, PTS, DTS, 
+		     PacketType_PES, pes_packet_offs);
     
   } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
     push_stream_data(stream_id, PES_packet_length,
-		     PTS_DTS_flags, PTS, DTS);
+		     PTS_DTS_flags, PTS, DTS, 
+		     PacketType_PES, pes_packet_offs);
     //fprintf(stderr, "*PRIVATE_stream_2, %d\n", PES_packet_length);
   } else if(stream_id == MPEG2_PADDING_STREAM) {
     drop_bytes(PES_packet_length);
@@ -1285,6 +1302,9 @@ void packet(void)
   uint64_t DTS = 0;
   int N;
   uint8_t pts_dts_flags = 0;
+  uint32_t mpeg1_packet_offs;
+  
+  mpeg1_packet_offs = offs-(bits_left/8);
 
   GETBITS(24 ,"packet_start_code_prefix");
   stream_id = GETBITS(8, "stream_id");
@@ -1347,7 +1367,8 @@ void packet(void)
     }
   }
 
-  push_stream_data(stream_id, N, pts_dts_flags, PTS, DTS);
+  push_stream_data(stream_id, N, pts_dts_flags, PTS, DTS,
+		   PacketType_MPEG1, mpeg1_packet_offs);
   
 }
 
@@ -1779,13 +1800,63 @@ int main(int argc, char **argv)
 
       break;
     case 'a':
-      audio_file = fopen(optarg,"w");
-      if(!audio_file) {
+      stream_nr = -1;
+      file = NULL;
+      options = optarg;
+      while (*options != '\0') {
+	switch(getsubopt(&options, stream_opts, &opt_value)) {
+	case OPT_STREAM_NR:
+	  if(opt_value == NULL) {
+	    exit(1);
+	  }
+	  
+	  stream_nr = atoi(opt_value);
+	  break;
+	case OPT_FILE:
+	  if(opt_value == NULL) {
+	    exit(1);
+	  }
+	  
+	  file = opt_value;
+	  break;
+	default:
+	  fprintf(stderr, "*demux: Unknown suboption\n");
+	  exit(1);
+	  break;
+	}
+      }
+      
+      if((stream_nr == -1)) {
+	fprintf(stderr, "*demux: Missing suboptions\n");
+	exit(1);
+      } 
+      
+      if((stream_nr < 0) && (stream_nr > 0xf)) {
+	fprintf(stderr, "*demux: Invalid stream nr\n");
+	exit(1);
+      }
+      
+      stream_id = (0xc0 | stream_nr);
+      
+      if(file != NULL) {
+	audio_file = fopen(file,"w");
+	if(!audio_file) {
 	  perror(optarg);
 	  exit(1);
 	}
-      audio=1;
+
+	id_add(stream_id, 0, STREAM_DECODE, -1, NULL, audio_file);
+	
+      } else {
+	fprintf(stderr, "Audio stream %d disabled\n", stream_nr);
+	
+	id_add(stream_id, 0, STREAM_DISCARD, -1, NULL, NULL);
+      }
+	
+	  
+
       break;
+
     case 's':
 
       stream_nr = -1;
@@ -2538,7 +2609,8 @@ void flush_all_streams(int scr_id)
 }
 
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd)
+	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd,
+	     PacketType_t packet_type, uint32_t packet_offset)
 {
   q_head_t *q_head = NULL;
   q_elem_t *q_elem;
@@ -2559,8 +2631,8 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elem_nr = data_buf_head->write_nr;
   
   /* It's a circular list and if the next packet is still in use we need
-   * to wait for it to be become available. 
-   * We migh also do someting smarter here but provided that we have a
+   * to wait for it to become available. 
+   * We might also do something smarter here but provided that we have a
    * large enough buffer this will not be common.
    */
 
@@ -2619,9 +2691,11 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elems[data_elem_nr].SCR_base = SCR_base;
   data_elems[data_elem_nr].SCR_ext = SCR_ext;
   data_elems[data_elem_nr].SCR_flags = SCR_flags;
-  data_elems[data_elem_nr].off = off;
-  data_elems[data_elem_nr].len = len;
+  data_elems[data_elem_nr].packet_data_offset = off;
+  data_elems[data_elem_nr].packet_data_len = len;
   data_elems[data_elem_nr].q_addr = q_addr;
+  data_elems[data_elem_nr].packet_type = packet_type;
+  data_elems[data_elem_nr].packet_offset = packet_offset;
   /*
     if(is_new_file) {
     strcpy(data_elems[data_elem_nr].filename, cur_filename);
