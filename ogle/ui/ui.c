@@ -17,8 +17,6 @@
 #include "queue.h"
 #include "msgevents.h"
 
-int wait_for_msg(mq_cmdtype_t cmdtype);
-int eval_msg(mq_cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
@@ -176,63 +174,11 @@ int request_spu()
   return 0;
 }
 
-int send_msg(mq_msg_t *msg, int mtext_size)
-{
-  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
-    perror("ctrl: msgsnd1");
-    return -1;
-  }
-  return 0;
-}
-
-
-int wait_for_msg(mq_cmdtype_t cmdtype)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  while(cmd->cmdtype != cmdtype) {
-    if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
-	      MTYPE_CTRL_INPUT, 0) == -1) {
-      perror("msgrcv");
-      return -1;
-    } else {
-      fprintf(stderr, "ui: got msg\n");
-      eval_msg(cmd);
-    }
-    if(cmdtype == CMD_ALL) {
-      break;
-    }
-  }
-  return 0;
-}
-
-
-
-
-int eval_msg(mq_cmd_t *cmd)
-{
-  
-  switch(cmd->cmdtype) {
-  default:
-    fprintf(stderr, "ui: unrecognized command cmdtype: %x\n",
-	    cmd->cmdtype);
-    return -1;
-    break;
-  }
-  
-  return 0;
-}
 
 
 
 #define CMDSTR_LEN 256
 int input() {
-  mq_msg_t msg;
-  mq_cmd_t *sendcmd;
-  mq_ctrlcmd_t cmd;
   char cmdstr[CMDSTR_LEN];
   char *cmdtokens[16];
   char *tok;
@@ -241,7 +187,6 @@ int input() {
   MsgEventClient_t rcpt;
   MsgEvent_t sendev;
   
-  sendcmd = (mq_cmd_t *)&msg.mtext;
 
   fprintf(stderr, "****input()\n");
   while(!feof(infile)) {
@@ -359,6 +304,7 @@ int input() {
       sendev.changefile.filename[PATH_MAX] = '\0';
       
     } else if(strcmp(tok, "btn") == 0) {
+      /*
       msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
       sendcmd->cmdtype = CMD_DVDCTRL_CMD;
       
@@ -374,8 +320,9 @@ int input() {
       } else if(strcmp(tok, "activate") == 0) {
 	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_ACTIVATE_BUTTON;	
       }
-      
+      */
     } else if(strcmp(tok, "btnnr") == 0) {
+      /*
       msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
       sendcmd->cmdtype = CMD_DVDCTRL_CMD;
       
@@ -388,7 +335,7 @@ int input() {
       tok = strtok(NULL, " ");
       sendcmd->cmd.dvdctrl_cmd.button_nr = strtol(tok, NULL, 0);	
       
-      
+      */
     } else if(strcmp(tok, "speed") == 0) {
       rcpt = CLIENT_RESOURCE_MANAGER;
       sendev.type = MsgEventQSpeed;
@@ -403,19 +350,6 @@ int input() {
       if(MsgSendEvent(msgq, rcpt, &sendev) == -1) {
 	fprintf(stderr, "ui: couldn't send user cmd\n");
       }
-    }
-    switch(sendcmd->cmdtype) {
-    case CMD_SPU_SET_HIGHLIGHT:
-      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_highlight_t));
-      break;
-    case CMD_SPU_SET_PALETTE:
-      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_palette_t));
-      break;
-    case CMD_DVDCTRL_CMD:
-      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_dvdctrl_cmd_t));
-      break;
-    default:
-      break;
     }
 
     fprintf(stderr, "****input() sent cmd\n");
