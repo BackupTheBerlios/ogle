@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <unistd.h>
 #include <inttypes.h>
 #include <assert.h>
 
@@ -157,9 +158,19 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
     }
     
     /* Must check if the current selected button has auto_action_mode !!! */
-    
+    switch(pci->hli.btnit[*btn_nr -1].auto_action_mode) {
+    case 0:
+      break;
+    case 1:
+      is_action = 1;
+      break;
+    case 2:
+    case 3:
+    default:
+      fprintf(stderr, "Unknown auto_action_mode!!\n");
+      exit(1);
+    }
   }
-
   
   
   /* If there is highlight information, determine the correct area and 
@@ -186,7 +197,7 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
   pci_t pci;
   dsi_t dsi;
   int block = 0;
-  int res;
+  int res = 0;
   static uint16_t state_systemreg_hili_button_nr = 1;
 
   memset(&pci, 0, sizeof(pci_t));
@@ -213,7 +224,7 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
     
     /* Check for user input, and set highlight */
     res = process_pci(&pci, &state_systemreg_hili_button_nr);
-    
+
     /* Demux/play the content of this vobu */
     /* Assume that the vobus are packed and continue after each other,
        this isn't correct. Certanly not for multiangle at least. */
@@ -243,8 +254,19 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
     int time = (cell->category>>8) & 0xff;
     if(time == 0xff) {
       printf("-- Wait for user interaction --\n");
+      while(res == 0) {
+	//should be nanosleep
+	sleep(1);
+	/* Check for user input, and set highlight */
+	res = process_pci(&pci, &state_systemreg_hili_button_nr);
+      }
     } else {
-      sleep(time); // Really advance SCR clock..
+      while(res == 0 && time > 0) {
+	//should be nanosleep
+	sleep(1); --time;
+	/* Check for user input, and set highlight */
+	res = process_pci(&pci, &state_systemreg_hili_button_nr);
+      }
     }
   }
   
