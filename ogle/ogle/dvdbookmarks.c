@@ -189,6 +189,39 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *dir, int create)
   return bm;
 }
 
+
+/**
+ * Retrieve the number of bookmarks for the current disc
+ *
+ * @param bm Handle from DVDBookmarkOpen.
+ *
+ * @return Returns -1 on failure, otherwise the number of bookmarks.
+ */
+int DVDBookmarkGetNr(DVDBookmark_t *bm)
+{
+  xmlNodePtr cur;
+  int n = 0;
+
+  if(!bm || !(bm->doc)) {
+    return -1;
+  }
+  
+  if((cur = xmlDocGetRootElement(bm->doc)) == NULL) {
+    return -1;
+  }
+
+  cur = cur->xmlChildrenNode;
+  while(cur != NULL) {
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"bookmark"))) {
+      n++;
+    }
+    cur = cur->next;
+  }
+  
+  return n;  
+}
+
+
 /**
  * Retrieve a bookmark for the current disc.
  *

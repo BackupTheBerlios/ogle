@@ -6,6 +6,7 @@ typedef struct DVDBookmark_s DVDBookmark_t;
 
 DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16],
 			       char *file, int create);
+int DVDBookmarkGetNr(DVDBookmark_t *bm);
 int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
 		   char **navstate, char **usercomment,
 		   char *appname, char **appinfo);
