@@ -358,6 +358,28 @@ int audio_config(audio_config_t *aconf,
       NOTE("wanted %d channels, got %d\n",
 	   aconf->dst_format.nr_channels,
 	   aconf->ainfo->channels); 
+      if(config) {
+	if((config->nr_ch > 0) && 
+	   (config->chtype[0] & ChannelTypeMask_Streams)) {
+	  
+	} else {
+	  output_channels = aconf->ainfo->channels;
+	  if(aconf->dst_format.nr_channels != output_channels) {
+	    aconf->dst_format.ch_array = 
+	      realloc(aconf->dst_format.ch_array, 
+		      sizeof(ChannelType_t) * output_channels);
+	  }
+	  aconf->dst_format.sample_resolution = 2;
+	  aconf->dst_format.nr_channels = output_channels;
+	  for(n = 0; n < output_channels; n++) {
+	    if(n < config->nr_ch) {
+	      aconf->dst_format.ch_array[n] = config->chtype[n];
+	    } else {
+	      aconf->dst_format.ch_array[n] = ChannelType_Null;
+	    }
+	  }
+	}
+      }
     }
     if(aconf->ainfo->encoding != encoding) {
       ERROR("wanted encoding %d, got %d\n",
