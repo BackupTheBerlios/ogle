@@ -434,7 +434,6 @@ int get_q()
 #endif	
       } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	//lpcm
-	static int first = 1;
 	// lpcm dvd
 	// frame rate 600Hz (48/96kHz)
 	// 16/20/24 bits
@@ -471,10 +470,6 @@ int get_q()
 	  (data_buffer+packet_data_offset)[3];
 	if(pts_offset > 0) {
 	  pts_offset--;
-	}
-	if(first) {
-	  DNOTE("%s", "LPCM Audio >2 channels not implemented\n");
-	  first = 0;
 	}
       } else {
 	ERROR("Unhandled PrivateStream1 subtype: %02x\n", subtype);

@@ -418,8 +418,13 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
       for (i = 0; i < nr_samples; i++) {
 	for(n = 0; n < dst_ch; n++) {
 	  if((ct = ch_transform[n]) != -1) {
-	    ((int32_t *)output)[dst_ch*i+n] = 
-	      FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct])<<16;
+	    if(unaligned) {
+	      ((int32_t *)output)[dst_ch*i+n] =
+		(lpcm[2*(i*src_ch+ct)] <<24) | (lpcm[2*(i*src_ch+ct)+1] <<16);
+	    } else {
+	      ((int32_t *)output)[dst_ch*i+n] = 
+		FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct])<<16;
+	    }
 	  } else {
 	    ((int32_t *)output)[dst_ch*i+n] = 0;
 	  }
@@ -441,8 +446,13 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
 	for(j = 0; j < 2; j++, i++,s++) {
 	  for(n = 0; n < dst_ch; n++) {
 	    if((ct = ch_transform[n]) != -1) {
-	      ((int16_t *)output)[dst_ch*i+n] = 
-		FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]);
+	      if(unaligned) {
+		((int16_t *)output)[dst_ch*i+n] =
+		  (lpcm[2*(s*src_ch+ct)] << 8) | lpcm[2*(s*src_ch+ct)+1];
+	      } else {
+		((int16_t *)output)[dst_ch*i+n] = 
+		  FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]);
+	      }
 	    } else {
 	      ((int16_t *)output)[dst_ch*i+n] = 0;
 	    }
@@ -457,9 +467,16 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
 	for(j = 0; j < 2; j++, i++, s++, lsb+=src_ch) {
 	  for(n = 0; n < dst_ch; n++) {
 	    if((ct = ch_transform[n]) != -1) {
-	      ((int32_t *)output)[dst_ch*i+n] = 
-		FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]) << 16 |
-		lsb[ct] << 8;
+	      if(unaligned) {
+		((int32_t *)output)[dst_ch*i+n] =
+		  (lpcm[2*(s*src_ch+ct)] << 24) | 
+		  (lpcm[2*(s*src_ch+ct)+1] << 16) |
+		  lsb[ct] << 8;
+	      } else {
+		((int32_t *)output)[dst_ch*i+n] = 
+		  FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]) << 16 |
+		  lsb[ct] << 8;
+	      }
 	    } else {
 	      ((int32_t *)output)[dst_ch*i+n] = 0;
 	    }
