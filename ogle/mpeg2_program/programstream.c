@@ -87,6 +87,8 @@ int id_infile(uint8_t id, uint8_t subtype);
 void id_setinfile(uint8_t id, uint8_t subtype, int newfile);
 uint8_t type_registered(uint8_t id, uint8_t subtype);
 int switch_to_stream(uint8_t id, uint8_t subtype);
+int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
+			  uint8_t newid, uint8_t newsubtype);
 int id_has_output(uint8_t stream_id, uint8_t subtype);
 int id_get_output(uint8_t id, int subtype);
 
@@ -173,7 +175,7 @@ int new_file;
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] [-d <debug level>] <input file>\n", 
+  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] [-p subid=<substreambaseid>,nr=<streamnr>,file=<outputfile>] [-d <debug level>] <input file>\n", 
 	  program_name);
 }
 
@@ -987,11 +989,18 @@ void push_stream_data(uint8_t stream_id, int len,
 #endif
 	} else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	  // pcm
-#if 1
+#if 0
 	  fwrite(&disk_buf[packet_data_offset+1], len-1, 1,
 		 id_file(stream_id, subtype));
 #else
-	  fwrite(&disk_buf[packet_data_offset], 64, 1,
+	  if(!((unsigned int)(&disk_buf[packet_data_offset]) & 0x1)) {
+	    // should be odd address
+	    DNOTE("lpcm at even address\n");
+	  }
+	  if(!PTS_DTS_flags) {
+	    DNOTE("lpcm without PTS\n");
+	  }
+	  fwrite(&disk_buf[packet_data_offset], 8, 1,
 		 id_file(stream_id, subtype));
 #endif
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
@@ -2092,6 +2101,12 @@ static void handle_events(MsgEvent_t *ev)
   case MsgEventQDemuxStreamChange:
     switch_to_stream(ev->demuxstream.stream_id, ev->demuxstream.subtype);
     break;
+  case MsgEventQDemuxStreamChange2:
+    switch_from_to_stream(ev->demuxstreamchange2.old_stream_id,
+			  ev->demuxstreamchange2.old_subtype,
+			  ev->demuxstreamchange2.new_stream_id,
+			  ev->demuxstreamchange2.new_subtype);
+    break;
   case MsgEventQDemuxDefault:
     init_id_reg(ev->demuxdefault.state);
     break;
@@ -2408,6 +2423,74 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
   }
   return 1;
 }
+
+
+int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
+			  uint8_t newid, uint8_t newsubtype)
+{
+  
+  if(oldid == 0) {
+    if(newid != MPEG2_PRIVATE_STREAM_1) {
+      id_reg[newid].state = STREAM_DECODE;
+    } else {
+      id_reg_ps1[newsubtype].state = STREAM_DECODE;
+    }
+    return 1;
+  }
+  
+  if(newid != MPEG2_PRIVATE_STREAM_1) {
+    if(newid == oldid) {
+      DNOTE("equal(not private)\n");
+      return 1;
+    }
+  } else {
+    if(oldid == MPEG2_PRIVATE_STREAM_1) {
+      if(newsubtype == oldsubtype) {
+	DNOTE("equal(private)\n");
+	return 1;
+      }
+    }
+  }
+  
+  
+  if(newid != MPEG2_PRIVATE_STREAM_1) {
+    DNOTE("newid not private:\n");
+    if(oldid != MPEG2_PRIVATE_STREAM_1) {
+      DNOTE("oldid not private\n");
+      id_reg[newid] = id_reg[oldid];
+      id_reg[oldid].shmid = -1;
+      id_reg[oldid].shmaddr = NULL;
+      id_reg[oldid].state = STREAM_DISCARD;
+      id_reg[oldid].file = NULL;
+    } else {
+      DNOTE("oldid private\n");
+      id_reg[newid] = id_reg_ps1[oldsubtype];
+      id_reg_ps1[oldsubtype].shmid = -1;
+      id_reg_ps1[oldsubtype].shmaddr = NULL;
+      id_reg_ps1[oldsubtype].state = STREAM_DISCARD;
+      id_reg_ps1[oldsubtype].file = NULL;  
+    }
+  } else {
+    DNOTE("newid private:\n");
+    if(oldid != MPEG2_PRIVATE_STREAM_1) {
+      DNOTE("oldid not private\n");
+      id_reg_ps1[newsubtype] = id_reg[oldid];
+      id_reg[oldid].shmid = -1;
+      id_reg[oldid].shmaddr = NULL;
+      id_reg[oldid].state = STREAM_DISCARD;
+      id_reg[oldid].file = NULL;
+    } else {
+      DNOTE("oldid private\n");
+      id_reg_ps1[newsubtype] = id_reg_ps1[oldsubtype];
+      id_reg_ps1[oldsubtype].shmid = -1;
+      id_reg_ps1[oldsubtype].shmaddr = NULL;
+      id_reg_ps1[oldsubtype].state = STREAM_DISCARD;
+      id_reg_ps1[oldsubtype].file = NULL;
+    }
+  }
+  return 1;
+}
+
 
 int id_has_output(uint8_t stream_id, uint8_t subtype)
 {
