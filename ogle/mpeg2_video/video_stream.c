@@ -114,7 +114,7 @@ void coded_block_pattern(void);
 void reset_dc_dct_pred(void);
 void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 	     uint8_t intra_vlc_format, char *func);
-int get_vlc(vlc_table_t *table, char *func);
+int get_vlc(const vlc_table_t *table, char *func);
 void block_intra(unsigned int i);
 void block_non_intra(unsigned int i);
 void reset_PMV();
@@ -225,10 +225,10 @@ typedef struct {
 
   int8_t skipped;
 
-  int16_t quantiser_scale;
+  uint8_t quantiser_scale;
   int intra_dc_mult;
 
-  int16_t QFS[64];
+  int16_t QFS[64]  __attribute__ ((aligned (8)));
   //int16_t QF[8][8];
   //int16_t F_bis[8][8];
 } macroblock_t;
@@ -281,9 +281,12 @@ macroblock_t *ref2_mbs;
 
 XFontStruct *xfont;
 
+uint32_t get_new_uint32(void);
 
 
 
+#define NR_BLOCKS 64
+#define BLOCK_SIZE 1024
 
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
@@ -300,92 +303,18 @@ int bytealigned(void)
   return !(bits_left%8);
 }
 
-#ifdef GETBITS32
-void back_word(void)
-{
-  backed = 1;
-  
-  if(buf_pos == 0) {
-    buf_pos = 1;
-  } else {
-    buf_pos = 0;
-  }
-  cur_word = buf[buf_pos];
-}
-#else
-uint32_t get_new_uint32()
-{
-  uint32_t new_word;
-  static int offs = 0;
-  
-  new_word = buf[offs++];
-  if(offs >= READ_SIZE/4) {
-    if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
-      if(feof(infile)) {
-	fprintf(stderr, "*End Of File\n");
-	exit_program();
-      } else {
-	fprintf(stderr, "**File Error\n");
-	exit(0);
-      }
-    }
-    offs = 0;
-  }
-#if 0
-    if(!fread(&new_word, 1, 4, infile)) {
-      if(feof(infile)) {
-	fprintf(stderr, "*End Of File\n");
-	exit_program();
-      } else {
-	fprintf(stderr, "**File Error\n");
-	exit(0);
-      }
-    }
-#endif
-  return new_word;
- 
-}
-#endif
-
-#ifdef GETBITS32
-void next_word(void)
-{
-
-  if(buf_pos == 0) {
-    buf_pos = 1;
-  } else {
-    buf_pos = 0;
-  }
-  
-  
-  if(backed == 0) {
-    if(!fread(&buf[buf_pos], 1, 4, infile)) {
-      if(feof(infile)) {
-	fprintf(stderr, "*End Of File\n");
-	exit_program();
-      } else {
-	fprintf(stderr, "**File Error\n");
-	exit(0);
-      }
-    }
-  } else {
-    backed = 0;
-  }
-  cur_word = buf[buf_pos];
-
-}
-#endif
-
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
+//static inline   
 uint32_t getbits(unsigned int nr)
 #endif
 #ifndef GETBITS32
 {
   uint32_t result;
 
-  result = (cur_word << (64-bits_left)) >> (64-nr);
+  result = (cur_word << (64-bits_left)) >> 32;
+  result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
     cur_word = (cur_word << 32) | get_new_uint32();
@@ -432,12 +361,80 @@ uint32_t getbits(unsigned int nr)
 }
 #endif
 
+
+#ifdef GETBITS32
+void back_word(void)
+{
+  backed = 1;
+  
+  if(buf_pos == 0) {
+    buf_pos = 1;
+  } else {
+    buf_pos = 0;
+  }
+  cur_word = buf[buf_pos];
+}
+#else
+uint32_t get_new_uint32()
+{
+  uint32_t new_word;
+  static int offs = 0;
+  
+  new_word = buf[offs++];
+  if(offs >= READ_SIZE/4) {
+    if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
+      if(feof(infile)) {
+	fprintf(stderr, "*End Of File\n");
+	exit_program();
+      } else {
+	fprintf(stderr, "**File Error\n");
+	exit(0);
+      }
+    }
+    offs = 0;
+  }
+  return new_word;
+ 
+}
+#endif
+
+#ifdef GETBITS32
+void next_word(void)
+{
+
+  if(buf_pos == 0) {
+    buf_pos = 1;
+  } else {
+    buf_pos = 0;
+  }
+  
+  
+  if(backed == 0) {
+    if(!fread(&buf[buf_pos], 1, 4, infile)) {
+      if(feof(infile)) {
+	fprintf(stderr, "*End Of File\n");
+	exit_program();
+      } else {
+	fprintf(stderr, "**File Error\n");
+	exit(0);
+      }
+    }
+  } else {
+    backed = 0;
+  }
+  cur_word = buf[buf_pos];
+
+}
+#endif
+
+
 /* 5.2.2 Definition of nextbits() function */
+static inline
 uint32_t nextbits(unsigned int nr)
 #ifndef GETBITS32
 {
-  return ((cur_word << (64-bits_left)) >> (64-nr));
-
+  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return result >> (32-nr);
 }
 #else
 {
@@ -625,8 +622,8 @@ typedef struct {
   uint8_t non_intra_quantiser_matrix[64];
   
   /***/
-  int16_t intra_inverse_quantiser_matrix[64];
-  int16_t non_intra_inverse_quantiser_matrix[64];
+  uint8_t intra_inverse_quantiser_matrix[64];
+  uint8_t non_intra_inverse_quantiser_matrix[64];
 
   /***/
   int16_t scaled_intra_inverse_quantiser_matrix[8][8];
@@ -1955,7 +1952,7 @@ void coded_block_pattern(void)
   
 }
 
-int get_vlc(vlc_table_t *table, char *func) {
+int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
   int numberofbits=1;
   int vlc;
@@ -2030,7 +2027,6 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
     exit(1);
-    return;
   }
   
   GETBITS(tab->len, "(get_dct)");
@@ -2045,7 +2041,7 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
     
     if ((val&2047)==0) {
       fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
-      return;
+      exit(1);
     }
     
     if(val >= 2048)
@@ -2066,9 +2062,11 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 
 #endif
 
+#define DCT_INTRA_SPLIT
+#ifndef DCT_INTRA_SPLIT
+
 void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func) 
 {
-
   int code;
   DCTtab *tab;
   int run;
@@ -2113,6 +2111,138 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
     exit(1);
+  }
+  
+  GETBITS(tab->len, "(get_dct)");
+  
+  if (tab->run==64) { // end_of_block 
+    run = VLC_END_OF_BLOCK;
+    val = VLC_END_OF_BLOCK;
+  } 
+  else if (tab->run==65) { /* escape */
+    run = GETBITS(6, "(get_dct escape - run )");
+    val = GETBITS(12, "(get_dct escape - level )");
+    
+    if ((val&2047)==0) {
+      fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+      exit(1);
+    }
+    
+    if(val >= 2048)
+      val =  val - 4096;
+  }
+  else {
+    run = tab->run;
+    val = tab->level; 
+    if(GETBITS(1, "(get_dct sign )")) //sign bit
+      val = -val;
+  }
+  
+  runlevel->run   = run;
+  runlevel->level = val;
+
+
+}
+
+#else
+
+//static inline
+void get_dct_intra_vlcformat_0(runlevel_t *runlevel, char *func) 
+{
+  int code;
+  const DCTtab *tab;
+  int run;
+  signed int val;
+  
+  //this routines handles intra AC and non-intra AC/DC coefficients
+  code = nextbits(16);
+  
+  if(code>=16384)
+    tab = &DCTtabnext[(code>>12)-4];  // 14 
+  else if(code>=1024)
+    tab = &DCTtab0[(code>>8)-4];   // 14
+  else if(code>=512)
+    tab = &DCTtab1[(code>>6)-8];  // 14
+  else if(code>=256)
+    tab = &DCTtab2[(code>>4)-16];
+  else if(code>=128)
+    tab = &DCTtab3[(code>>3)-16];
+  else if(code>=64)
+    tab = &DCTtab4[(code>>2)-16];
+  else if(code>=32)
+    tab = &DCTtab5[(code>>1)-16];
+  else if(code>=16)
+    tab = &DCTtab6[code-16];
+  else {
+    fprintf(stderr,
+	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	    code);
+    exit(1);
+  }
+  
+  GETBITS(tab->len, "(get_dct)");
+  
+  if (tab->run==64) { // end_of_block 
+    run = VLC_END_OF_BLOCK;
+    val = VLC_END_OF_BLOCK;
+  } 
+  else if (tab->run==65) { /* escape */
+    run = GETBITS(6, "(get_dct escape - run )");
+    val = GETBITS(12, "(get_dct escape - level )");
+    
+    if ((val&2047)==0) {
+      fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+      exit(1);
+    }
+    
+    if(val >= 2048)
+      val =  val - 4096;
+  }
+  else {
+    run = tab->run;
+    val = tab->level; 
+    if(GETBITS(1, "(get_dct sign )")) //sign bit
+      val = -val;
+  }
+  
+  runlevel->run   = run;
+  runlevel->level = val;
+
+
+}
+
+//static inline
+void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func) 
+{
+  int code;
+  const DCTtab *tab;
+  int run;
+  signed int val;
+  
+  //this routines handles intra AC and non-intra AC/DC coefficients
+  code = nextbits(16);
+  
+  if(code>=16384)
+    tab = &DCTtab0a[(code>>8)-4];   // 15
+  else if(code>=1024)
+    tab = &DCTtab0a[(code>>8)-4];   // 15
+  else if(code>=512)
+    tab = &DCTtab1a[(code>>6)-8];  // 15
+  else if(code>=256)
+    tab = &DCTtab2[(code>>4)-16];
+  else if(code>=128)
+    tab = &DCTtab3[(code>>3)-16];
+  else if(code>=64)
+    tab = &DCTtab4[(code>>2)-16];
+  else if(code>=32)
+    tab = &DCTtab5[(code>>1)-16];
+  else if(code>=16)
+    tab = &DCTtab6[code-16];
+  else {
+    fprintf(stderr,
+	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	    code);
+    exit(1);
     return;
   }
   
@@ -2147,11 +2277,13 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
 
 }
 
+#endif
+
+static inline
 void get_dct_non_intra_first(runlevel_t *runlevel, char *func) 
 {
-
   int code;
-  DCTtab *tab;
+  const DCTtab *tab;
   int run;
   signed int val;
   
@@ -2159,17 +2291,11 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
   code = nextbits(16);
   
   if (code>=16384)
-    {
-	tab = &DCTtabfirst[(code>>12)-4]; // 14 
-    }
+    tab = &DCTtabfirst[(code>>12)-4]; // 14 
   else if(code>=1024)
-    {
-      tab = &DCTtab0[(code>>8)-4];   // 14
-    }
+    tab = &DCTtab0[(code>>8)-4];   // 14
   else if(code>=512)
-    {
-      tab = &DCTtab1[(code>>6)-8];  // 14
-    }
+    tab = &DCTtab1[(code>>6)-8];  // 14
   else if(code>=256)
     tab = &DCTtab2[(code>>4)-16];
   else if(code>=128)
@@ -2185,7 +2311,6 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
     exit(1);
-    return;
   }
   
   GETBITS(tab->len, "(get_dct)");
@@ -2215,11 +2340,11 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
 
 }
 
+#if 0
 void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func) 
 {
-
   int code;
-  DCTtab *tab;
+  const DCTtab *tab;
   int run;
   signed int val;
   
@@ -2227,17 +2352,11 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
   code = nextbits(16);
   
   if (code>=16384)
-    {
-      tab = &DCTtabnext[(code>>12)-4];  // 14 
-    }
+    tab = &DCTtabnext[(code>>12)-4];  // 14 
   else if(code>=1024)
-    {
-      tab = &DCTtab0[(code>>8)-4];   // 14
-    }
+    tab = &DCTtab0[(code>>8)-4];   // 14
   else if(code>=512)
-    {
-      tab = &DCTtab1[(code>>6)-8];  // 14
-    }
+    tab = &DCTtab1[(code>>6)-8];  // 14
   else if(code>=256)
     tab = &DCTtab2[(code>>4)-16];
   else if(code>=128)
@@ -2253,7 +2372,6 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
 	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	    code);
     exit(1);
-    return;
   }
   
   GETBITS(tab->len, "(get_dct)");
@@ -2268,7 +2386,7 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
     
     if ((val&2047)==0) {
       fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
-      return;
+      exit(1);
     }
     
     if(val >= 2048)
@@ -2283,10 +2401,9 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
   
   runlevel->run   = run;
   runlevel->level = val;
-
-
+  
 }
-
+#endif
 
 
 void inverse_quantisation_final(int sum)
@@ -2391,6 +2508,83 @@ void block_intra(unsigned int i)
       
       /* 7.2.2.4 Summary */
       eob_not_read = 1;
+#ifdef DCT_INTRA_SPLIT
+      if(pic.coding_ext.intra_vlc_format) {
+      while(eob_not_read) {
+	//fprintf(stderr, "Subsequent dct_dc\n");
+	//Subsequent DCT coefficients
+	get_dct_intra_vlcformat_1(&runlevel, 
+				  "dct_dc_subsequent");
+	
+#ifdef DEBUG
+	if(runlevel.run != VLC_END_OF_BLOCK) {
+	  DPRINTF(4, "coeff run: %d, level: %d\n",
+		  runlevel.run, runlevel.level);
+	}
+#endif
+    
+	if(runlevel.run == VLC_END_OF_BLOCK) {
+	  eob_not_read = 0;
+	} else {
+	  n += runlevel.run;
+	  
+	  /* inverse quantisation */
+	  {
+	    uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
+	    int f = (runlevel.level 
+		     * seq.header.intra_inverse_quantiser_matrix[i]
+		     * mb.quantiser_scale)/16;
+	    if(f > 2047)
+	      f = 2047;
+	    else if(f < -2048)
+	      f = -2048;
+
+	    mb.QFS[i] = f;
+	    inverse_quantisation_sum += f;
+	  }
+	  
+	  n++;      
+	}
+      }
+      } else {
+      while(eob_not_read) {
+	//fprintf(stderr, "Subsequent dct_dc\n");
+	//Subsequent DCT coefficients
+	get_dct_intra_vlcformat_0(&runlevel, 
+		      "dct_dc_subsequent");
+	
+#ifdef DEBUG
+	if(runlevel.run != VLC_END_OF_BLOCK) {
+	  DPRINTF(4, "coeff run: %d, level: %d\n",
+		  runlevel.run, runlevel.level);
+	}
+#endif
+    
+	if(runlevel.run == VLC_END_OF_BLOCK) {
+	  eob_not_read = 0;
+	} else {
+	  n += runlevel.run;
+	  
+	  /* inverse quantisation */
+	  {
+	    uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
+	    int f = (runlevel.level 
+		     * seq.header.intra_inverse_quantiser_matrix[i]
+		     * mb.quantiser_scale)/16;
+	    if(f > 2047)
+	      f = 2047;
+	    else if(f < -2048)
+	      f = -2048;
+
+	    mb.QFS[i] = f;
+	    inverse_quantisation_sum += f;
+	  }
+	  
+	  n++;      
+	}
+      }
+      }
+#else
       while(eob_not_read) {
 	//fprintf(stderr, "Subsequent dct_dc\n");
 	//Subsequent DCT coefficients
@@ -2427,6 +2621,7 @@ void block_intra(unsigned int i)
 	  n++;      
 	}
       }
+#endif
       inverse_quantisation_final(inverse_quantisation_sum);
   
       DPRINTF(4, "nr of coeffs: %d\n", n);
@@ -2510,45 +2705,102 @@ void block_non_intra(unsigned int b)
     mb.QFS[i] = f;
     inverse_quantisation_sum += f;
     
-    
-    n++;      
+    n++;
     
     
     eob_not_read = 1;
     while(eob_not_read) {
-      // DCT coefficients, the second parameter is the coefficients number i.e if 
-      // it is 0 then it's the first and should be treated differntly.
-      get_dct_non_intra_subseq(&runlevel, 
-			       "dct_dc_subsequent");
+      //      get_dct_non_intra_subseq(&runlevel, "dct_dc_subsequent");
+      int code;
+      const DCTtab *tab;
+      int run;
+      unsigned int val;
+      int sgn;
       
+      code = nextbits(16);
+	
+      if (code>=16384)
+	tab = &DCTtabnext[(code>>12)-4];  // 14 
+      else if(code>=1024)
+	tab = &DCTtab0[(code>>8)-4];   // 14
+      else if(code>=512)
+	tab = &DCTtab1[(code>>6)-8];  // 14
+      else if(code>=256)
+	tab = &DCTtab2[(code>>4)-16];
+      else if(code>=128)
+	tab = &DCTtab3[(code>>3)-16];
+      else if(code>=64)
+	tab = &DCTtab4[(code>>2)-16];
+      else if(code>=32)
+	tab = &DCTtab5[(code>>1)-16];
+      else if(code>=16)
+	tab = &DCTtab6[code-16];
+      else {
+	fprintf(stderr,
+		"(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+		code);
+	exit(1);
+      }
+  
+      GETBITS(tab->len, "(get_dct)");
 #ifdef DEBUG
       if(runlevel.run != VLC_END_OF_BLOCK) {
 	DPRINTF(4, "coeff run: %d, level: %d\n",
 		runlevel.run, runlevel.level);
       }
 #endif
-      
-      if(runlevel.run == VLC_END_OF_BLOCK) {
+   
+      if (tab->run == 64) { // end_of_block 
+	//	run = VLC_END_OF_BLOCK;
+	//	val = VLC_END_OF_BLOCK;
 	eob_not_read = 0;
-      } else {
-	n += runlevel.run;
+      } 
+      else {
+	if (tab->run == 65) { /* escape */
+	  run = GETBITS(6, "(get_dct escape - run )");
+	  val = GETBITS(12, "(get_dct escape - level )");
+	  
+	  if ((val&2047)==0) {
+	    fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+	    exit(1);
+	  }
+	  
+	  sgn = (val >= 2048);
+	  if( val >= 2048 )                // !!!! ?sgn? 
+	    val =  4096 - val;// - 4096;
+	}
+	else {
+	  run = tab->run;
+	  val = tab->level; 
+	  sgn = GETBITS(1, "(get_dct sign )"); //sign bit
+	  //	    val = -val;
+	}
+	
+	//	sgn = (val < 0);
+	//	val = abs(val);
+	
+	n += run;
 	
 	/* inverse quantisation */
-	
 	i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	
-	f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
+	// flytta ut &inverse_scan[pic.coding_ext.alternate_scan] ??
+
+	f = ( ((val*2)+1)
 	      * seq.header.non_intra_inverse_quantiser_matrix[i]
 	      * mb.quantiser_scale )/32;
+	// flytta ut mb.quantiser_scale ??
 	
-	if(f > 2047)
+	if(f > 2047) {
+	  //	  fprintf(stderr,"clip");
+	  //	  if( sgn )
+	  //	    fprintf(stderr,"==2048");
 	  f = 2047;
-	else if(f < -2048)
-	  f = -2048;
+	}
+	if( sgn )
+	    f = -f;
 	
 	mb.QFS[i] = f;
 	inverse_quantisation_sum += f;
-	
 	
 	n++;      
       }

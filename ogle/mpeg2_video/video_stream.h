@@ -75,7 +75,7 @@ typedef struct {
 #define VLC_END_OF_BLOCK   254 
 
 /* Table B-12 --- Variable length codes for dct_dc_size_luminance */
-vlc_table_t table_b12[] = { 
+const vlc_table_t table_b12[] = { 
 	{    2,  0x000,     1 },
 	{    2,  0x001,     2 },
 	{    3,  0x004,     0 },
@@ -91,7 +91,7 @@ vlc_table_t table_b12[] = {
 	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
 
 /* Table B-13 --- Variable length codes for dct_dc_size_chrominance */
-vlc_table_t table_b13[] = {
+const vlc_table_t table_b13[] = {
 	{    2,  0x000,     0 },
 	{    2,  0x001,     1 },
 	{    2,  0x002,     2 },
@@ -108,7 +108,7 @@ vlc_table_t table_b13[] = {
 
 
 /* Table B-14 --- DCT coefficients Table zero */
-vlc_rl_table table_b14[] = {
+const vlc_rl_table table_b14[] = {
   {	    2,	       0x2,VLC_END_OF_BLOCK, VLC_END_OF_BLOCK},
   {	    2,	       0x3,         0,	    1	},// NOTE 2, 3
   {	    3,	       0x3,	    1,	    1	},
@@ -226,7 +226,7 @@ vlc_rl_table table_b14[] = {
 };
 
 /* Table B-15 --- DCT coefficients Table one */
-vlc_rl_table table_b15[] = {
+const vlc_rl_table table_b15[] = {
   {	    2,	       0x2,	    0,	    1	},
   {	    3,	       0x2,	    1,	    1	},
   {	    3,	       0x6,	    0,	    2	},
@@ -353,14 +353,14 @@ vlc_rl_table table_b15[] = {
 #define SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG   0x01
 
 /* Table B-2  Variable length codes for macroblock_type in I-pictures */
-vlc_table_t table_b2[]= {
+const vlc_table_t table_b2[]= {
   { 1, 1, MACROBLOCK_INTRA },
   { 2, 1, MACROBLOCK_QUANT | MACROBLOCK_INTRA },
   { VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
 /* Table B-3  Variable length codes for macroblock_type in P-pictures */
-vlc_table_t table_b3[]= {
+const vlc_table_t table_b3[]= {
   { 1, 1, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_PATTERN },
   { 2, 1, MACROBLOCK_PATTERN },
   { 3, 1, MACROBLOCK_MOTION_FORWARD },
@@ -372,7 +372,7 @@ vlc_table_t table_b3[]= {
 };
 
 /* Table B-4  Variable length codes for macroblock_type in B-pictures */
-vlc_table_t table_b4[]= {
+const vlc_table_t table_b4[]= {
   { 2, 2, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_MOTION_BACKWARD },
   { 2, 3, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_MOTION_BACKWARD | MACROBLOCK_PATTERN },
   { 3, 2, MACROBLOCK_MOTION_BACKWARD },
@@ -390,7 +390,7 @@ vlc_table_t table_b4[]= {
 #define VLC_MACROBLOCK_ESCAPE 255
 
 /* Table B-1 --- Variable length codes for macroblock_address_increment */
-vlc_table_t table_b1[] = {
+const vlc_table_t table_b1[] = {
   {	    1,	  0x1,	    1	},
   {	    3,	  0x3,	    2	},
   {	    3,	  0x2,	    3	},
@@ -440,7 +440,7 @@ vlc_table_t table_b1[] = {
 #define PRED_TYPE_16x8_MC 3
 
 /* Table B-10 --- Variable length codes for motion_code */
-vlc_table_t table_b10[] = {
+const vlc_table_t table_b10[] = {
 	{	    1,	  0x1,	    0	},
 	{	    3,	  0x2,	    1	},
 	{	    3,	  0x3,	   -1	},
@@ -478,7 +478,7 @@ vlc_table_t table_b10[] = {
 };
 
 /* Table B-11  Variable length codes for dmvector[t] */
-vlc_table_t table_b11[] = {
+const vlc_table_t table_b11[] = {
   {	    1,	  0x0,	    0	},
   {	    2,	  0x2,	    1	},
   {	    2,	  0x3,	   -1	},
@@ -486,7 +486,7 @@ vlc_table_t table_b11[] = {
 };
 
 /* Table B-9 --- Variable length codes for coded_block_pattern. */
-vlc_table_t table_b9[] = {
+const vlc_table_t table_b9[] = {
 	{	    3,	  0x7,	   60	},
 	{	    4,	  0xD,	    4	},
 	{	    4,	  0xC,	    8	},
@@ -608,7 +608,7 @@ const uint8_t inverse_scan[2][64] = {
 };
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */
-uint8_t q_scale[32][2] = {
+const uint8_t q_scale[32][2] = {
   { 255, 255 },
   { 2, 1 },
   { 4, 2 },
@@ -646,7 +646,7 @@ uint8_t q_scale[32][2] = {
 
 
 /* 6.3.7 Quant matrix extension */
-int16_t default_intra_inverse_quantiser_matrix[8][8] = {
+const int8_t default_intra_inverse_quantiser_matrix[8][8] = {
   { 8, 16, 19, 22, 26, 27, 29, 34 },
   { 16, 16, 22, 24, 27, 29, 34, 37 },
   { 19, 22, 26, 27, 29, 34, 34, 38 },
@@ -657,7 +657,7 @@ int16_t default_intra_inverse_quantiser_matrix[8][8] = {
   { 27, 29, 35, 38, 46, 56, 69, 83 }
 };
 
-int16_t default_non_intra_inverse_quantiser_matrix[8][8] = {
+const int8_t default_non_intra_inverse_quantiser_matrix[8][8] = {
   { 16, 16, 16, 16, 16, 16, 16, 16 },
   { 16, 16, 16, 16, 16, 16, 16, 16 },
   { 16, 16, 16, 16, 16, 16, 16, 16 },
@@ -679,7 +679,7 @@ typedef struct {
 /* Table B-14, DCT coefficients table zero,
  * codes 0100 ... 1xxx (used for first (DC) coefficient)
  */
-DCTtab DCTtabfirst[12] =
+const DCTtab DCTtabfirst[12] =
 {
   {0,2,4}, {2,1,4}, {1,1,3}, {1,1,3},
   {0,1,1}, {0,1,1}, {0,1,1}, {0,1,1},
@@ -689,7 +689,7 @@ DCTtab DCTtabfirst[12] =
 /* Table B-14, DCT coefficients table zero,
  * codes 0100 ... 1xxx (used for all other coefficients)
  */
-DCTtab DCTtabnext[12] =
+const DCTtab DCTtabnext[12] =
 {
   {0,2,4},  {2,1,4},  {1,1,3},  {1,1,3},
   {64,0,2}, {64,0,2}, {64,0,2}, {64,0,2}, /* EOB */
@@ -699,7 +699,7 @@ DCTtab DCTtabnext[12] =
 /* Table B-14, DCT coefficients table zero,
  * codes 000001xx ... 00111xxx
  */
-DCTtab DCTtab0[60] =
+const DCTtab DCTtab0[60] =
 {
   {65,0,6}, {65,0,6}, {65,0,6}, {65,0,6}, /* Escape */
   {2,2,7}, {2,2,7}, {9,1,7}, {9,1,7},
@@ -721,7 +721,7 @@ DCTtab DCTtab0[60] =
 /* Table B-15, DCT coefficients table one,
  * codes 000001xx ... 11111111
 */
-DCTtab DCTtab0a[252] =
+const DCTtab DCTtab0a[252] =
 {
   {65,0,6}, {65,0,6}, {65,0,6}, {65,0,6}, /* Escape */
   {7,1,7}, {7,1,7}, {8,1,7}, {8,1,7},
@@ -791,7 +791,7 @@ DCTtab DCTtab0a[252] =
 /* Table B-14, DCT coefficients table zero,
  * codes 0000001000 ... 0000001111
  */
-DCTtab DCTtab1[8] =
+const DCTtab DCTtab1[8] =
 {
   {16,1,10}, {5,2,10}, {0,7,10}, {2,3,10},
   {1,4,10}, {15,1,10}, {14,1,10}, {4,2,10}
@@ -800,7 +800,7 @@ DCTtab DCTtab1[8] =
 /* Table B-15, DCT coefficients table one,
  * codes 000000100x ... 000000111x
  */
-DCTtab DCTtab1a[8] =
+const DCTtab DCTtab1a[8] =
 {
   {5,2,9}, {5,2,9}, {14,1,9}, {14,1,9},
   {2,4,10}, {16,1,10}, {15,1,9}, {15,1,9}
@@ -809,7 +809,7 @@ DCTtab DCTtab1a[8] =
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 000000010000 ... 000000011111
  */
-DCTtab DCTtab2[16] =
+const DCTtab DCTtab2[16] =
 {
   {0,11,12}, {8,2,12}, {4,3,12}, {0,10,12},
   {2,4,12}, {7,2,12}, {21,1,12}, {20,1,12},
@@ -820,7 +820,7 @@ DCTtab DCTtab2[16] =
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 0000000010000 ... 0000000011111
  */
-DCTtab DCTtab3[16] =
+const DCTtab DCTtab3[16] =
 {
   {10,2,13}, {9,2,13}, {5,3,13}, {3,4,13},
   {2,5,13}, {1,7,13}, {1,6,13}, {0,15,13},
@@ -831,7 +831,7 @@ DCTtab DCTtab3[16] =
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 00000000010000 ... 00000000011111
  */
-DCTtab DCTtab4[16] =
+const DCTtab DCTtab4[16] =
 {
   {0,31,14}, {0,30,14}, {0,29,14}, {0,28,14},
   {0,27,14}, {0,26,14}, {0,25,14}, {0,24,14},
@@ -842,7 +842,7 @@ DCTtab DCTtab4[16] =
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 000000000010000 ... 000000000011111
  */
-DCTtab DCTtab5[16] =
+const DCTtab DCTtab5[16] =
 {
   {0,40,15}, {0,39,15}, {0,38,15}, {0,37,15},
   {0,36,15}, {0,35,15}, {0,34,15}, {0,33,15},
@@ -853,7 +853,7 @@ DCTtab DCTtab5[16] =
 /* Table B-14/15, DCT coefficients table zero / one,
  * codes 0000000000010000 ... 0000000000011111
  */
-DCTtab DCTtab6[16] =
+const DCTtab DCTtab6[16] =
 {
   {1,18,16}, {1,17,16}, {1,16,16}, {1,15,16},
   {6,3,16}, {16,2,16}, {15,2,16}, {14,2,16},
