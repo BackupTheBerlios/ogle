@@ -481,6 +481,7 @@ int ogle_sysv_shmget(size_t size, int mode)
 {
   int shmid;
   
+  DNOTE("Getting %d bytes sysv shm\n", size);
   shmid = shmget(IPC_PRIVATE, size, mode | IPC_CREAT);
   if(shmid == -1) {
     ERROR("ogle_sysv_shmget: %s\n", strerror(errno));
