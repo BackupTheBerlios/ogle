@@ -10,7 +10,8 @@
 
 <!ELEMENT nav (defaults)?>
 <!ELEMENT path (#PCDATA)>
-<!ELEMENT device (path)?>
+<!ELEMENT driver (#PCDATA)>
+<!ELEMENT device (path|driver)*>
 <!ELEMENT dvd (nav|device)*>
 
 <!ELEMENT front (#PCDATA)>

@@ -311,10 +311,14 @@ if test "x$enable_oss" != xno; then
     case "$host" in
     *-linux*|*-openbsd*|*-freebsd*|*-bsdi*)
 
+ 
+
 dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
-            [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lossaudio"]);;
+            [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lossaudio"])
+	DEFAULT_AUDIO_DRIVER="oss"
+    ;;
     esac
 fi
 
@@ -326,7 +330,9 @@ if test "x$enable_sunaudio" != xno; then
     *-sun-solaris*|*-netbsd*)
 
 dnl check for headers.. only define LIBOGLEAO_OSS if headers are found.
-        AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support]);;
+        AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support])
+	DEFAULT_AUDIO_DRIVER="solaris"
+    ;;
     esac
 fi
 
@@ -516,6 +522,7 @@ esac
 
 AC_SUBST(DEFAULT_DVD_DEVICE)
 AC_SUBST(DEFAULT_AUDIO_DEVICE)
+AC_SUBST(DEFAULT_AUDIO_DRIVER)
 
 dnl ---------------------------------------------------------
 dnl end config file

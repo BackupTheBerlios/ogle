@@ -19,6 +19,7 @@
   </dvd>
   <audio>
     <device>
+      <driver>@DEFAULT_AUDIO_DRIVER@</driver>
       <path>@DEFAULT_AUDIO_DEVICE@</path>
     </device>
     <speakers>
