@@ -88,8 +88,7 @@ typedef enum {
   
   DVDCtrlGetAudioAttributes,
   DVDCtrlAudioAttributes,
-
-
+ 
   DVDCtrlGetCurrentSubpicture,
   DVDCtrlCurrentSubpicture,
 
@@ -105,8 +104,11 @@ typedef enum {
   DVDCtrlPlayerRegionSelect,
   
   DVDCtrlGetCurrentUOPS,
-  DVDCtrlCurrentUOPS
+  DVDCtrlCurrentUOPS,
   
+  DVDCtrlGetTitles,
+  DVDCtrlGetPTTsForTitle
+
 } DVDCtrlEventType_t;
 
 
@@ -311,6 +313,16 @@ typedef struct {
   DVDAudioAttributes_t attr;
 } DVDCtrlAudioAttributesEvent_t;
 
+typedef struct {
+  DVDCtrlEventType_t type;
+  int titles;
+} DVDCtrlGetTitlesEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDTitle_t title;
+  int ptts;
+} DVDCtrlGetPTTsForTitleEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
@@ -434,6 +446,9 @@ typedef union {
   DVDCtrlCurrentAudioEvent_t currentaudio;
   DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;
   DVDCtrlAudioAttributesEvent_t audioattributes;
+
+  DVDCtrlGetTitlesEvent_t titles;
+  DVDCtrlGetPTTsForTitleEvent_t parts;
 
   DVDCtrlCurrentSubpictureEvent_t currentsubpicture;
   DVDCtrlSubpictureStreamEnabledEvent_t subpicturestreamenabled;

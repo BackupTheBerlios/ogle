@@ -53,6 +53,10 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle);
 DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, DVDVideoAttributes_t *const Attr);
 
+DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable);
+DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title,
+			       int *const PartsAvailable);
+
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
 				    DVDSubpictureStream_t *const CurrentStream,

@@ -482,6 +482,52 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 }
 
 
+DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetTitles;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlGetTitles)) {
+      *TitlesAvailable = ev.dvdctrl.cmd.titles.titles;
+      return DVD_E_Ok;
+    }
+  }
+}
+
+DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title, 
+			       int *const PartsAvailable)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetPTTsForTitle;
+  ev.dvdctrl.cmd.parts.title = Title;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+   if(MsgNextEvent(nav->msgq, &ev) == -1) {
+     return DVD_E_Unspecified;
+   }
+   if((ev.type == MsgEventQDVDCtrl) &&
+      (ev.dvdctrl.cmd.type == DVDCtrlGetPTTsForTitle)) {
+     *PartsAvailable = ev.dvdctrl.cmd.parts.ptts;
+     return DVD_E_Ok;
+    }
+  }
+}
+
 /** 
  * @todo Implement function.
  *
