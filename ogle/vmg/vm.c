@@ -317,6 +317,7 @@ int vm_resume(void)
 
 /**
  * Return the substream id for 'logical' audio stream audioN.
+ *  0 <= audioN < 8
  */
 int vm_get_audio_stream(int audioN)
 {
@@ -328,7 +329,7 @@ int vm_get_audio_stream(int audioN)
     audioN = 0;
   }
   
-  if(audioN < 7) {
+  if(audioN < 8) {
     /* Is there any contol info for this logical stream */ 
     if(state.pgc->audio_control[audioN] & (1<<15)) {
       streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
@@ -349,6 +350,7 @@ int vm_get_audio_stream(int audioN)
 
 /**
  * Return the substream id for 'logical' subpicture stream subpN.
+ * 0 <= subpN < 32
  */
 int vm_get_subp_stream(int subpN)
 {
@@ -549,12 +551,15 @@ static int set_PGN(void) {
   
   if(state.domain == VTS_DOMAIN) {
     playback_type_t *pb_ty;
-    pb_ty = &vmgi->tt_srpt->title[state.TTN_REG].pb_ty;
+    if(state.TTN_REG > vmgi->tt_srpt->nr_of_srpts)
+      return 0; // ??
+    pb_ty = &vmgi->tt_srpt->title[state.TTN_REG - 1].pb_ty;
     if(pb_ty->multi_or_random_pgc_title == /* One_Sequential_PGC_Title */ 0) {
 #if 0 /* TTN_REG can't be trusted to have a correct value here... */
-      assert(state.VTS_TTN_REG <= vtsi->vts_ptt_srpt->nr_of_srpts);
-      assert(get_PGCN() == vtsi->vts_ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgcn);
-      assert(1 == vtsi->vts_ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgn);
+      vts_ptt_srpt_t *ptt_srpt = vtsi->vts_ptt_srpt;
+      assert(state.VTS_TTN_REG <= ptt_srpt->nr_of_srpts);
+      assert(get_PGCN() == ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgcn);
+      assert(1 == ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgn);
 #endif
       state.PTTN_REG = state.pgN;
     }
@@ -770,7 +775,7 @@ static link_t play_PGC_post(void)
   // Or perhaps handle it here?
   {
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
-    fprintf(stderr, "** fell of the end of the pgc\n");
+    fprintf(stderr, "** Fell of the end of the pgc, continuing in NextPGC\n");
     assert(state.pgc->next_pgc_nr != 0);
     return link_next_pgc;
   }
@@ -1063,7 +1068,7 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
   pgcN = get_ID(vts_ttn); // This might return -1
   assert(pgcN != -1);
 
-  //state.TTN_REG = ?? Must search tt_srpt for a matchhing entry...  
+  //state.TTN_REG = ?? Must search tt_srpt for a matching entry...  
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
   
@@ -1129,7 +1134,7 @@ static int get_ID(int id)
       return pgcN;
     }
   }
-  fprintf(stderr, "** No such menu\n");
+  fprintf(stderr, "** No such id/menu (%d) entry PGC\n", id);
   return -1; // error
 }
 
@@ -1233,7 +1238,7 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
   int i;
   
   if(h == NULL || h->pgci_ut == NULL) {
-    fprintf(stderr, "*** BEPA ***\n");
+    fprintf(stderr, "*** pgci_ut handle is NULL ***\n");
     return NULL; // error?
   }
   
@@ -1242,7 +1247,10 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
 	&& h->pgci_ut->lu[i].lang_code != lang)
     i++;
   if(i == h->pgci_ut->nr_of_lus) {
-    fprintf(stderr, "** Wrong language **\n");
+    fprintf(stderr, "** Wrong language, using %c%c instead of %c%c\n",
+	    (char)(h->pgci_ut->lu[0].lang_code >> 8),
+	    (char)(h->pgci_ut->lu[0].lang_code & 0xff),
+	    (char)(lang >> 8), (char)(lang & 0xff));
     i = 0; // error?
   }
   

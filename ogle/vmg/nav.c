@@ -343,13 +343,9 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   case DVDCtrlMouseSelect:
     {
       int button;
-      int width, height;
-      unsigned int x, y;
-      
-      vm_get_video_res(&width, &height);
-      x = ce->mouse.x;
-      y = ce->mouse.y;
-      button = mouse_over_hl(pci, x, y);
+      //int width, height;
+      //vm_get_video_res(&width, &height);
+      button = mouse_over_hl(pci, ce->mouse.x, ce->mouse.y);
       if(button)
 	button_nr = button;
       else
