@@ -54,6 +54,8 @@
 #include "display.h"
 #include "ffb_asm.h"
 
+#include "video_output_parse_config.h"
+
 #define SPU
 #ifdef SPU
 #include "spu_mixer.h"
@@ -493,6 +495,136 @@ static void display_init_xshm()
 
 
 
+void init_config(Display *dpy)
+{
+  int screen_nr;
+  char *dpy_str;
+  cfg_video_t *cfg_video = NULL;
+  cfg_display_t *cfg_display;
+  cfg_display_t *tmp_display;
+  DpyInfoOrigin_t orig;
+  
+  screen_nr = DefaultScreen(dpy);
+  dpy_str = DisplayString(dpy);
+
+
+  
+  if(get_video_config(&cfg_video) == 0) {
+    fprintf(stderr, "ERROR[ogle_vo]: init_config(): Couldn't read any config files\n");
+  }
+  
+  DpyInfoInit(dpy, screen_nr);
+  
+  cfg_display = cfg_video->display;
+  tmp_display = cfg_display;
+
+  if(dpy_str != NULL) {
+    while(cfg_display) {
+      if(cfg_display->name != NULL) {
+	if(!strcmp(cfg_display->name, dpy_str)) {
+	  break;
+	}
+      } else {
+	tmp_display = cfg_display;
+      }
+      cfg_display = cfg_display->next;
+    }
+    
+    if(cfg_display == NULL) {
+      fprintf(stderr,
+	      "NOTE[ogle_vo]: init_config(): using default config for '%s'\n",
+	      dpy_str);
+      cfg_display = tmp_display;
+    }
+  }
+  
+  DpyInfoSetUserGeometry(dpy, screen_nr,
+			 cfg_display->geometry.width,
+			 cfg_display->geometry.height);
+
+  DpyInfoSetUserResolution(dpy, screen_nr,
+			   cfg_display->resolution.horizontal_pixels,
+			   cfg_display->resolution.vertical_pixels);
+  
+  orig = DpyInfoOriginX11;
+  
+  if(cfg_display->geometry_src) {
+    if(!strcmp(cfg_display->geometry_src, "user")) {
+      orig = DpyInfoOriginUser;
+    } 
+  }
+  
+  orig = DpyInfoSetUpdateGeometry(dpy, screen_nr, orig);
+  {
+    char *orig_str;
+    switch(orig) {
+    case DpyInfoOriginX11:
+      orig_str = "X11";
+      break;
+    case DpyInfoOriginUser:
+      orig_str = "user";
+      break;
+    default:
+      orig_str = "";
+    }
+    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for geometry\n",
+	    orig_str);
+  }
+
+  orig = DpyInfoOriginX11;
+
+  if(cfg_display->resolution_src) {
+    if(!strcmp(cfg_display->resolution_src, "user")) {
+      orig = DpyInfoOriginUser;
+    } else if(!strcmp(cfg_display->resolution_src, "XF86VidMode")) {
+      orig = DpyInfoOriginXF86VidMode;
+    }
+  }
+  
+  orig = DpyInfoSetUpdateResolution(dpy, screen_nr, orig);
+  {
+    char *orig_str;
+    switch(orig) {
+    case DpyInfoOriginX11:
+      orig_str = "X11";
+      break;
+    case DpyInfoOriginXF86VidMode:
+      orig_str = "XF86VidMode";
+      break;
+    case DpyInfoOriginUser:
+      orig_str = "user";
+      break;
+    default:
+      orig_str = "";
+    }
+    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for resolution\n",
+	    orig_str);
+  }
+  
+  DpyInfoUpdateGeometry(dpy, screen_nr);
+  DpyInfoUpdateResolution(dpy, screen_nr);
+  
+  /* Query and calculate the displays aspect rate. */
+ 
+  {
+    int width, height;
+    int horizontal_pixels, vertical_pixels;
+    int dpy_sar_frac_n, dpy_sar_frac_d;
+
+    DpyInfoGetGeometry(dpy, screen_nr, &width, &height);
+    DpyInfoGetResolution(dpy, screen_nr, &horizontal_pixels, &vertical_pixels);
+    DpyInfoGetSAR(dpy, screen_nr, &dpy_sar_frac_n, &dpy_sar_frac_d);
+    
+    fprintf(stderr, "NOTE[ogle_vo]: Display w: %d, h: %d, hp: %d, vp: %d\n",
+	    width, height, horizontal_pixels, vertical_pixels);
+    fprintf(stderr, "NOTE[ogle_vo]:  Display sar: %d/%d = %f\n",
+	    dpy_sar_frac_n, dpy_sar_frac_d,
+	    (double)dpy_sar_frac_n/(double)dpy_sar_frac_d);
+  }
+  
+  
+  
+}
 
 
 void display_init(yuv_image_t *picture_data,
@@ -507,7 +639,7 @@ void display_init(yuv_image_t *picture_data,
   XWindowAttributes attribs;
   XSetWindowAttributes xswa;
   unsigned long xswamask;
-  DpyInfoOrigin_t orig;
+  
   if(getenv("USE_FFB2_YUV2RGB")) {
     use_ffb2_yuv2rgb = 1;
   }
@@ -521,67 +653,7 @@ void display_init(yuv_image_t *picture_data,
   screen_nr = DefaultScreen(mydisplay);
   scr = XDefaultScreenOfDisplay(mydisplay);
   
-  DpyInfoInit(mydisplay, screen_nr);
-  
-  orig = DpyInfoSetUpdateGeometry(mydisplay, screen_nr, DpyInfoOriginX11);
-  {
-    char *orig_str;
-    switch(orig) {
-    case DpyInfoOriginX11:
-      orig_str = "X11";
-      break;
-    case DpyInfoOriginUser:
-      orig_str = "User";
-      break;
-    default:
-      orig_str = "";
-    }
-    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for geometry\n",
-	    orig_str);
-  }
-
-  orig = DpyInfoSetUpdateResolution(mydisplay, screen_nr, DpyInfoOriginXF86VidMode);
-  {
-    char *orig_str;
-    switch(orig) {
-    case DpyInfoOriginX11:
-      orig_str = "X11";
-      break;
-    case DpyInfoOriginXF86VidMode:
-      orig_str = "XF86Vidmode";
-      break;
-    case DpyInfoOriginUser:
-      orig_str = "User setting";
-      break;
-    default:
-      orig_str = "";
-    }
-    fprintf(stderr, "NOTE[ogle_vo]: Using '%s' as source for resolution\n",
-	    orig_str);
-  }
-  
-  DpyInfoUpdateGeometry(mydisplay, screen_nr);
-  DpyInfoUpdateResolution(mydisplay, screen_nr);
-  
-  /* Query and calculate the displays aspect rate. */
- 
-  {
-    int width, height;
-    int horizontal_pixels, vertical_pixels;
-    int dpy_sar_frac_n, dpy_sar_frac_d;
-
-    DpyInfoGetGeometry(mydisplay, screen_nr, &width, &height);
-    DpyInfoGetResolution(mydisplay, screen_nr, &horizontal_pixels, &vertical_pixels);
-    DpyInfoGetSAR(mydisplay, screen_nr, &dpy_sar_frac_n, &dpy_sar_frac_d);
-    
-    fprintf(stderr, "NOTE[ogle_vo]: Display w: %d, h: %d, hp: %d, vp: %d\n",
-	    width, height, horizontal_pixels, vertical_pixels);
-    fprintf(stderr, "NOTE[ogle_vo]:  Display sar: %d/%d = %f\n",
-	    dpy_sar_frac_n, dpy_sar_frac_d,
-	    (double)dpy_sar_frac_n/(double)dpy_sar_frac_d);
-  }
-  
-  
+  init_config(mydisplay);
   
   /* Assume (for now) that the window will be the same size as the source. */
   scale.image_width = picture_data->info->picture.horizontal_size;

@@ -43,7 +43,7 @@ EXTRA_DIST = \
 
 pkglib_PROGRAMS = ogle_mpeg_vs ogle_vout
 
-INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@ @XML_CFLAGS@
 
 ogle_mpeg_vs_SOURCES = \
 	video_stream.c video_stream.h \
@@ -64,11 +64,12 @@ ogle_vout_SOURCES = \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
 	display.c display.h \
+	video_output_parse_config.c video_output_parse_config.h \
 	$(MLIBSOURCES) $(ALTIVECSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 ogle_vout_LDADD = \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
-	@XF86VIDMODE_LIBS@ \
+	@XF86VIDMODE_LIBS@ @XML_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 

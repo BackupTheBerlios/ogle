@@ -3,9 +3,7 @@
 
 typedef enum {
   DpyInfoOriginX11 = 1,
-#ifdef HAVE_XF86VIDMODE
   DpyInfoOriginXF86VidMode,
-#endif
   DpyInfoOriginUser
 } DpyInfoOrigin_t;
 

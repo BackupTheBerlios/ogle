@@ -7,7 +7,6 @@
 #include "display.h"
 
 
-
 typedef struct {
   int horizontal_pixels;
   int vertical_pixels;
@@ -198,7 +197,7 @@ static int update_geometry_user(dpy_info_t *info, Display *dpy, int screen_nr)
      info->user_geometry.height > 0) {
     info->geometry.width = info->user_geometry.width;
     info->geometry.height = info->user_geometry.height;
-    
+
     update_sar(info);
     
     return 1;
@@ -224,7 +223,7 @@ int DpyInfoUpdateGeometry(Display *dpy, int screen_nr)
 {
   int ret;
   
-  switch(dpyinfo.resolution_origin) {
+  switch(dpyinfo.geometry_origin) {
   case DpyInfoOriginX11:
     ret = update_geometry_x11(&dpyinfo, dpy, screen_nr);
     break;
