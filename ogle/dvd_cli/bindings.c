@@ -9,8 +9,9 @@
 
 extern DVDNav_t *nav;
 
-static int isPaused = 0;
 static int fs = 0;
+static int isPaused = 0;
+static double speed = 1.0;
 
 void actionUpperButtonSelect(void)
 {
@@ -155,15 +156,34 @@ void actionForwardScan(void)
 
 void actionPlay(void)
 {
-  DVDForwardScan(nav, 1.0);
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+  speed = 1.0;
+  DVDForwardScan(nav, speed);
 }
 
 
 void actionFastForward(void)
 {
-  DVDForwardScan(nav, 2.0);
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
+  if((speed >= 1.0) && (speed < 8.0)) {
+    speed +=0.5;
+  } else {
+    speed = 1.5;
+  }
+  DVDForwardScan(nav, speed);
 }
 
+void actionSlowMotion(void)
+{
+  DVDForwardScan(nav, 0.5);
+}
 
 
 
@@ -204,8 +224,10 @@ action_mapping_t actions[] = {
   { "AudioMenu", actionMenuCallAudio },
   { "AngleMenu", actionMenuCallAngle },
   { "PTTMenu", actionMenuCallPTT },
+  { "SubtitleMenu", actionMenuCallSubpicture },
   { "Resume", actionResume },
   { "FullScreen", actionFullScreenToggle },
+  { "SubtitleToggle", actionSubpictureToggle },
   { "Quit", actionQuit },
 
   { NULL, NULL }
@@ -227,16 +249,25 @@ void do_keysym_action(KeySym keysym)
 
 void add_keysym_binding(KeySym keysym, void(*fun)(void))
 {
+  int n;
+  
+  for(n = 0; n < ks_maps_index; n++) {
+    if(ks_maps[n].keysym == keysym) {
+      ks_maps[n].fun = fun;
+      return;
+    }
+  }
+
   if(ks_maps_index >= nr_ks_maps) {
     nr_ks_maps+=32;
     ks_maps = (ks_map_t *)realloc(ks_maps, sizeof(ks_map_t)*nr_ks_maps);
   }
+  
   ks_maps[ks_maps_index].keysym = keysym;
   ks_maps[ks_maps_index].fun = fun;
-
+  
   ks_maps_index++;
-
-  fprintf(stderr, "adding keysym binding\n");
+  
 
   return;
 }

@@ -312,6 +312,41 @@ dnl ---------------------------------------------------------
 
 
 dnl ---------------------------------------------------------
+dnl config file
+dnl ---------------------------------------------------------
+
+if test "x${prefix}" = "xNONE"; then
+  AC_DEFINE_UNQUOTED(CONFIG_FILE_NAME, "${ac_default_prefix}/share/oglerc")
+  CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle_conf.dtd"
+else
+  AC_DEFINE_UNQUOTED(CONFIG_FILE_NAME, "${prefix}/share/oglerc")
+  CONFIG_FILE_DTD="${prefix}/share/ogle_conf.dtd"
+fi
+
+AC_SUBST(CONFIG_FILE_DTD)
+
+case $host_os in
+solaris*)
+	DEFAULT_DVD_DEVICE="/cdrom/cdrom0"
+	;;
+linux*)
+	DEFAULT_DVD_DEVICE="/dev/dvd"
+	;;
+*)
+	DEFAULT_DVD_DEVICE=""
+	;;
+esac
+
+AC_SUBST(DEFAULT_DVD_DEVICE)
+
+dnl ---------------------------------------------------------
+dnl end config file
+dnl ---------------------------------------------------------
+
+
+
+
+dnl ---------------------------------------------------------
 dnl Compiler specific stuff
 dnl ---------------------------------------------------------
 
@@ -392,4 +427,5 @@ mpeg_audio/Makefile
 mpeg2_program/Makefile 
 scripts/Makefile
 scripts/ogle
-dvd_cli/Makefile)
+dvd_cli/Makefile
+oglerc)

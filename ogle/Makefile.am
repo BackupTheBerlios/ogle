@@ -1,3 +1,5 @@
+data_DATA = oglerc ogle_conf.dtd
+
 SUBDIRS= ogle \
 	include \
 	common \
@@ -11,4 +13,4 @@ SUBDIRS= ogle \
 	dvd_cli \
 	scripts
 
-EXTRA_DIST = autogen.sh
+EXTRA_DIST = autogen.sh oglerc.in

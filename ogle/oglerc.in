@@ -1,24 +1,6 @@
 <?xml version="1.0"?>
 
-<!DOCTYPE ogle_conf [
-<!ELEMENT DefaultMenuLanguage (#PCDATA)>
-<!ELEMENT DefaultAudioLanguage (#PCDATA)>
-<!ELEMENT DefaultSubpictureLanguage (#PCDATA)>
-<!ELEMENT ParentalCountry (#PCDATA)>
-<!ELEMENT ParentalLevel (#PCDATA)>
-<!ELEMENT defaults (DefaultMenuLanguage|DefaultAudioLanguage |
-	DefaultSubpictureLanguage | ParentalCountry | ParentalLevel)*>
-
-<!ELEMENT nav (defaults)?>
-<!ELEMENT dvd (nav)?>
-
-<!ELEMENT action (#PCDATA)>
-<!ELEMENT key (#PCDATA)>
-<!ELEMENT b (action, key*)>
-<!ELEMENT bindings (b)*>
-<!ELEMENT user_interface (bindings)?>
-<!ELEMENT ogle_conf (dvd|user_interface)*>
-]>
+<!DOCTYPE ogle_conf SYSTEM "@CONFIG_FILE_DTD@">
 
 <ogle_conf>
   <dvd>
@@ -29,15 +11,18 @@
 	<DefaultSubpictureLanguage>en</DefaultSubpictureLanguage>
 	<ParentalCountry>US</ParentalCountry>
 	<ParentalLevel>15</ParentalLevel>
+	<PlayerRegion>1</PlayerRegion>
       </defaults>
     </nav>
+    <drive>
+      <path>@DEFAULT_DVD_DEVICE@</path>
+    </drive>
   </dvd>
   <user_interface>
     <bindings>
 	<b>	
 	  <action>Play</action>
 	  <key>p</key>
-          <key>P</key>
   	</b>
 	<b>	
 	  <action>Pause</action>
@@ -49,11 +34,11 @@
   	</b>
 	<b>	
 	  <action>FastForward</action>
-	  <key></key>
+	  <key>period</key>
   	</b>
 	<b>	
 	  <action>SlowMotion</action>
-	  <key></key>
+	  <key>comma</key>
   	</b>
 	<b>	
 	  <action>NextPG</action>
@@ -96,6 +81,26 @@
 	<b>	
 	  <action>RootMenu</action>
 	  <key>r</key>
+  	</b>
+	<b>	
+	  <action>AudioMenu</action>
+	  <key>a</key>
+  	</b>
+	<b>	
+	  <action>AngleMenu</action>
+	  <key>A</key>
+  	</b>
+	<b>	
+	  <action>PTTMenu</action>
+	  <key>P</key>
+  	</b>
+	<b>	
+	  <action>SubpictureMenu</action>
+	  <key>s</key>
+  	</b>
+	<b>	
+	  <action>Resume</action>
+	  <key>c</key>
   	</b>
 	<b>	
 	  <action>Quit</action>
