@@ -21,6 +21,11 @@
 
 #include <ogle/msgevents.h>
 
+typedef enum {
+  PacketType_MPEG1 = 0,
+  PacketType_PES   = 1
+} PacketType_t;
+
 typedef struct {
   uint64_t PTS;
   uint64_t DTS;
@@ -30,11 +35,13 @@ typedef struct {
   uint8_t PTS_DTS_flags;
   uint8_t SCR_flags;
   int scr_nr;
-  int off;
-  int len;
+  uint32_t packet_data_offset;
+  uint32_t packet_data_len;
   char *q_addr;
   char filename[PATH_MAX+1]; // hack for mmap
   int flowcmd;
+  PacketType_t packet_type;
+  uint32_t packet_offset;
 } data_elem_t;
 
 
@@ -145,5 +152,21 @@ typedef struct {
   int writer_requests_notification; //writer sets/unsets this
   int reader_requests_notification; //reader sets/unsets this 
 } q_head_t;
+
+
+typedef struct _data_q_t {
+  int in_use;
+  int eoq;
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  picture_data_elem_t *data_elems;
+  yuv_image_t *image_bufs;
+#ifdef HAVE_XV
+  yuv_image_t *reserv_image;
+#endif
+  struct _data_q_t *next;
+} data_q_t;
+
 
 #endif /* QUEUE_H_INCLUDED */

@@ -39,7 +39,11 @@
 #define MPEG2_PADDING_STREAM 0xBE
 #define MPEG2_PRIVATE_STREAM_2 0xBF
 
+#define MPEG_AUDIO_STREAM      0xC0
+#define MPEG_AUDIO_STREAM_MASK 0xE0
 
+#define MPEG_VIDEO_STREAM      0xE0
+#define MPEG_VIDEO_STREAM_MASK 0xF0
 
 /* video stream
  * ============
