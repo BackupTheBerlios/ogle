@@ -33,21 +33,41 @@ AC_CHECK_HEADER(X11/extensions/XShm.h,
 dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE([HAVE_XV]))
 
 dnl Checks for library functions.
-AC_CHECK_LIB(Xext, main, XEXT_LIB=-lXext, AC_MSG_ERROR(You need libXext), $X_LIBS -lX11 $X_EXTRA_LIBS)
+AC_CHECK_LIB(Xext, XShmQueryExtension, XEXT_LIB=-lXext, AC_MSG_ERROR(You need libXext), $X_LIBS -lX11 $X_EXTRA_LIBS)
 
-AC_CHECK_LIB(Xext, XShmQueryExtension,, AC_MSG_ERROR(You need XShm), $X_LIBS -lX11)
-
-AC_CHECK_LIB(Xv, XvQueryExtension, XEXT_LIB="$XEXT_LIB -lXv", AC_MSG_WARN(You won't bw able to use Xv), $X_LIBS -lXext)
+AC_CHECK_LIB(Xv, XvQueryExtension, XEXT_LIB="$XEXT_LIB -lXv", AC_MSG_WARN(You won't bw able to use Xv), $X_LIBS -lXext $X_EXTRA_LIBS)
 
 dnl AC_CHECK_LIB(jpeg, main, XEXT_LIB="$XEXT_LIB -ljpeg", AC_MSG_ERROR(You need libjpeg), $X_LIBS -lX11 $X_EXTRA_LIBS)
 AC_SUBST(XEXT_LIB)
 
-AC_CHECK_LIB(rt, nanosleep,,AC_MSG_WARN(You need nanosleep))
+AC_CHECK_LIB(rt, nanosleep,, AC_MSG_WARN(You need nanosleep))
 
 dnl clock_gettime is in librt on Solaris so this need to be after that test
 AC_CHECK_FUNCS(clock_gettime madvise)
 
-AC_CHECK_LIB(dvdread, DVDOpen,,AC_MSG_ERROR(You need libdvdread))
+AC_ARG_WITH(libdvdread, 
+  [  --with-libdvdread=path  specify where libdvdread is installed],
+  if test x$withval = xno; then
+    AC_MSG_ERROR(You must have/use libdvdread)
+  fi
+  if test x$withval = xyes; then
+    withval=""
+  fi
+  if test x$withval != x; then
+    AC_CHECK_LIB(dvdread, DVDOpen, [ DVD_LIBS="-L$withval/lib -ldvdread"
+                                     DVD_CFLAGS=-I$withval/include
+                                   ],, -L$withval/lib)
+  fi)
+if test -z "$DVD_LIBS" ; then
+  AC_CHECK_LIB(dvdread, DVDOpen, DVD_LIBS=-ldvdread)
+fi
+if test -z "$DVD_LIBS" ; then
+ AC_MSG_ERROR(You need libdvdread)
+fi
+dnl Linux and Solaris needs this to prototype lseek64 and others
+DVD_CFLAGS="-D_LARGEFILE64_SOURCE $DVD_CFLAGS"
+AC_SUBST(DVD_CFLAGS)
+AC_SUBST(DVD_LIBS)
 
 dnl Sun MediaLib
 have_mlib=no
@@ -98,4 +118,7 @@ CFLAGS="$INCLUDES $CFLAGS"
 
 
 AC_OUTPUT(ogle/Makefile include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
+
+
+
 
