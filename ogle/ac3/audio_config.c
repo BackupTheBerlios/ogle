@@ -76,7 +76,7 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
   
   DNOTE("Searching <speakers> for\n");
   if(chtypemask_wanted & ChannelTypeMask_Channels) {
-    for(n = 0; n <= 0x100; n = n << 1) {
+    for(n = 1; n <= 0x100; n = n << 1) {
       if(n & chtypemask_wanted) {
 	fprintf(stderr, " '%s'", channeltype_str(n));
       }

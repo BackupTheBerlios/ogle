@@ -70,7 +70,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
 
 
   if(new_lpcm_info != handle->lpcm_info) {
-    int new_ch;
+    int new_ch = 0;
     int new_sample_rate;    
     int new_quantization_word_length;
     int new_sample_frame_size;
