@@ -406,7 +406,7 @@ static bool eval_system_set(int cond, link_t *return_values)
 static void eval_set_op(int op, int reg, int reg2, int data)
 {
   /* General parameters and System Parameters (GPRMS and SPRMS)
-   * are treated as 16-bit unsinged integers.
+   * are treated as 16-bit unsigned integers.
    * in case of overflow, 0xFFFF must be assigned
    * in case of underflow, 0x0 must be assigned
    */
