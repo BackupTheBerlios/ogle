@@ -239,6 +239,8 @@ int DVDBookmarkGetNr(DVDBookmark_t *bm)
  * @param appname If you supply the name of your application here, you will
  * get application specific data back in appinfo if there is a matching
  * entry for your appname.
+ * If no data is returned for a char ** it will be set to NULL, unless
+ * the call fails in which case it will be undefined.
  * @param appinfo This is where a pointer to the appinfo data
  * will be returned. You need to free() this when you are done with it.
  */
@@ -248,6 +250,10 @@ int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
 {
   xmlNodePtr cur;
   xmlChar *data;
+  int navstate_read = 0;
+  int usercomment_read = 0;
+  int appinfo_read = 0;
+
   if(!bm || !(bm->doc) || (nr < 0)) {
     return -1;
   }
@@ -260,33 +266,45 @@ int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
   if(cur == NULL) {
     return -1;
   }
-
+  if(navstate) {
+    *navstate = NULL;
+  }
+  if(usercomment) {
+    *usercomment = NULL;
+  }
+  if(appinfo) {
+    *appinfo = NULL;
+  }
+  
   cur = cur->xmlChildrenNode;
   while(cur != NULL) {
     if((!xmlStrcmp(cur->name, (const xmlChar *)"navstate"))) {
       xmlBufferPtr xmlbuf;
-      if(navstate != NULL) {
+      if(navstate != NULL && !navstate_read) {
 	if((xmlbuf = xmlBufferCreate()) == NULL) {
 	  return -1;
 	} 
 	xmlNodeDump(xmlbuf, bm->doc, cur, 0, 0);
 	*navstate = strdup(xmlBufferContent(xmlbuf));
 	xmlBufferFree(xmlbuf);
+	navstate_read = 1;
       }
     } else if((!xmlStrcmp(cur->name, (const xmlChar *)"usercomment"))) {
-      if(usercomment != NULL) {
+      if(usercomment != NULL && !usercomment_read) {
 	data = xmlNodeListGetString(bm->doc, cur->xmlChildrenNode, 1);
 	*usercomment = strdup(data);
 	xmlFree(data);
+	usercomment_read = 1;
       }
     } else if((!xmlStrcmp(cur->name, (const xmlChar *)"appinfo"))) {
       if((appname != NULL) && (appinfo != NULL)) {
 	xmlChar *prop;
 	if((prop = xmlGetProp(cur, "appname")) != NULL) {
-	  if((!xmlStrcmp(prop, (const xmlChar *)appname))) {
+	  if(!xmlStrcmp(prop, (const xmlChar *)appname) && !appinfo_read) {
 	    data = xmlNodeListGetString(bm->doc, cur->xmlChildrenNode, 1);
 	    *appinfo = strdup(data);
 	    xmlFree(data);
+	    appinfo_read = 1;
 	  }
 	  xmlFree(prop);
 	}
@@ -402,6 +420,98 @@ int DVDBookmarkRemove(DVDBookmark_t *bm, int nr)
 
   return 0;
 }
+
+
+/**
+ * Retrieve comment for the current disc.
+ *
+ * @param bm Handle from DVDBookmarkOpen.
+ * @param disccomment This is where a pointer to the disccomment data
+ * will be returned. It will be set if the call is succesfull otherwise
+ * it will be undefined. You need to free() this when you are done with it.
+ * In case nothing is returned it will be set to NULL;
+ * @return 0 on success (though no data may be returned) -1 on failure
+ */
+int DVDBookmarkGetDiscComment(DVDBookmark_t *bm, char **disccomment)
+{
+  xmlNodePtr cur;
+  xmlChar *data;
+  if(!bm || !(bm->doc) || !disccomment) {
+    return -1;
+  }
+  
+  if((cur = xmlDocGetRootElement(bm->doc)) == NULL) {
+    return -1;
+  }
+
+  cur = cur->xmlChildrenNode;
+  while(cur != NULL) {
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"disccomment"))) {
+      if(disccomment != NULL) {
+	data = xmlNodeListGetString(bm->doc, cur->xmlChildrenNode, 1);
+	if(data != NULL) {
+	  *disccomment = strdup(data);
+	  xmlFree(data);
+	  return 0;
+	}
+      }
+    }
+    cur = cur->next;
+  }
+  *disccomment = NULL;
+  return 0;
+}
+
+
+/**
+ * Set comment for the current disc.
+ *
+ * @param bm Handle from DVDBookmarkOpen.
+ * @param disccomment The disc comment
+ */
+int DVDBookmarkSetDiscComment(DVDBookmark_t *bm, const char *disccomment)
+{
+  xmlNodePtr cur, docroot;
+
+  if(!bm || !(bm->doc) || !disccomment) {
+    return -1;
+  }
+  
+  if((docroot = xmlDocGetRootElement(bm->doc)) == NULL) {
+    return -1;
+  }
+  cur = docroot;
+  cur = cur->xmlChildrenNode;
+  while(cur != NULL) {
+    xmlNodePtr next = cur->next;
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"disccomment"))) {
+      xmlUnlinkNode(cur);
+      xmlFreeNode(cur);
+    }
+    cur = next;
+  }
+  
+  cur = docroot;
+  cur = cur->xmlChildrenNode;
+  
+  if(cur != NULL) {  
+    xmlNodePtr newnode;
+    if(((newnode =  xmlNewTextChild(docroot, NULL, 
+				    "disccomment", disccomment))) == NULL) {
+      return -1;
+    }
+    
+    xmlGetNodePath(xmlAddPrevSibling(cur, newnode));
+  } else {
+    if((xmlNewTextChild(docroot, NULL, 
+			"disccomment", disccomment)) == NULL) {
+      return -1;
+    }
+  }
+  
+  return 0;
+}
+
 
 /**
  * Save the bookmark list for the current disc to file.
