@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -197,7 +197,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   char *shmaddr;
   q_head_t *q_head;
   
-  fprintf(stderr, "spu_mixer: shmid: %d\n", shmid);
+  //fprintf(stderr, "spu_mixer: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
@@ -728,7 +728,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
   aligned = 1;
   set_byte(&spu_info->buffer[fieldoffset[field]]);
   
-  //fprintf(stderr, "\nReading picture data\n");
+  //fprintf(stderr, "\nDecoding overlay picture data\n");
   
   //initialize(spu_info->width, spu_info->height);
   x = 0;
@@ -984,9 +984,15 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     return 1;
   }
   
+
   if(flush_to_scrnr != -1) {
-    if(flush_to_scrnr != spu_info->scr_nr) {
-      //fprintf(stderr, "spu: flush\n");
+    if(flush_to_scrnr > spu_info->scr_nr) { // FIXME: assumes order of src_nr
+      fprintf(stderr, "spu: flush\n");
+      
+      /* Reset state  */
+      spu_info->menu = 0;
+      spu_info->display_start = 0;
+  
       return 1;
     } else {
       flush_to_scrnr = -1;
@@ -1031,7 +1037,6 @@ void mix_subpicture_rgb(char *data, int width, int height)
 
 
   if(spu_info.display_start || spu_info.menu) {
-    //fprintf(stderr, "decoding data\n");
     decode_display_data(&spu_info, data, width, height, /*picformat*/ 0);
   }
 }
@@ -1126,6 +1131,4 @@ void flush_subpicture(int scr_nr)
      */
     TIME_S(spu_info.next_time) = 0;
   }
-
-
 }

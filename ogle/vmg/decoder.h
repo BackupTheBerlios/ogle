@@ -2,7 +2,7 @@
 #define DECODER_H_INCLUDED
 
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Martin Norbäck, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -21,10 +21,6 @@
 
 #include <inttypes.h>
 #include <dvdread/ifo_types.h> // vm_cmd_t
-
-#ifndef bool
-typedef int bool;
-#endif
 
 typedef enum {
   LinkNoLink  = 0,
@@ -83,8 +79,7 @@ typedef struct {
   /* int GPRM_mode[16]; */
 } registers_t;
 
-bool
-eval(vm_cmd_t commands[], int num_commands, 
-     registers_t *registers, link_t *return_values);
+int vmEval_CMD(vm_cmd_t commands[], int num_commands, 
+	       registers_t *registers, link_t *return_values);
 
 #endif /* DECODER_H_INCLUDED */

@@ -2,7 +2,7 @@
 #define VMCMD_H_INCLUDED
 
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Martin Norbäck, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 #include <inttypes.h>
 #include <dvdread/ifo_types.h> // Only for vm_cmd_t 
 
-void vmcmd(uint8_t *bytes);
+void vmPrint_mnemonic(vm_cmd_t *command);
 void vmPrint_CMD(int row, vm_cmd_t *command);
 
 #endif /* VMCMD_H_INCLUDED */

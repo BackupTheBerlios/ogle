@@ -2,7 +2,7 @@
 #define SCREENSHOT_H_INCLUDED
 
 /* Ogle - A video player
- * Copyright (C) 2000 Vilhelm Bergman
+ * Copyright (C) 2000, 2001 Vilhelm Bergman
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

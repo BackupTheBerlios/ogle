@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -148,7 +148,7 @@ int vm_eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
   
-  if(eval(cmd, 1, &state.registers, &link_values)) {
+  if(vmEval_CMD(cmd, 1, &state.registers, &link_values)) {
     link_values = process_command(link_values);
     assert(link_values.command == PlayThis);
     state.blockN = link_values.data1;
@@ -532,9 +532,9 @@ static link_t play_PGC(void)
        (This is what happens if you fall of the end of the pre_commands)
      - or a error (are there more cases?) */
   if(state.pgc->pgc_command_tbl && state.pgc->pgc_command_tbl->nr_of_pre) {
-    if(eval(state.pgc->pgc_command_tbl->pre_commands, 
-	    state.pgc->pgc_command_tbl->nr_of_pre, 
-	    &state.registers, &link_values)) {
+    if(vmEval_CMD(state.pgc->pgc_command_tbl->pre_commands, 
+		  state.pgc->pgc_command_tbl->nr_of_pre, 
+		  &state.registers, &link_values)) {
       // link_values contains the 'jump' return value
       return link_values;
     } else {
@@ -640,8 +640,8 @@ static link_t play_Cell_post(void)
     assert(cmd_tbl != NULL);
     assert(cmd_tbl->nr_of_cell >= cell->cell_cmd_nr);
     fprintf(stderr, "Cell command pressent, executing\n");
-    if(eval(&cmd_tbl->cell_commands[cell->cell_cmd_nr - 1], 1,
-	    &state.registers, &link_values)) {
+    if(vmEval_CMD(&cmd_tbl->cell_commands[cell->cell_cmd_nr - 1], 1,
+		  &state.registers, &link_values)) {
       return link_values;
     } else {
        fprintf(stderr, "Cell command didn't do a Jump, Link or Call\n");
@@ -706,9 +706,9 @@ static link_t play_PGC_post(void)
      - or a error (are there more cases?)
      - if you got to the end of the post_commands, then what ?? */
   if(state.pgc->pgc_command_tbl &&
-     eval(state.pgc->pgc_command_tbl->post_commands,
-	  state.pgc->pgc_command_tbl->nr_of_post, 
-	  &state.registers, &link_values)) {
+     vmEval_CMD(state.pgc->pgc_command_tbl->post_commands,
+		state.pgc->pgc_command_tbl->nr_of_post, 
+		&state.registers, &link_values)) {
     return link_values;
   }
   

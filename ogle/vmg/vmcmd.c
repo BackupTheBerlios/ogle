@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Martin Norbäck, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -28,16 +28,17 @@ typedef struct
   uint8_t examined[8];
 } cmd_t;
 
+// Fix this.. pass as parameters instead.
 static cmd_t cmd;
 
-char *cmp_op_table[] = {
+static const char *cmp_op_table[] = {
   NULL, "&", "==", "!=", ">=", ">", "<=", "<"
 };
-char *set_op_table[] = {
+static const char *set_op_table[] = {
   NULL, "=", "<->", "+=", "-=", "*=", "/=", "%=", "rnd", "&=", "|=", "^="
 };
 
-char *link_table[] = {
+static const char *link_table[] = {
   "LinkNoLink",  "LinkTopC",    "LinkNextC",   "LinkPrevC",
   NULL,          "LinkTopPG",   "LinkNextPG",  "LinkPrevPG",
   NULL,          "LinkTopPGC",  "LinkNextPGC", "LinkPrevPGC",
@@ -45,7 +46,7 @@ char *link_table[] = {
   "RSM"
 };
 
-char *system_reg_table[] = {
+static const char *system_reg_table[] = {
   "Menu Description Language Code",
   "Audio Stream Number",
   "Sub-picture Stream Number",
@@ -72,80 +73,108 @@ char *system_reg_table[] = {
   "Reserved 23"
 };
 
-char *system_reg_abbr_table[] = {
+static const char *system_reg_abbr_table[] = {
   NULL,
   "ASTN",
+  "SPSTN",
   "AGLN",
   "TTN",
   "VTS_TTN",
   "TT_PGCN",
   "PTTN",
-  "HL_BTNN"
+  "HL_BTNN",
+  "NVTMR",
+  "NV_PGCN",
+  NULL,
+  "CC_PLT",
+  "PLT",
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
 };
     
 
 
-uint32_t bits (int byte, int bit, int count)
-{
+static uint32_t bits(int byte, int bit, int count) {
   uint32_t val = 0;
   int bit_mask;
-  while (count--)
-    {
-      if(bit > 7) {
-        bit = 0;
-        byte++;
-      }
-      bit_mask = 0x01 << (7-bit);
-      val <<= 1;
-      if ((cmd.bits [byte]) & bit_mask)
-	val |= 1;
-      cmd.examined [byte] |= bit_mask;
-      bit++;
+  
+  while(count--) {
+    if(bit > 7) {
+      bit = 0;
+      byte++;
     }
-  return (val);
-}
-
-static void
-print_system_reg(uint16_t reg) {
-  fprintf(stderr, system_reg_table[reg]);
-}
-
-static void
-print_reg(uint8_t reg) {
-  if(reg&0x80) {
-    print_system_reg(reg&0x1f);
-  } else {
-    fprintf(stderr, "g[");
-    fprintf(stderr, "%" PRIu8 "]", reg&0x7f);
+    bit_mask = 0x01 << (7-bit);
+    val <<= 1;
+    if((cmd.bits[byte]) & bit_mask)
+      val |= 1;
+    cmd.examined[byte] |= bit_mask;
+    bit++;
   }
+  return val;
 }
 
-static void
-print_cmp_op(uint8_t op) {
-  fprintf(stderr, " %s ", cmp_op_table[op]);
+
+static void print_system_reg(uint16_t reg) {
+  if(reg < sizeof(system_reg_abbr_table) / sizeof(char *))
+    fprintf(stderr, system_reg_table[reg]);
+  else
+    fprintf(stderr, " WARNING: Unknown system register ");
 }
 
-static void
-print_set_op(uint8_t op) {
-  char *set_op = set_op_table[op];
-  fprintf(stderr, " %s ", set_op ? set_op : " ?? ");
+static void print_reg(uint8_t reg) {
+  if(reg & 0x80)
+    print_system_reg(reg & 0x7f);
+  else
+    if(reg < 16)
+      fprintf(stderr, "g[%" PRIu8 "]", reg);
+    else
+      fprintf(stderr, " WARNING: Unknown general register ");
 }
 
-static void
-print_reg_or_data(int immediate, int byte) {
-  if (immediate) {
+static void print_cmp_op(uint8_t op) {
+  if(op < sizeof(cmp_op_table) / sizeof(char *) && cmp_op_table[op] != NULL)
+    fprintf(stderr, " %s ", cmp_op_table[op]);
+  else
+    fprintf(stderr, " WARNING: Unknown compare op ");
+}
+
+static void print_set_op(uint8_t op) {
+  if(op < sizeof(set_op_table) / sizeof(char *) && set_op_table[op] != NULL)
+    fprintf(stderr, " %s ", set_op_table[op]);
+  else
+    fprintf(stderr, " WARNING: Unknown set op ");
+}
+
+static void print_reg_or_data(int immediate, int byte) {
+  if(immediate) {
     int i = bits(byte,0,16);
+    
     fprintf(stderr, "0x%x", i);
-    if( isprint(i & 0xff) && isprint((i>>8) & 0xff) )
+    if(isprint(i & 0xff) && isprint((i>>8) & 0xff))
       fprintf(stderr, " (\"%c%c\")", (char)((i>>8) & 0xff), (char)(i & 0xff));
   } else {
-    print_reg(bits(byte+1,0,8));
+    print_reg(bits(byte + 1,0,8));
   }
 }
 
-static void
-print_if_version_1() {
-  uint8_t op = (bits(1,1,3));
+static void print_reg_or_data_2(int immediate, int byte) {
+  if(immediate)
+    fprintf(stderr, "0x%x", bits(byte,1,7));
+  else
+    fprintf(stderr, "g[%" PRIu8 "]", bits(byte,4,4));
+}
+
+static void print_if_version_1(void) {
+  uint8_t op = bits(1,1,3);
+  
   if(op) {
     fprintf(stderr, "if (");
     print_reg(bits(3,0,8));
@@ -155,8 +184,43 @@ print_if_version_1() {
   }
 }
 
-static void
-print_special_instruction() {
+static void print_if_version_2(void) {
+  uint8_t op = bits(1,1,3);
+  
+  if(op) {
+    fprintf(stderr, "if (");
+    print_reg(bits(6,0,8));
+    print_cmp_op(op);
+    print_reg(bits(7,0,8));
+    fprintf(stderr, ") ");
+  }
+}
+
+static void print_if_version_3(void) {
+  uint8_t op = bits(1,1,3);
+  
+  if(op) {
+    fprintf(stderr, "if (");
+    print_reg(bits(2,4,4));
+    print_cmp_op(op);
+    print_reg_or_data(bits(1,0,1), 6);
+    fprintf(stderr, ") ");
+  }
+}
+
+static void print_if_version_4(void) {
+  uint8_t op = bits(1,1,3);
+  
+  if(op) {
+    fprintf(stderr, "if (");
+    print_reg(bits(1,4,4));
+    print_cmp_op(op);
+    print_reg_or_data(bits(1,0,1), 4);
+    fprintf(stderr, ") ");
+  }
+}
+
+static void print_special_instruction(void) {
   uint8_t op = bits(1,4,4);
   
   switch(op) {
@@ -170,30 +234,36 @@ print_special_instruction() {
       fprintf(stderr, "Break");
       break;
     case 3: // Parental level
-      fprintf(stderr, "SetTmpPML %" PRIu8 ", Goto %" PRIu8, bits(6,4,4), bits(7,0,8));
+      fprintf(stderr, "SetTmpPML %" PRIu8 ", Goto %" PRIu8, 
+	      bits(6,4,4), bits(7,0,8));
       break;
     default:
-      fprintf(stderr, "WARNING: Unknown special instruction (%i)", bits(1,4,4));
+      fprintf(stderr, "WARNING: Unknown special instruction (%i)", 
+	      bits(1,4,4));
   }
 }
 
-static void
-print_linksub_instruction() {
+static void print_linksub_instruction(void) {
   int linkop = bits(7,3,5);
   int button = bits(6,0,6);
   
-  if(linkop <= 0x10 && link_table[linkop] != NULL)
+  if(linkop < sizeof(link_table)/sizeof(char *) && link_table[linkop] != NULL)
     fprintf(stderr, "%s (button %" PRIu8 ")", link_table[linkop], button);
   else
-    fprintf(stderr, "WARNING: Unknown link instruction (%i)", linkop);
+    fprintf(stderr, "WARNING: Unknown linksub instruction (%i)", linkop);
 }
 
-static void
-print_link_instruction() {
+static void print_link_instruction(int optional) {
   uint8_t op = bits(1,4,4);
-  uint8_t button = bits(6,0,6);
+  
+  if(optional && op)
+    fprintf(stderr, ", ");
   
   switch(op) {
+    case 0:
+      if(!optional)
+      fprintf(stderr, "WARNING: NOP (link)!");
+      break;
     case 1:
       print_linksub_instruction();
       break;
@@ -201,34 +271,23 @@ print_link_instruction() {
       fprintf(stderr, "LinkPGCN %" PRIu16, bits(6,1,15));
       break;
     case 5:
-      fprintf(stderr, "LinkPTT %" PRIu16 " (button %" PRIu8 ")", bits(6,6,10), button);
+      fprintf(stderr, "LinkPTT %" PRIu16 " (button %" PRIu8 ")", 
+	      bits(6,6,10), bits(6,0,6));
       break;
     case 6:
-      fprintf(stderr, "LinkPGN %" PRIu8 " (button %" PRIu8 ")", bits(7,1,7), button);
+      fprintf(stderr, "LinkPGN %" PRIu8 " (button %" PRIu8 ")", 
+	      bits(7,1,7), bits(6,0,6));
       break;
     case 7:
-      fprintf(stderr, "LinkCN %" PRIu8 " (button %" PRIu8 ")", bits(7,0,8), button);
+      fprintf(stderr, "LinkCN %" PRIu8 " (button %" PRIu8 ")", 
+	      bits(7,0,8), bits(6,0,6));
       break;
     default:
       fprintf(stderr, "WARNING: Unknown link instruction");
   }
 }
 
-static void
-print_if_version_2 () {
-  uint8_t op = (bits(1,1,3));
-  
-  if(op) {
-    fprintf(stderr, "if (");
-    print_reg(bits(6,0,8));
-    print_cmp_op(op);
-    print_reg(bits(7,0,8));
-    fprintf(stderr, ") ");
-  }
-}
-
-static void
-print_jump_instruction () {
+static void print_jump_instruction(void) {
   switch(bits(1,4,4)) {
     case 1:
       fprintf(stderr, "Exit");
@@ -241,7 +300,7 @@ print_jump_instruction () {
       break;
     case 5:
       fprintf(stderr, "JumpVTS_PTT %" PRIu8 ":%" PRIu16, 
-          bits(5,1,7), bits(2,6,10));
+	      bits(5,1,7), bits(2,6,10));
       break;
     case 6:
       switch(bits(5,0,2)) {
@@ -253,8 +312,7 @@ print_jump_instruction () {
           break;
         case 2:
           fprintf(stderr, "JumpSS VTSM (vts %" PRIu8 ", title %" PRIu8 
-                 ", menu %" PRIu8 ")",
-                 bits(4,0,8), bits(3,0,8), bits(5,4,4));
+		  ", menu %" PRIu8 ")", bits(4,0,8), bits(3,0,8), bits(5,4,4));
           break;
         case 3:
           fprintf(stderr, "JumpSS VMGM (pgc %" PRIu8 ")", bits(2,1,15));
@@ -268,16 +326,16 @@ print_jump_instruction () {
               bits(4,0,8));
           break;
         case 1:
-          fprintf(stderr, "CallSS VMGM (menu %" PRIu8 ", rsm_cell %" PRIu8 ")", 
-              bits(5,4,4), bits(4,0,8));
+          fprintf(stderr, "CallSS VMGM (menu %" PRIu8 
+		  ", rsm_cell %" PRIu8 ")", bits(5,4,4), bits(4,0,8));
           break;
         case 2:
-          fprintf(stderr, "CallSS VTSM (menu %" PRIu8 ", rsm_cell %" PRIu8 ")", 
-              bits(5,4,4), bits(4,0,8));
+          fprintf(stderr, "CallSS VTSM (menu %" PRIu8 
+		  ", rsm_cell %" PRIu8 ")", bits(5,4,4), bits(4,0,8));
           break;
         case 3:
           fprintf(stderr, "CallSS VMGM (pgc %" PRIu8 ", rsm_cell %" PRIu8 ")", 
-              bits(2,1,15), bits(4,0,8));
+		  bits(2,1,15), bits(4,0,8));
           break;
       }
       break;
@@ -286,25 +344,16 @@ print_jump_instruction () {
   }
 }
 
-static void
-print_reg_or_data_2(int immediate, int byte) {
-  if (immediate) {
-    fprintf(stderr, "0x%x", bits(byte,1,7));
-  } else {
-    fprintf(stderr, "g[%" PRIu8 "]", bits(byte,4,4));
-  }
-}
-
-static void
-print_system_set () {
+static void print_system_set(void) {
   int i;
+  
   switch(bits(0,4,4)) {
     case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
       for(i = 1; i <= 3; i++) {
         if(bits(2+i,0,1)) {
           print_system_reg(i);
           fprintf(stderr, " = ");
-          print_reg_or_data_2(bits(0,3,1), 2+i);
+          print_reg_or_data_2(bits(0,3,1), 2 + i);
           fprintf(stderr, " ");
         }
       }
@@ -319,149 +368,124 @@ print_system_set () {
       break;
     case 3: // Mode: Counter / Register + Set
       fprintf(stderr, "SetMode ");
-      if (bits(5,0,1))
+      if(bits(5,0,1))
 	fprintf(stderr, "Counter ");
       else
 	fprintf(stderr, "Register ");
       print_reg(bits(5,4,4));
-      print_set_op(0x1); // =
+      print_set_op(0x1); // '='
       print_reg_or_data(bits(0,3,1), 2);
       break;
     case 6: // Set system reg 8 (Highlighted button)
       print_system_reg(8);
-      if (bits(0,3,1)) // immediate
+      if(bits(0,3,1)) // immediate
         fprintf(stderr, " = 0x%x (button no %d)", bits(4,0,16), bits(4,0,6));
       else
         fprintf(stderr, " = g[%" PRIu8 "]", bits(5,4,4));
       break;
-  default:
-      fprintf(stderr, "WARNING: Unknown system set instruction (%i)", bits(0,4,4));
-  }
-  if(bits(1,4,4)) {
-    fprintf(stderr, ", ");
-    print_link_instruction();
+    default:
+      fprintf(stderr, "WARNING: Unknown system set instruction (%i)", 
+	      bits(0,4,4));
   }
 }
 
-static void
-print_if_version_3 () {
-  uint8_t op = (bits(1,1,3));
-  if(op) {
-    fprintf(stderr, "if (");
-    print_reg(bits(2,4,4));
-    print_cmp_op(op);
-    print_reg_or_data(bits(1,0,1), 6);
-    fprintf(stderr, ") ");
-  }
-}
-
-static void
-print_set () {
-  uint8_t set_op = bits(0,4,4);
-  print_reg(bits(3,0,8));
-  print_set_op(set_op);
-  print_reg_or_data(bits(0,3,1), 4);
-  if(bits(1,4,4)) {
-    fprintf(stderr, ", ");
-    print_link_instruction();
-  }
-}
-
-static void
-print_set2 () {
+static void print_set_version_1(void) {
   uint8_t set_op = bits(0,4,4);
   
-  print_reg(bits(1,4,4));
-  print_set_op(set_op);
-  print_reg_or_data(bits(0,3,1), 2);
+  if(set_op) {
+    print_reg(bits(3,0,8));
+    print_set_op(set_op);
+    print_reg_or_data(bits(0,3,1), 4);
+  } else {
+    fprintf(stderr, "NOP");
+  }
 }
 
-static void
-print_if_version_4 () {
-  uint8_t op = (bits(1,1,3));
+static void print_set_version_2(void) {
+  uint8_t set_op = bits(0,4,4);
   
-  if(op) {
-    fprintf(stderr, "if (");
+  if(set_op) {
     print_reg(bits(1,4,4));
-    print_cmp_op(op);
-    print_reg_or_data(bits(1,0,1), 4);
-    fprintf(stderr, ") ");
+    print_set_op(set_op);
+    print_reg_or_data(bits(0,3,1), 2);
+  } else {
+    fprintf(stderr, "NOP");
   }
 }
 
-void
-vmcmd(uint8_t *bytes)  {
+void vmPrint_mnemonic(vm_cmd_t *command)  {
   int i, extra_bits;
-  for(i=0;i<8;i++) {
-    cmd.bits[i] = bytes[i];
+  
+  for(i = 0; i < 8; i++) {
+    cmd.bits[i] = command->bytes[i];
     cmd.examined[i] = 0;
   }
 
   switch(bits(0,0,3)) { /* three first bits */
-    case 0: // special instructions
+    case 0: // Special instructions
       print_if_version_1();
       print_special_instruction();
       break;
-    case 1: // Link/jump instructions
+    case 1: // Jump/Call or Link instructions
       if(bits(0,3,1)) {
         print_if_version_2();
         print_jump_instruction();
       } else {
         print_if_version_1();
-        print_link_instruction();
+        print_link_instruction(0); // must be pressent
       }
       break;
-    case 2: // System set instructions
+    case 2: // Set System Parameters instructions
       print_if_version_2();
       print_system_set();
+      print_link_instruction(1); // either 'if' or 'link'
       break;
-    case 3: // Set instructions
+    case 3: // Set General Parameters instructions
       print_if_version_3();
-      print_set();
+      print_set_version_1();
+      print_link_instruction(1); // either 'if' or 'link'
       break;
-    case 4: // Set, Compare -> LinkSIns instructions
-      print_set2();
+    case 4: // Set, Compare -> LinkSub instructions
+      print_set_version_2();
       fprintf(stderr, ", ");
       print_if_version_4();
       print_linksub_instruction();
       break;
-    case 5: // Compare -> (Set and LinkSIns) instructions
+    case 5: // Compare -> (Set and LinkSub) instructions
       print_if_version_4();
       fprintf(stderr, "{ ");
-      print_set2();
+      print_set_version_2();
       fprintf(stderr, ", ");
       print_linksub_instruction();
       fprintf(stderr, " }");
       break;
-    case 6: // Compare -> Set, always LinkSIns instructions
+    case 6: // Compare -> Set, always LinkSub instructions
       print_if_version_4();
       fprintf(stderr, "{ ");
-      print_set2();
+      print_set_version_2();
       fprintf(stderr, " } ");
       print_linksub_instruction();
       break;
     default:
-      fprintf(stderr, "WARNING: Unknown instruction type (%i)", bits(0,0,3)); 
+      fprintf(stderr, "WARNING: Unknown instruction type (%i)", bits(0,0,3));
   }
-  // Check if there are bits not yet examined
+  // Check if there still are bits set that were not examined
 
   extra_bits = 0;
-  for (i = 0; i < 8; i++)
-    if (cmd.bits [i] & ~ cmd.examined [i])
-    {
+  for(i = 0; i < 8; i++)
+    if(cmd.bits[i] & ~ cmd.examined[i]) {
       extra_bits = 1;
       break;
     }
-  if (extra_bits)
-  {
+  if(extra_bits) {
     fprintf(stderr, " [WARNING, unknown bits:");
-    for (i = 0; i < 8; i++)
-      fprintf(stderr, " %02x", cmd.bits [i] & ~ cmd.examined [i]);
+    for(i = 0; i < 8; i++)
+      fprintf(stderr, " %02x", cmd.bits[i] & ~ cmd.examined[i]);
     fprintf(stderr, "]");
   }
 }
 
-void vmPrint_CMD(int row, vm_cmd_t *command) {
+void vmPrint_cmd(int row, vm_cmd_t *command) {
   int i;
 
   fprintf(stderr, "(%03d) ", row + 1);
@@ -469,6 +493,6 @@ void vmPrint_CMD(int row, vm_cmd_t *command) {
     fprintf(stderr, "%02x ", command->bytes[i]);
   fprintf(stderr, "| ");
 
-  vmcmd(&command->bytes[0]);
+  vmPrint_mnemonic(command);
   fprintf(stderr, "\n");
 }

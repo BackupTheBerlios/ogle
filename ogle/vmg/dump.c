@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2001 Martin Norbäck
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -33,16 +33,16 @@ main(int argc, char *argv[])
   memset(&state, 0, sizeof(registers_t));
 
   while(!feof(stdin)) {
-    printf("   #   ");
+    fprintf(stderr, "   #   ");
     for(i = 0; i < 24; i++)
-      printf(" %2d |", i);
-    printf("\nSRPMS: ");
+      fprintf(stderr, " %2d |", i);
+    fprintf(stderr, "\nSRPMS: ");
     for(i = 0; i < 24; i++)
-      printf("%04x|", state.SPRM[i]);
-    printf("\nGRPMS: ");
+      fprintf(stderr, "%04x|", state.SPRM[i]);
+    fprintf(stderr, "\nGRPMS: ");
     for(i = 0; i < 16; i++)
-      printf("%04x|", state.GPRM[i]);
-    printf("\n");
+      fprintf(stderr, "%04x|", state.GPRM[i]);
+    fprintf(stderr," \n");
 
     for(i = 0; i < 8; i++) {
       unsigned int res;
@@ -52,12 +52,13 @@ main(int argc, char *argv[])
       cmd.bytes[i] = res;
     }
     
-    eval(&cmd, 1, &state, &return_values);
+    vmEval_CMD(&cmd, 1, &state, &return_values);
     
-    printf("mnemonic:    ");
-    vmcmd(cmd.bytes);
-    printf("\n");
+    fprintf(stderr, "mnemonic:    ");
+    vmPrint_mnemonic(&cmd);
+    fprintf(stderr, "\n");
   }
+  
   exit(0);
 }
 

@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -524,7 +524,7 @@ static void display_process()
       frame_nr++;
       avg_nr++;
     }
-    if(avg_nr == 24) {
+    if(avg_nr == 200) {
       avg_nr = 0;
       oavg_time = avg_time;
       clocktime_get(&avg_time);

@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -229,6 +229,8 @@ static void send_spu_palette(uint32_t palette[16]) {
   for(i = 0; i < 16; i++) {
     ev.spupalette.colors[i] = palette[i];
   }
+  
+  fprintf(stderr, "nav: sending_spu_palette\n");
   
   if(send_spu(msgq, &ev) == -1) {
     fprintf(stderr, "nav: send_spu_palette\n");
@@ -576,7 +578,7 @@ static void do_run(void) {
     if(!got_data) { // Then it must be a message (or error?)
       int res = 0;
       
-      printf("nav: User input, MsgEvent.type: %d\n", ev.type);
+      //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
           
       /* Do user input processing. Like audio change, 
        * subpicture change and answer attribute querry requests.
@@ -612,6 +614,8 @@ static void do_run(void) {
 	case DVDCtrlMenuCall:
 	  fprintf(stderr, "nav: Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
 	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
+	  if(!res)
+	    fprintf(stderr, "nav: No such menu!\n");
 	  break;
 	  
 	case DVDCtrlResume:
@@ -722,6 +726,8 @@ static void do_run(void) {
 	      }
 	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
 		= af;
+	      send_ev.dvdctrl.cmd.audioattributes.attr.AppMode 
+		= attr.application_mode;
 	      send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
 		= attr.audio_type;
 	      send_ev.dvdctrl.cmd.audioattributes.attr.Language 

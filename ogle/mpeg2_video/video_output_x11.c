@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -470,12 +470,13 @@ static void display_change_size(yuv_image_t *img, int new_width,
   XSelectInput(mydisplay, window.win, NoEventMask);
 #endif
   
-  if(use_xshm && !use_xv) {
+  if(!use_xv) {
     
     XSync(mydisplay,True);
     
     /* Destroy old display */
-    XShmDetach(mydisplay, &shm_info);
+    if(use_xshm)
+      XShmDetach(mydisplay, &shm_info);
     XDestroyImage(window.ximage);
     shmdt(shm_info.shmaddr);
     if(shm_info.shmaddr == ((char *) -1)) {
@@ -525,9 +526,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
     window.data = window.ximage->data;
     
     shm_info.readOnly = False;
-    XShmAttach(mydisplay, &shm_info);
+    if(use_xshm)
+      XShmAttach(mydisplay, &shm_info);
     
     XSync(mydisplay, False);
+  
   }
   
   /* Save the new size so we know what to scale to. */
@@ -602,8 +605,6 @@ void display(yuv_image_t *current_image)
       new_height = (current_image->info->picture.vertical_size *
 		    scale_frac_d) / scale_frac_n;
     }
-
-    fprintf(stderr, "vo: resizing to %d x %d\n", new_width, new_height);
     
     display_change_size(current_image, new_width, new_height, True);
     XSync(mydisplay, False);    

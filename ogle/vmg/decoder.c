@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Martin Norbäck, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,12 +23,17 @@
 #include "vmcmd.h"
 #include "decoder.h"
 
+#ifndef bool
+typedef int bool;
+#endif
+
 typedef struct
 {
   uint8_t bits[8];
   uint8_t examined[8];
 } cmd_t;
 
+// Fix theses two.. pass as parameters instead.
 static cmd_t cmd;
 static registers_t *state;
 
@@ -515,13 +520,14 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
 
 /* Evaluate a set of commands in the given register set (which is
  * modified */
-bool eval(vm_cmd_t commands[], int num_commands, 
-	  registers_t *registers, link_t *return_values) {
+int vmEval_CMD(vm_cmd_t commands[], int num_commands, 
+	       registers_t *registers, link_t *return_values) {
   int i = 0;
   int total = 0;
   
   state = registers; // TODO FIXME
 
+#ifdef TRACE
   // DEBUG
   if(1) {
     int i;
@@ -542,7 +548,8 @@ bool eval(vm_cmd_t commands[], int num_commands,
       vmPrint_CMD(i, &commands[i]);
     fprintf(stderr, "--------------------------------------------\n");
   } // end DEBUG
-
+#endif
+  
   while(i < num_commands && total < 100000) {
     int line;
     

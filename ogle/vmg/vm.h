@@ -2,7 +2,7 @@
 #define VM_H_INCLUDED
 
 /* Ogle - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001 Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -63,15 +63,15 @@ typedef struct {
 #define TTN_REG      registers.SPRM[4]
 // VTS Title Track Number
 #define VTS_TTN_REG  registers.SPRM[5]
+// PGC Number for this Title Track
 #define TT_PGCN_REG  registers.SPRM[6]
 // Current Part of Title (PTT) number for (One_Sequential_PGC_Title)
 #define PTTN_REG     registers.SPRM[7]
-
 // Highlighted Button Number (btn nr 1 == value 1024)
 #define HL_BTNN_REG  registers.SPRM[8]
-
 // Parental Level
 #define PTL_REG      registers.SPRM[13]
+
 
 int vm_reset(char *dvdroot); // , register_t regs);
 int vm_start(void);

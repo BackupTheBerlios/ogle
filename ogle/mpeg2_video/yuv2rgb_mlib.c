@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000 Håkan Hjort
+ * Copyright (C) 2000, 2001 Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
