@@ -37,6 +37,7 @@
 #endif //HAVE_POSIX_SHM
 
 
+
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif
@@ -237,7 +238,7 @@ int ogle_shmget(int size, int mode)
     }
   }
   if(n == retries) {
-    ERROR("ogle_shmget: Failed to open a shm object\n");
+    ERROR("%s", "ogle_shmget: Failed to open a shm object\n");
     return -1;
   }
   
