@@ -33,6 +33,7 @@
 
 #include <ogle/msgevents.h>
 
+#include "debug_print.h"
 #include "common.h"
 #include "video_types.h"
 #include "timemath.h"

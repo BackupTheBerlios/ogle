@@ -34,6 +34,7 @@
 
 #include <dvdread/dvd_reader.h>
 
+#include "debug_print.h"
 #include "ogle_endian.h"
 #include "programstream.h"
 #include "common.h"
@@ -157,27 +158,7 @@ int new_file;
 
 // #define DEBUG
 
-#ifdef DEBUG
-#define DPRINTF(level, ...) \
-if(debug > level) \
-{ \
-    fprintf(stderr, __VA_ARGS__); \
-}
-#else
-#define DPRINTF(level, ...)
-#endif
 
-#ifdef DEBUG
-#define DPRINTBITS(level, bits, value) \
-{ \
-  int n; \
-  for(n = 0; n < bits; n++) { \
-    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-  } \
-}
-#else
-#define DPRINTBITS(level, bits, value)
-#endif
 
 #ifdef STATS
     static uint32_t stat_video_unaligned_packet_offset = 0;

@@ -89,57 +89,13 @@
 #define PIC_CODING_TYPE_RESERVED3 7
 
 
+
 #ifdef DEBUG
-extern unsigned int debug;
 extern void exit_program(int exitcode) ATTRIBUTE_NORETURN;
 #if PRAGMA_NORETURN
 #pragma does_not_return (exit_program) 
 #endif
 #endif
-
-#ifdef DEBUG
-
-int debug_indent_level;
-#define DINDENT(spaces) \
-{ \
-  debug_indent_level += spaces; \
-  if(debug_indent_level < 0) { \
-    debug_indent_level = 0; \
-  } \
-} 
-
-#define DPRINTFI(level, ...) \
-if(debug >= level) \
-{ \
-  fprintf(stderr, "%*s", debug_indent_level, ""); \
-  fprintf(stderr, __VA_ARGS__); \
-}
-
-#define DPRINTF(level, ...) \
-if(debug >= level) \
-{ \
-  fprintf(stderr, __VA_ARGS__); \
-}
-#else
-#define DINDENT(spaces)
-#define DPRINTFI(level, ...)
-#define DPRINTF(level, ...)
-#endif
-
-#ifdef DEBUG
-#define DPRINTBITS(level, bits, value) \
-{ \
-  int n; \
-  for(n = 0; n < bits; n++) { \
-    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-  } \
-}
-#else
-#define DPRINTBITS(level, bits, value)
-#endif
-
-
-
 
 
 

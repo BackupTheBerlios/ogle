@@ -32,40 +32,14 @@
 #endif
 
 #include <ogle/msgevents.h>
+
+#include "debug_print.h"
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
 
 
-#ifdef DEBUG
-
-int debug_indent_level;
-#define DINDENT(spaces) \
-{ \
-  debug_indent_level += spaces; \
-  if(debug_indent_level < 0) { \
-    debug_indent_level = 0; \
-  } \
-} 
-
-#define DPRINTFI(level, ...) \
-if(debug >= level) \
-{ \
-  fprintf(stderr, "%*s", debug_indent_level, ""); \
-  fprintf(stderr, __VA_ARGS__); \
-}
-
-#define DPRINTF(level, ...) \
-if(debug >= level) \
-{ \
-  fprintf(stderr, __VA_ARGS__); \
-}
-#else
-#define DINDENT(spaces)
-#define DPRINTFI(level, ...)
-#define DPRINTF(level, ...)
-#endif
 
 static int get_q();
 static int attach_ctrl_shm(int shmid);

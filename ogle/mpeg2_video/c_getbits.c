@@ -30,6 +30,7 @@
 #include <string.h>
 
 #include <ogle/msgevents.h>
+#include "debug_print.h"
 #include "c_getbits.h"
 #include "common.h"
 #include "queue.h"

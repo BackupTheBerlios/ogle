@@ -45,6 +45,8 @@
 
 
 #include <ogle/msgevents.h>
+
+#include "debug_print.h"
 #include "video_stream.h"
 #include "video_types.h"
 #include "video_tables.h"

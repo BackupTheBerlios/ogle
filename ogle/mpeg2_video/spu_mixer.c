@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <string.h>
 
+#include "debug_print.h"
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
@@ -42,31 +43,6 @@
 
 
 
-#ifdef DEBUG
-int debug;
-#endif
-
-#ifdef DEBUG
-#define DPRINTF(level, ...) \
-if(debug > level) \
-{ \
-    fprintf(stderr, __VA_ARGS__); \
-}
-#else
-#define DPRINTF(level, ...)
-#endif
-
-#ifdef DEBUG
-#define DPRINTBITS(level, bits, value) \
-{ \
-  int n; \
-  for(n = 0; n < bits; n++) { \
-    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-  } \
-}
-#else
-#define DPRINTBITS(level, bits, value)
-#endif
 
 #ifdef DEBUG
 #define GETBYTES(a,b) getbytes(a,b)
