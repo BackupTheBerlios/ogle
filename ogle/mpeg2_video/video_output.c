@@ -541,8 +541,8 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
       sigaction(SIGALRM, &act, &oact);
       setitimer(ITIMER_REAL, &timer, NULL);
 
-    } else if(TIME_SS(time_left) > (15*(CT_FRACTION/1000))) {
-      // less than 100ms but more than 15 ms left, lets wait
+    } else if(TIME_SS(time_left) > (5*(CT_FRACTION/1000))) {
+      // less than 100ms but more than 5 ms left, lets wait
       struct timespec sleeptime;
  
 #if 0
@@ -563,7 +563,7 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 				    scr, sp);
       return time_left;
     } else {
-      // less than 15 ms left or negative time left, we cant sleep
+      // less than 5 ms left or negative time left, we cant sleep
       // a shorter period than 10 ms so we return
 
       return time_left;
@@ -955,8 +955,8 @@ static void display_process()
 	    wait_time.tv_sec, wait_time.tv_nsec);
     */
 
-    if(TIME_SS(wait_time) < -300*(CT_FRACTION/1000)) {
-      // more than 300 ms late
+    if(TIME_SS(wait_time) < -60*(CT_FRACTION/1000)) {
+      // more than 60 ms late, drop decoded pictures
       drop = 1;
     }
     

@@ -63,16 +63,6 @@
 
 
 
-typedef struct _data_q_t {
-  int in_use;
-  int eoq;
-  q_head_t *q_head;
-  q_elem_t *q_elems;
-  data_buf_head_t *data_head;
-  picture_data_elem_t *data_elems;
-  yuv_image_t *image_bufs;
-  struct _data_q_t *next;
-} data_q_t;
 
 extern void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 //extern int chk_for_msg();

@@ -41,17 +41,6 @@
 #endif
 
 
-typedef struct _data_q_t {
-  int in_use;
-  int eoq;
-  q_head_t *q_head;
-  q_elem_t *q_elems;
-  data_buf_head_t *data_head;
-  picture_data_elem_t *data_elems;
-  yuv_image_t *image_bufs;
-  struct _data_q_t *next;
-} data_q_t;
-
 
 extern data_q_t *data_q_head;
 extern int ctrl_data_shmid;
@@ -527,8 +516,8 @@ int get_q()
   
   //change_file(data_elem->filename);
   
-  off = data_elem->off;
-  len = data_elem->len;
+  off = data_elem->packet_data_offset;
+  len = data_elem->packet_data_len;
   
 #if 0
   switch(data_elem->flowcmd) {

@@ -310,8 +310,8 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
-  off = data_elem->off;
-  len = data_elem->len;
+  off = data_elem->packet_data_offset+1;
+  len = data_elem->packet_data_len-1;
     
   PTS_DTS_flags = data_elem->PTS_DTS_flags;
   if(PTS_DTS_flags & 0x2) {
