@@ -26,7 +26,7 @@
 #undef ATTRIBUTE_ALIGNED
 
 #if defined(__GNUC__)
-#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 91)
 #define ATTRIBUTE_ALIGNED(X) __attribute__ ((aligned (X)))
 #define PRAGMA_ALIGN 0
 #endif
