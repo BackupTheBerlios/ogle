@@ -689,9 +689,10 @@ void actionAudioStreamChange(void *data)
   DVDAudioStream_t cur_stream;
   DVDAudioStream_t new_stream;
   DVDAudioAttributes_t au_attr;
-
-  struct action_number *user = (struct action_number *)data;
+  DVDBool_t enabled;
+  int next_track = 0;
   
+  struct action_number *user = (struct action_number *)data;
   
   res = DVDGetCurrentAudio(nav, &streams_avail, &cur_stream);
   if(res == DVD_E_Ok) {
@@ -700,21 +701,41 @@ void actionAudioStreamChange(void *data)
 	new_stream = user->nr;
       } else {
 	new_stream = cur_stream+1;
+	next_track = 8;
       }
+
+      do {
+	if(new_stream >= streams_avail) {
+	  new_stream = 0;
+	}
+	res = DVDIsAudioStreamEnabled(nav, new_stream, &enabled);
+	if(res == DVD_E_Ok) {
+	  if(enabled) {
+	    break;
+	  }
+	  new_stream++;
+	}
+	next_track--;
+      } while(next_track > 0);
       
-      if(new_stream >= streams_avail) {
-	new_stream = 0;
-      }
-      res = DVDAudioStreamChange(nav, new_stream);
-      if(res != DVD_E_Ok) {
-	DVDPerror("DVDAudioStreamChange: ", res);
-      }
-      DNOTE("get audioattr snr %d\n", new_stream);
-      res = DVDGetAudioAttributes(nav, new_stream, &au_attr);
-      if(res != DVD_E_Ok) {
-	ERROR("DVDGetAudioAttributes: %s\n", DVDStrerror(res));
+      if(enabled) {
+	res = DVDAudioStreamChange(nav, new_stream);
+	if(res != DVD_E_Ok) {
+	  DVDPerror("DVDAudioStreamChange: ", res);
+	}
+	DNOTE("get audioattr snr %d\n", new_stream);
+	res = DVDGetAudioAttributes(nav, new_stream, &au_attr);
+	if(res != DVD_E_Ok) {
+	  ERROR("DVDGetAudioAttributes: %s\n", DVDStrerror(res));
+	} else {
+	  printAudioAttributes(&au_attr);
+	}
       } else {
-	printAudioAttributes(&au_attr);
+	if(next_track == -1) {
+	  DNOTE("Audio stream %d not enabled\n", new_stream-1);
+	} else {
+	  DNOTE("%s", "No enabled audio streams\n");
+	}
       }
     }
   } else {
