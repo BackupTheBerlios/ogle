@@ -32,14 +32,6 @@
 #include <sys/soundcard.h>
 #endif
 
-#ifndef AFMT_S16_NE
-#if WORDS_BIGENDIAN == 1
-#define AFMT_S16_NE AFMT_S16_BE
-#else
-#define AFMT_S16_NE AFMT_S16_LE
-#endif
-#endif
-
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
 
