@@ -35,10 +35,10 @@ PACKAGE_PIXMAPS_DIR="`gnome-config --datadir`/pixmaps/${PACKAGE}"
 AC_SUBST(PACKAGE_PIXMAPS_DIR)
 
 
-AC_ARG_WITH(dvd-includes, [  --with-dvd-includes=DIR Specify location of DVD headers], DVD_INCLUDEDIR=$with_dvd_includes, AC_MSG_ERROR("Must have path to DVD includes"))
+AC_ARG_WITH(dvd-includes, [  --with-dvd-includes=DIR Specify location of DVD headers], DVD_INCLUDEDIR=$with_dvd_includes, AC_CHECK_HEADER(ogle/dvdcontrol.h,,AC_MSG_ERROR("Must have path to DVD includes")))
 AC_SUBST(DVD_INCLUDEDIR)
 
-AC_ARG_WITH(dvd-libs, [  --with-dvd-libs=DIR     Specify location of DVD libs], DVD_LIBDIR=$with_dvd_libs, AC_MSG_ERROR("Must have path to DVD libs"))
+AC_ARG_WITH(dvd-libs, [  --with-dvd-libs=DIR     Specify location of DVD libs], DVD_LIBDIR=$with_dvd_libs, AC_CHECK_LIB(dvdcontrol, DVDOpenNav,, AC_MSG_ERROR("Must have path to DVD libs")))
 AC_SUBST(DVD_LIBDIR)
 DVDLIBS="-L$DVD_LIBDIR -ldvdcontrol"
 AC_SUBST(DVDLIBS)

@@ -456,9 +456,12 @@ langcodes_t language[] = {
  */
 char* language_name(DVDLangID_t lang) {
   int i=0;
+  char lang_code[2];
+  lang_code[0] = lang >> 8;
+  lang_code[1] = lang & 0xff;
   while(language[i].name !=NULL) {
     if( (language[i].code_639_1[0] !='\0')
-	&& (memcmp(&lang, &language[i].code_639_1[0], 2) == 0))
+	&& (memcmp(&lang_code, &language[i].code_639_1[0], 2) == 0))
       return _(language[i].name);
     i++;
   }
@@ -470,9 +473,12 @@ char* language_name(DVDLangID_t lang) {
  */
 char* language_code(DVDLangID_t lang) {
   int i=0;
+  char lang_code[2];
+  lang_code[0] = lang >> 8;
+  lang_code[1] = lang & 0xff;
   while(language[i].name !=NULL) {
     if( (language[i].code_639_1[0] !='\0')
-	&& (memcmp(&lang, &language[i].code_639_1[0], 2) == 0))
+	&& (memcmp(&lang_code, &language[i].code_639_1[0], 2) == 0))
       return language[i].code_639_1;
     i++;
   }

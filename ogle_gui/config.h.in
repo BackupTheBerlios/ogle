@@ -122,6 +122,9 @@
 /* Define if you have the <unistd.h> header file.  */
 #undef HAVE_UNISTD_H
 
+/* Define if you have the dvdcontrol library (-ldvdcontrol).  */
+#undef HAVE_LIBDVDCONTROL
+
 /* Define if you have the i library (-li).  */
 #undef HAVE_LIBI
 
