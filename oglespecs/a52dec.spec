@@ -1,7 +1,7 @@
 Summary: A library for handling encrypted dvds.
 Name: a52dec
-Version: 0.7.1b
-Release: 2
+Version: 0.7.3
+Release: 1
 Vendor: Ogle
 Packager: Ogle developer team
 URL: http://www.dtek.chalmers.se/~dvd/
@@ -37,16 +37,16 @@ make
 %clean
 [ "${RPM_BUILD_ROOT}" != "/" ] && rm -rf ${RPM_BUILD_ROOT}
 
-%post
+%post devel
 /sbin/ldconfig
 
-%postun -p /sbin/ldconfig
+%postun devel -p /sbin/ldconfig
 
 %files
 %defattr(-,root,root)
 %doc AUTHORS COPYING NEWS README TODO
 %{_bindir}/*
-%{_mandir}/*
+%{_mandir}/man*/*
 
 %files devel
 %{_includedir}/*
@@ -54,6 +54,10 @@ make
 %{_libdir}/*.la
 
 %changelog
+* Thu Feb 21 2002 Martin Norbäck <d95mback@dtek.chalmers.se>
+- Update to version 0.7.3
+* Tue Dec 18 2001 Martin Norbäck <d95mback@dtek.chalmers.se>
+- Update to version 0.7.2
 * Thu Sep 20 2001 Martin Norbäck <d95mback@dtek.chalmers.se>
 - Added missing .la files
 - Building statically
