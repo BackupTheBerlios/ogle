@@ -381,11 +381,11 @@ int get_q()
     
     if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
       if(PTS_DTS_flags && 0x2) {
-	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+	//set_time_base(PTS, ctrl_time, scr_nr, time_offset);
       }
     }
     if(PTS_DTS_flags && 0x2) {
-      time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+      //time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
     }
     prev_scr_nr = scr_nr;
     
@@ -397,12 +397,12 @@ int get_q()
       TIME_S(time_offset) = 0;
       TIME_SS(time_offset) = 0;
       fprintf(stderr, "mpg123wrap: setting offset\n");      
-      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+      //set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
   
   if(PTS_DTS_flags & 0x2) {
-    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+    //time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
   }
 
   /** TODO this is just so we don't buffer alot in the pipe **/
