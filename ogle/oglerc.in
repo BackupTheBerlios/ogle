@@ -241,10 +241,12 @@
 	<b>	
 	  <action>SkipForward</action>
 	  <key>KP_Right</key>
+	  <key>Next</key>
   	</b>
 	<b>	
 	  <action>SkipBackward</action>
 	  <key>KP_Left</key>
+	  <key>Prior</key>
   	</b>
     </bindings>
   </user_interface>
