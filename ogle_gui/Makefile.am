@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = intl po src
+SUBDIRS = intl src po
 
 EXTRA_DIST = ogle_gui.glade
 
