@@ -56,6 +56,7 @@
     <liba52>
       <downmix_level>1.5</downmix_level>
       <drc>no</drc>
+      <stereo_mode>dolby</stereo_mode>
     </liba52>
     <sync>
       <type>odelay</type>

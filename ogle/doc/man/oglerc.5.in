@@ -79,6 +79,7 @@ DVD-ROM drive.
     <liba52>
       <downmix_level>1.5</downmix_level>
       <drc>no</drc>
+      <stereo_mode>dolby</stereo_mode>
     </liba52>
     <sync>
       <type>odelay</type>
@@ -126,6 +127,10 @@ Is used to multiply the samples when downmixing from multichannel sound to stere
 <drc>
 .RS 4
 This will turn on dynamic range compression if set to 'yes'. DRC will lower the volume of loud sounds and raise the volume for soft sounds.
+.RE
+<stereo_mode>
+.RS 4
+This will decide what stereo mix you will get from a multi channel track if you have a channel config with just Left and Right. 'main' will just pick the left and right main channels. 'front' will mix in the center channel also. 'dolby' will make a dolby surround (stereo) mix of all the channels.
 .RE
 .RE
 .RE
