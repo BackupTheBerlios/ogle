@@ -20,7 +20,22 @@
 #ifndef DVD_READER_H_INCLUDED
 #define DVD_READER_H_INCLUDED
 
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+#include <unistd.h>
+typedef off_t off64_t;
+#define lseek64 lseek
+#endif
 #include <sys/types.h>
+
+/**
+ * The length of one Logical Block of a DVD Video.
+ */
+#define DVD_VIDEO_LB_LEN 2048
+
+/**
+ * Maximum length of filenames for UDF.
+ */
+#define MAX_UDF_FILE_NAME_LEN 2048
 
 #ifdef __cplusplus
 extern "C" {

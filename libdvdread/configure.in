@@ -1,15 +1,10 @@
 AC_INIT(dvdread/dvd_reader.c)
-AM_INIT_AUTOMAKE("dvdread", 0.8.0)
+AM_INIT_AUTOMAKE("dvdread", 0.9.0)
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
-AC_ISC_POSIX
 AC_PROG_CC
 AC_STDC_HEADERS
-AC_PROG_MAKE_SET
-AC_PROG_INSTALL
-AC_PROG_LN_S
-
 
 dnl GCC-specific flags
 if test x"$GCC" = x"yes"; then
@@ -58,7 +53,14 @@ else
 fi
 AC_SUBST(STATIC)
 
-AC_CHECK_LIB(dl, dlopen, DL_LIBS=-ldl, AC_MSG_ERROR(You need libdl (dlopen)))
+dnl We use dlopen for libcss access
+AC_CHECK_FUNC(dlopen, 
+  DL_LIBS="", 
+  AC_CHECK_LIB(dl, dlopen, 
+    DL_LIBS=-ldl, 
+    AC_MSG_ERROR(You need libdl (dlopen))
+  )
+)
 AC_SUBST(DL_LIBS)
 
 dnl AC_CHECK_GENERATE_INTTYPES(include)
@@ -66,9 +68,7 @@ dnl AC_CHECK_GENERATE_INTTYPES(include)
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
-AC_TYPE_OFF_T
 AC_TYPE_SIZE_T
-AM_TYPE_PTRDIFF_T
 
 dnl Linux and Solaris needs this to prototype lseek64 and others
 CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"

@@ -30,27 +30,11 @@
 #ifndef DVD_UDF_H_INCLUDED
 #define DVD_UDF_H_INCLUDED
 
-/**
- * The length of one Logical Block of a DVD Video.
- */
-#define DVD_VIDEO_LB_LEN 2048
-
-/**
- * Maximum length of filenames for UDF.
- */
-#define MAX_UDF_FILE_NAME_LEN 2048
+#include "dvd_reader.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * Reads a contiguous set of block_count Logical Blocks of the disc or image
- * into the data pointer, starting with block lb_number.  Returns number of
- * read bytes on success, 0 or negative error number on error.
- */
-int UDFReadLB( int fd, unsigned long int lb_number, unsigned int block_count,
-               unsigned char *data );
 
 /**
  * Looks for a file on the UDF disc/imagefile and returns the block number
@@ -59,8 +43,8 @@ int UDFReadLB( int fd, unsigned long int lb_number, unsigned int block_count,
  * '/VIDEO_TS/VTS_01_1.IFO'.  On success, filesize will be set to the size of
  * the file in bytes.
  */
-unsigned long int UDFFindFile( int fd, char *filename,
-                               unsigned long int *size);
+unsigned long int UDFFindFile( dvd_reader_t *device, char *filename,
+                               unsigned long int *size );
 
 #ifdef __cplusplus
 };

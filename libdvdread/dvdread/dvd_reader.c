@@ -21,6 +21,7 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
 #include <string.h>
 #include <unistd.h>
 #include <limits.h>
@@ -30,44 +31,56 @@
 #if defined(__sun)
 #include <sys/mnttab.h>
 #define MNT_FILE MNTTAB
-#else
+#elif defined(__FreeBSD__) || defined(__OpenBSD__)
+#undef MNT_FILE
+#include <fstab.h>
+#elif defined(__linux__)
 #include <mntent.h>
 #define MNT_FILE MOUNTED
+#else /* Unknown system */
+#define MNT_FILE "/dev/zero"
 #endif
 
+#include "dvdcss.h"
 #include "dvd_udf.h"
 #include "dvd_reader.h"
 
-#ifndef CSS_TITLE_KEY_LEN
-#define CSS_TITLE_KEY_LEN  5
-#endif
+/**
+ * Handle to the loaded dvdcss library.
+ */
+void *dvdcss_library = 0;
 
-void *css_handle = 0;
-int (*CSSisEncrypted)( int );
-int (*CSSAuthDisc)( int, char * );
-int (*CSSAuthTitle)( int, char *, int );
-int (*CSSDecryptTitleKey)( char *, char * );
-void (*CSSDescramble)( unsigned char *, char * );
+/**
+ * libdvdcss functions.
+ */
+static dvdcss_handle (*dvdcss_open)  ( char *psz_target,
+                                       int i_flags );
+static int           (*dvdcss_close) ( dvdcss_handle );
+static int           (*dvdcss_title) ( dvdcss_handle,
+                                       int i_block );
+static int           (*dvdcss_seek)  ( dvdcss_handle,
+                                       int i_blocks );
+static int           (*dvdcss_read)  ( dvdcss_handle,
+                                       void *p_buffer,
+                                       int i_blocks,
+                                       int i_title );
+static char *        (*dvdcss_error) ( dvdcss_handle );
 
 struct dvd_reader_s {
     /* Basic information. */
-    int isEncrypted;
     int isImageFile;
 
     /* Information required for an image file. */
+    dvdcss_handle dev;
     int fd;
-    char key_disc[ DVD_VIDEO_LB_LEN ];
 
     /* Information required for a directory path drive. */
     char *path_root;
-    dvd_reader_t *auth_drive;
 };
 
 struct dvd_file_s {
     /* Basic information. */
     dvd_reader_t *dvd;
-    int isEncrypted;
-    char key_title[ CSS_TITLE_KEY_LEN ];
 
     /* Information required for an image file. */
     unsigned long int lb_start;
@@ -80,24 +93,54 @@ struct dvd_file_s {
 
 static void setupCSS( void )
 {
-    if( !css_handle ) {
-        css_handle = dlopen( "libcss.so", RTLD_NOW );
-        if( !css_handle ) {
-            fprintf( stderr, "libdvdread: Can't open libcss: %s.\n"
-                     "Decryption of encrypted DVDs is unavailable.\n",
+    if( !dvdcss_library ) {
+	dvdcss_library = dlopen( "libdvdcss.so", RTLD_LAZY );
+
+	if( !dvdcss_library ) {
+            fprintf( stderr, "libdvdread: Can't open libdvdcss: %s.\n",
                      dlerror() );
         } else {
-            CSSisEncrypted = (int (*)(int))
-                                dlsym( css_handle, "CSSisEncrypted" );
-            CSSAuthDisc = (int (*)(int, char*))
-                                dlsym( css_handle, "CSSAuthDisc" );
-            CSSAuthTitle = (int (*)(int, char*, int))
-                                dlsym( css_handle, "CSSAuthTitle" );
-            CSSDecryptTitleKey = (int (*)(char*, char*))
-                                dlsym( css_handle, "CSSDecryptTitleKey" );
-            CSSDescramble = (void (*)(unsigned char *, char*))
-                                dlsym( css_handle, "CSSDescramble" );
+#if defined(__OpenBSD__)
+#define U_S "_"
+#else
+#define U_S
+#endif
+            dvdcss_open = (dvdcss_handle (*)(char*, int))
+                                dlsym( dvdcss_library, U_S "dvdcss_open" );
+            dvdcss_close = (int (*)(dvdcss_handle))
+                                dlsym( dvdcss_library, U_S "dvdcss_close" );
+            dvdcss_title = (int (*)(dvdcss_handle, int))
+                                dlsym( dvdcss_library, U_S "dvdcss_title" );
+            dvdcss_seek = (int (*)(dvdcss_handle, int))
+                                dlsym( dvdcss_library, U_S "dvdcss_seek" );
+            dvdcss_read = (int (*)(dvdcss_handle, void*, int, int))
+                                dlsym( dvdcss_library, U_S "dvdcss_read" );
+            dvdcss_error = (char* (*)(dvdcss_handle))
+                                dlsym( dvdcss_library, U_S "dvdcss_error" );
+
+            if( dlsym( dvdcss_library, U_S "dvdcss_crack" ) ) {
+                fprintf( stderr, "libdvdread: Old (pre-0.0.2) version of "
+                                 "libdvdcss found.\n"
+                                 "libdvdread: You should get the "
+                                 "latest version from "
+                                 "http://www.videolan.org/\n" );
+                dlclose( dvdcss_library );
+                dvdcss_library = 0;
+            } else if( !dvdcss_open  || !dvdcss_close || !dvdcss_seek ||
+                       !dvdcss_title || !dvdcss_read  || !dvdcss_error ) {
+
+                fprintf( stderr, "libdvdread: Unknown incompatible version "
+                                 "of libdvdcss found.\n"
+                                 "libdvdread: Try to find a "
+                                 "newer version of libdvdread?\n" );
+                dlclose( dvdcss_library );
+                dvdcss_library = 0;
+            }
         }
+    }
+
+    if( !dvdcss_library ) {
+        fprintf( stderr, "libdvdread: Encrypted DVD support unavailable.\n" );
     }
 }
 
@@ -107,55 +150,46 @@ static void setupCSS( void )
 static dvd_reader_t *DVDOpenImageFile( const char *filename )
 {
     dvd_reader_t *dvd;
-    int fd;
+    dvdcss_handle dev = 0;
+    int fd = 0;
 
-    fd = open( filename, O_RDONLY );
-    if( fd < 0 ) {
-        fprintf( stderr, "libdvdread: Can't open %s for reading.\n",
-                 filename );
-        return 0;
+    setupCSS();
+
+    if( dvdcss_library ) {
+        dev = dvdcss_open( (char *) filename, DVDCSS_INIT_DEBUG );
+        if( !dev ) {
+            fprintf( stderr, "libdvdread: Can't open %s for reading.\n",
+                     filename );
+            return 0;
+        }
+    } else {
+        fd = open( filename, O_RDONLY );
+        if( fd < 0 ) {
+            fprintf( stderr, "libdvdread: Can't open %s for reading.\n",
+                     filename );
+            return 0;
+        }
     }
 
     dvd = (dvd_reader_t *) malloc( sizeof( dvd_reader_t ) );
     if( !dvd ) return 0;
-    dvd->isEncrypted = 0;
     dvd->isImageFile = 1;
+    dvd->dev = dev;
     dvd->fd = fd;
     dvd->path_root = 0;
-    dvd->auth_drive = 0;
-
-    setupCSS();
-
-    if( css_handle && CSSisEncrypted( fd ) ) {
-        fprintf( stderr, "libdvdread: Encrypted DVD disc detected, "
-                         "enabling CSS decryption.\n" );
-        dvd->isEncrypted = 1;
-        if( CSSAuthDisc( fd, dvd->key_disc ) < 0 ) {
-            fprintf( stderr, "libdvdread: Can't authenticate disc, "
-                             "disabling CSS decryption.\n" );
-            dvd->isEncrypted = 0;
-        }
-    }
 
     return dvd;
 }
 
-static dvd_reader_t *DVDOpenPath( const char *path_root, dvd_reader_t *auth_drive )
+static dvd_reader_t *DVDOpenPath( const char *path_root )
 {
     dvd_reader_t *dvd;
 
     dvd = (dvd_reader_t *) malloc( sizeof( dvd_reader_t ) );
     if( !dvd ) return 0;
-    dvd->isEncrypted = auth_drive ? 1 : 0;
     dvd->isImageFile = 0;
-    dvd->fd = 0;
+    dvd->dev = 0;
     dvd->path_root = strdup( path_root );
-    dvd->auth_drive = auth_drive;
-
-    setupCSS();
-
-    if( auth_drive )
-        fprintf( stderr, "libdvdread: CSS Authentication Enabled.\n" );
 
     return dvd;
 }
@@ -165,6 +199,8 @@ dvd_reader_t *DVDOpen( const char *path )
     struct stat fileinfo;
     int ret;
 
+    if( !path ) return 0;
+    
     /* First check if this is a block device */
     ret = stat( path, &fileinfo );
     if( ret < 0 ) {
@@ -183,27 +219,42 @@ dvd_reader_t *DVDOpen( const char *path )
     } else if( S_ISDIR( fileinfo.st_mode ) ) {
         dvd_reader_t *auth_drive = 0;
         char *path_copy = strdup( path );
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+        struct fstab* fe;
+#else
         FILE *mntfile;
-
+#endif
+	
         /**
-         * If we're being asked to open a directory, check if that directory is
-         * maybe the mountpoint for a DVD-ROM which we can use to negotiate CSS
-         * authentication.
+         * If we're being asked to open a directory, check if that directory
+	 * is the mountpoint for a DVD-ROM which we can use instead.
          */
 
         /* XXX: We should scream real loud here. */
         if( !path_copy ) return 0;
 
         if( strlen( path_copy ) > 1 ) {
-            if( path[ strlen( path_copy ) - 1 ] == '/' ) path_copy[ strlen( path_copy ) - 1 ] = '\0';
+	    if( path[ strlen( path_copy ) - 1 ] == '/' ) 
+	        path_copy[ strlen( path_copy ) - 1 ] = '\0';
         }
 
         if( strlen( path_copy ) > 9 ) {
-            if( !strcasecmp( &(path_copy[ strlen( path_copy ) - 9 ]), "/video_ts" ) ) {
+	    if( !strcasecmp( &(path_copy[ strlen( path_copy ) - 9 ]), 
+			     "/video_ts" ) ) {
                 path_copy[ strlen( path_copy ) - 9 ] = '\0';
             }
         }
 
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+        if( ( fe = getfsfile( path_copy ) ) ) {
+	    fprintf( stderr,
+		     "libdvdread: Attempting to use block "
+		     "device %s on %s for CSS authentication.\n",
+		     fe->fs_spec,
+		     fe->fs_file );
+	    auth_drive = DVDOpenImageFile( fe->fs_spec );
+        }
+#else
         mntfile = fopen( MNT_FILE, "r" );
         if( mntfile ) {
 #if defined(__sun)
@@ -219,7 +270,7 @@ dvd_reader_t *DVDOpen( const char *path )
                     break;
                 }
             }
-#else
+#elif defined(__linux__)
             struct mntent *me;
  
             while( ( me = getmntent( mntfile ) ) ) {
@@ -233,14 +284,24 @@ dvd_reader_t *DVDOpen( const char *path )
             }
 #endif
             fclose( mntfile );
-        }
+	}
+#endif
+	if( !auth_drive ) {
+            fprintf( stderr, "libdvdread: Block device unacessable, "
+		     "CSS authentication not available.\n" );
+	}
 
         free( path_copy );
 
         /**
-         * We now have enough information to open the path.
+         * If we've opened a drive, just use that.
          */
-        return DVDOpenPath( path, auth_drive );
+        if( auth_drive ) return auth_drive;
+
+        /**
+         * Otherwise, we now open the directory tree.
+         */
+        return DVDOpenPath( path );
     }
 
     /* If it's none of the above, screw it. */
@@ -250,9 +311,9 @@ dvd_reader_t *DVDOpen( const char *path )
 
 void DVDClose( dvd_reader_t *dvd )
 {
+    if( dvd->dev ) dvdcss_close( dvd->dev );
     if( dvd->fd ) close( dvd->fd );
     if( dvd->path_root ) free( dvd->path_root );
-    if( dvd->auth_drive ) DVDClose( dvd->auth_drive );
     free( dvd );
     dvd = 0;
 }
@@ -265,14 +326,17 @@ static dvd_file_t *DVDOpenFileUDF( dvd_reader_t *dvd, char *filename )
     unsigned long int start, len;
     dvd_file_t *dvd_file;
 
-    start = UDFFindFile( dvd->fd, filename, &len );
-    if( !start ) return 0;
+    start = UDFFindFile( dvd, filename, &len );
+    if( !start ) {
+        fprintf( stderr, "libdvdread: Can't find file %s via UDF.\n",
+                 filename );
+        return 0;
+    }
 
     dvd_file = (dvd_file_t *) malloc( sizeof( dvd_file_t ) );
     if( !dvd_file ) return 0;
     dvd_file->dvd = dvd;
     dvd_file->lb_start = start;
-    dvd_file->isEncrypted = 0;
     dvd_file->seek_pos = 0;
 
     return dvd_file;
@@ -355,7 +419,6 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     if( !dvd_file ) return 0;
     dvd_file->dvd = dvd;
     dvd_file->lb_start = 0;
-    dvd_file->isEncrypted = 0;
 
     if( stat( full_path, &fileinfo ) < 0 ) {
         fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
@@ -369,7 +432,8 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     return dvd_file;
 }
 
-static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, unsigned int title, int menu )
+static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, 
+				  unsigned int title, int menu )
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
     unsigned long int start, len;
@@ -380,7 +444,7 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, unsigned int title, int men
     } else {
         sprintf( filename, "/VIDEO_TS/VTS_%02d_%d.VOB", title, menu ? 0 : 1 );
     }
-    start = UDFFindFile( dvd->fd, filename, &len );
+    start = UDFFindFile( dvd, filename, &len );
     if( start == 0 ) return 0;
 
     dvd_file = (dvd_file_t *) malloc( sizeof( dvd_file_t ) );
@@ -389,30 +453,19 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, unsigned int title, int men
     dvd_file->lb_start = start;
     dvd_file->seek_pos = 0;
 
-    if( css_handle && dvd->isEncrypted ) {
-        dvd_file->isEncrypted = 1;
-
-        if( CSSAuthTitle( dvd->fd, dvd_file->key_title,
-                          dvd_file->lb_start ) >= 0 ) {
-            if( CSSDecryptTitleKey( dvd_file->key_title,
-                                    dvd->key_disc ) >= 0 ) {
-            } else {
-                fprintf( stderr, "libdvdread: Couldn't get title key "
-                                 "for title %d%s.\n", title,
-                                 menu ? " [Menu]" : "" );
-                dvd_file->isEncrypted = 0;
-            }
-        } else {
-            fprintf( stderr, "libdvdread: Couldn't authenticate title %d.\n",
-                     title );
-            dvd_file->isEncrypted = 0;
+    /* Perform CSS key cracking for this title. */
+    if( dvdcss_library ) {
+        if( dvdcss_title( dvd_file->dvd->dev, start ) < 0 ) {
+            fprintf( stderr, "libdvdread: Error cracking CSS key for %s\n",
+                     filename );
         }
     }
 
     return dvd_file;
 }
 
-static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, unsigned int title, int menu )
+static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, 
+				   unsigned int title, int menu )
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
     char full_path[ PATH_MAX + 1 ];
@@ -424,7 +477,6 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, unsigned int title, int me
     if( !dvd_file ) return 0;
     dvd_file->dvd = dvd;
     dvd_file->lb_start = 0;
-    dvd_file->isEncrypted = dvd->auth_drive ? 1 : 0;
     dvd_file->seek_pos = 0;
 
     if( menu ) {
@@ -479,26 +531,6 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, unsigned int title, int me
         if( !(dvd_file->title_sizes[ 0 ]) ) {
             free( dvd_file );
             return 0;
-        }
-    }
-
-    if( dvd_file->isEncrypted ) {
-        dvd_file_t *title_file;
-
-        /**
-         * What we do now is use the auth drive to open the same file, grab the
-         * key, and then close the file.
-         */
-
-        title_file = DVDOpenFile( dvd->auth_drive, title,
-                                  menu ? DVD_READ_MENU_VOBS : DVD_READ_TITLE_VOBS );
-        if( title_file ) {
-            memcpy( dvd_file->key_title, title_file->key_title, CSS_TITLE_KEY_LEN );
-            DVDCloseFile( title_file );
-        } else {
-            fprintf( stderr, "libdvdread: Can't get CSS key for title %d%s.\n",
-                     title, menu ? " [Menu]" : "" );
-            dvd_file->isEncrypted = 0;
         }
     }
 
@@ -567,26 +599,51 @@ void DVDCloseFile( dvd_file_t *dvd_file )
     dvd_file = 0;
 }
 
+int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
+                  unsigned int block_count, unsigned char *data, 
+		  int encrypted )
+{
+    if( dvdcss_library ) {
+        int ret;
+
+        if( !device->dev ) {
+            fprintf( stderr, "libdvdread: Fatal error in block read.\n" );
+            return 0;
+        }
+
+        ret = dvdcss_seek( device->dev, lb_number );
+        if( ret != lb_number ) {
+	    fprintf( stderr, "libdvdread: Can't seek to block %lu\n", 
+		     lb_number );
+            return 0;
+        }
+
+        return ( dvdcss_read( device->dev, data, block_count, encrypted )
+                 * DVD_VIDEO_LB_LEN );
+    } else {
+        off64_t off;
+
+        if( !device->fd ) {
+            fprintf( stderr, "libdvdread: Fatal error in block read.\n" );
+            return 0;
+        }
+
+        off = lseek64( device->fd, (int64_t) lb_number
+                                   * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
+        if( off != ( (int64_t) lb_number * (int64_t) DVD_VIDEO_LB_LEN ) ) {
+	    fprintf( stderr, "libdvdread: Can't seek to block %lu\n", 
+		     lb_number );
+            return 0;
+        }
+        return read( device->fd, data, block_count * DVD_VIDEO_LB_LEN );
+    }
+}
+
 static int DVDReadBlocksUDF( dvd_file_t *dvd_file, size_t offset,
                              size_t block_count, unsigned char *data )
 {
-    int len, i;
-
-    len = UDFReadLB( dvd_file->dvd->fd, dvd_file->lb_start + offset,
-                     block_count, data );
-
-    if( len != block_count * DVD_VIDEO_LB_LEN ) {
-        return len;
-    }
-
-    if( css_handle && dvd_file->isEncrypted ) {
-        for( i = 0; i < block_count; ++i ) {
-            CSSDescramble( data + ( DVD_VIDEO_LB_LEN * i ),
-                           dvd_file->key_title );
-        }
-    }
-
-    return len;
+    return DVDReadLBUDF( dvd_file->dvd, dvd_file->lb_start + offset,
+                         block_count, data, 1 );
 }
 
 static int DVDReadBlocksPath( dvd_file_t *dvd_file, size_t offset,
@@ -606,31 +663,26 @@ static int DVDReadBlocksPath( dvd_file_t *dvd_file, size_t offset,
                             block_count * DVD_VIDEO_LB_LEN );
                 break;
             } else {
-
+		size_t part1_size 
+		  = ( dvd_file->title_sizes[ i ] - offset ) * DVD_VIDEO_LB_LEN;
+		/* FIXME: Really needs to be a while loop.
+		   (This is only true if you try and read >1GB at a time) */
+		
                 /* Read part 1 */
                 lseek64( dvd_file->title_fds[ i ], offset
                          * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
-                ret = read( dvd_file->title_fds[ i ], data,
-                            dvd_file->title_sizes[ i ] - offset );
+                ret = read( dvd_file->title_fds[ i ], data, part1_size );
+		
+		/* FIXME: This is wrong if i is the last file in the set. */
 
                 /* Read part 2 */
                 lseek64( dvd_file->title_fds[ i + 1 ], 0, SEEK_SET );
-                ret += read( dvd_file->title_fds[ i + 1 ],
-                             &(data[ ( dvd_file->title_sizes[ i ] - offset )
-                             * DVD_VIDEO_LB_LEN ]),
-                             block_count - ( dvd_file->title_sizes[ i ] 
-                                         - offset ) );
+                ret += read( dvd_file->title_fds[ i + 1 ], data + part1_size,
+                             block_count * DVD_VIDEO_LB_LEN - part1_size );
                 break;
             }
         } else {
             offset -= dvd_file->title_sizes[ i ];
-        }
-    }
-
-    if( ret && css_handle && dvd_file->isEncrypted ) {
-        for( i = 0; i < block_count; ++i ) {
-            CSSDescramble( data + ( DVD_VIDEO_LB_LEN * i ),
-                           dvd_file->key_title );
         }
     }
 
@@ -657,26 +709,26 @@ off64_t DVDFileSeek( dvd_file_t *dvd_file, off64_t offset )
     }
 }
 
-static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data, size_t byte_size )
+static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data, 
+			    size_t byte_size )
 {
     unsigned char *secbuf;
-    int numsec, len, i;
+    int numsec, len;
     int seek_sector, seek_byte;
 
-    seek_sector = ( (int) ( dvd_file->seek_pos
-                            / (int64_t) DVD_VIDEO_LB_LEN ) );
-    seek_byte   = ( (int) ( dvd_file->seek_pos
-                            % (int64_t) DVD_VIDEO_LB_LEN ) );
+    seek_sector = (int) ( dvd_file->seek_pos / (int64_t) DVD_VIDEO_LB_LEN );
+    seek_byte   = (int) ( dvd_file->seek_pos % (int64_t) DVD_VIDEO_LB_LEN );
 
     numsec = ( ( seek_byte + byte_size ) / DVD_VIDEO_LB_LEN ) + 1;
     secbuf = (unsigned char *) malloc( numsec * DVD_VIDEO_LB_LEN );
     if( !secbuf ) {
-        fprintf( stderr, "libdvdread: Can't allocate memory for file read!\n" );
+	fprintf( stderr, "libdvdread: Can't allocate memory " 
+		 "for file read!\n" );
         return 0;
     }
 
-    len = UDFReadLB( dvd_file->dvd->fd, dvd_file->lb_start + seek_sector,
-                     numsec, secbuf );
+    len = DVDReadLBUDF( dvd_file->dvd, dvd_file->lb_start + seek_sector,
+                        numsec, secbuf, 0 );
     if( len != numsec * DVD_VIDEO_LB_LEN ) {
         free( secbuf );
         return 0;
@@ -684,19 +736,14 @@ static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data, size_t byte_size )
 
     dvd_file->seek_pos += byte_size;
 
-    if( css_handle && dvd_file->isEncrypted ) {
-        for( i = 0; i < numsec; ++i ) {
-            CSSDescramble( secbuf + ( DVD_VIDEO_LB_LEN * i ), dvd_file->key_title );
-        }
-    }
-
     memcpy( data, &(secbuf[ seek_byte ]), byte_size );
     free( secbuf );
 
     return byte_size;
 }
 
-static int DVDReadBytesPath( dvd_file_t *dvd_file, void *data, size_t byte_size )
+static int DVDReadBytesPath( dvd_file_t *dvd_file, void *data, 
+			     size_t byte_size )
 {
     return read( dvd_file->title_fds[ 0 ], data, byte_size );
 }

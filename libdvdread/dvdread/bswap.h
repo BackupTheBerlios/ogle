@@ -22,15 +22,48 @@
 
 #include <config.h>
 
-#ifdef WORDS_BIGENDIAN
+#if defined(WORDS_BIGENDIAN)
+/* All bigendian systems are fine, just ignoore the swaps. */  
 #define B2N_16(x) (void)(x)
 #define B2N_32(x) (void)(x)
 #define B2N_64(x) (void)(x)
-#else
+
+#else /* WORDS_BIGENDIAN */
+
+#if defined(__FreeBSD__)
+/* FreeBSD doesn't have a <byteswap.h> file or any other such functionality! */
+#define B2N_16(x) \
+ x = ((((x) & 0xff00) >> 8) | \
+      (((x) & 0x00ff) << 8))
+#define B2N_32(x) \
+ x = ((((x) & 0xff000000) >> 24) | \
+      (((x) & 0x00ff0000) >>  8) | \
+      (((x) & 0x0000ff00) <<  8) | \
+      (((x) & 0x000000ff) << 24))
+#define B2N_64(x) \
+ x = ((((x) & 0xff00000000000000) >> 56) | \
+      (((x) & 0x00ff000000000000) >> 40) | \
+      (((x) & 0x0000ff0000000000) >> 24) | \
+      (((x) & 0x000000ff00000000) >>  8) | \
+      (((x) & 0x00000000ff000000) <<  8) | \
+      (((x) & 0x0000000000ff0000) << 24) | \
+      (((x) & 0x000000000000ff00) << 40) | \
+      (((x) & 0x00000000000000ff) << 56))
+
+#elif defined(__OpenBSD__)
+#include <sys/endian.h>
+#define B2N_16(x) x = swap16(x)
+#define B2N_32(x) x = swap32(x)
+#define B2N_64(x) x = swap64(x)
+
+#else /* #elif defined(__linux__) */
 #include <byteswap.h>
-#define B2N_16(x) x = bswap_16((x))
-#define B2N_32(x) x = bswap_32((x))
-#define B2N_64(x) x = bswap_64((x))
+#define B2N_16(x) x = bswap_16(x)
+#define B2N_32(x) x = bswap_32(x)
+#define B2N_64(x) x = bswap_64(x)
+
 #endif
+
+#endif /* WORDS_BIGENDIAN */
 
 #endif /* BSWAP_H_INCLUDED */

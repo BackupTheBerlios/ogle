@@ -1,3 +1,6 @@
+# 
+# There really shouldn't be any need to use @DL_LIBS@ here
+# but old versions of libtool failed to do the correct thing
 
 noinst_PROGRAMS = ifo_dump play_title title_info
 

@@ -35,24 +35,13 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <inttypes.h>
+
 #include "dvd_udf.h"
 
-
-#ifndef u8
-#define u8 unsigned char
-#endif
-
-#ifndef u16
-#define u16 unsigned short
-#endif
-
-#ifndef u32
-#define u32 unsigned long
-#endif
-
-#ifndef u64
-#define u64 unsigned long long
-#endif
+extern int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
+                         unsigned int block_count, unsigned char *data,
+                         int encrypted );
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -61,29 +50,33 @@
 struct Partition {
     int valid;
     char VolumeDesc[128];
-    u16 Flags;
-    u16 Number;
+    uint16_t Flags;
+    uint16_t Number;
     char Contents[32];
-    u32 AccessType;
-    u32 Start;
-    u32 Length;
+    uint32_t AccessType;
+    uint32_t Start;
+    uint32_t Length;
 } partition;
 
 struct AD {
-    u32 Location;
-    u32 Length;
-    u8 Flags;
-    u16 Partition;
+    uint32_t Location;
+    uint32_t Length;
+    uint8_t  Flags;
+    uint16_t Partition;
 };
 
 /* For direct data access, LSB first */
-#define GETN1(p) ((u8)data[p])
-#define GETN2(p) ((u16)data[p] | ((u16)data[(p) + 1] << 8))
-#define GETN3(p) ((u32)data[p] | ((u32)data[(p) + 1] << 8) | ((u32)data[(p) + 2] << 16))
-#define GETN4(p) ((u32)data[p] | ((u32)data[(p) + 1] << 8) | ((u32)data[(p) + 2] << 16) | ((u32)data[(p) + 3] << 24))
+#define GETN1(p) ((uint8_t)data[p])
+#define GETN2(p) ((uint16_t)data[p] | ((uint16_t)data[(p) + 1] << 8))
+#define GETN3(p) ((uint32_t)data[p] | ((uint32_t)data[(p) + 1] << 8) \
+		  | ((uint32_t)data[(p) + 2] << 16))
+#define GETN4(p) ((uint32_t)data[p] \
+		  | ((uint32_t)data[(p) + 1] << 8) \
+		  | ((uint32_t)data[(p) + 2] << 16) \
+		  | ((uint32_t)data[(p) + 3] << 24))
 #define GETN(p, n, target) memcpy(target, &data[p], n)
 
-static int Unicodedecode( u8 *data, int len, char *target ) 
+static int Unicodedecode( uint8_t *data, int len, char *target ) 
 {
     int p = 1, i = 0;
 
@@ -98,21 +91,21 @@ static int Unicodedecode( u8 *data, int len, char *target )
     return 0;
 }
 
-static int UDFDescriptor( u8 *data, u16 *TagID ) 
+static int UDFDescriptor( uint8_t *data, uint16_t *TagID ) 
 {
     *TagID = GETN2(0);
     // TODO: check CRC 'n stuff
     return 0;
 }
 
-static int UDFExtentAD( u8 *data, u32 *Length, u32 *Location ) 
+static int UDFExtentAD( uint8_t *data, uint32_t *Length, uint32_t *Location ) 
 {
     *Length   = GETN4(0);
     *Location = GETN4(4);
     return 0;
 }
 
-static int UDFShortAD( u8 *data, struct AD *ad ) 
+static int UDFShortAD( uint8_t *data, struct AD *ad ) 
 {
     ad->Length = GETN4(0);
     ad->Flags = ad->Length >> 30;
@@ -122,7 +115,7 @@ static int UDFShortAD( u8 *data, struct AD *ad )
     return 0;
 }
 
-static int UDFLongAD( u8 *data, struct AD *ad )
+static int UDFLongAD( uint8_t *data, struct AD *ad )
 {
     ad->Length = GETN4(0);
     ad->Flags = ad->Length >> 30;
@@ -133,7 +126,7 @@ static int UDFLongAD( u8 *data, struct AD *ad )
     return 0;
 }
 
-static int UDFExtAD( u8 *data, struct AD *ad )
+static int UDFExtAD( uint8_t *data, struct AD *ad )
 {
     ad->Length = GETN4(0);
     ad->Flags = ad->Length >> 30;
@@ -144,7 +137,7 @@ static int UDFExtAD( u8 *data, struct AD *ad )
     return 0;
 }
 
-static int UDFICB( u8 *data, u8 *FileType, u16 *Flags )
+static int UDFICB( uint8_t *data, uint8_t *FileType, uint16_t *Flags )
 {
     *FileType = GETN1(11);
     *Flags = GETN2(18);
@@ -152,8 +145,8 @@ static int UDFICB( u8 *data, u8 *FileType, u16 *Flags )
 }
 
 
-static int UDFPartition( u8 *data, u16 *Flags, u16 *Number, char *Contents,
-                         u32 *Start, u32 *Length )
+static int UDFPartition( uint8_t *data, uint16_t *Flags, uint16_t *Number,
+			 char *Contents, uint32_t *Start, uint32_t *Length )
 {
     *Flags = GETN2(20);
     *Number = GETN2(22);
@@ -167,9 +160,9 @@ static int UDFPartition( u8 *data, u16 *Flags, u16 *Number, char *Contents,
  * Reads the volume descriptor and checks the parameters.  Returns 0 on OK, 1
  * on error.
  */
-static int UDFLogVolume( u8 *data, char *VolumeDescriptor )
+static int UDFLogVolume( uint8_t *data, char *VolumeDescriptor )
 {
-    u32 lbsize, MT_L, N_PM;
+    uint32_t lbsize, MT_L, N_PM;
     Unicodedecode(&data[84], 128, VolumeDescriptor);
     lbsize = GETN4(212);  // should be 2048
     MT_L = GETN4(264);    // should be 6
@@ -178,11 +171,11 @@ static int UDFLogVolume( u8 *data, char *VolumeDescriptor )
     return 0;
 }
 
-static int UDFFileEntry( u8 *data, u8 *FileType, struct AD *ad )
+static int UDFFileEntry( uint8_t *data, uint8_t *FileType, struct AD *ad )
 {
-    u8 filetype;
-    u16 flags;
-    u32 L_EA, L_AD;
+    uint8_t filetype;
+    uint16_t flags;
+    uint32_t L_EA, L_AD;
     int p;
 
     UDFICB( &data[ 16 ], &filetype, &flags );
@@ -210,11 +203,11 @@ static int UDFFileEntry( u8 *data, u8 *FileType, struct AD *ad )
     return 0;
 }
 
-static int UDFFileIdentifier( u8 *data, u8 *FileCharacteristics, char *FileName,
-                              struct AD *FileICB )
+static int UDFFileIdentifier( uint8_t *data, uint8_t *FileCharacteristics,
+			      char *FileName, struct AD *FileICB )
 {
-    u8 L_FI;
-    u16 L_IU;
+    uint8_t L_FI;
+    uint16_t L_IU;
 
     *FileCharacteristics = GETN1(18);
     L_FI = GETN1(19);
@@ -232,15 +225,16 @@ static int UDFFileIdentifier( u8 *data, u8 *FileCharacteristics, char *FileName,
  * File: Location of file the ICB is pointing to
  * return 1 on success, 0 on error;
  */
-static int UDFMapICB( int fd, struct AD ICB, u8 *FileType, struct AD *File ) 
+static int UDFMapICB( dvd_reader_t *device, struct AD ICB, uint8_t *FileType,
+		      struct AD *File ) 
 {
-    u8 LogBlock[DVD_VIDEO_LB_LEN];
-    u32 lbnum;
-    u16 TagID;
+    uint8_t LogBlock[DVD_VIDEO_LB_LEN];
+    uint32_t lbnum;
+    uint16_t TagID;
 
     lbnum = partition.Start + ICB.Location;
     do {
-        if( UDFReadLB( fd, lbnum++, 1, LogBlock ) <= 0 ) {
+        if( DVDReadLBUDF( device, lbnum++, 1, LogBlock, 0 ) <= 0 ) {
             TagID = 0;
         } else {
             UDFDescriptor( LogBlock, &TagID );
@@ -262,20 +256,20 @@ static int UDFMapICB( int fd, struct AD ICB, u8 *FileType, struct AD *File )
  * FileICB: Location of ICB of the found file
  * return 1 on success, 0 on error;
  */
-static int UDFScanDir( int fd, struct AD Dir, char *FileName,
+static int UDFScanDir( dvd_reader_t *device, struct AD Dir, char *FileName,
                        struct AD *FileICB ) 
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
-    u8 directory[ 2 * DVD_VIDEO_LB_LEN ];
-    u32 lbnum;
-    u16 TagID;
-    u8 filechar;
+    uint8_t directory[ 2 * DVD_VIDEO_LB_LEN ];
+    uint32_t lbnum;
+    uint16_t TagID;
+    uint8_t filechar;
     int p;
 
     /* Scan dir for ICB of file */
     lbnum = partition.Start + Dir.Location;
 
-    if( UDFReadLB( fd, lbnum, 2, directory ) <= 0 ) {
+    if( DVDReadLBUDF( device, lbnum, 2, directory, 0 ) <= 0 ) {
         return 0;
     }
 
@@ -285,7 +279,7 @@ static int UDFScanDir( int fd, struct AD Dir, char *FileName,
             ++lbnum;
             p -= DVD_VIDEO_LB_LEN;
             Dir.Length -= DVD_VIDEO_LB_LEN;
-            if( UDFReadLB( fd, lbnum, 2, directory ) <= 0 ) {
+            if( DVDReadLBUDF( device, lbnum, 2, directory, 0 ) <= 0 ) {
                 return 0;
             }
         }
@@ -309,12 +303,13 @@ static int UDFScanDir( int fd, struct AD Dir, char *FileName,
  *   partnum: Number of the partition, starting at 0.
  *   part: structure to fill with the partition information
  */
-static int UDFFindPartition( int fd, int partnum, struct Partition *part ) 
+static int UDFFindPartition( dvd_reader_t *device, int partnum,
+			     struct Partition *part ) 
 {
-    u8 LogBlock[ DVD_VIDEO_LB_LEN ], Anchor[ DVD_VIDEO_LB_LEN ];
-    u32 lbnum, MVDS_location, MVDS_length;
-    u16 TagID;
-    u32 lastsector;
+    uint8_t LogBlock[ DVD_VIDEO_LB_LEN ], Anchor[ DVD_VIDEO_LB_LEN ];
+    uint32_t lbnum, MVDS_location, MVDS_length;
+    uint16_t TagID;
+    uint32_t lastsector;
     int i, terminate, volvalid;
 
     /* Find Anchor */
@@ -323,7 +318,7 @@ static int UDFFindPartition( int fd, int partnum, struct Partition *part )
     terminate = 0;
 
     for(;;) {
-        if( UDFReadLB( fd, lbnum, 1, Anchor ) > 0 ) {
+        if( DVDReadLBUDF( device, lbnum, 1, Anchor, 0 ) > 0 ) {
             UDFDescriptor( Anchor, &TagID );
         } else {
             TagID = 0;
@@ -366,7 +361,7 @@ static int UDFFindPartition( int fd, int partnum, struct Partition *part )
         lbnum = MVDS_location;
         do {
 
-            if( UDFReadLB( fd, lbnum++, 1, LogBlock ) <= 0 ) {
+            if( DVDReadLBUDF( device, lbnum++, 1, LogBlock, 0 ) <= 0 ) {
                 TagID = 0;
             } else {
                 UDFDescriptor( LogBlock, &TagID );
@@ -400,16 +395,16 @@ static int UDFFindPartition( int fd, int partnum, struct Partition *part )
     return part->valid;
 }
 
-unsigned long int UDFFindFile( int fd, char *filename,
+unsigned long int UDFFindFile( dvd_reader_t *device, char *filename,
                                unsigned long int *filesize )
 {
-    u8 LogBlock[ DVD_VIDEO_LB_LEN ];
-    u32 lbnum;
-    u16 TagID;
+    uint8_t LogBlock[ DVD_VIDEO_LB_LEN ];
+    uint32_t lbnum;
+    uint16_t TagID;
     struct AD RootICB, File, ICB;
     char tokenline[ MAX_UDF_FILE_NAME_LEN ];
     char *token;
-    u8 filetype;
+    uint8_t filetype;
     int Partition = 0;  /* Partition number to look for the file, 0 is the
                            standard location for DVD Video. */
 	
@@ -418,12 +413,12 @@ unsigned long int UDFFindFile( int fd, char *filename,
     strcat( tokenline, filename );
 
     /* Find partition */
-    if( !UDFFindPartition( fd, Partition, &partition ) ) return 0;
+    if( !UDFFindPartition( device, Partition, &partition ) ) return 0;
 
     /* Find root dir ICB */
     lbnum = partition.Start;
     do {
-        if( UDFReadLB( fd, lbnum++, 1, LogBlock ) <= 0 ) {
+        if( DVDReadLBUDF( device, lbnum++, 1, LogBlock, 0 ) <= 0 ) {
             TagID = 0;
         } else {
             UDFDescriptor( LogBlock, &TagID );
@@ -441,28 +436,17 @@ unsigned long int UDFFindFile( int fd, char *filename,
     if( RootICB.Partition != Partition ) return 0;
 	
     /* Find root dir */
-    if( !UDFMapICB( fd, RootICB, &filetype, &File ) ) return 0;
+    if( !UDFMapICB( device, RootICB, &filetype, &File ) ) return 0;
     if( filetype != 4 ) return 0;  /* Root dir should be dir */
 
     /* Tokenize filepath */
     token = strtok(tokenline, "/");
     while( token != NULL ) {
-        if( !UDFScanDir( fd, File, token, &ICB ) ) return 0;
-        if( !UDFMapICB( fd, ICB, &filetype, &File ) ) return 0;
+        if( !UDFScanDir( device, File, token, &ICB ) ) return 0;
+        if( !UDFMapICB( device, ICB, &filetype, &File ) ) return 0;
         token = strtok( NULL, "/" );
     }
     *filesize = File.Length;
     return partition.Start + File.Location;
-}
-
-int UDFReadLB( int fd, unsigned long int lb_number, unsigned int block_count,
-               unsigned char *data )
-{
-    if( fd < 0 )
-        return 0;
-
-    lseek64( fd, (int64_t) lb_number * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
-
-    return read( fd, data, block_count * DVD_VIDEO_LB_LEN );
 }
 
