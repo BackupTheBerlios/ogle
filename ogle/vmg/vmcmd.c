@@ -41,6 +41,7 @@ char *system_reg_table[] = {
   "Parental Level",
   "Player Configurations for Video",
   "Player Configurations for Audio",
+  "Initial Language Code for Audio",
   "Initial Language Code Extension for Audio",
   "Initial Language COde for Sub-picture",
   "Initial Language COde Extension for Sub-picture",
@@ -92,8 +93,8 @@ print_reg(uint8_t reg) {
     print_system_reg(reg&0x1f);
   } else {
     printf("g[");
+    printf("%" PRIu8 "]", reg&0x7f);
   }
-  printf("%" PRIu8 "]", reg&0x7f);
 }
 
 print_op(uint8_t op) {
