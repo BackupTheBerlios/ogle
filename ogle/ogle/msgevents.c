@@ -169,8 +169,9 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
       switch(errno) {
 #ifdef ENOMSG
       case ENOMSG:
-	break;
 #endif
+      case EAGAIN:
+	break;
       case EINTR:     // interrupted by system call, try again
 	continue;
 	break;
