@@ -36,9 +36,12 @@
 #elif defined(HAVE_SYS_BSWAP_H)
 #  include <sys/bswap.h>
 #  define FROM_BE_32(x) (bswap32(x))
-#elif defined(HAVE_SYS_ENDIAN_H)
+#elif defined(HAVE_SYS_ENDIAN_H) && !defined(__FreeBSD__)
 #  include <sys/endian.h>
 #  define FROM_BE_32(x) (swap32(x))
+#elif defined(HAVE_SYS_ENDIAN_H) && __FreeBSD_version >= 500000
+#  include <sys/endian.h>
+#  define FROM_BE_32(x) (bswap32(x))
 #else
 #  warning "No accelerated byte swap found. Using slow c version."
 #  include <inttypes.h>
