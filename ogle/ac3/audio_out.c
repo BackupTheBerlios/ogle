@@ -462,8 +462,11 @@ int get_q()
       }
       decode_offset = packet_data_offset;
       decode_len = packet_data_len;
-      
-      pts_offset = 0;
+      if(!PTS_DTS_flags) {
+	pts_offset = -1;
+      } else {
+	pts_offset = 0;
+      }
     } else {
       ERROR("Unhandled stream_id: %02x\n", stream_id);
     }

@@ -28,11 +28,16 @@
 #include "decode.h"
 #include "decode_private.h"
 
+#include "debug_print.h"
+
 #include "audio_config.h"
 #include "conversion.h"
 #include "audio_play.h"
 
 #include "decode_mpeg.h"
+
+// should be at least max size of an mpeg audio frame
+#define CODED_BUF_SIZE_MPEG 2048*2 
 
 typedef struct {
   adec_handle_t handle;
@@ -56,53 +61,105 @@ typedef struct {
 } adec_mpeg_handle_t;
 
 
-static int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
+static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 		       int pts_offset, uint64_t new_PTS, int scr_nr)
 {
-  static uint8_t *indata_ptr;
   int bytes_left;
-  int frame_len;
-  int new_sample_rate;
-  int bit_rate;
-  int n;
-  int bytes_to_get;
-  
-  indata_ptr = start;
+  int first = 1;
+  int pts_valid = 0;
+  static uint64_t prev_PTS;
+  static int prev_pts_valid = 0;
+  uint8_t *packet_start = NULL;
+
   bytes_left = len;
   
+  if(pts_offset == -1) {
+    fprintf(stderr, "*** NO PTS ***\n"); 
+  } else {
+    pts_valid = 1;
+  }
   
+  while(bytes_left > 0) {
+    int avail_buf;
+    avail_buf = CODED_BUF_SIZE_MPEG - (h->buf_ptr - h->coded_buf);
+    if(avail_buf <= 0) {
+      FATAL("mpeg coded buf full: %d\n", avail_buf);
+    }
+    fprintf(stderr, "avail: %d, len: %d, ptr: %d\n",
+	    avail_buf, bytes_left, h->buf_ptr - h->coded_buf);
 
-  /***/
-
-
-  mad_stream_buffer(&handle->stream, start, len);
-  handle->stream.error = 0;
-
-  
-  while(mad_frame_decode(&handle->frame, &handle->stream) == 0) {
-    // one frame decoded ok
-    fprintf(stderr, "curframe: %u, nextframe: %u\n",
-	    handle->stream.this_frame,
-	    handle->stream.next_frame);
-      /*
-	//convert to pcm samples
-	mad_synth_frame(&handle->synth, &handle->frame);
-      */
-      
+    if(avail_buf >= bytes_left) { 
+      memcpy(h->buf_ptr, start, bytes_left);
+      if(first) {
+	packet_start = h->buf_ptr;
       }
-  fprintf(stderr, "end curframe: %u, nextframe: %u\n",
-	  handle->stream.this_frame,
-	  handle->stream.next_frame);
-  
-  frame_len = handle->stream.next_frame - handle->stream.this_frame;
-    mad_stream_init(&handle->stream);
-    mad_frame_init(&handle->frame);
-    mad_synth_init(&handle->synth);
-    mad_timer_reset(&handle->timer);
-  /*
-  if(handle->frame.next_frame - start
-  */
-  /***/
+      h->buf_ptr += bytes_left;
+      bytes_left = 0;
+    } else {
+      memcpy(h->buf_ptr, start, avail_buf);
+      if(first) {
+	packet_start = h->buf_ptr;
+      }
+      bytes_left -= avail_buf;
+      start += avail_buf;
+      h->buf_ptr += avail_buf;
+    }
+    first = 0;
+    
+      
+    mad_stream_buffer(&h->stream, h->coded_buf,
+		      h->buf_ptr - h->coded_buf);
+    h->stream.error = 0;
+    
+    while(1) {
+      if(mad_frame_decode(&h->frame, &h->stream)) {
+	if(MAD_RECOVERABLE(h->stream.error)) {
+	  fprintf(stderr, "recoverable: %d\n", h->stream.error);
+	} else {
+	  fprintf(stderr, "unrec curframe: %u, nextframe: %u\n",
+		  h->stream.this_frame - h->coded_buf,
+		  h->stream.next_frame - h->coded_buf);
+
+	  if(h->stream.error == MAD_ERROR_BUFLEN) {
+	    memmove(h->coded_buf, h->stream.next_frame,
+		    h->buf_ptr - h->stream.next_frame);
+	    h->buf_ptr-= (h->stream.next_frame - h->coded_buf); 
+	    packet_start-= (h->stream.next_frame - h->coded_buf);
+	    if(pts_valid) {
+	      prev_pts_valid = 1;
+	      prev_PTS = new_PTS;
+	    } else {
+	      prev_pts_valid = 0;
+	    }
+	    break;
+	  } else {
+	    fprintf(stderr, "*unrecoverable: %d\n", h->stream.error);
+	  }
+	}
+      } else {
+	if(h->stream.this_frame >= packet_start) {
+	  if(pts_valid) {
+	    fprintf(stderr, "PTS: %llu\n", new_PTS);
+	    pts_valid = 0;
+	  } else {
+	    fprintf(stderr, "no PTS:\n");
+	  }
+	} else {
+	  if(prev_pts_valid) {
+	    fprintf(stderr, "prev PTS: %llu\n", new_PTS);
+	    prev_pts_valid = 0;
+	  } else {
+	    fprintf(stderr, "no prev PTS:\n");
+	  }
+	}
+	fprintf(stderr, "curframe: %u, nextframe: %u\n",
+		h->stream.this_frame - h->coded_buf,
+		h->stream.next_frame - h->coded_buf);
+	mad_synth_frame(&h->synth, &h->frame);
+	
+      }
+    }
+  }
   
   return 0;
 }
@@ -149,7 +206,7 @@ adec_handle_t *init_mpeg(void)
   handle->PTS = 0;
   handle->pts_valid = 0;
   handle->scr_nr = 0;
-  handle->coded_buf = (uint8_t *)malloc(2048); // max? size of mpeg frame
+  handle->coded_buf = (uint8_t *)malloc(CODED_BUF_SIZE_MPEG);
   handle->buf_ptr = (uint8_t *)handle->coded_buf;
   handle->bytes_needed = 7;
   handle->sample_rate = 0;
