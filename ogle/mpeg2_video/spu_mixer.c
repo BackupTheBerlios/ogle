@@ -1087,25 +1087,7 @@ static int next_spu_cmd_pending(spu_t *spu_info)
     spu_info->next_time = spu_info->base_time + start_time * 1024;
     //   timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
-  
-  if(ctrl_time[spu_info->scr_nr].offset_valid == OFFSET_NOT_VALID) {
-    return 0;
-  }
-  PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
-  clocktime_get(&realtime);
-  calc_realtime_left_to_scrtime(&errtime, &realtime, &next_time,
-				&ctrl_time[spu_info->scr_nr].sync_point);
-  //  timesub(&errtime, &spu_info->next_time, &realtime);
 
-  if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
-    //DNOTE("spu: time: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
-    return 1;
-  }
-  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
-    //DNOTE("spu: spu_info->scr_nr != video_scr_nr\n");
-    return 1;
-  }
-  
   if(flush_to_scrid != -1) {
     if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 
@@ -1119,6 +1101,26 @@ static int next_spu_cmd_pending(spu_t *spu_info)
     } else {
       flush_to_scrid = -1;
     }
+  }
+
+  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
+    //DNOTE("spu: spu_info->scr_nr != video_scr_nr\n");
+    return 1;
+  }
+
+  if(ctrl_time[spu_info->scr_nr].offset_valid == OFFSET_NOT_VALID) {
+    //DNOTE("scr_nr: %d, OFFSET_NOT_VALID\n", spu_info->scr_nr);
+    return 0;
+  }
+  PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
+  clocktime_get(&realtime);
+  calc_realtime_left_to_scrtime(&errtime, &realtime, &next_time,
+				&ctrl_time[spu_info->scr_nr].sync_point);
+  //  timesub(&errtime, &spu_info->next_time, &realtime);
+
+  if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
+    //DNOTE("spu: errtime: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
+    return 1;
   }
   
   return 0;
@@ -1232,7 +1234,7 @@ void flush_subpicture(int scr_id)
     return;
   }
   
-  //DNOTE("spu: flush_subpicture\n");
+  //DNOTE("spu: flush_subpicture to scr_id: %d\n", scr_id);
   flush_to_scrid = scr_id;
 
   while(next_spu_cmd_pending(&spu_info)) {
