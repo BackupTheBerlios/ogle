@@ -17,28 +17,28 @@
 
 bin_PROGRAMS = vmg vmg_dump nav dump ifo_dump
 
-INCLUDES = @DVD_CFLAGS@
+INCLUDES = @DVDREAD_CFLAGS@
 
 vmg_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 vmg_SOURCES = vmg.c com.c
 
-vmg_dump_LDADD = @DVD_LIBS@
+vmg_dump_LDADD = @DVDREAD_LIBS@
 vmg_dump_SOURCES = vmg_dump.c \
 	vmcmd.c vmcmd.h
 
-dump_LDADD = @DVD_LIBS@
+dump_LDADD = @DVDREAD_LIBS@
 dump_SOURCES = dump.c \
 	vmcmd.c vmcmd.h \
 	decoder.c decoder.h
 
-ifo_dump_LDADD = @DVD_LIBS@
+ifo_dump_LDADD = @DVDREAD_LIBS@
 ifo_dump_SOURCES = ifo_dump.c \
 	vmcmd.c
 
 nav_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
-	@DVD_LIBS@
+	@DVDREAD_LIBS@
 nav_SOURCES = nav.c \
 	vm.c vm.h \
 	decoder.c decoder.h \
