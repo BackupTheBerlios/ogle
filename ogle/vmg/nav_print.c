@@ -8,6 +8,7 @@
 #include <assert.h>
 
 #include "nav.h"
+#include "nav_print.h"
 #include "vmcmd.h"
 
 void print_pci_gi (FILE *out, pci_gi_t *pci_gi)

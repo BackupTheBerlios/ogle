@@ -12,6 +12,7 @@
 #include "../include/common.h"
 
 #include "ifo.h"
+#include "ifo_print.h"
 #include "vmcmd.h"
 
 

@@ -15,6 +15,7 @@ typedef struct {
   uint8_t frame_u; // The two high bits are the frame rate.
 }  __attribute__ ((packed)) dvd_time_t;
 
+
 /* -------------------------------- VMGM ----------------------------------- */
 
 typedef struct { // Video Manager Information Management Table
@@ -352,45 +353,4 @@ typedef struct { // PartOfTitle Search Pointer Table
 #define VTS_PTT_SRPT_SIZE 8
 
 
-
-
-
-/* -- ifo_read.c ----------------------------------------------------------- */
-
-//void ifoOpen_DVD?(unsigned int *sector);
-int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename);
-int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename);
-void ifoClose();
-
-void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector);
-void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector);
-void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
-void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector);
-void ifoRead_PGC(pgc_t *pgc, int offset);
-void ifoRead_PGCIT(pgcit_t *pgcit, int offset);
-void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut, int sector);
-void ifoRead_C_ADT(c_adt_t *c_adt, int sector);
-void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector);
-void ifoRead_VMG_TXTDT_MGI(vmg_txtdt_mgi_t *vmg_txtdt_mgi, int sector);
-
-
-/* -- ifo_print.c ---------------------------------------------------------- */
-
-void ifoPrint_time(int level, dvd_time_t *time);
-void ifoPrint_COMMAND(int row, uint8_t *command); // remove
-
-void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
-void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);
-
-void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait);
-void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt);
-void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
-void ifoPrint_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt);
-void ifoPrint_PGC(pgc_t *pgc);
-void ifoPrint_PGCIT(pgcit_t *pgcit);
-void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut);
-void ifoPrint_C_ADT(c_adt_t *c_adt);
-void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap);
-
-
-#endif
+#endif /* __IFO_H__ */

@@ -1,5 +1,7 @@
-#ifndef DECODER_H
-#define DECODER_H
+#ifndef __DECODER_H__
+#define __DECODER_H__
+
+#include <inttypes.h>
 
 #ifndef bool
 typedef int bool;
@@ -62,4 +64,4 @@ bool
 eval(uint8_t commands[][8], int num_commands, 
      state_t *registers, link_t *return_values);
 
-#endif /* DECODER_H */
+#endif /* __DECODER_H__ */

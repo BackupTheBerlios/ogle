@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "ifo.h"
+#include "ifo_read.h"
 
 #ifdef WORDS_BIGENDIAN
 #define B2N_16(x) (void)(x)

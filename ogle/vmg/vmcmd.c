@@ -2,6 +2,8 @@
 #include <ctype.h>
 #include <inttypes.h>
 
+#include "vmcmd.h"
+
 typedef struct
 {
   uint8_t bits[8];

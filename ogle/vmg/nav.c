@@ -19,16 +19,19 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: nav.c,v 1.2 2000/12/29 23:31:27 d95hjort Exp $
+ * $Id: nav.c,v 1.3 2001/02/08 20:56:08 d95hjort Exp $
  */
 
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "ifo.h" // command_data_t
+#include "nav.h"
+#include "nav_read.h"
+#include "nav_print.h"
 
 #define START_CODE_BITS 32
 #define PACKET_LENGTH_BITS 16
-
 
 /* these lengths in bytes, exclusive of start code and length */
 #define SYSTEM_HEADER_BYTES 0x12
@@ -36,15 +39,6 @@
 #define DSI_BYTES 0x3fa
 
 #define COMMAND_BYTES 8
-
-#include "ifo.h" // command_data_t
-#include "nav.h"
-#include "nav_read.h"
-#include "nav_print.h"
-
-pci_t pci;
-dsi_t dsi;
-
 
 
 uint32_t get_bits (buffer_t *buffer, uint32_t count)
@@ -160,7 +154,7 @@ int bits_avail (buffer_t *buffer)
 
 
 
-void parse_packet (FILE *out, buffer_t *buffer)
+void parse_packet (FILE *out, buffer_t *buffer, pci_t *pci, dsi_t *dsi)
 {
   uint32_t start_code;
 
@@ -177,7 +171,7 @@ void parse_packet (FILE *out, buffer_t *buffer)
       if (substream == PS2_PCI_SUBSTREAM_ID)
 	{
 	  if (length == PCI_BYTES)
-	    read_pci_packet (&pci, out, buffer);
+	    read_pci_packet (pci, out, buffer);
 	  else
 	    {
 	      fprintf (out, "pci packet length is %04x, should be %04x\n",
@@ -188,7 +182,7 @@ void parse_packet (FILE *out, buffer_t *buffer)
       else if (substream == PS2_DSI_SUBSTREAM_ID)
 	{
 	  if (length == DSI_BYTES)
-	    read_dsi_packet (&dsi, out, buffer);
+	    read_dsi_packet (dsi, out, buffer);
 	  else
 	    {
 	      fprintf (out, "dsi packet length is %04x, should be %04x\n",
@@ -229,11 +223,9 @@ void parse_packet (FILE *out, buffer_t *buffer)
     }
 }
 
-void parse_pack (FILE *out, buffer_t *buffer, uint32_t block)
+void parse_pack (FILE *out, buffer_t *buffer, pci_t *pci, dsi_t *dsi)
 {
   uint32_t scr_base, scr_extension;
-
-  //fprintf (out, "block %u pack header:  ", block);
 
   expect_bits (out, buffer, START_CODE_BITS, PACK_START_CODE, 
 	       "pack start code");
@@ -259,7 +251,7 @@ void parse_pack (FILE *out, buffer_t *buffer, uint32_t block)
   //fprintf (out, "scr_base = 0x%08x  ", scr_base);
   //fprintf (out, "scr_extension = 0x%03x\n", scr_extension);
   while (bits_avail (buffer)) {
-    parse_packet (out, buffer);
+    parse_packet (out, buffer, pci, dsi);
   }
   //fprintf (out, "\n");
 }
@@ -269,8 +261,13 @@ int demux_data(char *file_name, int start_sector,
   FILE *vobfile;
   uint32_t block = 0;
   buffer_t buffer;
+  pci_t pci;
+  dsi_t dsi;
   int res = -1;
-
+  
+  memset(&pci, 0, sizeof(pci_t));
+  memset(&dsi, 0, sizeof(dsi_t));
+  
   vobfile = fopen (file_name, "rb");
   if (!vobfile) {
     fprintf (stderr, "error opening file\n");
@@ -284,7 +281,7 @@ int demux_data(char *file_name, int start_sector,
   while (start_sector + block <= last_sector && 
 	BLOCK_SIZE == fread (&buffer.bytes [0], 1, BLOCK_SIZE, vobfile)) {
     buffer.bit_position = 0;
-    parse_pack (stdout, &buffer, block);
+    parse_pack (stdout, &buffer, &pci, &dsi);
   
     if (pci.hli.hl_gi.hli_ss & 0x03) {
       print_pci_packet (stdout, &pci);

@@ -269,10 +269,10 @@ VMG {
 	       for(n=0, m=8; n< number of TTUs; n++, m+=12) Title set (n+1) {
 	         [(m+0)]	Title playback type
 		 [(m+1)]	Number of angles
-		 [(m+2)-(m+3)]	Number of PTTs (Chapters/PGs)
+		 [(m+2)-(m+3)]	Number of PTTs (Chapters/ almost PGs)
 		 [(m+4)-(m+5)]	Parental ID field
 		 [(m+6)]	Title set number (VTS#)
-		 [(m+7)]	VTS_TTN (PGC)
+		 [(m+7)]	VTS_TTN (almost PGC)
 		 [(m+8)-(m+11)]	Title set starting sector number
 	       }
 	}
@@ -508,11 +508,11 @@ VTS {
 		    m+=4) {
 #else
 	        for(n = 0, m = start_byte_of_ttu;
-		    n < nr of PTTs (from VMG_PTT_SRPTI in VIDEO_TS.IFO);
+		    n < Number of PTTs (from VMG_PTT_SRPTI in VIDEO_TS.IFO);
 		    n++, m+=4) {
 #endif	    
 		    [(m+0)-(m+1)]  Program Chain number PGCN
-		    [(m+2)-(m+3)]  Program number PG
+		    [(m+2)-(m+3)]  Program number PGN
 		}
 	       }
 	}

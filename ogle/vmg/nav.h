@@ -1,3 +1,8 @@
+#ifndef __NAV_H__
+#define __NAV_H__
+
+#include <stdio.h>
+#include <inttypes.h>
 
 #define PACK_START_CODE             0x000001ba
 #define SYSTEM_HEADER_START_CODE    0x000001bb
@@ -190,3 +195,4 @@ typedef struct {
 } __attribute__ ((packed)) dsi_t;
 
 
+#endif /* __NAV_H__ */

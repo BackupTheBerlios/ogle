@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <inttypes.h>
+
 #include "decoder.h"
 
 typedef struct

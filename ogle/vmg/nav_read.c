@@ -7,6 +7,7 @@
 #include <assert.h>
 
 #include "nav.h"
+#include "nav_read.h"
 
 #define PCI_BYTES 0x3d4
 #define DSI_BYTES 0x3fa

@@ -70,6 +70,10 @@
 0100_0110 ****_**** ****_**** ****_**** ****_**** ****_XXXX ****_**** ****_**** -- s[8]=g[X]
 0101_0110 ****_**** ****_**** ****_**** XXXX_XXXX XXXX_XXXX ****_**** ****_**** -- s[8]=X (button number are stored in the highest six bits)
 
+??? Not certain about these, why not just use 011 -- Set General Parameters op-codes.
+0100_0011 ****_**** ****_**** BBBB_BBBB ****_**** AAAA_AAAA ****_**** ****_**** -- ??? r[A] = r[B]
+0101_0011 ****_**** DDDD_DDDD DDDD_DDDD ****_**** AAAA_AAAA ****_**** ****_**** -- ??? r[A] = D
+
 011 -- Set General Parameters (Can be combined with Link commands)
 =============================
 011*_**** 0CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** ****_**** BBBB_BBBB -- if (r[A] `C` r[B]) ...

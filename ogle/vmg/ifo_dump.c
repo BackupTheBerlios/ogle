@@ -12,6 +12,8 @@
 #include "../include/common.h"
 
 #include "ifo.h"
+#include "ifo_read.h"
+#include "ifo_print.h"
 
 
 

@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
+
+#include "vmcmd.h"
 #include "decoder.h"
 
 #define BLOCK_SIZE 2048
@@ -10,7 +12,6 @@ typedef struct
 } buffer_t;
 
 extern void ifoPrintVMOP (uint8_t *opcode);
-extern void vmcmd(uint8_t *bytes);
 extern void dump_command (FILE *out, buffer_t *buffer);
 
 

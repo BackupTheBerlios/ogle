@@ -13,6 +13,8 @@
 #include "../include/common.h"
 
 #include "ifo.h"
+#include "ifo_read.h"
+#include "ifo_print.h"
 #include "decoder.h"
 
 extern int demux_data(char *file_name, int start_sector, 
