@@ -1,26 +1,24 @@
-/* 
- *  yuv2rgb_mlib.h, YUV to RGB coverter using Sun mediaLib.
+/* SKROMPF - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- *  Copyright (C) 1999, Håkan Hjort <d95hjort@dtek.chalmers.se>
- *  All Rights Reserved. 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
  *
- *  This file is part of mpeg2_video, a free MPEG-2 video stream decoder.
- *      
- *  mpeg2_video is free software; you can redistribute it and/or modify
- *  it under the terms of the GNU General Public License as published by
- *  the Free Software Foundation; either version 2, or (at your option)
- *  any later version.
- *   
- *  mpeg2_video is distributed in the hope that it will be useful,
- *  but WITHOUT ANY WARRANTY; without even the implied warranty of
- *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *  GNU General Public License for more details.
- *   
- *  You should have received a copy of the GNU General Public License
- *  along with GNU Make; see the file COPYING.  If not, write to
- *  the Free Software Foundation, 
- * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifndef HAVE_YUV2RGB_MLIB_H
+#define HAVE_YUV2RGB_MLIB_H
+
 yuv2rgb_fun yuv2rgb_mlib_init(int bpp, int mode);
+
+#endif /* HAVE_YUV2RGB_MLIB_H */
