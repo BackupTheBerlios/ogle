@@ -36,7 +36,7 @@ typedef struct {
   int *channel_conf;
 } conversion_t;
 
-
+static int conversion_routine = 0;
 
 void setup_channel_conf(int *ch_conf, int nr_ch, int *input_ch, int *output_ch)
 {
@@ -59,6 +59,7 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   // nr samples, the max number of samples that will be converted
   // between each play
   int size = h->config->format.nr_channels * h->config->format.sample_resolution;
+  //int size = h->config->format.sample_frame_size;
   //fprintf(stderr, "size: %u\n", size);
   if(h->output_buf_size < nr_samples * size) {
     h->output_buf_size = nr_samples * size;
@@ -76,9 +77,17 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   // from the sample buffer format to the output buffer format
   switch(format->sample_format) {
   case SampleFormat_A52float:
+    conversion_routine = 0;
+    break;
+  case SampleFormat_Signed:
+    conversion_routine = 1;
+    break;
   case SampleFormat_MadFixed:
   case SampleFormat_Unsigned:
-  case SampleFormat_Signed:
+  default:
+    FATAL("init_conversion: SampleFormat %d not supported\n",
+	  format->sample_format);
+    break;
   }
   return 0;
 }
@@ -113,6 +122,24 @@ static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
   return 0;
 }
 
+static int convert_s16be_to_s16ne(int16_t *s16be, int16_t *s16ne,
+				  int nr_samples, int nr_channels,
+				  int *channels)
+{
+  int i;
+
+#if WORDS_BIGENDIAN == 1
+  memcpy(s16ne, s16be, nr_samples * nr_channels * sizeof(int16_t));
+#else
+  for (i = 0; i < nr_samples * nr_channels; i++) {
+    s16ne[i] = (s16be[i] >> 8) | ((s16be[i] << 8) & 0xff00);
+  }
+
+#endif
+  
+  return 0;
+}
+
 
 int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 {
@@ -121,10 +148,19 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
   fprintf(stderr, "samples: %d, output_buf_ptr: %d\n",
 	  samples, h->output_buf_ptr);
   */
-  convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
+  switch(conversion_routine) {
+  case 0:
+    convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
+			     nr_samples, 2, NULL);
+    h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
+    break;
+  case 1:
+    convert_s16be_to_s16ne(samples, (int16_t *)h->output_buf_ptr,
 			   nr_samples, 2, NULL);
-  h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
-  return 0;
+    h->output_buf_ptr += 2*2*nr_samples;
+    break;
+  }
+   return 0;
 }
 
 

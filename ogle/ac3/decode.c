@@ -26,6 +26,7 @@
 #include "debug_print.h"
 
 #include "decode_a52.h"
+#include "decode_lpcm.h"
 //#include "decode_mpeg.h"
 
 //extern adec_handle_t *init_a52(void);
@@ -97,6 +98,9 @@ adec_handle_t *adec_init(AudioType_t audio_type)
     break;
   case AudioType_AC3:
     handle = init_a52();
+    break;
+  case AudioType_LPCM:
+    handle = init_lpcm();
     break;
   case AudioType_None:
     handle = &none_handle;

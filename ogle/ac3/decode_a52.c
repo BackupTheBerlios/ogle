@@ -394,6 +394,7 @@ void free_a52(adec_a52_handle_t *handle)
 {
   free(handle->coded_buf);
   a52_free(handle->state);
+  audio_config_close(handle->handle.config);
   free(handle);
   return;
 }

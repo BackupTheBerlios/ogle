@@ -47,7 +47,10 @@ typedef struct {
   ChannelType_t *ch_array;
   int interleaved; //the samples for the different channels are interleaved
   int sample_rate;
-  int sample_resolution;
+  int sample_resolution; //bits per sample (used)
+  int sample_size;       //bytes per sample (including padding)
+  int sample_frame_size; 
+  int sample_byte_order;
 } audio_format_t;
 
 typedef enum {
@@ -77,5 +80,6 @@ typedef struct {
 audio_config_t *audio_config_init(void);
 int audio_config(audio_config_t *aconf,
 		 int availflags, int sample_rate, int sample_resolution);
+void audio_config_close(audio_config_t *aconf);
 
 #endif /* AUDIO_CONFIG_H */

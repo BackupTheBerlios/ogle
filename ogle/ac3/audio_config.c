@@ -62,12 +62,12 @@ audio_config_t *audio_config_init(void)
 }
 
 int audio_config(audio_config_t *aconf,
-		 int availflags, int sample_rate, int sample_resolution)
+		 int channels, int sample_rate, int sample_resolution)
 {
   int output_channels;
   int frag_size = 4096;
 
-  switch(availflags) {
+  switch(channels) {
   default:
     // TODO get the following info from the config file
     output_channels = 2;
@@ -200,4 +200,24 @@ int audio_config(audio_config_t *aconf,
   aconf->sync.samples_added = 0;
 
   return 0;
+}
+
+
+void audio_config_close(audio_config_t *aconf)
+{
+  
+  if(aconf != NULL) {
+    if(aconf->adev_handle != NULL) {
+      ogle_ao_close(aconf->adev_handle);
+      aconf->adev_handle = NULL;
+    }
+    
+    if(aconf->format.ch_array != NULL) {
+      free(aconf->format.ch_array);
+      aconf->format.ch_array = NULL;
+    }
+    
+    free(aconf);
+  }
+  
 }

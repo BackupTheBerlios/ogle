@@ -119,7 +119,10 @@ int main(int argc, char *argv[])
     }
     
     ev.type = MsgEventQRegister;
-    ev.registercaps.capabilities = DECODE_AC3_AUDIO;
+    ev.registercaps.capabilities = 
+      DECODE_AC3_AUDIO | 
+      DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO |
+      DECODE_LPCM_AUDIO;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "a52: register capabilities\n");
     }
@@ -404,8 +407,45 @@ int get_q()
 	WARNING("DTS Audio not implemented\n");
       } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	//lpcm
+
+	// lpcm dvd
+	// frame rate 600Hz (48/96kHz)
+	// 16/20/24 bits
+	// 8ch
+	// max 6.144Mbps
+	// [0] private stream sub type
+	// [1] number_of_frame_headers
+	// [2-3] first_access_unit_pointer (offset from [3])
+	// [4] audio_frame_number 
+	//          (of first access unit (wraps at 19 ?))
+	//          (20 frames at 1/600Hz = 1/30 (24 frames for 25fps?)
+	// [5]: 
+	//      b7-b6: quantization_word_length,
+	//            0: 16bits, 1: 20bits, 2: 24bits, 3: reserved
+	//      b5: reserved
+	//      b4: audio_sampling_frequency,
+	//            0: 48 kHz, 1: 96 kHz
+	//      b3: reserved
+	//      b2-b0: number_of_audio_channels
+	//            0: mono (2ch ? dual-mono: L=R)
+	//            1: 2ch (stereo)
+	//            2: 3 channel 
+        //            3: 4 ch 
+        //            4: 5 ch 
+        //            5: 6 ch 
+        //            6: 7 ch 
+        //            7: 8 ch 
+	// [6]: dynamic_range
 	new_audio_type = AudioType_LPCM;
-	WARNING("LPCM Audio not implemented\n");
+	decode_offset = packet_data_offset+4;
+	decode_len = packet_data_len-4;
+
+	pts_offset = (data_buffer+packet_data_offset)[2]<<8 |
+	  (data_buffer+packet_data_offset)[3];
+	if(pts_offset > 0) {
+	  pts_offset--;
+	}
+	WARNING("LPCM Audio not completely implemented\n");
       } else {
 	ERROR("Unhandled PrivateStream1 subtype: %02x\n", subtype);
       }
