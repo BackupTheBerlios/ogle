@@ -244,7 +244,7 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
-    if((strcmp(wm_name, "KWin") == 0) && kwin_bug) {
+    if(wm_name != NULL && (strcmp(wm_name, "KWin") == 0) && kwin_bug) {
       fprintf(stderr, "sleeping before map\n");
       sleep(1);
     }
@@ -444,7 +444,7 @@ static void switch_to_normal_state(Display *dpy, Window win)
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
 
-    if((strcmp(wm_name, "KWin") == 0) && kwin_bug) {
+    if(wm_name != NULL && (strcmp(wm_name, "KWin") == 0) && kwin_bug) {
       fprintf(stderr, "sleeping before map\n");
       sleep(1);
     }
