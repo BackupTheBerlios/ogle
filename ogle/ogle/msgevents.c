@@ -63,6 +63,13 @@ static char *MsgEventType_str[] = {
   "MsgEventQSetAspectModeSrc",
   "MsgEventQSetSrcAspect",
   "MsgEventQSetZoom",
+  "MsgEventQReqInput",
+  "MsgEventQInputButtonPress",
+  "MsgEventQInputButtonRelease",
+  "MsgEventQInputPointerMotion",
+  "MsgEventQInputKeyPress",
+  "MsgEventQInputKeyRelease",
+  
   NULL
 };
 
@@ -295,6 +302,16 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQSetZoomMode:
     size = sizeof(MsgQSetZoomModeEvent_t);
+    break;
+  case MsgEventQReqInput:
+    size = sizeof(MsgQReqInputEvent_t);
+    break;
+  case MsgEventQInputButtonPress:
+  case MsgEventQInputButtonRelease:
+  case MsgEventQInputPointerMotion:
+  case MsgEventQInputKeyPress:
+  case MsgEventQInputKeyRelease:
+    size = sizeof(MsgQInputEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

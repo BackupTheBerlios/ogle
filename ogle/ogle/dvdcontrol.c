@@ -681,6 +681,48 @@ DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
 } 
 
 
+DVDResult_t DVDNextEvent(DVDNav_t *nav,
+			 MsgEvent_t *ev)
+{
+  
+  if(MsgNextEvent(nav->msgq, ev) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+  
+} 
+
+DVDRequestInput(DVDNav_t *nav, InputMask_t mask)
+{
+  MsgEvent_t ev;
+
+  ev.type = MsgEventQReqInput;
+  ev.reqinput.mask = mask;
+  
+  if((nav->voclient == CLIENT_NONE) ||
+     (nav->voclient == -1)) {
+    nav->voclient = get_vo_client(nav->msgq);
+  }
+  
+  switch(nav->voclient) {
+  case -1:
+  case CLIENT_NONE:
+    fprintf(stderr, "dvdctrl: voclient error\n");
+    return DVD_E_Unspecified;
+    break;
+  default:
+    break;
+  }
+  
+  if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+  
+}
+
 /** @defgroup dvdctrl DVD control functions
  * These functions are used for controlling the
  * DVD navigator.

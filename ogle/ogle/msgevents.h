@@ -91,8 +91,36 @@ typedef enum {
   MsgEventQXWindowID,
   MsgEventQSetAspectModeSrc,
   MsgEventQSetSrcAspect,
-  MsgEventQSetZoomMode
+  MsgEventQSetZoomMode,
+  MsgEventQReqInput,
+  MsgEventQInputButtonPress,
+  MsgEventQInputButtonRelease,
+  MsgEventQInputPointerMotion,
+  MsgEventQInputKeyPress,
+  MsgEventQInputKeyRelease
 } MsgEventType_t;
+
+
+
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  InputMask_t mask;
+} MsgQReqInputEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int x;
+  int y;
+  int x_root;
+  int y_root;
+  unsigned long mod_mask; /* X modifiers (keys/buttons)*/
+  unsigned long input;
+} MsgQInputEvent_t;
 
 
 
@@ -411,6 +439,8 @@ typedef union {
   MsgQSetAspectModeSrcEvent_t setaspectmodesrc;
   MsgQSetSrcAspectEvent_t setsrcaspect;
   MsgQSetZoomModeEvent_t setzoommode;
+  MsgQReqInputEvent_t reqinput;
+  MsgQInputEvent_t input;
 } MsgEvent_t;
 
 typedef struct {
@@ -452,5 +482,6 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 #define UI_DVD_CLI         0x4000
 #define UI_DVD_GUI         0x8000
 #define VIDEO_OUTPUT       0x10000
+#define USER_INPUT         0x20000
 
 #endif /* MSGEVENTS_H_INCLUDED */

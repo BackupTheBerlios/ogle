@@ -297,10 +297,19 @@ typedef enum {
 
 typedef enum {
   ZoomModeFullScreen,
+  ZoomModeNormalScreen,
   ZoomModeSet,
   ZoomModeResizeAllowed,
   ZoomModeResizeDisallowed
 } ZoomMode_t;
 
+typedef enum {
+  INPUT_MASK_None          = 0,
+  INPUT_MASK_KeyPress      = (1<<0),
+  INPUT_MASK_KeyRelease    = (1<<1),
+  INPUT_MASK_ButtonPress   = (1<<2),
+  INPUT_MASK_ButtonRelease = (1<<3),
+  INPUT_MASK_PointerMotion = (1<<6)
+} InputMask_t;
 
 #endif /* DVD_H_INCLUDED */
