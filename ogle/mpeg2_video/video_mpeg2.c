@@ -1273,6 +1273,6 @@ void mpeg2_slice(void)
   
   do {
     macroblock();
-  } while(nextbits(23) != 0);
+  } while(((seq.mb_column + 1) < seq.mb_width) && (nextbits(23) != 0));
   DINDENT(-2);
 }
