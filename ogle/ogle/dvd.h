@@ -209,7 +209,7 @@ typedef enum {
   DVD_SUBPICTURE_LANG_EXT_Forced  = 9,
   DVD_SUBPICTURE_LANG_EXT_NormalDirectorsComments  = 13,
   DVD_SUBPICTURE_LANG_EXT_BigDirectorsComments  = 14,
-  DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments  = 15,
+  DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments  = 15
 } DVDSubpictureLangExt_t;  
 
 /**
