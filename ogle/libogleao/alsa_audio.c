@@ -134,6 +134,75 @@ static int set_swparams(alsa_instance_t *instance)
 	return 0;
 }
 
+
+
+/*
+ * Set the device to IEC60958 (spdif) in IEC61937 mode.
+ */
+static int ctl_set_iec60958(alsa_instance_t *instance)
+{
+  snd_pcm_t *handle = instance->alsa_pcm;
+  snd_pcm_info_t *info;
+  static snd_aes_iec958_t spdif;
+  int err;
+  
+  snd_pcm_info_alloca(&info);
+  
+  if ((err = snd_pcm_info(handle, info)) < 0) {
+    fprintf(stderr, "info: %s\n", snd_strerror(err));
+    return err;
+  }
+  printf("device: %d, subdevice: %d\n", 
+	 snd_pcm_info_get_device(info),
+	 snd_pcm_info_get_subdevice(info));                              
+  {
+    snd_ctl_elem_value_t *ctl;
+    snd_ctl_t *ctl_handle;
+    char ctl_name[12];
+    int ctl_card;
+
+    spdif.status[0] = IEC958_AES0_NONAUDIO | IEC958_AES0_CON_EMPHASIS_NONE;
+    spdif.status[1] = IEC958_AES1_CON_ORIGINAL | IEC958_AES1_CON_PCM_CODER;
+    spdif.status[2] = 0;
+    spdif.status[3] = IEC958_AES3_CON_FS_48000;
+
+    snd_ctl_elem_value_alloca(&ctl);
+    snd_ctl_elem_value_set_interface(ctl, SND_CTL_ELEM_IFACE_PCM);
+    snd_ctl_elem_value_set_device(ctl, snd_pcm_info_get_device(info));
+    snd_ctl_elem_value_set_subdevice(ctl, snd_pcm_info_get_subdevice(info));
+    snd_ctl_elem_value_set_name(ctl, 
+				SND_CTL_NAME_IEC958("", PLAYBACK, PCM_STREAM));
+    snd_ctl_elem_value_set_iec958(ctl, &spdif);
+    
+    ctl_card = snd_pcm_info_get_card(info);
+    if (ctl_card < 0) {
+      fprintf(stderr, "Unable to setup the IEC958 (S/PDIF) interface - PCM has no assigned card");
+      goto __diga_end;
+    }
+    
+    if ((err = snd_ctl_open(&ctl_handle, ctl_name, 0)) < 0) {
+      fprintf(stderr, "Unable to open the control interface '%s': %s", ctl_name, snd_strer
+	      ror(err));
+      goto __diga_end;
+    }
+    
+    if ((err = snd_ctl_elem_write(ctl_handle, ctl)) < 0) {
+      fprintf(stderr, "Unable to update the IEC958 control: %s", snd_strerror(err));
+      goto __diga_end;
+      //Shouldn't ctl_handle be closed here?
+    }
+    
+    snd_ctl_close(ctl_handle);
+  
+  __diga_end:
+  }
+  
+  return 0;
+}
+
+
+
+
 static
 int alsa_init(ogle_ao_instance_t *_instance,
 	      ogle_ao_audio_info_t *audio_info)
@@ -141,7 +210,7 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	alsa_instance_t *instance = (alsa_instance_t *)_instance;
 	int single_sample_size;
 	int err;
-
+	
     snd_pcm_hw_params_alloca(&(instance->hwparams));
     snd_pcm_sw_params_alloca(&(instance->swparams));
 	
@@ -167,6 +236,10 @@ int alsa_init(ogle_ao_instance_t *_instance,
 		    break;
 		}
 		break;
+	    case OGLE_AO_ENCODING_IEC61937:
+	        // Setup the IEC60958 (S/PDIF) interface for NONAUDIO
+	        ctl_set_iec60958(instance);
+		instance->format = SND_PCM_FORMAT_S16_LE;
 	    default:
 		/* not supported */
 		return -1;
@@ -290,8 +363,12 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 		fprintf(stderr, "odelay error: %s\n", snd_strerror(err));
 		avail = 0;
 	}
-  
-  	*samples_return = avail;
+	
+	// If underrun, then we have 0 'delay'.
+	if (avail < 0)
+	  avail = 0;
+	
+  	*samples_return = (uint32_t)avail;
 	//printf("remaining : %d\n", avail);
 	
 	return 0;
