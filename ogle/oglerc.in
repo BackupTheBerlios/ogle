@@ -39,7 +39,7 @@
           <vertical_pixels></vertical_pixels>
 	</resolution>
 	<geometry_src>X11</geometry_src>
-	<resolution_src>X11</resolution_src>
+	<resolution_src>XF86VidMode</resolution_src>
 	<switch_resolution>no</switch_resolution>
     </display>
   </video>
@@ -57,7 +57,6 @@
   	</b>
 	<b>	
 	  <action>Stop</action>
-	  <key></key>
   	</b>
 	<b>	
 	  <action>Faster</action>
