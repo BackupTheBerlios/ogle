@@ -11,7 +11,7 @@ pkglibdir=$(libdir)/ogle
 pkglib_PROGRAMS = ogle_gui
 
 ogle_gui_SOURCES = \
-	main.c \
+	main.c myintl.h \
 	callbacks.c callbacks.h \
 	xsniffer.c xsniffer.h \
 	menu.c menu.h \
@@ -20,7 +20,6 @@ ogle_gui_SOURCES = \
 	subpicture.c subpicture.h \
 	language.c language.h \
 	fileselector.c fileselector.h
-
 
 ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(LIBGLADE_LIBS) $(INTLLIBS) \
 	@PTHREAD_LIB@
