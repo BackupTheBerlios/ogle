@@ -67,7 +67,7 @@ int solaris_init(ogle_ao_instance_t *_instance,
     // do this only if we have requested specific channels in chtypes
     // otherwise trust the nr channels
     
-    audio_info->chtype = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+    audio_info->chtypes = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
     audio_info->channels = 2;
   }
   if(audio_info->chlist) {
@@ -92,7 +92,7 @@ int solaris_init(ogle_ao_instance_t *_instance,
   /* Check that we actually got the requested nuber of channles,
    * the frequency and precision that we asked for?  */
 
-  if(audio_info->chtype != OGLE_AO_CHTYPE_UNSPECIFIED) {
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
     audio_info->chlist = malloc(info.play.channels * sizeof(ogle_ao_chtype_t));
     
     audio_info->chlist[0] = OGLE_AO_CHTYPE_LEFT;
