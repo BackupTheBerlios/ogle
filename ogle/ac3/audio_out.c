@@ -122,7 +122,7 @@ int main(int argc, char *argv[])
     ev.registercaps.capabilities = 
       DECODE_AC3_AUDIO | 
       DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO |
-      DECODE_LPCM_AUDIO;
+      DECODE_LPCM_AUDIO | DECODE_DTS_AUDIO;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "a52: register capabilities\n");
     }
