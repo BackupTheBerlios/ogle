@@ -303,7 +303,6 @@ void block_intra(unsigned int i)
     
     // mb.QFS[i] = sgn ? -f : f;
     mb.QFS[i] = (f ^ -sgn) + sgn;
-    
   }
   
   //cpc_count_usr_events(0);
@@ -618,7 +617,6 @@ void block_intra(unsigned int i)
       }
     }
     word = (cur_word << (64-left)) >> 40;
-    
   }
 
   //cpc_count_usr_events(0);
@@ -922,6 +920,7 @@ void motion_vectors(unsigned int s)
       /* Table 6-17 Meaning of frame_motion_type */
       switch(mb.modes.frame_motion_type) {
       case 0x0:
+	// Should never happen, value is checked when read in.
 	fprintf(stderr, "*** reserved prediction type\n");
 	exit_program(1);
 	break;
@@ -1021,8 +1020,10 @@ int macroblock_modes(void)
     exit_program(1);
     // should not be tested / handled here
   }
-  
-  if(mb.modes.macroblock_type == VLC_FAIL) return -1;
+  if(mb.modes.macroblock_type == VLC_FAIL) {
+    fprintf(stderr, "*** invalid macroblock type\n");
+    return -1;
+  }
   
   DPRINTF(5, "spatial_temporal_weight_code_flag: %01x\n", 
 	  !!(mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG));
@@ -1041,9 +1042,17 @@ int macroblock_modes(void)
 	mb.modes.frame_motion_type = 0x2;
       } else {
 	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
+	if(mb.modes.frame_motion_type == 0x0) {
+	  fprintf(stderr, "*** invalid frame motion type\n");
+	  return -1;
+	}
       }
     } else {
       mb.modes.field_motion_type = GETBITS(2, "field_motion_type");
+      if(mb.modes.field_motion_type == 0x0) {
+	fprintf(stderr, "*** invalid field motion type\n");
+	return -1;
+      }
     }
   }
 
