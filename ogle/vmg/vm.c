@@ -756,7 +756,7 @@ unsigned int int2bcd(unsigned int number)
   return res;
 }
 
-static void time_add(dvd_time_t *acc, dvd_time_t *diff)
+static void time_add(dvd_time_t *acc, const dvd_time_t *diff)
 {
   unsigned int acc_s, diff_s;
   int frame_rate, frames;
@@ -765,7 +765,7 @@ static void time_add(dvd_time_t *acc, dvd_time_t *diff)
     // argh.. frame rates differ.. what?!?
     // at most it will cause 5/25 fault for each addition
     DNOTE("frame rates differ in time_add %i %i\n", 
-	  acc->frame_u>>6, diff->frame_u>>6)
+	  acc->frame_u>>6, diff->frame_u>>6);
   }
   // convert from bcd to seconds
   acc_s = bcd2int(acc->hour) * 60 * 60;
@@ -820,6 +820,7 @@ void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN)
 {
   dvd_time_t angle_time;
   playback_type_t *pb_ty;
+  cell_playback_t *const cell_pb = state.pgc->cell_playback;
   int i;
   
   current_time->hour = 0;
@@ -841,37 +842,36 @@ void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN)
   }
   
   assert(cellN <= state.pgc->nr_of_cells);
-    
+  
   for(i = 1; i < cellN; i++) {
     
     /* Multi angle/Interleaved */
-    switch(state.pgc->cell_playback[i - 1].block_mode) {
-    case 0: // Normal
-      assert(state.pgc->cell_playback[i - 1].block_type == 0);
-      time_add(current_time, &state.pgc->cell_playback[i - 1].playback_time);
+    switch(cell_pb[i - 1].block_mode) {
+    case BLOCK_MODE_NOT_IN_BLOCK:
+      assert(cell_pb[i - 1].block_type == BLOCK_TYPE_NONE);
+      time_add(current_time, &cell_pb[i - 1].playback_time);
       break;
-    case 1: // The first cell in the block
-      switch(state.pgc->cell_playback[i - 1].block_type) {
-      case 0: // Not part of a block
+    case BLOCK_MODE_FIRST_CELL:
+      switch(cell_pb[i - 1].block_type) {
+      case BLOCK_TYPE_NONE:
 	assert(0);
-      case 1: // Angle block
-	time_add(current_time, &state.pgc->cell_playback[i - 1].playback_time);
-	angle_time = state.pgc->cell_playback[i - 1].playback_time;
+      case BLOCK_TYPE_ANGLE_BLOCK:
+	time_add(current_time, &cell_pb[i - 1].playback_time);
+	angle_time = cell_pb[i - 1].playback_time;
 	break;
       case 2: // ??
       case 3: // ??
       default:
 	WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
-		state.pgc->cell_playback[i - 1].block_mode,
-		state.pgc->cell_playback[i - 1].block_type);
+		cell_pb[i - 1].block_mode, cell_pb[i - 1].block_type);
       }
       break;
-    case 2: // Cell in the block
-    case 3: // Last cell in the block
+    case BLOCK_MODE_IN_BLOCK:
+    case BLOCK_MODE_LAST_CELL:
       /* Check that the cells for each angle have equal duration. */
+      /* THEY WON'T !! */
       assert(!memcmp(&angle_time, 
-		     &state.pgc->cell_playback[i - 1].playback_time, 
-		     sizeof(dvd_time_t)));
+		     &cell_pb[i - 1].playback_time, sizeof(dvd_time_t)));
       break;
     default:
       WARNING("%s", "Cell is in block but did not enter at first cell!\n");
@@ -1028,6 +1028,8 @@ static link_t play_PG(void)
 
 static link_t play_Cell(void)
 {
+  cell_playback_t *const cell_pb = state.pgc->cell_playback;
+  
   DNOTE("play_Cell: state.cellN (%i)\n", state.cellN);
   
   assert(state.cellN > 0);
@@ -1038,33 +1040,32 @@ static link_t play_Cell(void)
     return play_PGC_post();
   }
   
-
   /* Multi angle/Interleaved */
-  switch(state.pgc->cell_playback[state.cellN - 1].block_mode) {
-  case 0: // Normal
-    assert(state.pgc->cell_playback[state.cellN - 1].block_type == 0);
+  switch(cell_pb[state.cellN - 1].block_mode) {
+  case BLOCK_MODE_NOT_IN_BLOCK:
+    assert(cell_pb[state.cellN - 1].block_type == BLOCK_TYPE_NONE);
     break;
-  case 1: // The first cell in the block
-    switch(state.pgc->cell_playback[state.cellN - 1].block_type) {
-    case 0: // Not part of a block
+  case BLOCK_MODE_FIRST_CELL:
+    switch(cell_pb[state.cellN - 1].block_type) {
+    case BLOCK_TYPE_NONE:
       assert(0);
-    case 1: // Angle block
+    case BLOCK_TYPE_ANGLE_BLOCK:
       /* Loop and check each cell instead? So we don't get outsid the block. */
       state.cellN += state.AGL_REG - 1;
       assert(state.cellN <= state.pgc->nr_of_cells);
-      assert(state.pgc->cell_playback[state.cellN - 1].block_mode != 0);
-      assert(state.pgc->cell_playback[state.cellN - 1].block_type == 1);
+      assert(cell_pb[state.cellN - 1].block_mode != BLOCK_MODE_NOT_IN_BLOCK);
+      assert(cell_pb[state.cellN - 1].block_type == BLOCK_TYPE_ANGLE_BLOCK);
       break;
     case 2: // ??
     case 3: // ??
     default:
       WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
-	      state.pgc->cell_playback[state.cellN - 1].block_mode,
-	      state.pgc->cell_playback[state.cellN - 1].block_type);
+	      cell_pb[state.cellN - 1].block_mode,
+	      cell_pb[state.cellN - 1].block_type);
     }
     break;
-  case 2: // Cell in the block
-  case 3: // Last cell in the block
+  case BLOCK_MODE_IN_BLOCK:
+  case BLOCK_MODE_LAST_CELL:
   // These might perhaps happen for RSM or LinkC commands?
   default:
     WARNING("%s", "Cell is in block but did not enter at first cell!\n");
@@ -1087,28 +1088,29 @@ static link_t play_Cell(void)
 
 static link_t play_Cell_post(void)
 {
-  cell_playback_t *cell;
+  cell_playback_t *const cell_pb = state.pgc->cell_playback;
+  int cell_cmd_nr;
   
   DNOTE("%s", "play_Cell_post: state.cellN (%i)\n", state.cellN);
   
-  cell = &state.pgc->cell_playback[state.cellN - 1];
+  cell_cmd_nr = cell_pb[state.cellN - 1].cell_cmd_nr;
   
   /* Still time is already taken care of before we get called. */
-  
-  if(cell->cell_cmd_nr != 0 && 
-     (state.pgc->command_tbl == NULL || 
-      state.pgc->command_tbl->nr_of_cell < cell->cell_cmd_nr)) {
+    
+  if(cell_cmd_nr != 0 
+     && (state.pgc->command_tbl == NULL
+	 || state.pgc->command_tbl->nr_of_cell < cell_cmd_nr)) {
     WARNING("Invalid Cell command vtsn=%d dom=%d pgc=%d\n",
 	    state.vtsN, state.domain, get_PGCN());
-    cell->cell_cmd_nr = 0;
+    cell_cmd_nr = 0;
   }
        
   /* Deal with a Cell command, if any */
-  if(cell->cell_cmd_nr != 0) {
+  if(cell_cmd_nr != 0) {
     link_t link_values;
     
     DNOTE("%s", "Cell command pressent, executing\n");
-    if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell->cell_cmd_nr - 1], 1,
+    if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell_cmd_nr - 1], 1,
 		  &state.registers, &link_values)) {
       return link_values;
     } else {
@@ -1120,23 +1122,25 @@ static link_t play_Cell_post(void)
   
   /* Where to continue after playing the cell... */
   /* Multi angle/Interleaved */
-  switch(state.pgc->cell_playback[state.cellN - 1].block_mode) {
-  case 0: // Normal
-    assert(state.pgc->cell_playback[state.cellN - 1].block_type == 0);
+  switch(cell_pb[state.cellN - 1].block_mode) {
+  case BLOCK_MODE_NOT_IN_BLOCK:
+    assert(cell_pb[state.cellN - 1].block_type == 
+	   BLOCK_TYPE_NONE);
     state.cellN++;
     break;
-  case 1: // The first cell in the block
-  case 2: // A cell in the block
-  case 3: // The last cell in the block
+  case BLOCK_MODE_FIRST_CELL:
+  case BLOCK_MODE_IN_BLOCK:
+  case BLOCK_MODE_LAST_CELL:
   default:
-    switch(state.pgc->cell_playback[state.cellN - 1].block_type) {
-    case 0: // Not part of a block
+    switch(cell_pb[state.cellN - 1].block_type) {
+    case BLOCK_TYPE_NONE:
       assert(0);
-    case 1: // Angle block
+    case BLOCK_TYPE_ANGLE_BLOCK:
       /* Skip the 'other' angles */
       state.cellN++;
-      while(state.cellN <= state.pgc->nr_of_cells 
-	    && state.pgc->cell_playback[state.cellN - 1].block_mode >= 2) {
+      while(state.cellN <= state.pgc->nr_of_cells &&
+	    cell_pb[state.cellN - 1].block_mode >=
+	    BLOCK_MODE_IN_BLOCK) {
 	state.cellN++;
       }
       break;
@@ -1144,8 +1148,8 @@ static link_t play_Cell_post(void)
     case 3: // ??
     default:
       WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
-	      state.pgc->cell_playback[state.cellN - 1].block_mode,
-	      state.pgc->cell_playback[state.cellN - 1].block_type);
+	      cell_pb[state.cellN - 1].block_mode,
+	      cell_pb[state.cellN - 1].block_type);
     }
     break;
   }
