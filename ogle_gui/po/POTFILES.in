@@ -3,10 +3,9 @@ src/angle.c
 src/audio.c
 src/callbacks.c
 src/fileselector.c
-src/interface.c
 src/language.c
 src/main.c
 src/menu.c
 src/subpicture.c
-
+po/glade-files.c
 

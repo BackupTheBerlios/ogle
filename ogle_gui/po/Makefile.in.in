@@ -246,3 +246,7 @@ Makefile: Makefile.in.in ../config.status POTFILES
 # Tell versions [3.59,3.63) of GNU make not to export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:
+
+../po/glade-files.c: ../ogle_gui.glade
+	libglade-xgettext -o $@ $<
+POFILES: glade-files.c
