@@ -17,39 +17,40 @@ msgstr ""
 #: src/angle.c:81
 #, c-format
 msgid "Angle %d"
-msgstr ""
+msgstr "Vinkel %d"
 
 #: src/audio.c:58
-msgid "Other"
-msgstr ""
+msgid "Other format"
+msgstr "Annat format"
 
 #: src/audio.c:60
 msgid "Unknown format"
-msgstr ""
+msgstr "Okänt format"
 
 #. Language name followed by audio format in parenthesis
 #. for use in the audio choice menu
 #: src/audio.c:126
 #, c-format
 msgid "%s (%s)"
-msgstr ""
+msgstr "%s (%s)"
 
 #: src/audio.c:145 src/subpicture.c:117
 msgid "None"
-msgstr ""
+msgstr "Inget"
 
 #: src/callbacks.c:226
 #, c-format
 msgid "Ogle GUI version %s"
-msgstr ""
+msgstr "Ogle användargränssnitt, version %s"
 
 #: src/fileselector.c:44
 msgid "Please select a file or directory."
-msgstr ""
+msgstr "Välj en fil eller katalog."
 
+# Language names from http://www.softwolves.pp.se/misc/spraklista.html
 #: src/language.c:33
 msgid "Abkhazian"
-msgstr ""
+msgstr "Abkhasiska"
 
 #: src/language.c:34
 msgid "Achinese"
@@ -65,7 +66,7 @@ msgstr ""
 
 #: src/language.c:37
 msgid "Afar"
-msgstr ""
+msgstr "Afar"
 
 #: src/language.c:38
 msgid "Afrihili"
@@ -73,7 +74,7 @@ msgstr ""
 
 #: src/language.c:39
 msgid "Afrikaans"
-msgstr ""
+msgstr "Afrikaans"
 
 #: src/language.c:40
 msgid "Afro-Asiatic (Other)"
@@ -89,7 +90,7 @@ msgstr ""
 
 #: src/language.c:43
 msgid "Albanian"
-msgstr ""
+msgstr "Albanska"
 
 #: src/language.c:44
 msgid "Aleut"
@@ -105,7 +106,7 @@ msgstr ""
 
 #: src/language.c:47
 msgid "Amharic"
-msgstr ""
+msgstr "Amhariska"
 
 #: src/language.c:48
 msgid "Apache languages"
@@ -113,7 +114,7 @@ msgstr ""
 
 #: src/language.c:49
 msgid "Arabic"
-msgstr ""
+msgstr "Arabiska"
 
 #: src/language.c:50
 msgid "Aramaic"
@@ -133,7 +134,7 @@ msgstr ""
 
 #: src/language.c:54
 msgid "Armenian"
-msgstr ""
+msgstr "Armeniska"
 
 #: src/language.c:55
 msgid "Artificial (Other)"
@@ -141,7 +142,7 @@ msgstr ""
 
 #: src/language.c:56
 msgid "Assamese"
-msgstr ""
+msgstr "Assami"
 
 #: src/language.c:57
 msgid "Athapascan languages"
@@ -161,7 +162,7 @@ msgstr ""
 
 #: src/language.c:61
 msgid "Avestan"
-msgstr ""
+msgstr "Avestiska"
 
 #: src/language.c:62
 msgid "Awadhi"
@@ -169,11 +170,11 @@ msgstr ""
 
 #: src/language.c:63
 msgid "Aymara"
-msgstr ""
+msgstr "Aymara"
 
 #: src/language.c:64
 msgid "Azerbaijani"
-msgstr ""
+msgstr "Azerbajdzjanska"
 
 #: src/language.c:65
 msgid "Balinese"
@@ -209,11 +210,11 @@ msgstr ""
 
 #: src/language.c:73
 msgid "Bashkir"
-msgstr ""
+msgstr "Basjkiriska"
 
 #: src/language.c:74
 msgid "Basque"
-msgstr ""
+msgstr "Baskiska"
 
 #: src/language.c:75
 msgid "Batak (Indonesia)"
@@ -225,7 +226,7 @@ msgstr ""
 
 #: src/language.c:77
 msgid "Belarusian"
-msgstr ""
+msgstr "Vitryska"
 
 #: src/language.c:78
 msgid "Bemba"
@@ -233,7 +234,7 @@ msgstr ""
 
 #: src/language.c:79
 msgid "Bengali"
-msgstr ""
+msgstr "Bengaliska"
 
 #: src/language.c:80
 msgid "Berber (Other)"
@@ -245,7 +246,7 @@ msgstr ""
 
 #: src/language.c:82
 msgid "Bihari"
-msgstr ""
+msgstr "Bihari"
 
 #: src/language.c:83
 msgid "Bikol"
@@ -257,11 +258,11 @@ msgstr ""
 
 #: src/language.c:85
 msgid "Bislama"
-msgstr ""
+msgstr "Bislama"
 
 #: src/language.c:86
 msgid "Bosnian"
-msgstr ""
+msgstr "Bosniska"
 
 #: src/language.c:87
 msgid "Braj"
@@ -269,7 +270,7 @@ msgstr ""
 
 #: src/language.c:88
 msgid "Breton"
-msgstr ""
+msgstr "Bretonska"
 
 #: src/language.c:89
 msgid "Buginese"
@@ -277,7 +278,7 @@ msgstr ""
 
 #: src/language.c:90
 msgid "Bulgarian"
-msgstr ""
+msgstr "Bulgariska"
 
 #: src/language.c:91
 msgid "Buriat"
@@ -285,7 +286,7 @@ msgstr ""
 
 #: src/language.c:92
 msgid "Burmese"
-msgstr ""
+msgstr "Burmesiska"
 
 #: src/language.c:93
 msgid "Caddo"
@@ -297,7 +298,7 @@ msgstr ""
 
 #: src/language.c:95
 msgid "Catalan"
-msgstr ""
+msgstr "Katalanska"
 
 #: src/language.c:96
 msgid "Caucasian (Other)"
@@ -325,11 +326,11 @@ msgstr ""
 
 #: src/language.c:102
 msgid "Chamorro"
-msgstr ""
+msgstr "Chamorro"
 
 #: src/language.c:103
 msgid "Chechen"
-msgstr ""
+msgstr "Tjetjenska"
 
 #: src/language.c:104
 msgid "Cherokee"
@@ -349,7 +350,7 @@ msgstr ""
 
 #: src/language.c:108
 msgid "Chinese"
-msgstr ""
+msgstr "Kinesiska"
 
 #: src/language.c:109
 msgid "Chinook jargon"
@@ -365,7 +366,7 @@ msgstr ""
 
 #: src/language.c:112
 msgid "Church Slavic"
-msgstr ""
+msgstr "Fornkyrkoslaviska"
 
 #: src/language.c:113
 msgid "Chuukese"
@@ -373,7 +374,7 @@ msgstr ""
 
 #: src/language.c:114
 msgid "Chuvash"
-msgstr ""
+msgstr "Tjuvasjiska"
 
 #: src/language.c:115
 msgid "Coptic"
@@ -381,11 +382,11 @@ msgstr ""
 
 #: src/language.c:116
 msgid "Cornish"
-msgstr ""
+msgstr "Corniska"
 
 #: src/language.c:117
 msgid "Corsican"
-msgstr ""
+msgstr "Korsikanska"
 
 #: src/language.c:118
 msgid "Cree"
@@ -413,7 +414,7 @@ msgstr ""
 
 #: src/language.c:124
 msgid "Croatian"
-msgstr ""
+msgstr "Kroatiska"
 
 #: src/language.c:125
 msgid "Cushitic (Other)"
@@ -421,7 +422,7 @@ msgstr ""
 
 #: src/language.c:126
 msgid "Czech"
-msgstr ""
+msgstr "Tjeckiska"
 
 #: src/language.c:127
 msgid "Dakota"
@@ -429,7 +430,7 @@ msgstr ""
 
 #: src/language.c:128
 msgid "Danish"
-msgstr ""
+msgstr "Danska"
 
 #: src/language.c:129
 msgid "Dayak"
@@ -465,7 +466,7 @@ msgstr ""
 
 #: src/language.c:137
 msgid "Dutch"
-msgstr ""
+msgstr "Nederländska"
 
 #: src/language.c:138
 msgid "Dutch, Middle(ca. 1050-1350)"
@@ -477,7 +478,7 @@ msgstr ""
 
 #: src/language.c:140
 msgid "Dzongkha"
-msgstr ""
+msgstr "Bhutanesiska"
 
 #: src/language.c:141
 msgid "Efik"
@@ -497,7 +498,7 @@ msgstr ""
 
 #: src/language.c:145
 msgid "English"
-msgstr ""
+msgstr "Engelska"
 
 #: src/language.c:146
 msgid "English, Middle (1100-1500)"
@@ -509,11 +510,11 @@ msgstr ""
 
 #: src/language.c:148
 msgid "Esperanto"
-msgstr ""
+msgstr "Esperanto"
 
 #: src/language.c:149
 msgid "Estonian"
-msgstr ""
+msgstr "Estniska"
 
 #: src/language.c:150
 msgid "Ewe"
@@ -533,15 +534,15 @@ msgstr ""
 
 #: src/language.c:154
 msgid "Faroese"
-msgstr ""
+msgstr "Färöiska"
 
 #: src/language.c:155
 msgid "Fijian"
-msgstr ""
+msgstr "Fidjianska"
 
 #: src/language.c:156
 msgid "Finnish"
-msgstr ""
+msgstr "Finska"
 
 #: src/language.c:157
 msgid "Finno-Ugrian (Other)"
@@ -553,7 +554,7 @@ msgstr ""
 
 #: src/language.c:159
 msgid "French"
-msgstr ""
+msgstr "Franska"
 
 #: src/language.c:160
 msgid "French, Middle (ca.1400-1600)"
@@ -565,7 +566,7 @@ msgstr ""
 
 #: src/language.c:162
 msgid "Frisian"
-msgstr ""
+msgstr "Frisiska"
 
 #: src/language.c:163
 msgid "Friulian"
@@ -581,11 +582,11 @@ msgstr ""
 
 #: src/language.c:166
 msgid "Gaelic (Scots)"
-msgstr ""
+msgstr "Skotska"
 
 #: src/language.c:167
 msgid "Gallegan"
-msgstr ""
+msgstr "Galiciska"
 
 #: src/language.c:168
 msgid "Ganda"
@@ -605,11 +606,11 @@ msgstr ""
 
 #: src/language.c:172
 msgid "Georgian"
-msgstr ""
+msgstr "Georgiska"
 
 #: src/language.c:173
 msgid "German"
-msgstr ""
+msgstr "Tyska"
 
 #: src/language.c:174
 msgid "German, Low; Saxon, Low; Low German; Low Saxon"
@@ -649,19 +650,19 @@ msgstr ""
 
 #: src/language.c:183
 msgid "Greek, Ancient (to 1453)"
-msgstr ""
+msgstr "Gammalgrekiska"
 
 #: src/language.c:184
 msgid "Greek, Modern (1453-)"
-msgstr ""
+msgstr "Grekiska"
 
 #: src/language.c:185
 msgid "Guarani"
-msgstr ""
+msgstr "Guarani"
 
 #: src/language.c:186
 msgid "Gujarati"
-msgstr ""
+msgstr "Gujarati"
 
 #: src/language.c:187
 msgid "Gwich'in"
@@ -673,7 +674,7 @@ msgstr ""
 
 #: src/language.c:189
 msgid "Hausa"
-msgstr ""
+msgstr "Haussa"
 
 #: src/language.c:190
 msgid "Hawaiian"
@@ -681,11 +682,11 @@ msgstr ""
 
 #: src/language.c:191 src/language.c:192
 msgid "Hebrew"
-msgstr ""
+msgstr "Hebreiska"
 
 #: src/language.c:193
 msgid "Herero"
-msgstr ""
+msgstr "Herero"
 
 #: src/language.c:194
 msgid "Hiligaynon"
@@ -697,11 +698,11 @@ msgstr ""
 
 #: src/language.c:196
 msgid "Hindi"
-msgstr ""
+msgstr "Hindi"
 
 #: src/language.c:197
 msgid "Hiri Motu"
-msgstr ""
+msgstr "Hirimotu"
 
 #: src/language.c:198
 msgid "Hittite"
@@ -713,7 +714,7 @@ msgstr ""
 
 #: src/language.c:200
 msgid "Hungarian"
-msgstr ""
+msgstr "Ungerska"
 
 #: src/language.c:201
 msgid "Hupa"
@@ -725,7 +726,7 @@ msgstr ""
 
 #: src/language.c:203
 msgid "Icelandic"
-msgstr ""
+msgstr "Isländska"
 
 #: src/language.c:204
 msgid "Igbo"
@@ -749,23 +750,23 @@ msgstr ""
 
 #: src/language.c:209 src/language.c:210
 msgid "Indonesian"
-msgstr ""
+msgstr "Indonesiska"
 
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
-msgstr ""
+msgstr "Interlingua"
 
 #: src/language.c:213
 msgid "Interlingue"
-msgstr ""
+msgstr "Interlingue"
 
 #: src/language.c:214
 msgid "Inuktitut"
-msgstr ""
+msgstr "Inuktitut"
 
 #: src/language.c:215
 msgid "Inupiaq"
-msgstr ""
+msgstr "Inupiaq"
 
 #: src/language.c:216
 msgid "Iranian (Other)"
@@ -773,7 +774,7 @@ msgstr ""
 
 #: src/language.c:217
 msgid "Irish"
-msgstr ""
+msgstr "Irländska"
 
 #: src/language.c:218
 msgid "Irish, Middle (900-1200)"
@@ -789,15 +790,15 @@ msgstr ""
 
 #: src/language.c:221
 msgid "Italian"
-msgstr ""
+msgstr "Italienska"
 
 #: src/language.c:222
 msgid "Japanese"
-msgstr ""
+msgstr "Japanska"
 
 #: src/language.c:223 src/language.c:224
 msgid "Javanese"
-msgstr ""
+msgstr "Javanesiska"
 
 #: src/language.c:225
 msgid "Judeo-Arabic"
@@ -817,7 +818,7 @@ msgstr ""
 
 #: src/language.c:229
 msgid "Kalaallisut"
-msgstr ""
+msgstr "Grönländska"
 
 #: src/language.c:230
 msgid "Kamba"
@@ -825,7 +826,7 @@ msgstr ""
 
 #: src/language.c:231
 msgid "Kannada"
-msgstr ""
+msgstr "Kanaresiska"
 
 #: src/language.c:232
 msgid "Kanuri"
@@ -841,7 +842,7 @@ msgstr ""
 
 #: src/language.c:235
 msgid "Kashmiri"
-msgstr ""
+msgstr "Kashmiri"
 
 #: src/language.c:236
 msgid "Kawi"
@@ -849,7 +850,7 @@ msgstr ""
 
 #: src/language.c:237
 msgid "Kazakh"
-msgstr ""
+msgstr "Kazakiska"
 
 #: src/language.c:238
 msgid "Khasi"
@@ -857,7 +858,7 @@ msgstr ""
 
 #: src/language.c:239
 msgid "Khmer"
-msgstr ""
+msgstr "Kambodjanska"
 
 #: src/language.c:240
 msgid "Khoisan (Other)"
@@ -869,7 +870,7 @@ msgstr ""
 
 #: src/language.c:242
 msgid "Kikuyu"
-msgstr ""
+msgstr "Kikuyu"
 
 #: src/language.c:243
 msgid "Kimbundu"
@@ -877,15 +878,15 @@ msgstr ""
 
 #: src/language.c:244
 msgid "Kinyarwanda"
-msgstr ""
+msgstr "Rwanda"
 
 #: src/language.c:245
 msgid "Kirghiz"
-msgstr ""
+msgstr "Kirgisiska"
 
 #: src/language.c:246
 msgid "Komi"
-msgstr ""
+msgstr "Komi"
 
 #: src/language.c:247
 msgid "Kongo"
@@ -897,7 +898,7 @@ msgstr ""
 
 #: src/language.c:249
 msgid "Korean"
-msgstr ""
+msgstr "Koreanska"
 
 #: src/language.c:250
 msgid "Kosraean"
@@ -913,7 +914,7 @@ msgstr ""
 
 #: src/language.c:253
 msgid "Kuanyama"
-msgstr ""
+msgstr "Kuanyama"
 
 #: src/language.c:254
 msgid "Kumyk"
@@ -921,7 +922,7 @@ msgstr ""
 
 #: src/language.c:255
 msgid "Kurdish"
-msgstr ""
+msgstr "Kurdiska"
 
 #: src/language.c:256
 msgid "Kurukh"
@@ -945,19 +946,19 @@ msgstr ""
 
 #: src/language.c:261
 msgid "Lao"
-msgstr ""
+msgstr "Laotiska"
 
 #: src/language.c:262
 msgid "Latin"
-msgstr ""
+msgstr "Latin"
 
 #: src/language.c:263
 msgid "Latvian"
-msgstr ""
+msgstr "Lettiska"
 
 #: src/language.c:264
 msgid "Letzeburgesch"
-msgstr ""
+msgstr "Luxemburgska"
 
 #: src/language.c:265
 msgid "Lezghian"
@@ -965,11 +966,11 @@ msgstr ""
 
 #: src/language.c:266
 msgid "Lingala"
-msgstr ""
+msgstr "Lingala"
 
 #: src/language.c:267
 msgid "Lithuanian"
-msgstr ""
+msgstr "Litauiska"
 
 #: src/language.c:268
 msgid "Low German; Low Saxon; German, Low; Saxon, Low"
@@ -1009,7 +1010,7 @@ msgstr ""
 
 #: src/language.c:277
 msgid "Macedonian"
-msgstr ""
+msgstr "Makedoniska"
 
 #: src/language.c:278
 msgid "Madurese"
@@ -1029,19 +1030,19 @@ msgstr ""
 
 #: src/language.c:282
 msgid "Malagasy"
-msgstr ""
+msgstr "Malagassiska"
 
 #: src/language.c:283
 msgid "Malay"
-msgstr ""
+msgstr "Malajiska"
 
 #: src/language.c:284
 msgid "Malayalam"
-msgstr ""
+msgstr "Malayalam"
 
 #: src/language.c:285
 msgid "Maltese"
-msgstr ""
+msgstr "Maltesiska"
 
 #: src/language.c:286
 msgid "Manchu"
@@ -1049,7 +1050,7 @@ msgstr ""
 
 #: src/language.c:287
 msgid "Mandar"
-msgstr ""
+msgstr "Mandarin"
 
 #: src/language.c:288
 msgid "Mandingo"
@@ -1065,15 +1066,15 @@ msgstr ""
 
 #: src/language.c:291
 msgid "Manx"
-msgstr ""
+msgstr "Manx"
 
 #: src/language.c:292
 msgid "Maori"
-msgstr ""
+msgstr "Maori"
 
 #: src/language.c:293
 msgid "Marathi"
-msgstr ""
+msgstr "Marathi"
 
 #: src/language.c:294
 msgid "Mari"
@@ -1081,7 +1082,7 @@ msgstr ""
 
 #: src/language.c:295
 msgid "Marshall"
-msgstr ""
+msgstr "Marshall"
 
 #: src/language.c:296
 msgid "Marwari"
@@ -1117,7 +1118,7 @@ msgstr ""
 
 #: src/language.c:304
 msgid "Moldavian"
-msgstr ""
+msgstr "Moldaviska"
 
 #: src/language.c:305
 msgid "Mon-Khmer (Other)"
@@ -1129,7 +1130,7 @@ msgstr ""
 
 #: src/language.c:307
 msgid "Mongolian"
-msgstr ""
+msgstr "Mongoliska"
 
 #: src/language.c:308
 msgid "Mossi"
@@ -1149,27 +1150,27 @@ msgstr ""
 
 #: src/language.c:312
 msgid "Nauru"
-msgstr ""
+msgstr "Nauriska"
 
 #: src/language.c:313
 msgid "Navajo"
-msgstr ""
+msgstr "Navaho"
 
 #: src/language.c:314
 msgid "Ndebele, North"
-msgstr ""
+msgstr "Ndebele, nord"
 
 #: src/language.c:315
 msgid "Ndebele, South"
-msgstr ""
+msgstr "Ndebele, syd"
 
 #: src/language.c:316
 msgid "Ndonga"
-msgstr ""
+msgstr "Ndonga"
 
 #: src/language.c:317
 msgid "Nepali"
-msgstr ""
+msgstr "Nepaliska"
 
 #: src/language.c:318
 msgid "Newari"
@@ -1201,19 +1202,19 @@ msgstr ""
 
 #: src/language.c:325
 msgid "Northern Sami"
-msgstr ""
+msgstr "Nordsamiska"
 
 #: src/language.c:326
 msgid "Norwegian"
-msgstr ""
+msgstr "Norska"
 
 #: src/language.c:327
 msgid "Norwegian Bokmål"
-msgstr ""
+msgstr "Norska, Bokmål"
 
 #: src/language.c:328
 msgid "Norwegian Nynorsk"
-msgstr ""
+msgstr "Nynorska"
 
 #: src/language.c:329
 msgid "Nubian languages"
@@ -1225,7 +1226,7 @@ msgstr ""
 
 #: src/language.c:331
 msgid "Nyanja; Chichewa"
-msgstr ""
+msgstr "Nyanja"
 
 #: src/language.c:332
 msgid "Nyankole"
@@ -1241,7 +1242,7 @@ msgstr ""
 
 #: src/language.c:335
 msgid "Occitan (post 1500); Provençal"
-msgstr ""
+msgstr "Occitanska"
 
 #: src/language.c:336
 msgid "Ojibwa"
@@ -1249,11 +1250,11 @@ msgstr ""
 
 #: src/language.c:337
 msgid "Oriya"
-msgstr ""
+msgstr "Oriya"
 
 #: src/language.c:338
 msgid "Oromo"
-msgstr ""
+msgstr "Afan Oromoo"
 
 #: src/language.c:339
 msgid "Osage"
@@ -1261,7 +1262,7 @@ msgstr ""
 
 #: src/language.c:340
 msgid "Ossetian; Ossetic"
-msgstr ""
+msgstr "Ossetiska"
 
 #: src/language.c:341
 msgid "Otomian languages"
@@ -1277,7 +1278,7 @@ msgstr ""
 
 #: src/language.c:344
 msgid "Pali"
-msgstr ""
+msgstr "Pali"
 
 #: src/language.c:345
 msgid "Pampanga"
@@ -1289,7 +1290,7 @@ msgstr ""
 
 #: src/language.c:347
 msgid "Panjabi"
-msgstr ""
+msgstr "Punjabi"
 
 #: src/language.c:348
 msgid "Papiamento"
@@ -1301,7 +1302,7 @@ msgstr ""
 
 #: src/language.c:350
 msgid "Persian"
-msgstr ""
+msgstr "Persiska"
 
 #: src/language.c:351
 msgid "Persian, Old (ca.600-400 B.C.)"
@@ -1321,11 +1322,11 @@ msgstr ""
 
 #: src/language.c:355
 msgid "Polish"
-msgstr ""
+msgstr "Polska"
 
 #: src/language.c:356
 msgid "Portuguese"
-msgstr ""
+msgstr "Portugisiska"
 
 #: src/language.c:357
 msgid "Prakrit languages"
@@ -1341,15 +1342,15 @@ msgstr ""
 
 #: src/language.c:360
 msgid "Pushto"
-msgstr ""
+msgstr "Pashto"
 
 #: src/language.c:361
 msgid "Quechua"
-msgstr ""
+msgstr "Quechua"
 
 #: src/language.c:362
 msgid "Raeto-Romance"
-msgstr ""
+msgstr "Rätoromanska"
 
 #: src/language.c:363
 msgid "Rajasthani"
@@ -1373,7 +1374,7 @@ msgstr ""
 
 #: src/language.c:368
 msgid "Romanian"
-msgstr ""
+msgstr "Rumänska"
 
 #: src/language.c:369
 msgid "Romany"
@@ -1381,11 +1382,11 @@ msgstr ""
 
 #: src/language.c:370
 msgid "Rundi"
-msgstr ""
+msgstr "Rundi"
 
 #: src/language.c:371
 msgid "Russian"
-msgstr ""
+msgstr "Ryska"
 
 #: src/language.c:372
 msgid "Salishan languages"
@@ -1401,7 +1402,7 @@ msgstr ""
 
 #: src/language.c:375
 msgid "Samoan"
-msgstr ""
+msgstr "Samoanska"
 
 #: src/language.c:376
 msgid "Sandawe"
@@ -1409,11 +1410,11 @@ msgstr ""
 
 #: src/language.c:377
 msgid "Sango"
-msgstr ""
+msgstr "Sango"
 
 #: src/language.c:378
 msgid "Sanskrit"
-msgstr ""
+msgstr "Sanskrit"
 
 #: src/language.c:379
 msgid "Santali"
@@ -1421,7 +1422,7 @@ msgstr ""
 
 #: src/language.c:380
 msgid "Sardinian"
-msgstr ""
+msgstr "Sardiska"
 
 #: src/language.c:381
 msgid "Sasak"
@@ -1445,11 +1446,11 @@ msgstr ""
 
 #: src/language.c:386
 msgid "Serbian"
-msgstr ""
+msgstr "Serbiska"
 
 #: src/language.c:387
 msgid "Serbo-Croatian"
-msgstr ""
+msgstr "Serbokroatiska"
 
 #: src/language.c:388
 msgid "Serer"
@@ -1461,7 +1462,7 @@ msgstr ""
 
 #: src/language.c:390
 msgid "Shona"
-msgstr ""
+msgstr "Shona"
 
 #: src/language.c:391
 msgid "Sidamo"
@@ -1477,11 +1478,11 @@ msgstr ""
 
 #: src/language.c:394
 msgid "Sindhi"
-msgstr ""
+msgstr "Sindhi"
 
 #: src/language.c:395
 msgid "Sinhalese"
-msgstr ""
+msgstr "Singalesiska"
 
 #: src/language.c:396
 msgid "Sino-Tibetan (Other)"
@@ -1501,11 +1502,11 @@ msgstr ""
 
 #: src/language.c:400
 msgid "Slovak"
-msgstr ""
+msgstr "Slovakiska"
 
 #: src/language.c:401
 msgid "Slovenian"
-msgstr ""
+msgstr "Slovenska"
 
 #: src/language.c:402
 msgid "Sogdian"
@@ -1513,7 +1514,7 @@ msgstr ""
 
 #: src/language.c:403
 msgid "Somali"
-msgstr ""
+msgstr "Somaliska"
 
 #: src/language.c:404
 msgid "Songhai"
@@ -1529,11 +1530,11 @@ msgstr ""
 
 #: src/language.c:407
 msgid "Sotho, Northern"
-msgstr ""
+msgstr "Sotho, nord"
 
 #: src/language.c:408
 msgid "Sotho, Southern"
-msgstr ""
+msgstr "Sotho, syd"
 
 #: src/language.c:409
 msgid "South American Indian (Other)"
@@ -1541,7 +1542,7 @@ msgstr ""
 
 #: src/language.c:410
 msgid "Spanish"
-msgstr ""
+msgstr "Spanska"
 
 #: src/language.c:411
 msgid "Sukuma"
@@ -1553,7 +1554,7 @@ msgstr ""
 
 #: src/language.c:413
 msgid "Sundanese"
-msgstr ""
+msgstr "Sundanesiska"
 
 #: src/language.c:414
 msgid "Susu"
@@ -1561,15 +1562,15 @@ msgstr ""
 
 #: src/language.c:415
 msgid "Swahili"
-msgstr ""
+msgstr "Swahili"
 
 #: src/language.c:416
 msgid "Swati"
-msgstr ""
+msgstr "Siswati"
 
 #: src/language.c:417
 msgid "Swedish"
-msgstr ""
+msgstr "Svenska"
 
 #: src/language.c:418
 msgid "Syriac"
@@ -1577,11 +1578,11 @@ msgstr ""
 
 #: src/language.c:419
 msgid "Tagalog"
-msgstr ""
+msgstr "Tagalog"
 
 #: src/language.c:420
 msgid "Tahitian"
-msgstr ""
+msgstr "Tahitiska"
 
 #: src/language.c:421
 msgid "Tai (Other)"
@@ -1589,7 +1590,7 @@ msgstr ""
 
 #: src/language.c:422
 msgid "Tajik"
-msgstr ""
+msgstr "Tadjikiska"
 
 #: src/language.c:423
 msgid "Tamashek"
@@ -1597,15 +1598,15 @@ msgstr ""
 
 #: src/language.c:424
 msgid "Tamil"
-msgstr ""
+msgstr "Tamil"
 
 #: src/language.c:425
 msgid "Tatar"
-msgstr ""
+msgstr "Tatariska"
 
 #: src/language.c:426
 msgid "Telugu"
-msgstr ""
+msgstr "Telugo"
 
 #: src/language.c:427
 msgid "Tereno"
@@ -1617,11 +1618,11 @@ msgstr ""
 
 #: src/language.c:429
 msgid "Thai"
-msgstr ""
+msgstr "Thailändska"
 
 #: src/language.c:430
 msgid "Tibetan"
-msgstr ""
+msgstr "Tibetanska"
 
 #: src/language.c:431
 msgid "Tigre"
@@ -1629,7 +1630,7 @@ msgstr ""
 
 #: src/language.c:432
 msgid "Tigrinya"
-msgstr ""
+msgstr "Tigrinya"
 
 #: src/language.c:433
 msgid "Timne"
@@ -1653,11 +1654,11 @@ msgstr ""
 
 #: src/language.c:438
 msgid "Tonga (Nyasa)"
-msgstr ""
+msgstr "Tonga"
 
 #: src/language.c:439
 msgid "Tonga (Tonga Islands)"
-msgstr ""
+msgstr "Tonga"
 
 #: src/language.c:440
 msgid "Tsimshian"
@@ -1665,11 +1666,11 @@ msgstr ""
 
 #: src/language.c:441
 msgid "Tsonga"
-msgstr ""
+msgstr "Tsonga"
 
 #: src/language.c:442
 msgid "Tswana"
-msgstr ""
+msgstr "Tswana"
 
 #: src/language.c:443
 msgid "Tumbuka"
@@ -1677,7 +1678,7 @@ msgstr ""
 
 #: src/language.c:444
 msgid "Turkish"
-msgstr ""
+msgstr "Turkiska"
 
 #: src/language.c:445
 msgid "Turkish, Ottoman (1500-1928)"
@@ -1685,7 +1686,7 @@ msgstr ""
 
 #: src/language.c:446
 msgid "Turkmen"
-msgstr ""
+msgstr "Turkmeni"
 
 #: src/language.c:447
 msgid "Tuvalu"
@@ -1697,7 +1698,7 @@ msgstr ""
 
 #: src/language.c:449
 msgid "Twi"
-msgstr ""
+msgstr "Twi"
 
 #: src/language.c:450
 msgid "Ugaritic"
@@ -1705,11 +1706,11 @@ msgstr ""
 
 #: src/language.c:451
 msgid "Uighur"
-msgstr ""
+msgstr "Uigriska"
 
 #: src/language.c:452
 msgid "Ukrainian"
-msgstr ""
+msgstr "Ukrainska "
 
 #: src/language.c:453
 msgid "Umbundu"
@@ -1721,11 +1722,11 @@ msgstr ""
 
 #: src/language.c:455
 msgid "Urdu"
-msgstr ""
+msgstr "Urdu"
 
 #: src/language.c:456
 msgid "Uzbek"
-msgstr ""
+msgstr "Uzbekiska"
 
 #: src/language.c:457
 msgid "Vai"
@@ -1737,11 +1738,11 @@ msgstr ""
 
 #: src/language.c:459
 msgid "Vietnamese"
-msgstr ""
+msgstr "Vietnamesiska"
 
 #: src/language.c:460
 msgid "Volapük"
-msgstr ""
+msgstr "Volapük"
 
 #: src/language.c:461
 msgid "Votic"
@@ -1765,15 +1766,15 @@ msgstr ""
 
 #: src/language.c:466
 msgid "Welsh"
-msgstr ""
+msgstr "Walesiska"
 
 #: src/language.c:467
 msgid "Wolof"
-msgstr ""
+msgstr "Wolof"
 
 #: src/language.c:468
 msgid "Xhosa"
-msgstr ""
+msgstr "Xhosa"
 
 #: src/language.c:469
 msgid "Yakut"
@@ -1789,7 +1790,7 @@ msgstr ""
 
 #: src/language.c:472 src/language.c:473
 msgid "Yiddish"
-msgstr ""
+msgstr "Jiddisch"
 
 #: src/language.c:474
 msgid "Yoruba"
@@ -1813,11 +1814,11 @@ msgstr ""
 
 #: src/language.c:479
 msgid "Zhuang"
-msgstr ""
+msgstr "Zhuang"
 
 #: src/language.c:480
 msgid "Zulu"
-msgstr ""
+msgstr "Zulu"
 
 #: src/language.c:481
 msgid "Zuni"
@@ -1826,45 +1827,45 @@ msgstr ""
 #. Unknown language
 #: src/language.c:504
 msgid "Unknown"
-msgstr ""
+msgstr "Okänt"
 
 #: src/menu.c:42
 msgid "Chapter"
-msgstr ""
+msgstr "Kapitel"
 
 #: src/menu.c:43
 msgid "Angle"
-msgstr ""
+msgstr "Vinkel"
 
 #: src/menu.c:44
 msgid "Audio"
-msgstr ""
+msgstr "Ljud"
 
 #: src/menu.c:45
 msgid "Subtitle"
-msgstr ""
+msgstr "Textremsa"
 
 #: src/menu.c:46
 msgid "Root"
-msgstr ""
+msgstr "Rot"
 
 #: src/menu.c:47
 msgid "Title"
-msgstr ""
+msgstr "Titel"
 
 #: src/menu.c:48
 msgid "Resume"
-msgstr ""
+msgstr "Återgå"
 
 #. ../pixmaps/ogle_gui.glade:187
 #: po/glade-files.c:10
 msgid "%P %%"
-msgstr ""
+msgstr "%P %%"
 
 #. ../pixmaps/ogle_gui.glade:1078
 #: po/glade-files.c:13
 msgid "About"
-msgstr ""
+msgstr "Om"
 
 #. ../pixmaps/ogle_gui.glade:1157
 #: po/glade-files.c:16
@@ -1877,68 +1878,75 @@ msgid ""
 "Martin Norbäck\n"
 "Björn Augustsson"
 msgstr ""
+"Författare:\n"
+"\n"
+"Björn Englund\n"
+"Håkan Hjort\n"
+"Vilhelm Bergman\n"
+"Martin Norbäck\n"
+"Björn Augustsson"
 
 #. ../pixmaps/ogle_gui.glade:92
 #: po/glade-files.c:26
 msgid "E_xit"
-msgstr ""
+msgstr "_Avsluta"
 
 #. ../pixmaps/ogle_gui.glade:1182
 #: po/glade-files.c:29
 msgid "OK"
-msgstr ""
+msgstr "Ok"
 
 #. ../pixmaps/ogle_gui.glade:18
 #: po/glade-files.c:32
 msgid "Ogle"
-msgstr ""
+msgstr "Ogle"
 
 #. ../pixmaps/ogle_gui.glade:74
 #: po/glade-files.c:35
 msgid "Open _disc"
-msgstr ""
+msgstr "Öppna _DVD-skiva"
 
 #. ../pixmaps/ogle_gui.glade:1133
 #: po/glade-files.c:38
 msgid "Placeholder"
-msgstr ""
+msgstr "Dumruta"
 
 #. ../pixmaps/ogle_gui.glade:116
 #: po/glade-files.c:41
 msgid "Properties..."
-msgstr ""
+msgstr "Egenskaper..."
 
 #. ../pixmaps/ogle_gui.glade:170
 #: po/glade-files.c:44
 msgid "_About..."
-msgstr ""
+msgstr "_Om..."
 
 #. ../pixmaps/ogle_gui.glade:101
 #: po/glade-files.c:47
 msgid "_Edit"
-msgstr ""
+msgstr "_Redigera"
 
 #. ../pixmaps/ogle_gui.glade:47
 #: po/glade-files.c:50
 msgid "_File"
-msgstr ""
+msgstr "_Arkiv"
 
 #. ../pixmaps/ogle_gui.glade:145
 #: po/glade-files.c:53
 msgid "_Full screen"
-msgstr ""
+msgstr "_Fullskärm"
 
 #. ../pixmaps/ogle_gui.glade:155
 #: po/glade-files.c:56
 msgid "_Help"
-msgstr ""
+msgstr "_Hjälp"
 
 #. ../pixmaps/ogle_gui.glade:62
 #: po/glade-files.c:59
 msgid "_Open..."
-msgstr ""
+msgstr "_Öppna..."
 
 #. ../pixmaps/ogle_gui.glade:125
 #: po/glade-files.c:62
 msgid "_View"
-msgstr ""
+msgstr "_Vy"
