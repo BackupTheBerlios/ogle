@@ -262,7 +262,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    DNOTE("spu_mixer: ignoring event type (%d)\n", ev->type);
+    /* DNOTE("spu_mixer: ignoring event type (%d)\n", ev->type); */
     return 0;
     break;
   }
@@ -379,7 +379,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
 
 int init_spu(void)
 {
-  DNOTE("spu_mixer: init\n");
+  //DNOTE("spu_mixer: init\n");
   spu_info.buffer = malloc(MAX_BUF_SIZE);
   spu_info.next_buffer = malloc(MAX_BUF_SIZE);
   if(spu_info.buffer == NULL || spu_info.next_buffer == NULL) {

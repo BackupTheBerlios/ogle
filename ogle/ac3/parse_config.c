@@ -6,13 +6,18 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
+#include "debug_print.h"
 
+extern char *program_name;
+
+
+/* Put all of these in a struct that is returned instead */
 static char *audio_device;
-
 /* number of speakers */
 static int front = 2;
 static int rear = 0;
 static int sub = 0;
+
 
 char *get_audio_device(void)
 {
@@ -128,31 +133,25 @@ int parse_oglerc(char *filename)
   
   doc = xmlParseFile(filename);
 
-  if(doc != NULL) {
-
-    cur = xmlDocGetRootElement(doc); 
-
-    while(cur != NULL) {
-      
-      if(!xmlIsBlankNode(cur)) {
-	if(!strcmp("ogle_conf", cur->name)) {
-	  parse_ogle_conf(doc, cur);
-	}
-      }
-      cur = cur->next;
-    }
-    
-    xmlFreeDoc(doc);
-
-    return 0;
-
-  } else {
-
-    fprintf(stderr, "WARNING[audio]: Couldn't load config file\n");
-
+  if(doc == NULL) {
     return -1;
-
   }
+  
+  cur = xmlDocGetRootElement(doc); 
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("ogle_conf", cur->name)) {
+	parse_ogle_conf(doc, cur);
+      }
+    }
+    cur = cur->next;
+  }
+  
+  xmlFreeDoc(doc);
+  
+  return 0;
 }
 
 
@@ -162,14 +161,13 @@ int parse_config(void)
   char *home;
 
 
-  if((r+= parse_oglerc(CONFIG_FILE)) == -1) {
-    fprintf(stderr,
-	    "ERROR[ogle_audio]: parse_config(): Couldn't read "CONFIG_FILE"\n");
+  if((r += parse_oglerc(CONFIG_FILE)) == -1) {
+    WARNING("parse_config(): Couldn't read "CONFIG_FILE"\n");
   }
 
   home = getenv("HOME");
   if(home == NULL) {
-    fprintf(stderr, "WARNING[ogle_audio]: No $HOME\n");
+    WARNING("No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -179,15 +177,12 @@ int parse_config(void)
     strcat(rcpath, "/");
     strcat(rcpath, rcfile);
     
-    if((r+= parse_oglerc(rcpath)) == -1) {
-      fprintf(stderr,
-	      "WARNING[ogle_audio]: parse_config(): Couldn't read '%s'\n", rcpath);
+    if((r += parse_oglerc(rcpath)) == -1) {
+      NOTE("parse_config(): Couldn't read '%s'\n", rcpath);
     }
     
     free(rcpath);
   }
-  
-    
   
   return r;
 }

@@ -1366,7 +1366,10 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   pid_t wpid, pid;
   
 #if defined(SA_SIGINFO)
-  DNOTE("sigchldhandler got signal %d\n", info->si_signo);
+  if(info->si_signo != SIGCHLD) {
+    ERROR("sigchldhandler got signal %d\n", info->si_signo);
+    return;
+  }
   if(info->si_errno) {
     DNOTE("error: %s\n", strerror(info->si_errno));
   }

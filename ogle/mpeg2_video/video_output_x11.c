@@ -535,8 +535,7 @@ void init_config(Display *dpy)
     }
     
     if(cfg_display == NULL) {
-      NOTE("NOTE[ogle_vo]: init_config(): using default config for '%s'\n",
-	   dpy_str);
+      NOTE("using default config for '%s'\n", dpy_str);
       cfg_display = tmp_display;
     }
   }
@@ -570,8 +569,7 @@ void init_config(Display *dpy)
     default:
       orig_str = "";
     }
-    NOTE("Using '%s' as source for geometry\n",
-	 orig_str);
+    NOTE("Using '%s' as source for geometry\n", orig_str);
   }
 
   orig = DpyInfoOriginX11;
@@ -600,8 +598,7 @@ void init_config(Display *dpy)
     default:
       orig_str = "";
     }
-    NOTE("Using '%s' as source for resolution\n",
-	 orig_str);
+    NOTE("Using '%s' as source for resolution\n", orig_str);
   }
   
   DpyInfoUpdateGeometry(dpy, screen_nr);
@@ -642,7 +639,7 @@ void display_reset(void)
     }
     
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-      FATAL("display_reset");
+      FATAL("display_reset\n");
       perror("shmctl");
       exit(1);
     }
@@ -703,7 +700,7 @@ void display_init(int padded_width, int padded_height,
     }
     
     XMatchVisualInfo(mydisplay, screen_nr, color_depth, TrueColor, &vinfo);
-    DNOTE("X11 visual id is %lx\n", vinfo.visualid);
+    //DNOTE("X11 visual id is %lx\n", vinfo.visualid);
     
     hint.x = 0;
     hint.y = 0;

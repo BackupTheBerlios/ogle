@@ -26,6 +26,7 @@
 
 #include <ogle/msgevents.h>
 #include <ogle/dvdevents.h>
+#include "debug_print.h"
 
 #include <dvdread/nav_types.h>
 #include <dvdread/nav_read.h>
@@ -88,28 +89,28 @@ int main(int argc, char *argv[])
     MsgEvent_t ev;
     
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "nav: couldn't get message q\n");
+      FATAL("couldn't get message q\n");
       exit(1);
     }
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_DVD_NAV;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "nav: register capabilities\n");
+      FATAL("registering capabilities\n");
       exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "nav: didn't get demux cap\n");
+      FATAL("didn't get demux cap\n");
       exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DECODE_DVD_SPU;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "nav: didn't get cap\n");
+      FATAL("didn't get spu cap\n");
       exit(1);
     }
     
@@ -128,7 +129,7 @@ int main(int argc, char *argv[])
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
     ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
     if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "nav: didn't set dvdroot\n");
+      FATAL("failed sending dvdroot to demuxer\n");
       exit(1);
     }
     
@@ -136,7 +137,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xe0; // Mpeg1/2 Video 
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "nav: didn't set demuxstream\n");
+      FATAL("failed setting demux video stream id\n");
       exit(1);
     }
     
@@ -144,14 +145,15 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xbd; // AC3 1
     ev.demuxstream.subtype = 0x80;    
     if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "nav: didn't set demuxstream\n");
+      FATAL("failed setting demux AC3 stream id\n");
+      exit(1);
     }
     
     ev.type = MsgEventQDemuxStream;
     ev.demuxstream.stream_id = 0xbd; // SPU 1
     ev.demuxstream.subtype = 0x20;    
     if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "nav: didn't set demuxstream\n");
+      FATAL("failed setting demux subpicture stream id\n");
       exit(1);
     }
     
@@ -159,11 +161,10 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xbf; // NAV
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "nav: didn't set demuxstream\n");
+      FATAL("failed setting demux NAV stream id\n");
       exit(1);
     }
   }
- 
   
   //vm_reset(get_dvdroot());
   do_run();
@@ -192,8 +193,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     if(attr.display_aspect_ratio != video_aspect) {
       video_aspect = attr.display_aspect_ratio;
       
-      fprintf(stderr, "nav: sending aspect %s\n", 
-	      video_aspect ? "16:9" : "4:3");
+      DNOTE("sending aspect %s\n", video_aspect ? "16:9" : "4:3");
       
       ev.type = MsgEventQSetSrcAspect;
       ev.setsrcaspect.mode_src = AspectModeSrcVM;
@@ -206,7 +206,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       }
       /* !!! FIXME should be sent to video out not spu */
       if(send_spu(msgq, &ev) == -1) {
-	fprintf(stderr, "nav: error, didn't send aspect info\n");
+	ERROR("failed to send aspect info\n");
       }
     }     
   }
@@ -217,14 +217,13 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     if(sN != audio_stream_id) {
       audio_stream_id = sN;
       
-      fprintf(stderr, "nav: sending audio demuxstream %d\n", sN);
+      DNOTE("sending audio demuxstream %d\n", sN);
       
       ev.type = MsgEventQDemuxStreamChange;
       ev.demuxstreamchange.stream_id = 0xbd; // AC3
       ev.demuxstreamchange.subtype = 0x80 | audio_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	fprintf(stderr, "nav: error, didn't set demuxstream\n");
-	exit(1);
+	ERROR("failed to send ac3 demuxstream\n");
       }
     }
   }
@@ -236,14 +235,13 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     if(sN != subp_stream_id) {
       subp_stream_id = sN;
       
-      fprintf(stderr, "nav: sending subp demuxstream %d\n", sN);
+      DNOTE("sending subp demuxstream %d\n", sN);
     
       ev.type = MsgEventQDemuxStreamChange;
       ev.demuxstreamchange.stream_id = 0xbd; // SPU
       ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	fprintf(stderr, "nav: error, didn't set demuxstream\n");
-	exit(1);
+	ERROR("failed to send Subpicture demuxstream\n");
       }
     }
   }
@@ -262,10 +260,10 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   ev.demuxdvd.block_count = nr_sectors;
   ev.demuxdvd.flowcmd = flush;
   if(send_demux(msgq, &ev) == -1) {
-    fprintf(stderr, "nav: error, send_demux_dvd\n");
+    FATAL("failed to send demux dvd block range\n");
     exit(1);
   }
-  //fprintf(stderr, "nav: sent demux_dvd (%d,%d)\n", start_sector, nr_sectors);
+  //DNOTE("sent demux dvd block range (%d,%d)\n", start_sector, nr_sectors);
 }
 
 static void send_spu_palette(uint32_t palette[16]) {
@@ -277,11 +275,10 @@ static void send_spu_palette(uint32_t palette[16]) {
     ev.spupalette.colors[i] = palette[i];
   }
   
-  fprintf(stderr, "nav: sending_spu_palette\n");
+  DNOTE("sending subpicture palette\n");
   
   if(send_spu(msgq, &ev) == -1) {
-    fprintf(stderr, "nav: send_spu_palette\n");
-    exit(1);
+    ERROR("failed sending subpicture palette\n");
   }
 }
 
@@ -301,8 +298,7 @@ static void send_highlight(int x_start, int y_start, int x_end, int y_end,
     ev.spuhighlight.contrast[i] = 0xf & (btn_coli >> (4*i));
 
   if(send_spu(msgq, &ev) == -1) {
-    fprintf(stderr, "nav: send_highlight\n");
-    exit(1);
+    ERROR("faild sending highlight info\n");
   }
 }
 
@@ -387,7 +383,7 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
     }
     break;
   default:
-    fprintf(stderr, "nav: Unknown ui->cmd\n");
+    DNOTE("ignoring dvdctrl event (%i)\n", ce->type);
     break;
   }
   
@@ -402,14 +398,14 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
 	 keep the previous selected button */
       button_nr = (*btn_reg) >> 10;
     } else {
-      fprintf(stderr, "nav: auto_action_mode set!\n");
+      DNOTE("auto_action_mode set!\n");
       is_action = 1;
     }
     break;
   case 2:
   case 3:
   default:
-    fprintf(stderr, "nav: Unknown auto_action_mode!! btn: %d\n", button_nr);
+    FATAL("send bug report, unknown auto_action_mode!! btn: %d\n", button_nr);
     exit(1);
   }
   
@@ -448,8 +444,7 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
   if(pci->hli.hl_gi.hli_ss == 1) {
     if(pci->hli.hl_gi.fosl_btnn != 0) {
       button_nr = pci->hli.hl_gi.fosl_btnn;
-      fprintf(stderr, "nav: forced select button %d\n", 
-	      pci->hli.hl_gi.fosl_btnn);
+      DNOTE("forced select button %d\n", pci->hli.hl_gi.fosl_btnn);
     }
   }
   
@@ -538,7 +533,7 @@ static void do_run(void) {
       if((dsi.vobu_sri.next_vobu & 0x80000000) == 0 
 	 && dsi.dsi_gi.vobu_1stref_ea != 0 /* there is video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
-	fprintf(stderr, "nav: FlowCtrlCompleteVideoUnit = 1;\n");
+	DNOTE("FlowCtrlCompleteVideoUnit = 1;\n");
       } else {
 	complete_video = FlowCtrlNone;
       }
@@ -570,12 +565,12 @@ static void do_run(void) {
 	send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
 	pending_lbn = cell->first_sector + block;
       } else {
-	fprintf(stderr, "nav: end of cell\n");
+	DNOTE("end of cell\n");
 	; // end of cell!
 	if(cell->still_time == 0xff) // Inf. still time
-	  fprintf(stderr, "nav: Still picture select an item to continue.\n");
+	  NOTE("Still picture select an item to continue.\n");
 	else if(cell->still_time != 0)
-	  fprintf(stderr, "nav: Pause for %d seconds,\n", cell->still_time);
+	  NOTE("Pause for %d seconds,\n", cell->still_time);
 #if 0 
 	/* TODO XXX $$$ This should only be done at the correct time */
 	/* Handle forced activate button here */
@@ -668,10 +663,10 @@ static void do_run(void) {
 	  break;
 	  
 	case DVDCtrlMenuCall:
-	  fprintf(stderr, "nav: Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
+	  NOTE("Jumping to Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
 	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
 	  if(!res)
-	    fprintf(stderr, "nav: No such menu!\n");
+	    NOTE("No such menu!\n");
 	  break;
 	  
 	case DVDCtrlResume:
@@ -680,8 +675,8 @@ static void do_run(void) {
 	  
 	case DVDCtrlGoUp:
 	case DVDCtrlBackwardScan:
-	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
-		  ev.dvdctrl.cmd.type);
+	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+		ev.dvdctrl.cmd.type);
 	  break;
 	
 	case DVDCtrlPauseOn:
@@ -719,14 +714,14 @@ static void do_run(void) {
 	case DVDCtrlTitlePlay:
 	case DVDCtrlTimeSearch:
 	case DVDCtrlTimePlay:
-	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
-		  ev.dvdctrl.cmd.type);
+	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+		ev.dvdctrl.cmd.type);
 	  break;
 	  
 	  
 	case DVDCtrlStop:
-	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
-		  ev.dvdctrl.cmd.type);
+	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+		ev.dvdctrl.cmd.type);
 	  break;
 	  
 	case DVDCtrlAngleChange:
@@ -738,14 +733,14 @@ static void do_run(void) {
 	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
 	  state.SPST_REG &= 0x40; // Keep the on/off bit.
 	  state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
-	  fprintf(stderr, "DVDCtrlSubpictureStreamChange %x\n",state.SPST_REG);
+	  NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
 	  break;
 	case DVDCtrlSetSubpictureState:
 	  if(ev.dvdctrl.cmd.subpicturestate.display == DVDTrue)
 	    state.SPST_REG |= 0x40; // Turn it on
 	  else
 	    state.SPST_REG &= ~0x40; // Turn it off
-	  fprintf(stderr, "DVDCtrlSetSubpictureState 0x%x\n",state.SPST_REG);
+	  NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
 	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {
@@ -800,7 +795,7 @@ static void do_run(void) {
 		af = DVD_AUDIO_FORMAT_DTS;
 		break;
 	      default:
-		printf("(please send a bug report) ");
+		NOTE("please send a bug report, unknown Audio format!");
 		break;
 	      }
 	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
@@ -871,8 +866,8 @@ static void do_run(void) {
 	  }
 	  break;
 	default:
-	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
-		  ev.dvdctrl.cmd.type);
+	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+		ev.dvdctrl.cmd.type);
 	  break;
 	}
 	break;
@@ -927,7 +922,7 @@ static void do_run(void) {
 
       } else {
 	int i;
-	fprintf(stderr, "nav: Unknown NAV packet type\n");
+	ERROR("Unknown NAV packet type (%02x)\n", buffer[0]);
 	for(i=0;i<20;i++)
 	  printf("%02x ", buffer[i]);
       }

@@ -814,6 +814,7 @@ static link_t play_PGC_post(void)
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
     fprintf(stderr, "** Fell of the end of the pgc, continuing in NextPGC\n");
     assert(state.pgc->next_pgc_nr != 0);
+    /* Should end up in the STOP_DOMAIN if next_pgc i 0. */
     return link_next_pgc;
   }
 }

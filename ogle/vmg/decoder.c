@@ -574,7 +574,9 @@ int vmEval_CMD(vm_cmd_t commands[], int num_commands,
     line = eval_command(&commands[i].bytes[0], return_values);
     
     if (line < 0) { // Link command
-      fprintf(stderr, "eval: Doing Link/Jump/Call\n"); 
+#ifdef TRACE
+      fprintf(stderr, "eval: Doing Link/Jump/Call\n");
+#endif
       return 1;
     }
     
