@@ -81,13 +81,49 @@ typedef struct {
   picture_data_elem_t *info;
 } yuv_image_t;
 
+typedef enum {
+  DataBufferType_Raw,
+  DataBufferType_Video,
+  DataBufferType_Audio,
+  DataBufferType_MpegPES,
+  DataBufferType_MpegES,
+  DataBufferType_MpegPS,
+  DataBufferType_MpegTS
+} DataBufferType_t;
+
+typedef struct {
+  DataBufferType_t type;
+  int format;
+  int width;
+  int height;
+  int stride;
+} DataBufferVideoInfo_t;
+
+typedef struct {
+  DataBufferType_t type;
+  int format;
+} DataBufferAudioInfo_t;
+
+typedef struct {
+  DataBufferType_t type;
+} DataBufferRawInfo_t;
+
+typedef union {
+  DataBufferType_t type;
+  DataBufferRawInfo_t raw;
+  DataBufferVideoInfo_t video;
+  DataBufferAudioInfo_t audio;
+} DataBufferInfo_t;
+
 typedef struct {
   int shmid;
+  DataBufferInfo_t info;
   int nr_of_dataelems;
   int write_nr;
   int read_nr;
   int buffer_start_offset;
   int buffer_size;
+  int pad;         //8 byte alignment needed for data elements
 } data_buf_head_t;
 
 typedef struct {
