@@ -153,6 +153,7 @@ int audio_config(audio_config_t *aconf,
   int n;
   int output_channels;
   int frag_size = 4096;
+  ogle_ao_encoding_t encoding;
 
   channel_config_t *config = NULL;
   // returns NULL if no config
@@ -252,7 +253,7 @@ int audio_config(audio_config_t *aconf,
     aconf->ainfo->sample_resolution = sample_resolution;
     aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
     aconf->ainfo->channels = aconf->dst_format.nr_channels;
-    aconf->ainfo->encoding = OGLE_AO_ENCODING_IEC61937;
+    encoding = OGLE_AO_ENCODING_IEC61937;
     aconf->ainfo->fragment_size = frag_size;
     aconf->ainfo->fragments = -1;  // don't limit
   } else {
@@ -261,7 +262,7 @@ int audio_config(audio_config_t *aconf,
     aconf->ainfo->sample_resolution = sample_resolution;
     aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
     aconf->ainfo->channels = aconf->dst_format.nr_channels;
-    aconf->ainfo->encoding = OGLE_AO_ENCODING_LINEAR;
+    encoding = OGLE_AO_ENCODING_LINEAR;
     aconf->ainfo->fragment_size = frag_size;
     aconf->ainfo->fragments = -1;  // don't limit
     if(config) {
@@ -299,6 +300,10 @@ int audio_config(audio_config_t *aconf,
       aconf->ainfo->chtypes = ao_chmask;
     }
   }
+
+  aconf->ainfo->encoding = encoding;
+
+
   // check return value
   if(ogle_ao_init(aconf->adev_handle, aconf->ainfo) == -1) {
 
@@ -309,7 +314,7 @@ int audio_config(audio_config_t *aconf,
 	      aconf->ainfo->encoding == -1 ||
 	      aconf->ainfo->byteorder == -1) {
       FATAL("encoding %d, resolution %d, byte order %d failed\n",
-	    OGLE_AO_ENCODING_LINEAR, sample_resolution, OGLE_AO_BYTEORDER_NE);
+	    encoding, sample_resolution, OGLE_AO_BYTEORDER_NE);
     } else if(aconf->ainfo->channels == -1) {
       FATAL("channels %d failed\n", aconf->dst_format.nr_channels);
     } 
@@ -334,9 +339,9 @@ int audio_config(audio_config_t *aconf,
 	   aconf->dst_format.nr_channels,
 	   aconf->ainfo->channels); 
     }
-    if(aconf->ainfo->encoding != OGLE_AO_ENCODING_LINEAR) {
+    if(aconf->ainfo->encoding != encoding) {
       ERROR("wanted encoding %d, got %d\n",
-	    OGLE_AO_ENCODING_LINEAR,
+	    encoding,
 	    aconf->ainfo->encoding);
     }
     if(frag_size != -1 && aconf->ainfo->fragment_size != frag_size) {
