@@ -1091,7 +1091,7 @@ static link_t play_Cell_post(void)
   cell_playback_t *const cell_pb = state.pgc->cell_playback;
   int cell_cmd_nr;
   
-  DNOTE("%s", "play_Cell_post: state.cellN (%i)\n", state.cellN);
+  DNOTE("play_Cell_post: state.cellN (%i)\n", state.cellN);
   
   cell_cmd_nr = cell_pb[state.cellN - 1].cell_cmd_nr;
   
