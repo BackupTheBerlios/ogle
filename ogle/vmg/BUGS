@@ -1,0 +1,2 @@
+
+Never free any of the mem allocated by the ifoRead_* functions.
