@@ -165,18 +165,18 @@ typedef struct {
 
 
 typedef struct {
-  uint16_t macroblock_type;
-  uint8_t spatial_temporal_weight_code;
-  uint8_t frame_motion_type;
-  uint8_t field_motion_type;
-  uint8_t dct_type;
+  uint16_t macroblock_type; // 6 bits
+  uint8_t spatial_temporal_weight_code; // 2 bits
+  uint8_t frame_motion_type; // 2 bits (This and field_motion are ..
+  uint8_t field_motion_type; // 2 bits ( .. mutually exclusive.         )
+  uint8_t dct_type; // 1 bit
 
-  uint8_t macroblock_quant;
-  uint8_t macroblock_motion_forward;
-  uint8_t macroblock_motion_backward;
-  uint8_t macroblock_pattern;
-  uint8_t macroblock_intra;
-  uint8_t spatial_temporal_weight_code_flag;
+  uint8_t macroblock_quant; // 1 bit  -- These are all in macroblock_type
+  uint8_t macroblock_motion_forward; // 1 bit 
+  uint8_t macroblock_motion_backward; // 1 bit
+  uint8_t macroblock_pattern; // 1 bit
+  uint8_t macroblock_intra;  // 1 bit
+  uint8_t spatial_temporal_weight_code_flag; // 1 bit
   
 } macroblock_modes_t;
 
@@ -193,17 +193,17 @@ typedef struct {
   uint8_t coded_block_pattern_2;
   uint16_t dc_dct_pred[3];
 
-  int16_t dmv;
-  int16_t mv_format;
-  int16_t prediction_type;
+  int16_t dmv; // 1 bit
+  int16_t mv_format; // 1 bit
+  int16_t prediction_type; // 2 bits
   
   int16_t dmvector[2];
   int16_t dummy3[2][2][2]; //motion_code[2][2][2];
   int16_t dummy4[2][2][2]; //motion_residual[2][2][2];
   int16_t vector[2][2][2];
 
-  int8_t motion_vector_count;
-  int8_t motion_vertical_field_select[2][2];
+  int8_t motion_vector_count; // ? 2 bits
+  int8_t motion_vertical_field_select[2][2]; // 4 bits
 
   int16_t dummy5[2][2][2]; //delta[2][2][2];
 

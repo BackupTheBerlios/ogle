@@ -100,6 +100,7 @@ static int scalemode_change = 0;
 #endif /* HAVE_MLIB */
 
 
+extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
 
@@ -423,6 +424,7 @@ void display_exit(void)
   XDestroyImage(windows[0].ximage);
   shmdt(shm_info.shmaddr);
   shmctl(shm_info.shmid, IPC_RMID, 0);
+  display_process_exit();
 }
 
 

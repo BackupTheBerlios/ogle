@@ -25,7 +25,7 @@ CC=gcc
 
 
 DFLAGS= -g -Wall -O2 `glib-config --cflags` \
-	-DHAVE_MADVICE \
+	-DHAVE_MADVISE \
 	-mcpu=ultrasparc -mvis -DHAVE_MLIB -I/opt/SUNWmlib/include -I/usr/pd/include
 LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lposix4 
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
@@ -37,11 +37,11 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 #video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mmx.o mmx_idct.o mmx_mlib.o c_getbits.o video_output.o yuv2rgb.o  video_tables.o
 
 # Uncoment this to build for MLIB 
-#video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
+video_stream: video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
 
 
 # Uncoment this to build for MLIB DGA
-video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_ffb.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
+#video_stream: video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_ffb.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
 
 clean:
 	rm -f video_stream *.o
