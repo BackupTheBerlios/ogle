@@ -55,7 +55,6 @@ static link_t play_PG(void);
 static link_t play_Cell(void);
 static link_t play_Cell_post(void);
 static link_t play_PGC_post(void);
-
 static link_t process_command(link_t link_values);
 
 static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN);
@@ -70,12 +69,12 @@ static int get_video_aspect(void);
 static int get_TT(int tt);
 static int get_VTS_TT(int vtsN, int vts_ttn);
 static int get_VTS_PTT(int vtsN, int vts_ttn, int part);
-static int get_ID(int id);
 
 static int get_MENU(int menu); // VTSM & VMGM
 static int get_FP_PGC(void); // FP
 
 /* Called in any domain */
+static int get_ID(int id);
 static int get_PGC(int pgcN);
 static int get_PGCN(void);
 
@@ -120,7 +119,13 @@ int vm_reset(char *dvdroot)
   dvd = DVDOpen(dvdroot);
 
   vmgi = ifoOpenVMGI(dvd); // Check for error?
-  
+  ifoRead_FP_PGC(vmgi);
+  ifoRead_TT_SRPT(vmgi);
+  ifoRead_MENU_PGCI_UT(vmgi);
+  ifoRead_PTL_MAIT(vmgi);
+  ifoRead_VTS_ATRT(vmgi);
+  //ifoRead_TXTDT_MGI(vmgi);
+
   return 0;
 }
 
@@ -135,13 +140,8 @@ int vm_start(void)
   // Set pgc to FP pgc
   get_FP_PGC();
   link_values = play_PGC(); 
-  
-  if(link_values.command != PlayThis) {
-    /* At the end of this PGC or we encountered a command. */
-    // Terminates first when it gets a PlayThis (or error).
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-  }
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
   state.blockN = link_values.data1;
 
   return 0; //??
@@ -155,12 +155,8 @@ int vm_eval_cmd(vm_cmd_t *cmd)
   //vmPrint_CMD(0, cmd);
   
   if(eval(cmd, 1, &state.registers, &link_values)) {
-    if(link_values.command != PlayThis) {
-      /* At the end of this PGC or we encountered a command. */
-      // Terminates first when it gets a PlayThis (or error).
-      link_values = process_command(link_values);
-      assert(link_values.command == PlayThis);
-    }
+    link_values = process_command(link_values);
+    assert(link_values.command == PlayThis);
     state.blockN = link_values.data1;
     return 1; // Something changed, Jump
   } else {
@@ -168,20 +164,12 @@ int vm_eval_cmd(vm_cmd_t *cmd)
   }
 }
 
-// FIXME TODO XXX $$$ Handle error condition too...
-// How to tell if there is any need to do a Flush?
 int vm_get_next_cell(void)
 {
   link_t link_values;
-  // Calls play_Cell wich either returns PlayThis or a command
   link_values = play_Cell_post();
-  
-  if(link_values.command != PlayThis) {
-    /* At the end of this PGC or we encountered a command. */
-    // Terminates first when it gets a PlayThis (or error).
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-  }
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
   state.blockN = link_values.data1;
   
   return 0; // ??
@@ -190,15 +178,9 @@ int vm_get_next_cell(void)
 int vm_top_pg(void)
 {
   link_t link_values;
-  // Calls play_Cell wich either returns PlayThis or a command
   link_values = play_PG();
-  
-  if(link_values.command != PlayThis) {
-    /* At the end of this PGC or we encountered a command. */
-    // Terminates first when it gets a PlayThis (or error).
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-  }
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
   state.blockN = link_values.data1;
   
   return 1; // Jump
@@ -206,16 +188,17 @@ int vm_top_pg(void)
 
 int vm_next_pg(void)
 {
-  // Udate PG first?
+  // Do we need to get a updated pgN value first?
   state.pgN += 1; 
   return vm_top_pg();
 }
 
 int vm_prev_pg(void)
 {
-  // Udate PG first?
+  // Do we need to get a updated pgN value first?
   state.pgN -= 1;
   if(state.pgN == 0) {
+    // Check for previous PGCN ? 
     state.pgN = 1;
     return 0;
   }
@@ -266,13 +249,8 @@ int vm_menu_call(DVDMenuID_t menuid, int block)
     state.domain = menuid2domain(menuid);
     if(get_PGCIT() != NULL && get_MENU(menuid) != -1) {
       link_values = play_PGC();
-      
-      if(link_values.command != PlayThis) {
-	/* At the end of this PGC or we encountered a command. */
-	// Terminates first when it gets a PlayThis (or error).
-	link_values = process_command(link_values);
-	assert(link_values.command == PlayThis);
-      }
+      link_values = process_command(link_values);
+      assert(link_values.command == PlayThis);
       state.blockN = link_values.data1;
       return 1; // Jump
     } else {
@@ -313,24 +291,21 @@ int vm_resume(void)
     assert(state.cellN); // Checking if this ever happens
     state.pgN = 1;
     link_values = play_PG();
-    if(link_values.command != PlayThis) {
-      /* At the end of this PGC or we encountered a command. */
-      // Terminates first when it gets a PlayThis (or error).
-      link_values = process_command(link_values);
-      assert(link_values.command == PlayThis);
-    }
+    link_values = process_command(link_values);
+    assert(link_values.command == PlayThis);
     state.blockN = link_values.data1;
   } else { 
-    //state.pgN = ?? this gets the righ value in play_Cell
-    // FIXME $$$ XXX No it doesn't !!!
+    //state.pgN = ?? does this gets the righ value in play_Cell
     state.cellN = state.rsm_cellN;
-    
     state.blockN = state.rsm_blockN;
   }
   
   return 1; // Jump
 }
 
+/**
+ * Return the substream id for 'logical' audio stream audioN.
+ */
 int vm_get_audio_stream(int audioN)
 {
   int streamN = -1;
@@ -355,11 +330,14 @@ int vm_get_audio_stream(int audioN)
       streamN = 0;
   }
   
-   /* Should also check in vtsi/vmgi status that what kind of stream
-   * it is (ac3/lpcm/dts/sdds...) */
+  /* Should also check in vtsi/vmgi status that what kind of stream
+   * it is (ac3/lpcm/dts/sdds...) to find the right (sub)stream id */
   return streamN;
 }
 
+/**
+ * Return the substream id for 'logical' subpicture stream subpN.
+ */
 int vm_get_subp_stream(int subpN)
 {
   int streamN = -1;
@@ -388,7 +366,8 @@ int vm_get_subp_stream(int subpN)
     if(streamN == -1)
       streamN = 0;
   }
-  
+
+  /* Should also check in vtsi/vmgi status that what kind of stream it is. */
   return streamN;
 }
 
@@ -409,10 +388,10 @@ void vm_get_audio_info(int *num_avail, int *current)
     *num_avail = vtsi->vtsi_mat->nr_of_vts_audio_streams;
     *current = state.AST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_audio_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_audio_streams; // 1
     *current = 1;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_audio_streams;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_audio_streams; // 1
     *current = 1;
   }
 }
@@ -423,10 +402,10 @@ void vm_get_subp_info(int *num_avail, int *current)
     *num_avail = vtsi->vtsi_mat->nr_of_vts_subp_streams;
     *current = state.SPST_REG;
   } else if(state.domain == VTSM_DOMAIN) {
-    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_subp_streams;
+    *num_avail = vtsi->vtsi_mat->nr_of_vtsm_subp_streams; // 1
     *current = 0x41;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams;
+    *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams; // 1
     *current = 0x41;
   }
 }
@@ -459,17 +438,8 @@ audio_attr_t vm_get_audio_attr(int streamN)
   return attr;
 }
 
-uint16_t vm_get_subp_lang(int streamN)
-{
-  subp_attr_t attr = vm_get_subp_attr(streamN);
-  return attr.lang_code;
-}
 
-uint16_t vm_get_audio_lang(int streamN)
-{
-  audio_attr_t attr = vm_get_audio_attr(streamN);
-  return attr.lang_code;
-}
+
 
 // Must be called before domain is changed (get_PGCN())
 static void saveRSMinfo(int cellN, int blockN)
@@ -511,15 +481,13 @@ static int set_PGN(void) {
   
   if(state.domain == VTS_DOMAIN) {
     playback_type_t *pb_ty;
-    if(vmgi->tt_srpt == NULL)
-      ifoRead_TT_SRPT(vmgi);
     pb_ty = &vmgi->tt_srpt->title_info[state.TTN_REG].pb_ty;
     if(pb_ty->multi_or_random_pgc_title == /* One_Sequential_PGC_Title */ 0) {
-      if(vtsi->vts_ptt_srpt == NULL)
-	ifoRead_VTS_PTT_SRPT(vtsi);
+#if 0 /* TTN_REG can't be trusted to have a correct value here... */
       assert(state.VTS_TTN_REG <= vtsi->vts_ptt_srpt->nr_of_srpts);
       assert(get_PGCN() == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgcn);
       assert(1 == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgn);
+#endif
       state.PTTN_REG = state.pgN;
     }
   }
@@ -791,21 +759,20 @@ static link_t process_command(link_t link_values)
     case LinkTopPG:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      // Perhaps update pgN to current value first?
-      //state.pgN = ?
+      // Does pgN always contain the current value?
       link_values = play_PG();
       break;
     case LinkNextPG:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      // Perhaps update pgN to current value first?
+      // Does pgN always contain the current value?
       state.pgN += 1; // What if pgN becomes > pgc.nr_of_programs?
       link_values = play_PG();
       break;
     case LinkPrevPG:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      // Perhaps update pgN to current valu first?
+      // Does pgN always contain the current value?
       state.pgN -= 1; // What if pgN becomes < 1?
       link_values = play_PG();
       break;
@@ -818,15 +785,27 @@ static link_t process_command(link_t link_values)
     case LinkNextPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      exit(-1);
+      assert(state.pgc->next_pgc_nr != 0);
+      if(get_PGC(state.pgc->next_pgc_nr))
+	assert(0);
+      link_values = play_PGC();
+      break;
     case LinkPrevPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      exit(-1);
+      assert(state.pgc->prev_pgc_nr != 0);
+      if(get_PGC(state.pgc->prev_pgc_nr))
+	assert(0);
+      link_values = play_PGC();
+      break;
     case LinkGoUpPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      exit(-1);
+      assert(state.pgc->goup_pgc_nr != 0);
+      if(get_PGC(state.pgc->goup_pgc_nr))
+	assert(0);
+      link_values = play_PGC();
+      break;
     case LinkTailPGC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
@@ -867,7 +846,8 @@ static link_t process_command(link_t link_values)
       }
       break;
     case LinkPGCN:
-      get_PGC(link_values.data1);
+      if(get_PGC(link_values.data1))
+	assert(0);
       link_values = play_PGC();
       break;
     case LinkPTTN:
@@ -875,18 +855,20 @@ static link_t process_command(link_t link_values)
       if(link_values.data2 != 0)
 	state.HL_BTNN_REG = link_values.data2 << 10;
       if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, link_values.data1) == -1)
-	assert(3 == 5);
+	assert(0);
       link_values = play_PG();
       break;
     case LinkPGN:
       if(link_values.data2 != 0)
 	state.HL_BTNN_REG = link_values.data2 << 10;
+      /* Update any other state, PTTN perhaps? */
       state.pgN = link_values.data1;
       link_values = play_PG();
       break;
     case LinkCN:
       if(link_values.data2 != 0)
 	state.HL_BTNN_REG = link_values.data2 << 10;
+      /* Update any other state, pgN, PTTN perhaps? */
       state.cellN = link_values.data1;
       link_values = play_Cell();
       break;
@@ -897,19 +879,19 @@ static link_t process_command(link_t link_values)
     case JumpTT:
       assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
       if(get_TT(link_values.data1) == -1)
-	assert(1 == 2);
+	assert(0);
       link_values = play_PGC();
       break;
     case JumpVTS_TT:
       assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
       if(get_VTS_TT(state.vtsN, link_values.data1) == -1)
-	assert(2 ==  3);
+	assert(0);
       link_values = play_PGC();
       break;
     case JumpVTS_PTT:
       assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
       if(get_VTS_PTT(state.vtsN, link_values.data1, link_values.data2) == -1)
-	assert(3 == 4);
+	assert(0);
       link_values = play_PG();
       break;
       
@@ -923,7 +905,8 @@ static link_t process_command(link_t link_values)
 	     state.domain == VTSM_DOMAIN || 
 	     state.domain == FP_DOMAIN); //??
       state.domain = VMGM_DOMAIN;
-      get_MENU(link_values.data1);
+      if(get_MENU(link_values.data1) == -1)
+	assert(0);
       link_values = play_PGC();
       break;
     case JumpSS_VTSM:
@@ -933,14 +916,15 @@ static link_t process_command(link_t link_values)
 	ifoOpenNewVTSI(dvd, link_values.data1); 
 	//state.vtsN = link_values.data1;
       } else {
-	// This happens on a region 2 'The Fifth Element' 
+	// This happens on 'The Fifth Element' region 2.
 	assert(state.domain == VTSM_DOMAIN);
       }
       // I don't know what title is supposed to be used for.
-      // To set state.TTN_REG ? or ? alien or aliens had this != 1, I think.
+      // Alien or Aliens has this != 1, I think.
       //assert(link_values.data2 == 1);
       state.VTS_TTN_REG = link_values.data2;
-      get_MENU(link_values.data3);
+      if(get_MENU(link_values.data3) == -1)
+	assert(0);
       link_values = play_PGC();
       break;
     case JumpSS_VMGM_PGC:
@@ -948,7 +932,8 @@ static link_t process_command(link_t link_values)
 	     state.domain == VTSM_DOMAIN ||
 	     state.domain == FP_DOMAIN); //??
       state.domain = VMGM_DOMAIN;
-      get_PGC(link_values.data1);
+      if(get_PGC(link_values.data1) == -1)
+	assert(0);
       link_values = play_PGC();
       break;
       
@@ -964,42 +949,27 @@ static link_t process_command(link_t link_values)
       // Must be called before domain is changed
       saveRSMinfo(link_values.data2, /* We dont have block info */ 0);      
       state.domain = VMGM_DOMAIN;
-      if(get_MENU(link_values.data1) != -1) {
-	link_values = play_PGC();
-      } else {
-	link_values.command = LinkRSM; /* This might be dangerous */
-	link_values.data1 = 0;
-	link_values.data2 = 0;
-	link_values.data3 = 0;
-      }
+      if(get_MENU(link_values.data1) == -1)
+	assert(0);
+      link_values = play_PGC();
       break;
     case CallSS_VTSM:
       assert(state.domain == VTS_DOMAIN); //??   
       // Must be called before domain is changed
       saveRSMinfo(link_values.data2, /* We dont have block info */ 0);
       state.domain = VTSM_DOMAIN;
-      if(get_MENU(link_values.data1) != -1) {
-	link_values = play_PGC();
-      } else {
-	link_values.command = LinkRSM; /* This might be dangerous */
-	link_values.data1 = 0;
-	link_values.data2 = 0;
-	link_values.data3 = 0;
-      }
+      if(get_MENU(link_values.data1) == -1)
+	assert(0);
+      link_values = play_PGC();
       break;
     case CallSS_VMGM_PGC:
       assert(state.domain == VTS_DOMAIN); //??   
       // Must be called before domain is changed
       saveRSMinfo(link_values.data2, /* We dont have block info */ 0);
       state.domain = VMGM_DOMAIN;
-      if(get_PGC(link_values.data1) != -1) {
-	link_values = play_PGC();
-      } else {
-	link_values.command = LinkRSM; /* This might be dangerous */
-	link_values.data1 = 0;
-	link_values.data2 = 0;
-	link_values.data3 = 0;
-      }
+      if(get_PGC(link_values.data1) == -1)
+	assert(0);
+      link_values = play_PGC();
       break;
     case PlayThis:
       /* Should never happen. */
@@ -1019,9 +989,6 @@ static link_t process_command(link_t link_values)
 
 static int get_TT(int tt)
 {  
-  if(vmgi->tt_srpt == NULL) {
-    ifoRead_TT_SRPT(vmgi);
-  }
   assert(tt <= vmgi->tt_srpt->nr_of_srpts);
   
   state.TTN_REG = tt;
@@ -1041,7 +1008,8 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
   
   pgcN = get_ID(vts_ttn); // This might return -1
   assert(pgcN != -1);
-  
+
+  //state.TTN_REG = ?? Must search tt_srpt for a matchhing entry...  
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
   
@@ -1057,17 +1025,13 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
   if(vtsN != state.vtsN)
     ifoOpenNewVTSI(dvd, vtsN); // Also sets state.vtsN
   
-  if(vtsi->vts_ptt_srpt == NULL)
-    ifoRead_VTS_PTT_SRPT(vtsi);
-
-  
   assert(vts_ttn <= vtsi->vts_ptt_srpt->nr_of_srpts);
   assert(part <= vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].nr_of_ptts);
   
   pgcN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgcn;
   pgN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgn;
   
-  //state.TTN_REG = ?? 
+  //state.TTN_REG = ?? Must search tt_srpt for a matchhing entry...
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
   
@@ -1081,8 +1045,6 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
 static int get_FP_PGC(void)
 {  
   state.domain = FP_DOMAIN;
-  if(vmgi->first_play_pgc == NULL)
-    ifoRead_FP_PGC(vmgi);
 
   state.pgc = vmgi->first_play_pgc;
   
@@ -1125,8 +1087,8 @@ static int get_PGC(int pgcN)
   
   pgcit = get_PGCIT();
   
-  assert(pgcit != NULL);
-  if(pgcN < 0 || pgcN > pgcit->nr_of_pgci_srp)
+  assert(pgcit != NULL); // ?? Make this return -1 instead
+  if(pgcN < 1 || pgcN > pgcit->nr_of_pgci_srp)
     return -1; // error
   
   //state.pgcN = pgcN;
@@ -1186,7 +1148,10 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
     ifoClose(vtsi);
   
   vtsi = ifoOpenVTSI(dvd, vtsN);
-  
+  ifoRead_VTS_PTT_SRPT(vtsi);
+  ifoRead_PGCIT(vtsi);
+  ifoRead_MENU_PGCI_UT(vtsi);
+
   state.vtsN = vtsN;
 }
 
@@ -1195,9 +1160,6 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
 
 static pgcit_t* get_VTS_PGCIT()
 {
-  if(vtsi->vts_pgcit == NULL)
-    ifoRead_PGCIT(vtsi);
-  
   return vtsi->vts_pgcit;
 }
 
@@ -1206,10 +1168,7 @@ static pgcit_t* get_VTSM_PGCIT(uint16_t lang)
   int i;
   
   if(vtsi->vtsm_pgci_ut == NULL)
-    ifoRead_MENU_PGCI_UT(vtsi);
-  
-  if(vtsi->vtsm_pgci_ut == NULL)
-    return NULL; // error!
+    return NULL; // error?
   
   i = 0;
   while(i < vtsi->vtsm_pgci_ut->nr_of_lang_units
@@ -1228,10 +1187,7 @@ static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
   int i;
   
   if(vmgi->vmgm_pgci_ut == NULL)
-    ifoRead_MENU_PGCI_UT(vmgi);
-  
-  if(vmgi->vmgm_pgci_ut == NULL)
-    return NULL; // error!
+    return NULL; // error?
  
   i = 0;
   while(i < vmgi->vmgm_pgci_ut->nr_of_lang_units

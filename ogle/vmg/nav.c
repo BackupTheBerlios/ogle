@@ -711,14 +711,19 @@ void do_run(void) {
 	case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
 	  {
 	    MsgEvent_t send_ev;
+	    int streamN = ev.dvdctrl.cmd.audioattributes.streamnr;
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
-	    send_ev.dvdctrl.cmd.audioattributes.streamnr 
-	      = ev.dvdctrl.cmd.audioattributes.streamnr;
-	    memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
-		   sizeof(DVDAudioAttributes_t)); //TBD
-	    send_ev.dvdctrl.cmd.audioattributes.attr.Language =
-	      vm_get_audio_lang(ev.dvdctrl.cmd.audioattributes.streamnr);
+	    send_ev.dvdctrl.cmd.audioattributes.streamnr = streamN;
+	    {
+	      audio_attr_t attr = vm_get_audio_attr(streamN);
+	      memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
+		     sizeof(DVDAudioAttributes_t)); //TBD
+	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
+		= attr.audio_type;
+	      send_ev.dvdctrl.cmd.audioattributes.attr.Language 
+		= attr.lang_code;
+	    }
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
 	  }
 	  break;
@@ -751,14 +756,17 @@ void do_run(void) {
  	case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
 	  {
 	    MsgEvent_t send_ev;
+	    int streamN = ev.dvdctrl.cmd.subpictureattributes.streamnr;
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureAttributes;
-	    send_ev.dvdctrl.cmd.subpictureattributes.streamnr 
-	      = ev.dvdctrl.cmd.subpictureattributes.streamnr;
-	    memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
-		   sizeof(DVDSubpictureAttributes_t)); //TBD
-	    send_ev.dvdctrl.cmd.subpictureattributes.attr.Language =
-	      vm_get_subp_lang(ev.dvdctrl.cmd.subpictureattributes.streamnr);
+	    send_ev.dvdctrl.cmd.subpictureattributes.streamnr = streamN;
+	    {
+	      subp_attr_t attr = vm_get_subp_attr(streamN);
+	      memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
+		     sizeof(DVDSubpictureAttributes_t)); //TBD
+	      send_ev.dvdctrl.cmd.subpictureattributes.attr.Language 
+		= attr.lang_code;
+	    }
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }	  
 	  break;
@@ -788,13 +796,11 @@ void do_run(void) {
       int len;
       
       assert(pending_lbn != dsi.dsi_gi.nv_pck_lbn);
-      
       //fprintf(stderr, "Got a NAV packet\n");
       
       len = get_q(msgq, &buffer[0]);
       
       if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
-	/* XXX inte läsa till pci utan något annat minne? */
 	navRead_PCI(&pci, &buffer[1], len);
 	/* Is this the packet we are waiting for? */
 	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
@@ -811,9 +817,10 @@ void do_run(void) {
 	*/
 	/* Evaluate and Instantiate the new pci packet */
 	process_pci(&pci, &state.HL_BTNN_REG);
-
+	if(pci.hli.hl_gi.hli_ss == 1 && state.domain == VTS_DOMAIN)
+	  navPrint_PCI(&pci);
+	  
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
-	/* XXX inte läsa till dsi utan något annat minne? */
 	navRead_DSI(&dsi, &buffer[1], len);
 	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
 	  //fprintf(stdout, "nav: Droped DSI packet\n");
@@ -822,6 +829,8 @@ void do_run(void) {
 	}
 	//fprintf(stdout, "nav: Got DSI packet\n");	  
 	//navPrint_DSI(&dsi);
+	if(pci.hli.hl_gi.hli_ss == 1 && state.domain == VTS_DOMAIN)
+	  navPrint_DSI(&dsi);
 
       } else {
 	int i;

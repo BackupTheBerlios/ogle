@@ -74,5 +74,5 @@ int vm_get_subp_stream(int subpN);
 int vm_get_subp_active_stream(void);
 void vm_get_audio_info(int *num_avail, int *current);
 void vm_get_subp_info(int *num_avail, int *current);
-uint16_t vm_get_subp_lang(int streamN);
-uint16_t vm_get_audio_lang(int streamN);
+subp_attr_t vm_get_subp_attr(int streamN);
+audio_attr_t vm_get_audio_attr(int streamN);

@@ -282,9 +282,9 @@ int dvd_close_root(void) {
 }
 
 static int dvd_file_num = -1;
-static dvd_domain_t dvd_file_dom = -1;
+static dvd_read_domain_t dvd_file_dom = -1;
 
-int dvd_change_file(int titlenum, dvd_domain_t domain)
+int dvd_change_file(int titlenum, dvd_read_domain_t domain)
 {
   
   if(titlenum == dvd_file_num && domain == dvd_file_dom) {
@@ -334,7 +334,7 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
   return 0;
 }
 
-int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
+int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
 {
   int next_write_pos;
   static int free_block_offs = 0;
@@ -1050,7 +1050,8 @@ void PES_packet()
     bytes_read = 3;
 
     if(PES_scrambling_control != 0) {
-      fprintf(stderr, "demux: Encountered a scrambled PES packet!\n");
+      fprintf(stderr, "demux: Found a scrambled PES packet! (%d)\n", 
+	      PES_scrambling_control);
     }
     
     if(PTS_DTS_flags == 0x2) {
