@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -1179,6 +1180,8 @@ void picture_coding_extension(void)
   pic.coding_ext.f_code[0][1] = GETBITS(4, "f_code[0][1]");
   pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
   pic.coding_ext.f_code[1][1] = GETBITS(4, "f_code[1][1]");
+  
+  /* FIXME: Workaround for faulty streams. */
   for(n = 0; n < 2; n++) {
     for(m = 0; m < 2; m++) {
       if(pic.coding_ext.f_code[n][m] == 0) {
@@ -1206,7 +1209,7 @@ void picture_coding_extension(void)
   }
   /**/
   pic.coding_ext.picture_structure = GETBITS(2, "picture_structure");
-
+  
 #ifdef DEBUG
   /* Table 6-14 Meaning of picture_structure */
   DPRINTFI(2, "picture_structure: ");
@@ -1226,6 +1229,10 @@ void picture_coding_extension(void)
   }
   DPRINTF(2, "\n");
 #endif
+  
+  /* FIXME: Workaround for faulty streams. */
+  if(pic.coding_ext.picture_structure == PIC_STRUCT_RESERVED)
+    pic.coding_ext.picture_structure = PIC_STRUCT_FRAME_PICTURE;
 
   pic.coding_ext.top_field_first = GETBITS(1, "top_field_first");
   pic.coding_ext.frame_pred_frame_dct = GETBITS(1, "frame_pred_frame_dct");
@@ -1387,7 +1394,7 @@ void picture_header(void)
 
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
-
+  
   DPRINTFI(1, "temporal_reference: %d\n", pic.header.temporal_reference);
 #ifdef DEBUG
   /* Table 6-12 --- picture_coding_type */
@@ -1414,6 +1421,18 @@ void picture_header(void)
     break;
   }
 #endif
+  
+  switch(pic.header.picture_coding_type) {
+  case PIC_CODING_TYPE_I:
+  case PIC_CODING_TYPE_P:
+  case PIC_CODING_TYPE_B:
+    break;
+  case PIC_CODING_TYPE_FORBIDDEN:
+  case PIC_CODING_TYPE_D:
+  default:
+    /* FIXME: Workaround, should return error and skipp whole picture */
+    pic.header.picture_coding_type = PIC_CODING_TYPE_P;
+  }
 
   pic.header.vbv_delay = GETBITS(16, "vbv_delay");
   
