@@ -22,7 +22,7 @@
 0000_0000 ****_0010 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Break
 0000_0000 ****_0011 ****_**** ****_**** ****_**** ****_**** ****_PPPP LLLL_LLLL -- SetTMPL P,L
 
-001 -- Link/jump commands
+0010 -- Link commands
 =========================
 0010_0000 0CCC_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- if (r[A] `C` r[B]) then ...
 0010_0000 1CCC_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- if (r[A] `C` D) then ...
@@ -45,6 +45,8 @@
 0010_0000 ****_0110 ****_**** ****_**** ****_**** ****_**** BBBB_BB** *NNN_NNNN -- LinkPGN
 0010_0000 ****_0111 ****_**** ****_**** ****_**** ****_**** BBBB_BB** NNNN_NNNN -- LinkCN
 
+0011 -- Jump commands
+=========================
 0011_0000 *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
 
 0011_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Exit
@@ -60,7 +62,7 @@
 0011_0000 ****_1000 ****_**** ****_**** RRRR_RRRR 10**_MMMM ****_**** ****_**** -- CallSS VTSM_DOM (jump to menu in VTSM [this vts]) (from VTS)
 0011_0000 ****_1000 *PPP_PPPP PPPP_PPPP RRRR_RRRR 11**_**** ****_**** ****_**** -- CallSS VMGM_DOM (jump to pgc in VMG)              (from VTS)
 
-010 -- Set System Parameters
+010 -- Set System Parameters (Can be combined with Link commands)
 ============================
 010*_**** *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
 0100_0001 ****_**** ****_**** A***_XXXX B***_YYYY C***_ZZZZ ****_**** ****_**** -- A -> s[1]=g[X]  B -> s[2]=g[Y]  c -> s[3]=g[Z]
@@ -68,7 +70,7 @@
 0100_0110 ****_**** ****_**** ****_**** ****_**** ****_XXXX ****_**** ****_**** -- s[8]=g[X]
 0101_0110 ****_**** ****_**** ****_**** XXXX_XXXX XXXX_XXXX ****_**** ****_**** -- s[8]=X (button number are stored in the highest six bits)
 
-011 -- Set General Parameters
+011 -- Set General Parameters (Can be combined with Link commands)
 =============================
 011*_**** 0CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** ****_**** BBBB_BBBB -- if (r[A] `C` r[B]) ...
 011*_**** 1CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** DDDD_DDDD DDDD_DDDD -- if (r[A] `C` D)    ...
