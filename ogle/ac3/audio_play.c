@@ -66,7 +66,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	    s->delay_resolution = h->config->ainfo->sample_rate/200;
 	    s->max_sync_diff = 2 * s->delay_resolution *
 	      (CT_FRACTION / h->config->ainfo->sample_rate);
-	    NOTE("delay resolution better: 0.%09d, %d samples, rate: %d\n",
+	    NOTE("delay resolution better than: 0.%09d, %d samples, rate: %d\n",
 		 s->max_sync_diff/2, s->delay_resolution,
 		 h->config->ainfo->sample_rate);
 	    s->delay_resolution_set = 1;
@@ -86,7 +86,6 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
     
     if(ctrl_data->speed == 1.0) {
       clocktime_t real_time, scr_time, delay_time;
-      clocktime_t t1, t2;
       clocktime_t delta_sync_time;
       clocktime_t sleep_time = { 0, 0 };
 
@@ -136,49 +135,60 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	  // add constant offset
 	  timeadd(&scr_time, &scr_time, &s->offset);
 
-	  calc_realtime_left_to_scrtime(&t1,
-					&real_time,
-					&scr_time,
-					&(ctrl_time[scr_nr].sync_point));
-	  /*
-	    DNOTE("time left %ld.%+010ld\n", TIME_S(t1), TIME_SS(t1));
-	    DNOTE("delay %ld.%+010ld\n", TIME_S(delay_time), TIME_SS(delay_time));
-	  */
-	  
-	  timesub(&t2, &delay_time, &t1);
-	  if(TIME_S(t2) > 0 || TIME_SS(t2) > s->max_sync_diff ||
-	   TIME_S(t2) < 0 || TIME_SS(t2) < -s->max_sync_diff) {
-	    
-	    if(TIME_S(t2) > 0 || TIME_SS(t2) > 2*s->max_sync_diff ||
-	       TIME_S(t2) < 0 || TIME_SS(t2) < -2*s->max_sync_diff) {
-	      DNOTE("%ld.%+010ld s off, resyncing\n",
-		    TIME_S(t2), TIME_SS(t2));
-	    } else { 
-	      //fprintf(stderr, "(%d)", delay);
-	      if(TIME_SS(t2) > 0) {
-		fprintf(stderr, "+");
-	      } else {
-		fprintf(stderr, "-");
-	      }
-	      /*
-		{
-		clocktime_t drift;
-
-		timesub(&drift, &real_time, &last_sync);		
-		fprintf(stderr, "[%+07ld / %+07ld]",
-		TIME_SS(t2), TIME_SS(drift));
-		
-		}
-	      */
-	    }
+	  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	    timeadd(&delay_time, &delay_time, &real_time);
-	    
 	    set_sync_point(&ctrl_time[scr_nr],
 			   &delay_time,
 			   &scr_time,
 			   ctrl_data->speed);
-	    
-	  }
+
+	  } else {
+	    clocktime_t t1, t2;
+	    calc_realtime_left_to_scrtime(&t1,
+					  &real_time,
+					  &scr_time,
+					  &(ctrl_time[scr_nr].sync_point));
+	    /*
+	      DNOTE("time left %ld.%+010ld\n", TIME_S(t1), TIME_SS(t1));
+	      DNOTE("delay %ld.%+010ld\n", TIME_S(delay_time), TIME_SS(delay_time));
+	    */
+	  
+	    timesub(&t2, &delay_time, &t1);
+	    if(TIME_S(t2) > 0 || TIME_SS(t2) > s->max_sync_diff ||
+	       TIME_S(t2) < 0 || TIME_SS(t2) < -s->max_sync_diff) {
+	      
+	      if(TIME_S(t2) > 0 || TIME_SS(t2) > 4*s->max_sync_diff ||
+		 TIME_S(t2) < 0 || TIME_SS(t2) < -4*s->max_sync_diff) {
+		DNOTE("%ld.%+010ld s off, resyncing\n",
+		      TIME_S(t2), TIME_SS(t2));
+	      } else { 
+		//fprintf(stderr, "(%d)", delay);
+		if(TIME_SS(t2) > 0) {
+		  fprintf(stderr, "+");
+		} else {
+		  fprintf(stderr, "-");
+		}
+		/*
+		  {
+		  clocktime_t drift;
+		  
+		  timesub(&drift, &real_time, &last_sync);		
+		  fprintf(stderr, "[%+07ld / %+07ld]",
+		  TIME_SS(t2), TIME_SS(drift));
+		  
+		  }
+		*/
+	      }
+	      
+	      timeadd(&delay_time, &delay_time, &real_time);
+	      
+ 	      set_sync_point(&ctrl_time[scr_nr],
+			     &delay_time,
+			     &scr_time,
+			     ctrl_data->speed);
+	      
+	    }
+	  }	
 	  if(!last_sync_set) {
 	    last_sync_set = 1;
 	    last_sync = real_time;
