@@ -311,8 +311,6 @@ if test "x$enable_oss" != xno; then
     case "$host" in
     *-linux*|*-openbsd*|*-freebsd*|*-bsdi*)
 
- 
-
 dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
@@ -322,9 +320,24 @@ dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
     esac
 fi
 
+dnl check for openbsd audio 
+AC_ARG_ENABLE([obsdaudio],
+    [  --disable-obsdaudio     make a version not using OpenBSD audio])
+if test "x$enable_obsdaudio" != xno; then
+    case "$host" in
+    *-openbsd*)
+
+dnl only define LIBOGLEAO_OBSD headers found
+dnl sys/audioio.h
+        AC_DEFINE([LIBOGLEAO_OBSD],,[libogleao OpenBSD audio support])
+	DEFAULT_AUDIO_DRIVER="obsd"
+    ;;
+    esac
+fi
+
 dnl check for sunaudio
 AC_ARG_ENABLE([sunaudio],
-    [  --disable-sunaudio      make a version not using sunaudio])
+    [  --disable-sunaudio      make a version not using Sun audio])
 if test "x$enable_sunaudio" != xno; then
     case "$host" in
     *-sun-solaris*|*-netbsd*)

@@ -32,9 +32,11 @@ typedef enum {
  * in the sample.
  * channels is the number of samples taken at the same time.
  * The sample_frame_size is the space in bytes that is used to store
- * all samples taken at the same time
+ * all samples taken at the same time.
+ * For normal CD audio (44.1kHz 16bit stereo) this would be:
+ * sample_rate = 44100, sample_resolution = 16, channels = 2
+ * encoding = OGLE_AO_ENCODING_LINEAR, sample_frame_size = 4
  */
-
 typedef struct {
   uint32_t sample_rate;        // samples per second
   uint32_t sample_resolution;  // bits per sample
@@ -54,6 +56,7 @@ typedef struct {
 
 /* return NULL terminated array of all drivers */
 ao_driver_t * ao_drivers (void);
+
 
 /* Open a given driver, and give it the argument of dev */  
 ogle_ao_instance_t *ogle_ao_open(ao_open_t open, char *dev);

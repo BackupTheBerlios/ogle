@@ -23,10 +23,14 @@
 #include "ogle_ao_private.h"
 
 #include "alsa_audio.h"
+#include "obsd_audio.h"
 #include "oss_audio.h"
 #include "solaris_audio.h"
 
 static ao_driver_t audio_out_drivers[] = {
+#ifdef LIBOGLEAO_OBSD
+    {"obsd", ao_obsd_open},
+#endif
 #ifdef LIBOGLEAO_ALSA
     {"alsa", ao_alsa_open},
 #endif
