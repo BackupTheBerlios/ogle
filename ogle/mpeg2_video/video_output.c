@@ -406,7 +406,6 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
   windows[2].image = current_image;
   windows[2].mbs = ref2_mbs;
   
-
   if(show_window[1]) {
     draw_win(&windows[1]);
   }
@@ -426,7 +425,7 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
     } else {
       XNextEvent(mydisplay, &ev);
     }
-    
+
     switch(ev.type) {
     case Expose:
       {
@@ -859,7 +858,7 @@ void draw_win(debug_win *dwin)
 	  dwin->image->padded_height, 
 	  dwin->image->padded_width*(pixel_stride/8),
 	  dwin->image->padded_width, dwin->image->padded_width/2 );
-  
+
   if(dwin->grid) {
     if(dwin->color_grid) {
       add_color_grid(dwin);
@@ -868,7 +867,6 @@ void draw_win(debug_win *dwin)
     }
   }
 
-  
   Display_Image(dwin->win, dwin->ximage, dwin->data, dwin->image);
 
   return;
@@ -982,6 +980,7 @@ void display_process()
 
   while(1) {
     buf_id = get_next_picture_buf_id();
+    //fprintf(stderr, "display: start displaying buf: %d\n", buf_id);
     frame_interval.tv_nsec = buf_ctrl_head->frame_interval;
     if(first) {
       first = 0;
@@ -1012,7 +1011,7 @@ void display_process()
     } else {
       //fprintf(stderr, "---less than 0.005 s\n");
     }
-    
+
     frame_nr++;
     avg_nr++;
     if(avg_nr == 24) {
@@ -1027,7 +1026,7 @@ void display_process()
 		     (double)(oavg_time.tv_nsec)/1000000000.0))
 	      );
     }
-      
+
     clock_gettime(CLOCK_REALTIME, &real_time2);
     timesub(&diff, &prefered_time, &real_time2);
     /*
@@ -1048,13 +1047,16 @@ void display_process()
 	fprintf(stderr, "# %+010ld \n", wait_time.tv_nsec);
       }
     }
+
     if(!drop) {
       display(buf_id);
     } else {
       fprintf(stderr, "* \n");
       drop = 0;
     }
+
     timeadd(&prefered_time, &prefered_time, &frame_interval);
+
     if(wait_time.tv_nsec < 0) {
       drop = 1;
     }

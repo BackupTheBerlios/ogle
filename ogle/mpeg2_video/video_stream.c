@@ -616,7 +616,10 @@ void sequence_header(void)
   DPRINTF(1, "sequence_header\n");
   
   sequence_header_code = GETBITS(32, "sequence header code");
-  
+  if(sequence_header_code != MPEG2_VS_SEQUENCE_HEADER_CODE) {
+    fprintf(stderr, "wrong start_code sequence_header_code: %08x\n",
+	    sequence_header_code);
+  }
   /* When a sequence_header_code is decoded all matrices shall be reset
      to their default values */
   
@@ -940,6 +943,10 @@ void sequence_extension(void) {
   uint32_t extension_start_code;
   
   extension_start_code = GETBITS(32, "extension_start_code");
+  if(extension_start_code != MPEG2_VS_EXTENSION_START_CODE) {
+    fprintf(stderr, "wrong start_code extension_start_code: %08x\n",
+	    extension_start_code);
+  }
   
   seq.ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
   seq.ext.profile_and_level_indication = GETBITS(8, "profile_and_level_indication");
@@ -1096,6 +1103,7 @@ void picture_coding_extension(void)
   DPRINTF(3, "picture_coding_extension\n");
 
   extension_start_code = GETBITS(32, "extension_start_code");
+
   pic.coding_ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
   pic.coding_ext.f_code[0][0] = GETBITS(4, "f_code[0][0]");
   pic.coding_ext.f_code[0][1] = GETBITS(4, "f_code[0][1]");
@@ -1217,6 +1225,12 @@ void group_of_pictures_header(void)
 
 
   group_start_code = GETBITS(32, "group_start_code");
+
+  if(group_start_code != MPEG2_VS_GROUP_START_CODE) {
+    fprintf(stderr, "wrong start_code group_start_code: %08x\n",
+	    group_start_code);
+  }
+
   time_code = GETBITS(25, "time_code");
 
   /* Table 6-11 --- time_code */
@@ -1241,6 +1255,12 @@ void picture_header(void)
 
   seq.mb_row = 0;
   picture_start_code = GETBITS(32, "picture_start_code");
+
+  if(picture_start_code != MPEG2_VS_PICTURE_START_CODE) {
+    fprintf(stderr, "wrong start_code picture_start_code: %08x\n",
+	    picture_start_code);
+  }
+
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
 
@@ -1420,13 +1440,14 @@ void picture_data(void)
 
   buf_id = get_picture_buf();
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
-  //fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  //  fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  //fprintf(stderr, "reserved_image->y: %u\n", reserved_image->y);
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
     //I,P picture
     buf_ctrl_head->picture_infos[buf_id].in_use = 1;
-    //fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
+    //    fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
     ref_image1 = ref_image2;
 
     ref_image2 = reserved_image;
@@ -1442,7 +1463,7 @@ void picture_data(void)
     break;
   case 0x3:
     // B-picture
-    //fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
+    //    fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
     dst_image = reserved_image;
     break;
   }
@@ -1897,7 +1918,8 @@ void motion_comp()
   dst_y = &dst_image->y[x * 16 + y * padded_width * 16];
   dst_u = &dst_image->u[x * 8 + y * padded_width/2 * 8];
   dst_v = &dst_image->v[x * 8 + y * padded_width/2 * 8];
-    
+
+  //  fprintf(stderr, "*DEST_Y: %u\n", dst_y);
   //mb.prediction_type = PRED_TYPE_FIELD_BASED;
     
   if(mb.modes.macroblock_motion_forward) {
@@ -1947,6 +1969,8 @@ void motion_comp()
 	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       pred_v =
 	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
+      DPRINTF(3, "x: %d, y: %d\n", x, y);
       
       
       if (half_flag_y[0] && half_flag_y[1]) {
@@ -2063,7 +2087,7 @@ void motion_comp()
     for(i = 0; i < apa; i++) {
       
       field = mb.motion_vertical_field_select[i][1];
-      
+
       half_flag_y[0]  = (mb.vector[i][1][0] & 1);
       half_flag_y[1]  = (mb.vector[i][1][1] & 1);
       half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
@@ -2072,7 +2096,13 @@ void motion_comp()
       int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
       int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
       int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa + (signed int)y * 8;
-     
+
+      DPRINTF(3, "p_vec x: %d, y: %d\n",
+	      (mb.vector[i][1][0] >> 1),
+	      (mb.vector[i][1][1] >> 1));
+    
+      DPRINTF(3, "x: %d, y: %d\n", x, y);
+
       pred_y  =
 	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
       pred_u =
