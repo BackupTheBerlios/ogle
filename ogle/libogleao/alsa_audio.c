@@ -32,7 +32,7 @@ typedef struct alsa_instance_s {
 	ogle_ao_instance_t ao;
 	int sample_rate;
 	int samples_written;
-	int sample_size;
+	int sample_frame_size;
 	int channels;
 	int initialized;
 	snd_pcm_t *alsa_pcm;
@@ -168,10 +168,12 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	if(single_sample_size > 2) {
 		single_sample_size = 4;
 	}
-	instance->sample_size = single_sample_size*audio_info->channels;
+	instance->sample_frame_size = single_sample_size*audio_info->channels;
 	instance->initialized = 1;
   
 	instance->channels = audio_info->channels;
+
+	audio_info->sample_frame_size = instance->sample_frame_size;
 
 	if ((err = set_hwparams(instance)) < 0) {
 		fprintf(stderr, "Setting of hwparams failed: %s\n", snd_strerror(err));
@@ -183,7 +185,7 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	}
 	fprintf(stderr, "Stream parameters are %iHz, %s, %i channels, sample size: %d\n", 
 		instance->sample_rate, snd_pcm_format_name(instance->format), 
-		instance->channels, instance->sample_size);
+		instance->channels, instance->sample_frame_size);
     
   
   return 0;
@@ -218,7 +220,7 @@ int alsa_play(ogle_ao_instance_t *_instance, void *samples, size_t nbytes)
 	long written;
 	void *ptr;
   
-	nsamples = nbytes / instance->sample_size;
+	nsamples = nbytes / instance->sample_frame_size;
 	ptr = samples;
 	while (nsamples > 0) {
 		written = snd_pcm_writei(instance->alsa_pcm, ptr, nsamples);
@@ -239,7 +241,7 @@ int alsa_play(ogle_ao_instance_t *_instance, void *samples, size_t nbytes)
 		nsamples -= written;
 	}
 
-  	instance->samples_written += nbytes / instance->sample_size;
+  	instance->samples_written += nbytes / instance->sample_frame_size;
   
   	return 0;
 }
@@ -324,7 +326,7 @@ ogle_ao_instance_t *alsa_open(char *dev)
     instance->initialized = 0;
     instance->sample_rate = 0;
     instance->samples_written = 0;
-    instance->sample_size = 0;
+    instance->sample_frame_size = 0;
 
     if ((err = snd_output_stdio_attach(&logs, stderr, 0)) < 0) {
 		fprintf(stderr, "Output log failed: %s\n", snd_strerror(err));

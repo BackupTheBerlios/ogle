@@ -30,7 +30,7 @@ typedef struct null_instance_s {
   ogle_ao_instance_t ao;
   int sample_rate;
   int samples_written;
-  int sample_size;
+  int sample_frame_size;
   int initialized;
 } solaris_instance_t;
 
@@ -61,7 +61,7 @@ ogle_ao_instance_t *null_open(char *dev)
     instance->initialized = 0;
     instance->sample_rate = 0;
     instance->samples_written = 0;
-    instance->sample_size = 0;
+    instance->sample_frame_size = 0;
     
     return (ogle_ao_instance_t *)instance;
 }
@@ -86,10 +86,15 @@ int null_init(ogle_ao_instance_t *_instance,
   }
   
   instance->sample_rate = audio_info->sample_rate;
-  instance->sample_size =
+
+  instance->sample_frame_size =
      audio_info->channels * (audio_info->sample_resolution + 7) / 8;
+
+  audio_info->sample_frame_size = instance->sample_frame_size;
+
   instance->initialized = 1;
 
+  
   return 0;
 }
 
@@ -98,7 +103,7 @@ int null_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
 {
   null_instance_t *instance = (null_instance_t *)_instance;
   
-  instance->samples_written += nbytesn / instance->sample_size;
+  instance->samples_written += nbytesn / instance->sample_frame_size;
   
   return 0;
 }

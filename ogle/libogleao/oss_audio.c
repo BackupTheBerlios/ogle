@@ -40,7 +40,7 @@
 typedef struct oss_instance_s {
   ogle_ao_instance_t ao;
   int fd;
-  int sample_size;
+  int sample_frame_size;
   int initialized;
 } oss_instance_t;
 
@@ -54,7 +54,9 @@ int oss_init(ogle_ao_instance_t *_instance,
   int number_of_channels, sample_format, original_sample_format, sample_speed;
   
   if(instance->initialized) {
-    return -1;  // for now we must close and open the device for reinit
+    // SNDCTL_DSP_SYNC resets the audio device so we can set new parameters
+    ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
+    instance->initialized = 0;
   }
 
   // Set sample format, number of channels, and sample speed
@@ -106,7 +108,10 @@ int oss_init(ogle_ao_instance_t *_instance,
   if(single_sample_size > 2) {
     single_sample_size = 4;
   }
-  instance->sample_size = single_sample_size*number_of_channels;
+  instance->sample_frame_size = single_sample_size*number_of_channels;
+
+  audio_info->sample_frame_size = instance->sample_frame_size;
+
   instance->initialized = 1;
   
   return 0;
@@ -140,7 +145,7 @@ int oss_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
     return -1;
   }
 
-  *samples_return = odelay / instance->sample_size;
+  *samples_return = odelay / instance->sample_frame_size;
 
   return 1;
 }
@@ -159,7 +164,7 @@ int oss_flush(ogle_ao_instance_t *_instance)
   oss_instance_t *instance = (oss_instance_t *)_instance;
   
   ioctl(instance->fd, SNDCTL_DSP_RESET, 0);
-  //TODO we probably need to reinitialize after the reset
+  //TODO do we need to reinitialize after the reset?
 
   return 0;
 }

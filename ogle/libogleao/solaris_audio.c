@@ -39,7 +39,7 @@ typedef struct solaris_instance_s {
   int fd;
   int sample_rate;
   int samples_written;
-  int sample_size;
+  int sample_frame_size;
   int initialized;
 } solaris_instance_t;
 
@@ -81,7 +81,10 @@ int solaris_init(ogle_ao_instance_t *_instance,
   if(single_sample_size > 2) {
     single_sample_size = 4;
   }
-  instance->sample_size = single_sample_size*info.play.channels;
+  instance->sample_frame_size = single_sample_size*info.play.channels;
+
+  audio_info->sample_frame_size = instance->sample_frame_size;
+
   instance->initialized = 1;
 
   return 0;
@@ -99,7 +102,7 @@ int solaris_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
     return -1;
   }
   
-  instance->samples_written += written / instance->sample_size;
+  instance->samples_written += written / instance->sample_frame_size;
   return 0;
 }
 
@@ -137,9 +140,9 @@ int solaris_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
     if(res == -1) {
       perror("AUDIO_SETINFO");
     }
-    if(info.play.samples != samples_played) {
+    if(instance->samples_written != samples_played) {
       fprintf(stderr, "underrun and more samples played: %d, %d\n",
-	      samples_played, info.play.samples);
+	      samples_played, instance->samples_written);
     }
     info.play.samples = 0;
     instance->samples_written = 0;
@@ -222,7 +225,7 @@ ogle_ao_instance_t *solaris_open(char *dev)
     instance->initialized = 0;
     instance->sample_rate = 0;
     instance->samples_written = 0;
-    instance->sample_size = 0;
+    instance->sample_frame_size = 0;
     
     instance->fd = open(dev, O_WRONLY);
     if(instance->fd < 0) {

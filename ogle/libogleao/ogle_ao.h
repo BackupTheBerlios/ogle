@@ -27,11 +27,20 @@ typedef enum {
   OGLE_AO_ENCODING_LINEAR
 } ogle_ao_encoding_t;
 
+/* A sample is a number representing the sound at a specific time.
+ * The sample_resolution is the number of bits that encode information
+ * in the sample.
+ * channels is the number of samples taken at the same time.
+ * The sample_frame_size is the space in bytes that is used to store
+ * all samples taken at the same time
+ */
+
 typedef struct {
   uint32_t sample_rate;        // samples per second
   uint32_t sample_resolution;  // bits per sample
   uint32_t channels;           // number of channels (1 = mono, 2 = stereo,...)
   ogle_ao_encoding_t encoding; // ( linear, ulaw, ac3, mpeg, ... )
+  uint32_t sample_frame_size;  // the size in bytes of one sample frame
 } ogle_ao_audio_info_t;
 
 typedef struct ogle_ao_instance_s ogle_ao_instance_t;
