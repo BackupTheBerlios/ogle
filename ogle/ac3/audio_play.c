@@ -63,11 +63,18 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	*/
 	
 	timesub(&t2, &delay_time, &t1);
-	if(TIME_S(t2) > 0 || TIME_SS(t2) > 100000000 ||
-	   TIME_S(t2) < 0 || TIME_SS(t2) < -10000000) {
-	  DNOTE("%ld.%+010ld s off, resyncing\n",
-		TIME_S(t2), TIME_SS(t2));
-	  
+	if(TIME_S(t2) > 0 || TIME_SS(t2) > (CT_FRACTION/100) ||
+	   TIME_S(t2) < 0 || TIME_SS(t2) < -(CT_FRACTION/100)) {
+
+	  if(TIME_S(t2) > 0 || TIME_SS(t2) > (CT_FRACTION/50) ||
+	     TIME_S(t2) < 0 || TIME_SS(t2) < -(CT_FRACTION/50)) {
+	    DNOTE("%ld.%+010ld s off, resyncing\n",
+		  TIME_S(t2), TIME_SS(t2));
+	  } else if(TIME_S(t2) == 0 || TIME_SS(t2) > 0) {
+	    fprintf(stderr, "+");
+	  } else {
+	    fprintf(stderr, "-");
+	  }
 	  timeadd(&delay_time, &delay_time, &real_time);
 	  
 	  set_sync_point(&ctrl_time[scr_nr],
