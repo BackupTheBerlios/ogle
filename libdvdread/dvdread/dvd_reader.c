@@ -221,6 +221,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
     
       dvd->css_state = 1; /* Need key init. */
     }
+    dvd->css_title = 0;
     
     return dvd;
 }
@@ -237,6 +238,9 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
 
     dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
     dvd->udfcache = NULL;
+    
+    dvd->css_state = 0; /* Only used in the UDF path */
+    dvd->css_title = 0; /* Only matters in the UDF path */
 
     return dvd;
 }
@@ -682,7 +686,7 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, int title, int menu )
 
             dvd_file->title_sizes[ i ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
             dvd_file->title_devs[ i ] = DVDinput_open( full_path );
-	    DVDinput_title( dvd_file->title_devs[ i ], 0);
+	    DVDinput_title( dvd_file->title_devs[ i ], 0 );
             dvd_file->filesize += dvd_file->title_sizes[ i ];
         }
         if( !dvd_file->title_devs[ 0 ] ) {
@@ -889,9 +893,11 @@ ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset,
       dvd_file->dvd->css_title = dvd_file->css_title;
       if( dvd_file->dvd->isImageFile ) {
 	DVDinput_title( dvd_file->dvd->dev, (int)dvd_file->lb_start );
-      } else {
+      } 
+      /* Here each vobu has it's own dvdcss handle, so no need to update 
+      else {
 	DVDinput_title( dvd_file->title_devs[ 0 ], (int)dvd_file->lb_start );
-      }
+      }*/
     }
     
     if( dvd_file->dvd->isImageFile ) {
