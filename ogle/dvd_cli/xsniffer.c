@@ -46,9 +46,10 @@ void xsniff_init() {
   fprintf(stderr, "sniff_init\n");
   display = XOpenDisplay(NULL);
 
+  /*
   ret = XSelectInput(display, win, StructureNotifyMask | KeyPressMask 
 		     | PointerMotionMask | ButtonPressMask | ExposureMask);
-  
+  */
   fprintf(stderr, "Ret: %d\n", ret);
   //pthread_create(&at, NULL, xsniff_mouse, NULL);
 
