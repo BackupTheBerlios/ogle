@@ -86,7 +86,7 @@ typedef enum {
 typedef DVDRegister_t DVDGPRMArray_t[16];
 typedef DVDRegister_t DVDSPRMArray_t[24];
 
-//typedef int DVDStream_t;
+typedef int DVDStream_t;
 typedef int DVDAngle_t;
 
 typedef int DVDPTT_t;
