@@ -1,18 +1,32 @@
-#include <X11/Xlib.h>
+/* Ogle - A video player
+ * Copyright (C) 2001, 2002 Björn Englund, Håkan Hjort
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
 
+#include <X11/Xlib.h>
 #ifdef HAVE_XF86VIDMODE
 #include <X11/extensions/xf86vmode.h>
 #endif
-
 #ifdef HAVE_XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif
 
-
 #include "display.h"
 #include "debug_print.h"
 
-extern char *program_name;
 
 typedef struct {
   int horizontal_pixels;
@@ -34,7 +48,7 @@ typedef struct {
   int y;
 } position_t;
 
-typedef struct _dpy_info_t{
+typedef struct {
   position_t screen_offset;
   resolution_t resolution;
   geometry_t geometry;
@@ -146,6 +160,7 @@ static int update_resolution_user(dpy_info_t *info,
     
     return 1;
   }
+  
   return 0;
 }
  
@@ -364,7 +379,6 @@ DpyInfoOrigin_t DpyInfoSetUpdateGeometry(Display *dpy, int screen_nr,
   }
   
   return 0;
-  
 }
 
 
@@ -411,6 +425,5 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
   }
   
   return 0;
-  
 }
 
