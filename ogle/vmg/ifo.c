@@ -15,6 +15,8 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
 void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);
 void ifoRead_PGC(pgc_t *pgc, int offset);
 void ifoPrint_PGC(pgc_t *pgc);
+void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset);
+void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl);
 void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
 void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
 
@@ -130,7 +132,7 @@ int main(int argc, char *argv[])
       ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
       ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
       
-      ifoRead_
+      
       
       
     } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
@@ -239,10 +241,61 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
 }
 
 void ifoRead_PGC(pgc_t *pgc, int offset) {
+  
   fseek(ifo_file, offset, SEEK_SET);
-  if(fread(pgc, sizeof(pgc_t), 1, ifo_file) != 1) {
+  if(fread(pgc, PGC_SIZE, 1, ifo_file) != 1) {
     perror("First Play PGC");
     exit(1);
+  }
+  
+  if(pgc->pgc_command_tbl_offset != 0) {
+    pgc->pgc_command_tbl = malloc(sizeof(pgc_command_tbl_t));
+    ifoRead_PGC_COMMAND_TBL(pgc->pgc_command_tbl, 
+			    offset + pgc->pgc_command_tbl_offset);
+  } else {
+    pgc->pgc_command_tbl = NULL;
+  }
+    
+}  
+
+
+void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
+  
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(cmd_tbl, PGC_COMMAND_TBL_SIZE, 1, ifo_file) != 1) {
+    perror("PGC - Command Table");
+    exit(1);
+  }
+  // assert(sizeof(command_data_t) == COMMAND_DATA_SIZE);
+  
+  if(cmd_tbl->nr_of_pre != 0) {
+    int pre_cmd_size  = cmd_tbl->nr_of_pre  * sizeof(command_data_t);
+    cmd_tbl->pre_commands  = malloc(pre_cmd_size);
+    if(fread(cmd_tbl->pre_commands, pre_cmd_size, 
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Pre comands");
+      exit(1);
+    }
+  }
+  
+  if(cmd_tbl->nr_of_post != 0) {
+    int post_cmd_size = cmd_tbl->nr_of_post * sizeof(command_data_t);
+    cmd_tbl->post_commands = malloc(post_cmd_size);
+    if(fread(cmd_tbl->post_commands, post_cmd_size,
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Post commands");
+      exit(1);
+    }
+  }
+  
+  if(cmd_tbl->nr_of_cell != 0) {
+    int cell_cmd_size = cmd_tbl->nr_of_cell * sizeof(command_data_t);
+    cmd_tbl->cell_commands = malloc(cell_cmd_size);
+    if(fread(cmd_tbl->cell_commands, cell_cmd_size,
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Cell commands");
+      exit(1);
+    }
   }
 }
 
@@ -284,18 +337,53 @@ void ifoPrint_PGC(pgc_t *pgc) {
   }
   
   /* Memmory offsets to div. tables. */
-  
+  ifoPrint_PGC_COMMAND_TBL(pgc->pgc_command_tbl);
+}
+
+void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
+  PUT(5, "Number of Pre commands: %i\n", cmd_tbl->nr_of_pre);
+  {
+    int i, j;
+    for(i=0;i<cmd_tbl->nr_of_pre;i++) {
+      for(j=0;j<8;j++) {
+	PUT(5, "%02x ", cmd_tbl->pre_commands[i][j]);
+      }
+      PUT(5, "\n");
+    }
+  }
+  PUT(5, "Number of Post commands: %i\n", cmd_tbl->nr_of_post);
+  {
+    int i, j;
+    for(i=0;i<cmd_tbl->nr_of_post;i++) {
+      for(j=0;j<8;j++) {
+	PUT(5, "%02x ", cmd_tbl->post_commands[i][j]);
+      }
+      PUT(5, "\n");
+    }
+  }
+  PUT(5, "Number of Cell commands: %i\n", cmd_tbl->nr_of_cell);
+  {
+    int i, j;
+    for(i=0;i<cmd_tbl->nr_of_cell;i++) {
+      for(j=0;j<8;j++) {
+	PUT(5, "%02x ", cmd_tbl->cell_commands[i][j]);
+      }
+      PUT(5, "\n");
+    }
+  }
 }
 
 void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
-  
+  int info_length;
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vmg_ptt_srpt, 8, 1, ifo_file) != 1) {
+  if(fread(vmg_ptt_srpt, VMG_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
     perror("VMG_PTT_SRPT");
     exit(1);
   }
-  vmg_ptt_srpt->title_info = malloc( vmg_ptt_srpt->last_byte + 1 - 8); 
-  if(fread(vmg_ptt_srpt->title_info, vmg_ptt_srpt->last_byte + 1 - 8, 1, ifo_file) != 1) {
+  info_length = vmg_ptt_srpt->last_byte + 1 - VMG_PTT_SRPT_SIZE;
+  vmg_ptt_srpt->title_info = malloc(info_length); 
+  //assert(info_length >= vmg_ptt_srpt->nr_of_srpts * sizeof(title_info_t));
+  if(fread(vmg_ptt_srpt->title_info, info_length, 1, ifo_file) != 1) {
     perror("VMG_PTT_SRPT");
     exit(1);
   }

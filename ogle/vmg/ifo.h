@@ -54,19 +54,18 @@ typedef struct { // Video Manager Information Management Table
 } __attribute__ ((packed)) vmgi_mat_t;
 
 typedef uint8_t command_data_t[8];
+#define COMMAND_DATA_SIZE 8
   
 typedef struct {
   uint16_t nr_of_pre;
   uint16_t nr_of_post;
   uint16_t nr_of_cell;
   uint16_t zero_1;
-  command_data_t *command_data; // New type
-#if 0
   command_data_t *pre_commands; // New type
   command_data_t *post_commands; // New type
-  command_data_t *cell_command; // New type
-#endif
+  command_data_t *cell_commands; // New type
 } __attribute__ ((packed)) pgc_command_tbl_t;
+#define PGC_COMMAND_TBL_SIZE 8
 
 typedef uint8_t pgc_progam_map_t; 
 
@@ -99,12 +98,16 @@ typedef struct {
   uint8_t  still_time;
   uint8_t  pg_playback_mode;
   uint32_t palette[16]; // New type {zero_1, Y, Cr, Cb}
+  uint16_t pgc_command_tbl_offset;
+  uint16_t pgc_program_map_offset;
+  uint16_t cell_playback_tbl_offset;
+  uint16_t cell_position_tbl_offset;
   pgc_command_tbl_t *pgc_command_tbl;
   pgc_progam_map_t  *pgc_progam_map;
   cell_playback_tbl_t *cell_playback_tbl;
   cell_position_tbl_t *cell_position_tbl;
 } __attribute__ ((packed)) pgc_t;
-
+#define PGC_SIZE 236
 
 typedef struct {
   uint8_t  playback_type;
@@ -122,7 +125,7 @@ typedef struct {
   uint32_t last_byte;
   title_info_t  *title_info; // New type.
 } __attribute__ ((packed)) vmg_ptt_srpt_t;
-
+#define VMG_PTT_SRPT_SIZE 8
 
 
 typedef struct {
