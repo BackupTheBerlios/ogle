@@ -54,9 +54,9 @@ ogle_mpeg_vs_SOURCES = \
 	video_types.h \
 	$(MLIBSOURCES) $(ALTIVECSOURCES) $(MMXSOURCES) $(CSOURCES)
 ogle_mpeg_vs_LDADD = \
-	@MLIB_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
-	$(top_builddir)/ogle/libmsgevents.la
+	$(top_builddir)/ogle/libmsgevents.la \
+	@MLIB_LIBS@
 
 ogle_vout_SOURCES = \
 	video_output_x11.c video_output.c \
@@ -70,10 +70,10 @@ ogle_vout_SOURCES = \
 	video_output_parse_config.c video_output_parse_config.h \
 	$(MLIBSOURCES) $(ALTIVECSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 ogle_vout_LDADD = \
+	$(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
 	@XF86VIDMODE_LIBS@ @XML_LIBS@ \
-	@XINERAMA_LIBS@ \
-	$(top_builddir)/common/libcommon.a \
-	$(top_builddir)/ogle/libmsgevents.la
+	@XINERAMA_LIBS@
 
