@@ -346,6 +346,7 @@ dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
             [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lossaudio"])
 	DEFAULT_AUDIO_DRIVER="oss"
+	DEFAULT_AUDIO_DEVICE="/dev/dsp"
     ;;
     esac
 fi
@@ -361,6 +362,7 @@ dnl only define LIBOGLEAO_OBSD headers found
 dnl sys/audioio.h
         AC_DEFINE([LIBOGLEAO_OBSD],,[libogleao OpenBSD audio support])
 	DEFAULT_AUDIO_DRIVER="obsd"
+	DEFAULT_AUDIO_DEVICE="/dev/audio"
     ;;
     esac
 fi
@@ -375,7 +377,7 @@ if test "x$enable_sunaudio" != xno; then
 dnl check for headers.. only define LIBOGLEAO_SOLARIS if headers are found.
         AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support])
 	DEFAULT_AUDIO_DRIVER="solaris"
-    ;;
+	DEFAULT_AUDIO_DEVICE="/dev/audio"
     esac
 fi
 
@@ -422,6 +424,7 @@ AP_maGiC_VALUE
                                    [libogleao ALSA audio support])
 			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound" 
 			 DEFAULT_AUDIO_DRIVER="alsa"
+			 DEFAULT_AUDIO_DEVICE="default"
                        ])
         fi;;
     esac
@@ -530,15 +533,12 @@ AC_SUBST(CONFIG_FILE_DTD)
 case $host_os in
 solaris*)
 	DEFAULT_DVD_DEVICE="/cdrom/cdrom0"
-	DEFAULT_AUDIO_DEVICE="/dev/audio"
 	;;
 linux*)
 	DEFAULT_DVD_DEVICE="/dev/dvd"
-	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 freebsd*)
 	DEFAULT_DVD_DEVICE="/dev/acd0c"
-	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 netbsd*)
   	case "$host_cpu" in
@@ -549,21 +549,18 @@ netbsd*)
 		DEFAULT_DVD_DEVICE="/dev/rcd0c"
 		;;
   	esac
-	DEFAULT_AUDIO_DEVICE="/dev/sound"
   	;;
 openbsd*)
 	DEFAULT_DVD_DEVICE="/dev/rcd0c"
-	DEFAULT_AUDIO_DEVICE="/dev/audio"
 	;;
 bsdi*)
 	DEFAULT_DVD_DEVICE="/dev/sr0c"
-	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 *)
 	DEFAULT_DVD_DEVICE=""
-	DEFAULT_AUDIO_DEVICE=""
 	;;
 esac
+
 
 AC_SUBST(DEFAULT_DVD_DEVICE)
 AC_SUBST(DEFAULT_AUDIO_DEVICE)
