@@ -13,4 +13,4 @@ SUBDIRS= ogle \
 	dvd_cli \
 	scripts
 
-EXTRA_DIST = autogen.sh oglerc.in
+EXTRA_DIST = autogen.sh ogle_conf.dtd
