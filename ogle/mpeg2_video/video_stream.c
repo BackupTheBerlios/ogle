@@ -2701,6 +2701,90 @@ void motion_vector(int r, int s)
 void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 	     uint8_t intra_vlc_format, char *func) 
 {
+  
+#define TABLE_GET_DCT
+#ifdef TABLE_GET_DCT
+  int code;
+  DCTtab *tab;
+  int run;
+  signed int val;
+  int non_intra_dc;
+  
+  //this routines handles intra AC and non-intra AC/DC coefficients
+  code = nextbits(16);
+  
+  non_intra_dc = ((intra_vlc_format) && (intra_block)); // bad name !!!
+  
+  if (code>=16384 && !(non_intra_dc))
+    {
+      if(first_subseq == DCT_DC_FIRST)
+	tab = &DCTtabfirst[(code>>12)-4]; // 14 
+      else
+	tab = &DCTtabnext[(code>>12)-4];  // 14 
+    }
+  else if(code>=1024)
+    {
+      if (non_intra_dc)
+	tab = &DCTtab0a[(code>>8)-4];   // 15
+      else
+	tab = &DCTtab0[(code>>8)-4];   // 14
+    }
+  else if(code>=512)
+    {
+      if(non_intra_dc)
+	tab = &DCTtab1a[(code>>6)-8];  // 15
+      else
+	tab = &DCTtab1[(code>>6)-8];  // 14
+    }
+  else if(code>=256)
+    tab = &DCTtab2[(code>>4)-16];
+  else if(code>=128)
+    tab = &DCTtab3[(code>>3)-16];
+  else if(code>=64)
+    tab = &DCTtab4[(code>>2)-16];
+  else if(code>=32)
+    tab = &DCTtab5[(code>>1)-16];
+  else if(code>=16)
+    tab = &DCTtab6[code-16];
+  else {
+    fprintf(stderr,
+	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	    code);
+    exit(1);
+    return;
+  }
+  
+  GETBITS(tab->len, "(get_dct)");
+  
+  if (tab->run==64) { // end_of_block 
+    run = VLC_END_OF_BLOCK;
+    val = VLC_END_OF_BLOCK;
+  } 
+  else if (tab->run==65) { /* escape */
+    run = GETBITS(6, "(get_dct escape - run )");
+    val = GETBITS(12, "(get_dct escape - level )");
+    
+    if ((val&2047)==0) {
+      fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+      return;
+    }
+      
+    if(val >= 2048)
+      val =  val - 4096;
+  }
+  else {
+    run = tab->run;
+    val = tab->level; 
+    if(GETBITS(1, "(get_dct sign )")) //sign bit
+      val = -val;
+  }
+  
+  runlevel->run   = run;
+  runlevel->level = val;
+}
+
+#else
+   
   int pos=0;
   int numberofbits=1;
   int vlc;
@@ -2780,6 +2864,8 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
   exit(1);
   return;
 }
+
+#endif
 
 void reset_dc_dct_pred(void)
 {
