@@ -382,7 +382,7 @@ netbsd*)
 		DEFAULT_DVD_DEVICE="/dev/rcd0c"
 		;;
   	esac
-	DEFAULT_AUDIO_DEVICE="/dev/dsp"
+	DEFAULT_AUDIO_DEVICE="/dev/sound"
   	;;
 openbsd*)
 	DEFAULT_DVD_DEVICE="/dev/rcd0c"
