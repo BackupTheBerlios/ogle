@@ -987,8 +987,9 @@ int next_spu_cmd_pending(spu_t *spu_info) {
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
 
-    TIME_S(spu_info->next_time)  = start_time/100;
-    TIME_SS(spu_info->next_time) = (start_time%100) * CT_FRACTION/100;  
+    TIME_S(spu_info->next_time)  = start_time/(90000/1100);
+    TIME_SS(spu_info->next_time) = (start_time%(90000/1100))
+      * CT_FRACTION/100;  
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
 
