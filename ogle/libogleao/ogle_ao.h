@@ -59,7 +59,7 @@ int ogle_ao_play(ogle_ao_instance_t *instance, void* samples, size_t nbytes);
 /* Close the given driver instance */
 void ogle_ao_close(ogle_ao_instance_t *instance);
 
-/* Querry the number of 'recived' samples that have not yet been layed */
+/* Query the number of 'recived' samples that have not yet been played */
 int ogle_ao_odelay(ogle_ao_instance_t *instance, uint32_t *samples_return);
 
 /* Discard as much of the queued ouput data as possible */
