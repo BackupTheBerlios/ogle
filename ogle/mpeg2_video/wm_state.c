@@ -17,7 +17,6 @@
 
 
 static WindowState_t current_state = WINDOW_STATE_NORMAL;
-static int kwin_bug = 0;
 
 typedef struct {
   int x;
@@ -41,7 +40,7 @@ static int gnome_wm_layers;
 static int has_ewmh_state_fullscreen;
 static char *wm_name = NULL;
 
-
+static Atom wm_state_atom;
 
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
@@ -176,14 +175,14 @@ static void save_normal_geometry(Display *dpy, Window win)
   
   normal_state_geometry.x = dest_x_ret;
   normal_state_geometry.y = dest_y_ret;
-  /*
+  
   DNOTE("x_ret: %d, y_ret: %d\n", dest_x_ret, dest_y_ret);
   DNOTE("normal_state_geometry: x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
 	x, y,
 	normal_state_geometry.width,
 	normal_state_geometry.height,
 	bwidth, depth);
-  */
+  
 }
 
 
@@ -297,6 +296,128 @@ static void restore_normal_geometry(Display *dpy, Window win)
 }
 
 
+int get_wm_state(Display *dpy, Window win)
+{
+  Atom actual_type_return;
+  int actual_format_return;
+  unsigned long nitems_return;
+  unsigned long bytes_after_return;
+  unsigned char* prop_return;
+  int wm_state;
+  
+  XGetWindowProperty(dpy, win, wm_state_atom, 0, 1,
+		     False, wm_state_atom,
+		     &actual_type_return,
+		     &actual_format_return,
+		     &nitems_return,
+		     &bytes_after_return,
+		     &prop_return);
+  if(actual_type_return == None) {
+    return -1; //the property does not exist
+  } else if(actual_type_return != wm_state_atom) {
+    WARNING("WM_STATE is not of type WM_STATE: %lu\n", 
+	    (unsigned long)actual_type_return);
+    return -1; //wrong property type
+  } else {
+    wm_state = (int)(((unsigned long *)prop_return)[0]);
+    XFree(prop_return);
+    return wm_state;
+  }
+}  
+
+static Bool withdraw_predicate(Display *dpy, XEvent *ev, XPointer arg)
+{
+  if(ev->type == UnmapNotify ||
+     ev->type == ReparentNotify ||
+     ev->type == PropertyNotify) {
+    return True;
+  } else {
+    return False;
+  }
+}
+
+
+void withdraw_window(Display *dpy, Window win)
+{
+  XEvent ev;
+  int n;
+  int wm_state;
+  int wait_for_wm_state = 1;
+  int wait_for_reparent = 1;
+  int wait_for_unmap = 1;
+  Window root_return, parent_return;
+  Window *children_return = NULL;
+  unsigned int nchildren_return;
+
+
+  wm_state = get_wm_state(dpy, win);
+  if(wm_state <= 0) {
+    // window is already withdrawn or no wm (supporting wm_state) is running
+    wait_for_wm_state = 0;
+  }
+
+  if(XQueryTree(dpy, win, &root_return, &parent_return,
+		&children_return, &nchildren_return)) {
+    if(root_return == parent_return) {
+      //no wm running or the wm is not reparenting
+      // if the wm is not reparenting it should support wm_state
+      wait_for_reparent = 0;
+    }
+    if(children_return) {
+      XFree(children_return);
+    }
+  } else {
+    WARNING("%s", "XQueryTree failed\n");
+    root_return = DefaultRootWindow(dpy);
+  }
+  
+  XWithdrawWindow(dpy, win, DefaultScreen(dpy));
+  
+  // Wait for window to be unmapped/withdrawn
+  // If a wm is running wait for WM_STATE==withdrawn
+  // or a reparent event (only works for a reparenting wm)
+  // to know when the wm is done with our window
+  
+
+  // Always wait until we get an unmap notification.
+  // Also wait ~0.5s for reparent/wmstate==withdraw else continue
+  // and assume the wm is broken
+  for(n = 0;
+      wait_for_unmap || (n < 50 && (wait_for_reparent || wait_for_wm_state));
+      n++) {
+    
+    while(XCheckIfEvent(dpy, &ev, withdraw_predicate, NULL) == True) {
+      switch(ev.type) {
+      case UnmapNotify:
+	wait_for_unmap = 0;
+	break;
+      case ReparentNotify:
+	if(ev.xreparent.parent == root_return) {
+	  wait_for_reparent = 0;
+	  //we don't have to wait for wmstate also
+	  //wait_for_wm_state = 0;
+	}
+	break;
+      case PropertyNotify:
+	if(ev.xproperty.atom == wm_state_atom) {
+	  wm_state = get_wm_state(dpy, win);
+	  if(wm_state <= 0) {
+	    //window has been withdrawn
+	    wait_for_wm_state = 0;
+	    //don't wait for reparent now
+	    wait_for_reparent = 0;
+	  }
+	}
+      default:
+	break;
+      }
+    }
+    usleep(10000);
+  }
+  if(n == 50) {
+    DNOTE("%s", "Withdraw window timeout, broken WM ?\n");
+  }
+}
 
 
 static void switch_to_fullscreen_state(Display *dpy, Window win)
@@ -317,23 +438,16 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   save_normal_geometry(dpy, win);
   
   if(!has_ewmh_state_fullscreen) {
-#if 1 // bloody wm's that can't cope with unmap/map
+
     // We have to be unmapped to change motif decoration hints 
-    XUnmapWindow(dpy, win);
     
-    // Wait for window to be unmapped
-    do {
-      XNextEvent(dpy, &ev);
-    } while(ev.type != UnmapNotify);
+    withdraw_window(dpy, win);
     
     remove_motif_decorations(dpy, win);
     
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
-    if(wm_name != NULL && (strcmp(wm_name, "KWin") == 0) && kwin_bug) {
-      //seems to work, instead of using a sleep(1);
-      XReparentWindow( dpy, win, DefaultRootWindow( dpy ),  0, 0 );
-    }
+
     XMapWindow(dpy, win);
     
     /* wait for the window to be mapped */
@@ -342,7 +456,7 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
       XNextEvent(dpy, &ev);
     } while(ev.type != MapNotify);
     
-#endif  
+
     /* remove any outstanding configure_notifies */
     XSync(dpy, True);
     
@@ -554,25 +668,15 @@ static void switch_to_normal_state(Display *dpy, Window win)
     sizehints->x = 0; // obsolete but should be set in case
     sizehints->y = 0; // an old wm is used
     
-#if 1 //bloody wm's that can't cope with unmap/map
     // We have to be unmapped to change motif decoration hints 
-    XUnmapWindow(dpy, win);
-    
-    // Wait for window to be unmapped
-    do {
-      XNextEvent(dpy, &ev);
-    } while(ev.type != UnmapNotify);
+
+    withdraw_window(dpy, win);
     
     disable_motif_decorations(dpy, win);
     
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
 
-    if(wm_name != NULL && (strcmp(wm_name, "KWin") == 0) && kwin_bug) {
-      //seems to work, instead of using a sleep(1);
-      XReparentWindow( dpy, win, DefaultRootWindow( dpy ),  0, 0 );
-    }
-    
     XMapWindow(dpy, win);
     
     /* wait for the window to be mapped */
@@ -580,7 +684,6 @@ static void switch_to_normal_state(Display *dpy, Window win)
     do {
       XNextEvent(dpy, &ev);
     } while(ev.type != MapNotify);
-#endif
     
     /* remove any outstanding configure_notifies */
     XSync(dpy, True);
@@ -1005,7 +1108,7 @@ static int check_for_state_fullscreen(Display *dpy)
   if(net_supported == None) {
     return 0;
   }
-
+  
   net_wm_state = XInternAtom(dpy, "_NET_WM_STATE", False);
   if(net_wm_state == None) {
     return 0;
@@ -1154,16 +1257,24 @@ static int check_for_gnome_wm_layers(Display *dpy)
   return 0;
 }
 
+void init_wm_state(Display *dpy, Window win)
+{
+  static int initialized = 0;
+  
+  if(initialized) {
+    return;
+  }
+  
+  wm_state_atom = XInternAtom(dpy, "WM_STATE", False);
+  initialized = 1;
+  
+}
 
 int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
 {
-  
+  init_wm_state(dpy, win);
+
   if(state != current_state) {
-    if(getenv("OGLE_KWIN_BUG")) {
-      kwin_bug = 1;
-    } else {
-      kwin_bug = 0;
-    }
 
     EWMH_wm = check_for_EWMH_wm(dpy, &wm_name);
     if(EWMH_wm) {
