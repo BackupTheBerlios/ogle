@@ -258,9 +258,9 @@ int interpret_config(void)
   char *home;
 
 
-  if((r+= interpret_oglerc(CONFIG_FILE_NAME)) == -1) {
+  if((r+= interpret_oglerc(CONFIG_FILE)) == -1) {
     fprintf(stderr,
-	    "ERROR[dvd_cli]: interpret_config(): Couldn't read "CONFIG_FILE_NAME"\n");
+	    "ERROR[dvd_cli]: interpret_config(): Couldn't read "CONFIG_FILE"\n");
   }
 
   home = getenv("HOME");
