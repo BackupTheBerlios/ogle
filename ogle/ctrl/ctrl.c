@@ -1191,12 +1191,13 @@ int eval_msg(cmd_t *cmd)
     }
     break;
   case CMD_CTRL_CMD:
+    /*
     sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
     sendcmd->cmdtype = cmd->cmdtype;
     sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
     
     send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
-
+    */
     sendmsg.mtype = MTYPE_DEMUX;
     sendcmd->cmdtype = cmd->cmdtype;
     sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
