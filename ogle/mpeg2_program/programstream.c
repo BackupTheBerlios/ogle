@@ -115,7 +115,6 @@ uint8_t    *disk_buf;
 int shmid;
 char *shmaddr;
 int shmsize;
-unsigned int bytes_read = 0;
 
 static int ctrl_data_shmid;
 static ctrl_data_t *ctrl_data;
@@ -319,7 +318,7 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
   do {
     blocks_read = DVDReadBlocks(dvdfile, boffset, nblocks, buf);
     
-    switch(bytes_read) {
+    switch(blocks_read) {
     case -1:
       fprintf(stderr, "demux: dvdreadblocks failed\n");
       exit(1);
@@ -2431,7 +2430,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elem_t *data_elems;
   int data_elem_nr;
   int elem;
-  int n;
   MsgEvent_t ev;
   int nr_waits = 0;
   
