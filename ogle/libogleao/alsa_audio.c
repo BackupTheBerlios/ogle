@@ -176,18 +176,21 @@ static int ctl_set_iec60958(alsa_instance_t *instance)
     
     ctl_card = snd_pcm_info_get_card(info);
     if (ctl_card < 0) {
-      fprintf(stderr, "Unable to setup the IEC958 (S/PDIF) interface - PCM has no assigned card");
+      fprintf(stderr, "Unable to setup the IEC958 (S/PDIF) interface - PCM has no assigned card\n");
       goto __diga_end;
     }
-    
+
+    sprintf(ctl_name, "hw:%d", ctl_card);
+
     if ((err = snd_ctl_open(&ctl_handle, ctl_name, 0)) < 0) {
-      fprintf(stderr, "Unable to open the control interface '%s': %s", ctl_name, snd_strer
-	      ror(err));
+      fprintf(stderr, "Unable to open the control interface '%s': %s\n", 
+	      ctl_name, snd_strerror(err));
       goto __diga_end;
     }
     
     if ((err = snd_ctl_elem_write(ctl_handle, ctl)) < 0) {
-      fprintf(stderr, "Unable to update the IEC958 control: %s", snd_strerror(err));
+      fprintf(stderr, "Unable to update the IEC958 control: %s\n",
+	      snd_strerror(err));
       goto __diga_end;
       //Shouldn't ctl_handle be closed here?
     }
@@ -240,6 +243,7 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	        // Setup the IEC60958 (S/PDIF) interface for NONAUDIO
 	        ctl_set_iec60958(instance);
 		instance->format = SND_PCM_FORMAT_S16_LE;
+		break;
 	    default:
 		/* not supported */
 		return -1;
