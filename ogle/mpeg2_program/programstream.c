@@ -41,6 +41,7 @@ FILE *subtitle_file;
 int   infilefd;
 int   using_pipe_for_input = FALSE;
 void* infileaddr;
+long  infilelen;
 uint32_t offs;
 
 void read_buf(void);
@@ -715,7 +716,12 @@ void segvhandler (void)
   // If we got here we ran off the end of a mmapped file.
   // Or it's some other bug. Remove the sigaction call in 
   // main if you suspect this.
-  DPRINTF(1, "SEGV! Cool! (Reached end of mmapped file.)\n");
+  if (offs > infilelen) {
+    DPRINTF(1, "Reached end of mmapped file.\n");
+  } else {
+    fprintf(stderr, "Segmentation fault. Idiot.\n");
+  }
+
   exit(0);
 }
 
@@ -802,6 +808,7 @@ int main(int argc, char **argv)
       using_pipe_for_input = TRUE;
       DPRINTF(1, "using_pipe_for_input = TRUE");
     } else {
+      infilelen = statbuf.st_size;
       rv = madvise(buf, statbuf.st_size, MADV_SEQUENTIAL);
       if(rv == -1) {
 	perror("madvise");
