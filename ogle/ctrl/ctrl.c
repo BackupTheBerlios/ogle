@@ -47,6 +47,11 @@ char *output_bufs = NULL;
 char *file_offset = NULL;
 char *videodecode_debug = NULL;
 
+int ac3_audio_stream = 0;
+int mpeg_audio_stream = 0;
+int mpeg_video_stream = 0;
+int subpicture_stream = 0;
+
 int main(int argc, char *argv[])
 {
   pid_t demux_pid = -1;
@@ -57,8 +62,20 @@ int main(int argc, char *argv[])
   
   program_name = argv[0];
   
-  while((c = getopt(argc, argv, "f:r:o:d:h?")) != EOF) {
+  while((c = getopt(argc, argv, "a:v:s:m:f:r:o:d:h?")) != EOF) {
     switch(c) {
+    case 'a':
+      ac3_audio_stream = atoi(optarg);
+      break;
+    case 'm':
+      mpeg_audio_stream = atoi(optarg);
+      break;
+    case 'v':
+      mpeg_video_stream = atoi(optarg);
+      break;
+    case 's':
+      subpicture_stream = atoi(optarg);
+      break;
     case 'f':
       framerate = optarg;
       break;
@@ -96,6 +113,7 @@ int main(int argc, char *argv[])
 
   sprintf(msgqid_str, "%d", msgqid);
 
+  init_ctrl(msgqid_str);
 
   demux_pid = init_demux(msgqid_str);
   
@@ -167,6 +185,55 @@ int wait_for_msg(cmdtype_t cmdtype)
     }
   }
   return 0;
+}
+
+
+int init_ctrl(char *msgqid_str)
+{
+  pid_t pid;
+  int n;
+  char *eargv[16];
+  char *ctrl_name;
+  char ctrl_path[] = "ui/ui";
+
+  //TODO clean up filename handling
+  
+  if((ctrl_name = strrchr(ctrl_path, '/')+1) == NULL) {
+    ctrl_name = ctrl_path;
+  }
+  if(ctrl_name > &ctrl_path[strlen(ctrl_path)]) {
+    fprintf(stderr, "illegal file name?\n");
+    return -1;
+  }
+
+  /* fork/exec ctrl */
+
+  switch(pid = fork()) {
+  case 0:
+    /* child process */
+    
+    n = 0;
+    eargv[n++] = ctrl_name;
+    eargv[n++] = "-m";
+    eargv[n++] = msgqid_str;
+
+    eargv[n++] = NULL;
+    
+    if(execv(ctrl_path, eargv) == -1) {
+      perror("execv ctrl");
+    }
+
+    exit(-1);
+    break;
+  case -1:
+    /* fork failed */
+    perror("fork");
+    break;
+  default:
+    /* parent process */
+    break;
+  }
+  return pid;
 }
 
 int init_demux(char *msgqid_str)
@@ -322,6 +389,46 @@ int init_dolby_ac3_decoder(char *msgqid_str)
   
 }
 
+int init_spu_decoder(char *msgqid_str)
+{
+  pid_t pid;
+  char *decode_name;
+  char decode_path[] = "subpicture/spu_wrap";
+
+  //TODO clean up filename handling
+  fprintf(stderr, "init_spu_decoder\n");
+  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
+    decode_name = decode_path;
+  }
+  if(decode_name > &decode_path[strlen(decode_path)]) {
+    fprintf(stderr, "illegal file name?\n");
+    return -1;
+  }
+  
+  switch(pid = fork()) {
+  case 0:
+    /* child process */
+    
+    if(execl(decode_path, decode_name,
+	     "-m", msgqid_str, NULL) == -1) {
+      perror("execl");
+    }
+    exit(-1);
+    break;
+  case -1:
+    /* fork failed */
+    perror("fork");
+    
+    break;
+  default:
+    /* parent process */
+    break;
+  }
+ 
+  return pid;
+  
+}
+
 int init_mpeg_private_stream_2_decoder(char *msgqid_str)
 {
   pid_t pid;
@@ -403,6 +510,41 @@ int init_mpeg_audio_decoder(char *msgqid)
 }
 
 
+
+
+
+
+int register_stream(uint8_t stream_id, uint8_t subtype)
+{
+  
+
+  if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+    if(subtype == (0x80 | (ac3_audio_stream & 0x1f))) {
+      return 1;
+    }
+    
+    if(subtype == (0x20 | (subpicture_stream & 0x1f))) {
+      return 1;
+    }
+  }
+  
+  if(stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) { 
+    return 1;
+  }
+  
+  if(stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) {
+    return 1;
+  }
+  
+  if(stream_id == 0xbf) { // nav packs
+    return 1;
+  }
+  
+  return 0;  
+  
+}
+
+
 int create_msgq()
 {
   
@@ -448,6 +590,19 @@ int eval_msg(cmd_t *cmd)
 	      cmd->cmd.new_stream.subtype);
       //      if(!((cmd->cmd.new_stream.stream_id == MPEG2_PRIVATE_STREAM_1) &&
       //	   !(cmd->cmd.new_stream.subtype == 0x80))) {
+      
+      if(register_stream(cmd->cmd.new_stream.stream_id,
+			 cmd->cmd.new_stream.subtype)) {
+	
+	fprintf(stderr, "NR: %d\n",cmd->cmd.new_stream.nr_of_elems);
+	shmid = create_q(cmd->cmd.new_stream.nr_of_elems,
+			 cmd->cmd.new_stream.data_buf_shmid);
+	
+      } else {
+	shmid = -1;
+      }
+      
+      /*
       if((cmd->cmd.new_stream.stream_id == MPEG2_PRIVATE_STREAM_1) &&
 	 !(cmd->cmd.new_stream.subtype == 0x80)) {
 	shmid = -1;
@@ -457,9 +612,10 @@ int eval_msg(cmd_t *cmd)
 	shmid = create_q(cmd->cmd.new_stream.nr_of_elems,
 			 cmd->cmd.new_stream.data_buf_shmid);
       }
-	//      } else {
-	//	shmid = -1;
-	//      }
+      */
+
+
+
       sendmsg.mtype = MTYPE_DEMUX;
       sendcmd->cmdtype = CMD_DEMUX_STREAM_BUFFER;
 
@@ -475,9 +631,11 @@ int eval_msg(cmd_t *cmd)
       if(shmid >= 0) {
 	// lets start the decoder
 	if((cmd->cmd.new_stream.stream_id) == MPEG2_PRIVATE_STREAM_1) {
-	  if(cmd->cmd.new_stream.subtype == 0x80) {
+	  if((cmd->cmd.new_stream.subtype >= 0x80) &&
+	     (cmd->cmd.new_stream.subtype < 0x90)) {
+	    
 	    init_dolby_ac3_decoder(msgqid_str);
-
+	    
 
 	    // send ctrl shm
 	    
@@ -512,7 +670,47 @@ int eval_msg(cmd_t *cmd)
 	    
 	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
 	    
+	  } else if((cmd->cmd.new_stream.subtype >= 0x20) &&
+		    (cmd->cmd.new_stream.subtype < 0x40)) {
+	    
+	    init_spu_decoder(msgqid_str);
+	    
+
+	    // send ctrl shm
+	    
+	    sendmsg.mtype = MTYPE_SPU_DECODE;
+	    sendcmd->cmdtype = CMD_CTRL_DATA;
+	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
+
+	    send_msg(&sendmsg, sizeof(cmdtype_t) +
+		     sizeof(cmd_ctrl_data_t));
+	    
+
+	    // temporary fix to mmap infile
+
+	    sendmsg.mtype = MTYPE_SPU_DECODE;
+	    sendcmd->cmdtype = CMD_FILE_OPEN;
+
+	    strcpy(sendcmd->cmd.file_open.file, input_file);
+	    
+	    
+	    send_msg(&sendmsg, sizeof(cmdtype_t) +
+		     strlen(sendcmd->cmd.file_open.file)+1);
+	    
+
+	    // ac3 stream
+	    sendmsg.mtype = MTYPE_SPU_DECODE;
+	    sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
+	    sendcmd->cmd.stream_buffer.q_shmid = shmid;
+	    sendcmd->cmd.stream_buffer.stream_id =
+	      cmd->cmd.new_stream.stream_id; 
+	    sendcmd->cmd.stream_buffer.subtype =
+	      cmd->cmd.new_stream.subtype; 
+	    
+	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+
 	  }
+	  
 	} else if((cmd->cmd.new_stream.stream_id >= 0xc0) &&
 		  (cmd->cmd.new_stream.stream_id < 0xe0)) {
 	  init_mpeg_audio_decoder(msgqid_str);
@@ -624,6 +822,14 @@ int eval_msg(cmd_t *cmd)
 	
       }
     }
+    break;
+  case CMD_CTRL_CMD:
+    sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
+    sendcmd->cmdtype = cmd->cmdtype;
+    sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd->cmd.ctrl_cmd.ctrlcmd;
+    
+    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
+    
     break;
   default:
     fprintf(stderr, "ctrl: unrecognized command cmdtype: %x\n",
