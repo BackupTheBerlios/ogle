@@ -393,6 +393,11 @@ int get_q()
   }
   if(PTS_DTS_flags & 0x2) {
     time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+    if(TIME_S(time_offset) > 10) {
+      TIME_S(time_offset) = 0;
+      TIME_SS(time_offset) = 0;
+      //fprintf(stderr, "more than 10 secs in audio output buffer, somethings wrong?\n");
+    }
   }
 
   /** TODO this is just so we don't buffer alot in the pipe **/
