@@ -111,7 +111,7 @@ static struct {
   /* Current destination size. (set in display_change_size) */
   int image_width;
   int image_height;
-} scale = { 1, 1, 0, 1, 0, 720, 480 };
+} scale = { 1, 1, 1, 0, 0, 720, 480 };
 #ifdef HAVE_MLIB
 static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */

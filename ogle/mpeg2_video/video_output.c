@@ -65,7 +65,7 @@ AspectModeSrc_t aspect_sender;
 uint16_t aspect_new_frac_n;
 uint16_t aspect_new_frac_d;
 
-ZoomMode_t zoom_mode;
+ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 
 static char *program_name;
 
