@@ -1617,7 +1617,7 @@ int main(int argc, char **argv)
   
   program_name = argv[0];
   
-  init_id_reg(STREAM_NOT_REGISTERED);
+  init_id_reg(STREAM_DISCARD);
   
   /* Parse command line options */
   while ((c = getopt(argc, argv, "v:a:s:i:d:m:o:h?")) != EOF) {
@@ -1771,7 +1771,7 @@ int main(int argc, char **argv)
   if(msgqid != -1) {
     MsgEvent_t regev;
     int fileopen = 0;
-    init_id_reg(STREAM_NOT_REGISTERED);
+    init_id_reg(STREAM_DISCARD);
     // get a handle
     if((msgq = MsgOpen(msgqid)) == NULL) {
       fprintf(stderr, "demux: couldn't get message q\n");
