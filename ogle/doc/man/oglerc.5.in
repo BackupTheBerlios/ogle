@@ -98,7 +98,7 @@ DVD-ROM drive.
 <speakers>
 .RS 2
 Here you can define what audio channels should be played on your audio card.
-An empty speakers will try to get the info from the soundcard, not many cards that support this.
+An empty speakers will try to get the info from the soundcard, most cards don't support this.
 .br
 <channel_config>
 .RS 4
@@ -128,6 +128,8 @@ Is used to multiply the samples when downmixing from multichannel sound to stere
 This will turn on dynamic range compression if set to 'yes'. DRC will lower the volume of loud sounds and raise the volume for soft sounds.
 .RE
 .RE
+.RE
+.RE
 <sync>
 .RS 2
 Various options for synchronization between audio and video.
@@ -144,32 +146,32 @@ Is measured in milliseconds and can be from -999 to 999.
 This is used to change the sync forwards/backwards. A positive value will output audio a later time compared to the video, a negative will output audio earlier.
 .RE
 .RE 
-  <video>
-    <display>
-        <name></name>
-        <geometry>
-          <width></width>
-          <height></height>
-        </geometry>
-        <resolution>
-          <horizontal_pixels></horizontal_pixels>
-          <vertical_pixels></vertical_pixels>
-        </resolution>
-        <geometry_src>X11</geometry_src>
-        <resolution_src>Xinerama</resolution_src>
-        <switch_resolution>no</switch_resolution>
-        <initial_state>
-          <fullscreen>no</fullscreen>
-        </initial_state>
-    </display>
-  </video>
+<video>
+  <display>
+    <name></name>
+    <geometry>
+      <width></width>
+      <height></height>
+    </geometry>
+    <resolution>
+      <horizontal_pixels></horizontal_pixels>
+      <vertical_pixels></vertical_pixels>
+    </resolution>
+    <geometry_src>X11</geometry_src>
+    <resolution_src>Xinerama</resolution_src>
+    <switch_resolution>no</switch_resolution>
+    <initial_state>
+      <fullscreen>no</fullscreen>
+    </initial_state>
+  </display>
+</video>
 
 <geometry_src> tells where to get the geometry from.
 
 The geometry is the size (in millimeters) of your display.
 It can be set to "X11" or "user" not including the "".
 If set to "X11" the geometry will be delivered by your X-server.
-If you X-server isn't set up correctly it might deliver the wrong geometry
+If your X-server isn't set up correctly it might deliver the wrong geometry
 resulting in an incorrect aspect (the picture will be stretched in some
 direction).
 
@@ -300,6 +302,7 @@ Some of the default key bindings include the following:
   'A', jumps to the Angle menu
   'P', jumps to the PTT (Chapter) menu
   'S', jumps to the Subpicture menu
+.br
 Non configurable keys:
   'i', saves a screen shoot (as screenshoot.jpg in pwd)
   'I', saves a screen shoot with the subpicture overlay intact
