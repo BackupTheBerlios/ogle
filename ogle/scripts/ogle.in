@@ -27,7 +27,8 @@ for p in $*; do
     if [ $p = "--debug" ]; then
 	debug="1"
         OGLE_DLEVEL=5
-	export DVDCSS_VERBOSE=2
+	DVDCSS_VERBOSE=2
+	export DVDCSS_VERBOSE
     elif [ $p = "--check" ]; then
 	debug="1"
 	check="1"
