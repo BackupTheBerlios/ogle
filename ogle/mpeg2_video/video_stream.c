@@ -56,9 +56,9 @@ GC statgc;
 int bpp, mode;
 XWindowAttributes attribs;
 
-#define READ_SIZE 2048
+#define READ_SIZE 1024*4
 #define ALLOC_SIZE 2048
-#define BUF_SIZE_MAX 2048*8
+#define BUF_SIZE_MAX 1024*4
 
 //#define DEBUG
 
@@ -143,7 +143,7 @@ void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
-uint32_t buf[BUF_SIZE_MAX];
+uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
 unsigned int buf_len = 0;
 unsigned int buf_start = 0;
 unsigned int buf_fill = 0;
@@ -156,12 +156,17 @@ unsigned int bit_start = 0;
 
 FILE *infile;
 
+//#define GETBITS32
 
+#ifdef GETBITS32
 unsigned int backed = 0;
 unsigned int buf_pos = 0;
 unsigned int bits_left = 32;
 uint32_t cur_word = 0;
-
+#else
+unsigned int bits_left = 64;
+uint64_t cur_word = 0;
+#endif
 //uint8_t bytealign = 1;
 
 uint8_t new_scaled = 0;
@@ -295,6 +300,7 @@ int bytealigned(void)
   return !(bits_left%8);
 }
 
+#ifdef GETBITS32
 void back_word(void)
 {
   backed = 1;
@@ -306,7 +312,42 @@ void back_word(void)
   }
   cur_word = buf[buf_pos];
 }
+#else
+uint32_t get_new_uint32()
+{
+  uint32_t new_word;
+  static int offs = 0;
+  
+  new_word = buf[offs++];
+  if(offs >= READ_SIZE/4) {
+    if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
+      if(feof(infile)) {
+	fprintf(stderr, "*End Of File\n");
+	exit_program();
+      } else {
+	fprintf(stderr, "**File Error\n");
+	exit(0);
+      }
+    }
+    offs = 0;
+  }
+#if 0
+    if(!fread(&new_word, 1, 4, infile)) {
+      if(feof(infile)) {
+	fprintf(stderr, "*End Of File\n");
+	exit_program();
+      } else {
+	fprintf(stderr, "**File Error\n");
+	exit(0);
+      }
+    }
+#endif
+  return new_word;
+ 
+}
+#endif
 
+#ifdef GETBITS32
 void next_word(void)
 {
 
@@ -333,12 +374,27 @@ void next_word(void)
   cur_word = buf[buf_pos];
 
 }
+#endif
 
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
 uint32_t getbits(unsigned int nr)
 #endif
+#ifndef GETBITS32
+{
+  uint32_t result;
+
+  result = (cur_word << (64-bits_left)) >> (64-nr);
+  bits_left -=nr;
+  if(bits_left <= 32) {
+    cur_word = (cur_word << 32) | get_new_uint32();
+    bits_left = bits_left+32;
+  }
+  
+  return result;
+}
+#else
 {
   uint32_t result;
   uint32_t rem;
@@ -374,9 +430,16 @@ uint32_t getbits(unsigned int nr)
     return result;
   }
 }
+#endif
 
 /* 5.2.2 Definition of nextbits() function */
 uint32_t nextbits(unsigned int nr)
+#ifndef GETBITS32
+{
+  return ((cur_word << (64-bits_left)) >> (64-nr));
+
+}
+#else
 {
   uint32_t result;
   uint32_t rem;
@@ -394,7 +457,7 @@ uint32_t nextbits(unsigned int nr)
   }
   return result;
 }
-
+#endif
 
 
 
@@ -443,8 +506,12 @@ int main(int argc, char **argv)
 
   program_init();
   
+#ifdef GETBITS32
   next_word();
-  
+#else
+  fread(&buf[0], READ_SIZE, 1, infile);
+  cur_word = ((uint64_t)(get_new_uint32()) << 32) | get_new_uint32();
+#endif
   while(!feof(infile)) {
     DPRINTF(1, "Looking for new Video Sequence\n");
     video_sequence();
@@ -2080,7 +2147,7 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
 
 }
 
-void get_dct_non_intra(runlevel_t *runlevel, int first_subseq, char *func) 
+void get_dct_non_intra_first(runlevel_t *runlevel, char *func) 
 {
 
   int code;
@@ -2093,10 +2160,75 @@ void get_dct_non_intra(runlevel_t *runlevel, int first_subseq, char *func)
   
   if (code>=16384)
     {
-      if(first_subseq == DCT_DC_FIRST)
 	tab = &DCTtabfirst[(code>>12)-4]; // 14 
-      else
-	tab = &DCTtabnext[(code>>12)-4];  // 14 
+    }
+  else if(code>=1024)
+    {
+      tab = &DCTtab0[(code>>8)-4];   // 14
+    }
+  else if(code>=512)
+    {
+      tab = &DCTtab1[(code>>6)-8];  // 14
+    }
+  else if(code>=256)
+    tab = &DCTtab2[(code>>4)-16];
+  else if(code>=128)
+    tab = &DCTtab3[(code>>3)-16];
+  else if(code>=64)
+    tab = &DCTtab4[(code>>2)-16];
+  else if(code>=32)
+    tab = &DCTtab5[(code>>1)-16];
+  else if(code>=16)
+    tab = &DCTtab6[code-16];
+  else {
+    fprintf(stderr,
+	    "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	    code);
+    exit(1);
+    return;
+  }
+  
+  GETBITS(tab->len, "(get_dct)");
+  
+  if (tab->run==65) { /* escape */
+    run = GETBITS(6, "(get_dct escape - run )");
+    val = GETBITS(12, "(get_dct escape - level )");
+    
+    if ((val&2047)==0) {
+      fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+      return;
+    }
+    
+    if(val >= 2048)
+      val =  val - 4096;
+  }
+  else {
+    run = tab->run;
+    val = tab->level; 
+    if(GETBITS(1, "(get_dct sign )")) //sign bit
+      val = -val;
+  }
+  
+  runlevel->run   = run;
+  runlevel->level = val;
+  
+
+}
+
+void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func) 
+{
+
+  int code;
+  DCTtab *tab;
+  int run;
+  signed int val;
+  
+  //this routines handles intra AC and non-intra AC/DC coefficients
+  code = nextbits(16);
+  
+  if (code>=16384)
+    {
+      tab = &DCTtabnext[(code>>12)-4];  // 14 
     }
   else if(code>=1024)
     {
@@ -2328,15 +2460,16 @@ void block_intra(unsigned int i)
   }
 }
 
-void block_non_intra(unsigned int i)
+void block_non_intra(unsigned int b)
 {
   uint8_t cc;
-  
+  uint8_t i;
+  int f;
   /* Table 7-1. Definition of cc, colour component index */ 
-  if(i < 4)
+  if(b < 4)
     cc = 0;
   else
-    cc = (i%2)+1;
+    cc = (b%2)+1;
   
   {
     int n = 0;
@@ -2347,7 +2480,7 @@ void block_non_intra(unsigned int i)
     
     int inverse_quantisation_sum = 0;
     
-    DPRINTF(3, "pattern_code(%d) set\n", i);
+    DPRINTF(3, "pattern_code(%d) set\n", b);
     
     for(m=0;m<16;m++) {
       *(((int64_t *)mb.QFS) + m) = 0L;  // !!! Ugly hack !!!
@@ -2356,12 +2489,37 @@ void block_non_intra(unsigned int i)
     
     
     /* 7.2.2.4 Summary */
+    
+    get_dct_non_intra_first(&runlevel, "dct_dc_subsequent");
+    n += runlevel.run;
+    
+    /* inverse quantisation */
+    
+    i = inverse_scan[pic.coding_ext.alternate_scan][n];
+    
+    
+    f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
+	  * seq.header.non_intra_inverse_quantiser_matrix[i]
+	  * mb.quantiser_scale )/32;
+    
+    if(f > 2047)
+      f = 2047;
+    else if(f < -2048)
+      f = -2048;
+    
+    mb.QFS[i] = f;
+    inverse_quantisation_sum += f;
+    
+    
+    n++;      
+    
+    
     eob_not_read = 1;
     while(eob_not_read) {
       // DCT coefficients, the second parameter is the coefficients number i.e if 
       // it is 0 then it's the first and should be treated differntly.
-      get_dct_non_intra(&runlevel, n /*DCT_DC_SUBSEQUENT*/, 
-			"dct_dc_subsequent");
+      get_dct_non_intra_subseq(&runlevel, 
+			       "dct_dc_subsequent");
       
 #ifdef DEBUG
       if(runlevel.run != VLC_END_OF_BLOCK) {
@@ -2376,31 +2534,30 @@ void block_non_intra(unsigned int i)
 	n += runlevel.run;
 	
 	/* inverse quantisation */
-	{
-	  uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	  int f;
-	  
-	  f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
-		* seq.header.non_intra_inverse_quantiser_matrix[i]
-		* mb.quantiser_scale )/32;
-	  
-	  if(f > 2047)
-	    f = 2047;
-	  else if(f < -2048)
-	    f = -2048;
-	  
-	  mb.QFS[i] = f;
-	  inverse_quantisation_sum += f;
-	}    
+	
+	i = inverse_scan[pic.coding_ext.alternate_scan][n];
+	
+	f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
+	      * seq.header.non_intra_inverse_quantiser_matrix[i]
+	      * mb.quantiser_scale )/32;
+	
+	if(f > 2047)
+	  f = 2047;
+	else if(f < -2048)
+	  f = -2048;
+	
+	mb.QFS[i] = f;
+	inverse_quantisation_sum += f;
+	
 	
 	n++;      
       }
-      }
+    }
     inverse_quantisation_final(inverse_quantisation_sum);
     
     DPRINTF(4, "nr of coeffs: %d\n", n);
-    }
-  mlib_VideoIDCT_S16_S16(mb.f[i], (mlib_s16 *)mb.QFS);
+  }
+  mlib_VideoIDCT_S16_S16(mb.f[b], (mlib_s16 *)mb.QFS);
 }
 
 /* 6.2.5.2 Motion vectors */
