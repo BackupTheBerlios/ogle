@@ -59,11 +59,13 @@
 #include "c_getbits.h"
 
 
-
+/*
 void timeadd(struct timespec *d, struct timespec *s1, struct timespec *s2);
 void timesub(struct timespec *d, struct timespec *s1, struct timespec *s2);
+*/
 
 
+extern int chk_for_msg();
 
 int ctrl_data_shmid;
 ctrl_data_t *ctrl_data;
@@ -98,6 +100,7 @@ int picture_buffers_shmid;
 int buf_ctrl_shmid;
 char *buf_ctrl_shmaddr;
 char *picture_buffers_shmaddr;
+
 
 
 void init_out_q(int nr_of_bufs);
@@ -254,6 +257,74 @@ void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
 
+
+static void timesub(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1-s2
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+  
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+
+}  
+
+static void timeadd(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_nsec -=1000000000;
+    d->tv_sec +=1;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_nsec +=1000000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+}  
+
+static int timecompare(struct timespec *s1, struct timespec *s2) {
+
+  if(s1->tv_sec > s2->tv_sec) {
+    return 1;
+  } else if(s1->tv_sec < s2->tv_sec) {
+    return -1;
+  }
+
+  if(s1->tv_nsec > s2->tv_nsec) {
+    return 1;
+  } else if(s1->tv_nsec < s2->tv_nsec) {
+    return -1;
+  }
+  
+  return 0;
+}
+
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
   int n;
@@ -346,6 +417,9 @@ void init_program()
 
 int msgqid = -1;
 
+//char *infilename = NULL;
+
+
 int main(int argc, char **argv)
 {
   int c;
@@ -385,6 +459,7 @@ int main(int argc, char **argv)
   
   if(msgqid == -1) {
     if(optind < argc) {
+      infilename = argv[optind];
       infile = fopen(argv[optind], "r");
     } else {
       infile = stdin;
@@ -1395,10 +1470,60 @@ void picture_data(void)
   static int old_ref_buf_id  = -1;
   uint64_t calc_pts;
   int err;
+  static int bepa = 0;
+
+  fprintf(stderr, ".");
+
+  if(bepa >= 200) {
+    static struct timespec qot;
+    struct timespec qtt;
+    struct timespec qpt;
+   
+    bepa = 0; 
+    
+    clock_gettime(CLOCK_REALTIME, &qtt);
+
+
+  // d = s1-s2
+
+  qpt.tv_sec = qtt.tv_sec - qot.tv_sec;
+  qpt.tv_nsec = qtt.tv_nsec - qot.tv_nsec;
   
+  if(qpt.tv_nsec >= 1000000000) {
+    qpt.tv_sec += 1;
+    qpt.tv_nsec -= 1000000000;
+  } else if(qpt.tv_nsec <= -1000000000) {
+    qpt.tv_sec -= 1;
+    qpt.tv_nsec += 1000000000;
+  }
+
+  if((qpt.tv_sec > 0) && (qpt.tv_nsec < 0)) {
+    qpt.tv_sec -= 1;
+    qpt.tv_nsec += 1000000000;
+  } else if((qpt.tv_sec < 0) && (qpt.tv_nsec > 0)) {
+    qpt.tv_sec += 1;
+    qpt.tv_nsec -= 1000000000;
+  }
+
+  //    timesub(&qpt, &qtt, &qot);    
+
+
+    qot = qtt;
+
+    fprintf(stderr, "decode fps: %.3f\n",
+	    200/((double)qpt.tv_sec+(double)qpt.tv_nsec/1000000000.0));
+
+  }
+  
+  bepa++;
+
+
   DPRINTF(3, "picture_data\n");
-
-
+  
+  if(msgqid != -1) {
+    chk_for_msg();
+  }
+  
   /* If this is a I/P picture then we must release the reference 
      frame that is going to be replace. (It might not have been 
      displayed yet so it is not nessesary free for reuse.) */
@@ -1415,6 +1540,8 @@ void picture_data(void)
   
   
   buf_id = get_picture_buf();
+  
+
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
   //fprintf(stderr, "decode: decode start buf %d\n", buf_id);
   
@@ -1537,6 +1664,7 @@ void picture_data(void)
 	fprintf(stderr, "errpts %ld.%+010ld\n\n",
 		err_time.tv_sec,
 		err_time.tv_nsec);
+	
 	buf_ctrl_head->picture_infos[buf_id].in_use = 0;
 	buf_ctrl_head->picture_infos[buf_id].displayed = 1;
 	last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
@@ -1546,8 +1674,9 @@ void picture_data(void)
 	  next_start_code();
 	} while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 		(nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
-	/* Start processing the next picture. */
+	// Start processing the next picture.
 	return;
+	
       }
     }
     break;
@@ -2572,74 +2701,6 @@ void exit_program(int exitcode)
 
 
 #ifdef TIMESTAT
-
-void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-
-}  
-
-
-void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-}  
-
-int timecompare(struct timespec *s1, struct timespec *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_nsec > s2->tv_nsec) {
-    return 1;
-  } else if(s1->tv_nsec < s2->tv_nsec) {
-    return -1;
-  }
-  
-  return 0;
-}
 
 
 #define TIMESTAT_NOF 24*60

@@ -53,7 +53,7 @@ void release_picture_buf(int id)
 
 
 
-int timecompare(struct timespec *s1, struct timespec *s2) {
+static int timecompare(struct timespec *s1, struct timespec *s2) {
 
   if(s1->tv_sec > s2->tv_sec) {
     return 1;
@@ -70,7 +70,7 @@ int timecompare(struct timespec *s1, struct timespec *s2) {
   return 0;
 }
 
-void timesub(struct timespec *d,
+static void timesub(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
   // d = s1-s2
@@ -97,7 +97,7 @@ void timesub(struct timespec *d,
 }  
 
 
-void timeadd(struct timespec *d,
+static void timeadd(struct timespec *d,
 	     struct timespec *s1, struct timespec *s2)
 {
   // d = s1+s2

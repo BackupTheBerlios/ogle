@@ -54,6 +54,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 
 FILE *infile;
+char *infilename;
 
 #ifdef GETBITSMMAP // Mmap i/o
 uint32_t *buf;
@@ -113,64 +114,95 @@ void setup_mmap(char *filename) {
   DPRINTF(1, "All mmap systems ok!\n");
 }
 
+static void timesub(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1-s2
+
+  d->tv_sec = s1->tv_sec - s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
+  
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+
+}  
+
+static void timeadd(struct timespec *d,
+	     struct timespec *s1, struct timespec *s2)
+{
+  // d = s1+s2
+  
+  d->tv_sec = s1->tv_sec + s2->tv_sec;
+  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
+  if(d->tv_nsec >= 1000000000) {
+    d->tv_nsec -=1000000000;
+    d->tv_sec +=1;
+  } else if(d->tv_nsec <= -1000000000) {
+    d->tv_nsec +=1000000000;
+    d->tv_sec -=1;
+  }
+
+  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
+    d->tv_sec -= 1;
+    d->tv_nsec += 1000000000;
+  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
+    d->tv_sec += 1;
+    d->tv_nsec -= 1000000000;
+  }
+}  
+
 void get_next_packet()
 {
-  /*
-  struct { 
-    uint32_t type;
-    uint32_t offset;
-    uint32_t length;
-  } ol_packet;
 
-  
-  if(!fread(&ol_packet, 4+4+4, 1, infile)) {
-    if(feof(infile))
-      fprintf(stderr, "*[get_next_packet] End of file\n");
-    else
-      fprintf(stderr, "**[get_next_packet] File error\n");
-    exit_program(0);
-  }   
-  */
+  if(msgqid == -1) {
+    if(mmap_base == NULL) {
+      static struct timespec time_offset = { 0, 0 };
+      setup_mmap(infilename);
+      packet.offset = 0;
+      packet.length = 1000000000;
+
+      ctrl_time = malloc(sizeof(ctrl_time_t));
+      scr_nr = 0;
+      ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+      set_time_base(PTS, scr_nr, time_offset);
+
+    } else {
+      packet.length = 1000000000;
 
 
-  if(stream_shmid != -1) {
-  // msg
-  while(chk_for_msg() != -1)
-    ;
-
-  // Q
-  get_q();
-  } 
-  
-  while(mmap_base == NULL) {
-    wait_for_msg(CMD_FILE_OPEN);
-  }
-  while(stream_shmid == -1) {
-    wait_for_msg(CMD_DECODE_STREAM_BUFFER);
-  }
-
-  
-  /*
-  if(ol_packet.type == PACK_TYPE_OFF_LEN) {
-    packet.offset = ol_packet.offset;
-    packet.length = ol_packet.length;
-  }
-  
-  
-  else if( ol_packet.type == PACK_TYPE_LOAD_FILE ) {
-    char filename[200];
-    int length = ol_packet.offset;           // Use lots of trickery here...
-    memcpy( filename, &ol_packet.length, 4);
-    fread(filename+4, length-4, 1, infile);
-    filename[length] = 0;
-
-    setup_mmap( filename );
-  } 
-  else { // Unknown packet
-    fprintf(stderr, "[get_next_packet] Received a packet on unknown type\n");
-    exit_program(-1);
     }
-  */
+  } else {
+    
+    if(stream_shmid != -1) {
+      // msg
+      while(chk_for_msg() != -1)
+	;
+      
+      // Q
+      get_q();
+    } 
+    
+    while(mmap_base == NULL) {
+      wait_for_msg(CMD_FILE_OPEN);
+    }
+    while(stream_shmid == -1) {
+      wait_for_msg(CMD_DECODE_STREAM_BUFFER);
+    }
+    
+  }
 }  
 
 
@@ -400,6 +432,22 @@ int eval_msg(cmd_t *cmd)
     
     
     break;
+  case CMD_CTRL_CMD:
+    {
+      static ctrlcmd_t prevcmd = CTRLCMD_PLAY;
+      switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
+      case CTRLCMD_STOP:
+	if(prevcmd != CTRLCMD_STOP) {
+	  wait_for_msg(CMD_ALL);
+	}
+	break;
+      case CTRLCMD_PLAY:
+	break;
+      default:
+	break;
+      }
+    }
+    break;
   default:
     fprintf(stderr, "video_dec: unrecognized command cmdtype: %x\n",
 	    cmd->cmdtype);
@@ -462,6 +510,15 @@ int get_q()
     }
   }
   
+  {
+    int sval;
+    sem_getvalue(&q_head->bufs_full, &sval);
+    
+    if(sval < 200) {
+      fprintf(stderr, "* Q %d\n", sval);
+    }
+  }
+
   if(sem_wait(&q_head->bufs_full) == -1) {
     perror("video_decode: get_q(), sem_wait()");
     return -1;
@@ -518,3 +575,27 @@ int attach_ctrl_shm(int shmid)
   return 0;
   
 }
+
+
+int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
+{
+  struct timespec curtime;
+  struct timespec ptstime;
+  struct timespec modtime;
+  
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+
+  clock_gettime(CLOCK_REALTIME, &curtime);
+  timeadd(&modtime, &curtime, &offset);
+  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
+  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+  
+  fprintf(stderr, "video_stream: setting offset[%d]: %ld.%09ld\n",
+	  scr_nr,
+	  ctrl_time[scr_nr].realtime_offset.tv_sec,
+	  ctrl_time[scr_nr].realtime_offset.tv_nsec);
+  
+  return 0;
+}
+  

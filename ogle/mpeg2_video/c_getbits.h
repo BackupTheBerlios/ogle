@@ -48,7 +48,7 @@ extern uint32_t buf[];
 #endif // Common
 
 extern FILE *infile;
-
+extern char *infilename;
 
 #ifdef GETBITS32
 void back_word(void);
