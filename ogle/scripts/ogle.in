@@ -68,32 +68,21 @@ if [ "$debug" = "1" ]; then
 	 else
 	     DEVLIST=`cat $PROCFILE | grep 'drive name:' | cut -d':' -f 2-`
 	     
-	     N=0
-	     for dev in $DEVLIST; do
-		 DEV[$N]=$dev
-		 N=`expr $N + 1`
-	     done
-	     
 	     ISDVDLIST=`cat $PROCFILE \
                         | grep 'Can read DVD:' \
                         | cut -d':' -f 2-`
 	     
-	     N=0
-	     for isdvd in $ISDVDLIST; do
-		 IS_DVD[$N]=$isdvd
-		 N=`expr $N + 1`
-	     done
+	     dvd_dev_f() {
+	         for dev in $DEVLIST; do
+                     if [ "$1" = "1" ]; then
+                         DVD_DEV="$DVD_DEV $dev"
+		     fi
+		     shift
+                 done
+             }
 	     
-	     N=0
-	     M=0
-	     for dev in ${DEV[*]}; do
-		 if [ "${IS_DVD[$N]}" = "1" ]; then
-		     DVD_DEV[$M]=$dev
-		     M=`expr $M + 1`
-		 fi
-		 N=`expr $N + 1`
-	     done
-	     
+             dvd_dev_f $ISDVDLIST
+
              #is /dev/dvd set?
 	     dev="/dev/dvd"
 	     while [ -h $dev ]; do
@@ -115,27 +104,18 @@ if [ "$debug" = "1" ]; then
 	     
              #ide devices
 	     ide_devices="`ls /proc/ide | grep hd`"
-	     N=0
-	     for dev in $ide_devices; do
-		 ide_dev[$N]=$dev
-		 N=`expr $N + 1`
-	     done
              #ide cd/dvd devices
-	     M=0
-	     P=0
-	     for dev in ${ide_dev[*]}; do
+	     for dev in $ide_devices; do
 		 driver="`cat /proc/ide/$dev/driver | cut -d' ' -f 1`"
 		 if [ "$driver"  = "ide-cd" ]; then
-		     ide_cd_dev[$M]=$dev
-		     M=`expr $M + 1`
+		     ide_cd_dev="$ide_cd_dev $dev"
 		 elif [ "$driver" = "ide-scsi" ]; then
-		     ide_scsi_cd_dev[$P]=$dev
-		     P=`expr $P + 1`
+		     ide_scsi_cd_dev="$ide_scsi_cd_dev $dev"
 		 fi
 	     done
              #the devices that can read DVD
 	     echo  -n "Valid DVD devices:"
-	     for dev in ${DVD_DEV[*]}; do
+	     for dev in $DVD_DEV; do
 		 scsi_dev="`echo $dev | grep sr`"
 		 if [ -n "$scsi_dev" ]; then
 		     scsi_nr="`echo $dev | cut -d'r' -f 2`"
@@ -145,7 +125,7 @@ if [ "$debug" = "1" ]; then
 		 fi
 	     done
 	     echo ""
-	     for dev in ${ide_scsi_cd_dev[*]}; do
+	     for dev in $ide_scsi_cd_dev; do
 		 echo "/dev/$dev is running ide-scsi (`cat /proc/ide/$dev/model`)"
 	     done
 	     
@@ -164,7 +144,7 @@ if [ "$debug" = "1" ]; then
 		 hdparm_found=1
 	     fi
 	     if [ "$hdparm_found" = "1" ]; then
-		 for dev in ${DVD_DEV[*]}; do
+		 for dev in $DVD_DEV; do
 		     ide_dev="`echo $dev | grep hd`"
 		     if [ -n "$ide_dev" ]; then
 			 dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
@@ -184,7 +164,7 @@ if [ "$debug" = "1" ]; then
 			 $hpath/hdparm /dev/$dev 2>/dev/null
 		     fi
 		 done
-		 for dev in ${ide_scsi_cd_dev[*]}; do
+		 for dev in $ide_scsi_cd_dev; do
 		     dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
 		     dmainfo="`echo $dmainfo`"
 		     if [ ! -r /dev/$dev ]; then
