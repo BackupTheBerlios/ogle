@@ -37,6 +37,7 @@
 #include "bindings.h"
 #include "interpret_config.h"
 #include "my_glade.h"
+#include "myintl.h"
 
 char *program_name;
 DVDNav_t *nav;
