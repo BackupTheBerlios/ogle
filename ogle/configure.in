@@ -658,8 +658,8 @@ if test "x$USE_MMX" = xyes; then
   BUILD_MMX=1
   CFLAGS="$CFLAGS $XCFLAGS"
 fi
-
-BUILDINFO="`uname -m -r -s -p -v` `date`"
+BUILDINFO="`uname -m -r -s -v`"
+BUILDINFO="${BUILDINFO} `uname -p` `date`"
 BUILDINFO="${BUILDINFO}${BUILD_MMX:+ mmx}${BUILD_ALTIVEC:+ Altivec}"
 BUILDINFO="${BUILDINFO}${BUILD_MLIB:+ mlib}${BUILD_XV:+ Xv}"
 BUILDINFO="${BUILDINFO}${BUILD_AUDIO_OSS:+ oss}${BUILD_AUDIO_ALSA:+ alsa}"

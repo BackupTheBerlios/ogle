@@ -15,8 +15,10 @@ create_pipe "/tmp/audio"
 
 # information on the build 
 echo "Build: @BUILDINFO@"
-# and the os version we are running on 
-echo "Runtime:`uname -m -r -s -p -v`"
+# and the os version we are running on
+runtime="Runtime: `uname -m -r -s -v`"
+runtime="${runtime} `uname -p`"
+echo "$runtime"
 
 # This is were all the helper programs are placed
 prefix=@prefix@
@@ -42,6 +44,8 @@ export DVDP_UI
 #DVDP_AC3=$DVDP_ROOT/ogle_a52
 DVDP_AC3=$DVDP_ROOT/ogle_audio
 export DVDP_AC3
+DVDP_LPCM=$DVDP_ROOT/ogle_audio
+export DVDP_LPCM
 DVDP_MPEGAUDIO=$DVDP_ROOT/ogle_audio
 export DVDP_MPEGAUDIO
 DVDP_VIDEO=$DVDP_ROOT/ogle_mpeg_vs
