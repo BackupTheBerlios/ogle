@@ -18,11 +18,11 @@ DVDResult_t DVDButtonSelectAndActivate(int Button);
 DVDResult_t DVDMouseSelect(int x, int y);
 DVDResult_t DVDMouseActivate(int x, int y);
 
-DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t MenuId);
-DVDResult_t DVDResume(int msgqid);
-DVDResult_t DVDGoUP(int msgqid);
+DVDResult_t DVDMenuCall(DVDMenuID_t MenuId);
+DVDResult_t DVDResume(void);
+DVDResult_t DVDGoUP(void);
 
-DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t Lang);
+DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t Lang);
 
 void DVDPerror(const char *str, DVDResult_t ErrCode);
 
