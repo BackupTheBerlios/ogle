@@ -80,8 +80,8 @@ void DVDClose( dvd_reader_t * );
  *                   VTS_XX_0.VOB     (title)
  *
  * TITLE_VOBS      : VTS_XX_[1-9].VOB (title)
- *                   All files in the title set are opened and read as a single
- *                   file.
+ *                   All files in the title set are opened and 
+ *                   read as a single file.
  */
 typedef enum {
     DVD_READ_INFO_FILE,
@@ -110,6 +110,7 @@ void DVDCloseFile( dvd_file_t * );
 
 /**
  * blocks_read = DVDReadBlocks(dvd_file, offset, block_count, data);
+ *
  * Reads block_count number of blocks from the file at the given block offset.
  * Returns number of blocks read on success, -1 on error.  This call is only
  * for reading VOB data, and should not be used when reading the IFO files.  
