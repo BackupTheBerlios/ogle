@@ -1254,6 +1254,7 @@ int main(int argc, char **argv)
   int stream_nr;
   char *file;
   int stream_id;
+  int lost_sync = 1;
   
   program_name = argv[0];
   
@@ -1438,10 +1439,18 @@ int main(int argc, char **argv)
 	fprintf(stderr, "demux: Found Program Stream\n");
       }
       MPEG2_program_stream();
+      lost_sync = 1;
+    } else if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
+      fprintf(stderr, "demux: Found Video Sequence Header, seems to be an Elementary Stream (video)\n");
+      
+      lost_sync = 1;
     }
     GETBITS(8, "resync");
     DPRINTF(1, "resyncing");
-    fprintf(stderr, "demux: resync\n");
+    if(lost_sync) {
+      lost_sync = 0;
+      fprintf(stderr, "demux: Lost sync, resyncing\n");
+    }
   }
 }
 
