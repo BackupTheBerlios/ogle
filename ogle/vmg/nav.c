@@ -97,28 +97,28 @@ int main(int argc, char *argv[])
     MsgEvent_t ev;
     
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      FATAL("couldn't get message q\n");
+      FATAL("couldn't get message q\n", 0);
       exit(1);
     }
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_DVD_NAV;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      FATAL("registering capabilities\n");
+      FATAL("registering capabilities\n", 0);
       exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      FATAL("didn't get demux cap\n");
+      FATAL("didn't get demux cap\n", 0);
       exit(1);
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DECODE_DVD_SPU;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      FATAL("didn't get spu cap\n");
+      FATAL("didn't get spu cap\n", 0);
       exit(1);
     }
     
@@ -138,7 +138,7 @@ int main(int argc, char *argv[])
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
     ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
     if(send_demux(msgq, &ev) == -1) {
-      FATAL("failed sending dvdroot to demuxer\n");
+      FATAL("failed sending dvdroot to demuxer\n", 0);
       exit(1);
     }
     
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xe0; // Mpeg1/2 Video 
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
-      FATAL("failed setting demux video stream id\n");
+      FATAL("failed setting demux video stream id\n", 0);
       exit(1);
     }
     
@@ -154,7 +154,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xbd; // AC3 1
     ev.demuxstream.subtype = 0x80;    
     if(send_demux(msgq, &ev) == -1) {
-      FATAL("failed setting demux AC3 stream id\n");
+      FATAL("failed setting demux AC3 stream id\n", 0);
       exit(1);
     }
     
@@ -162,7 +162,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xbd; // SPU 1
     ev.demuxstream.subtype = 0x20;    
     if(send_demux(msgq, &ev) == -1) {
-      FATAL("failed setting demux subpicture stream id\n");
+      FATAL("failed setting demux subpicture stream id\n", 0);
       exit(1);
     }
     
@@ -170,7 +170,7 @@ int main(int argc, char *argv[])
     ev.demuxstream.stream_id = 0xbf; // NAV
     ev.demuxstream.subtype = 0;    
     if(send_demux(msgq, &ev) == -1) {
-      FATAL("failed setting demux NAV stream id\n");
+      FATAL("failed setting demux NAV stream id\n", 0);
       exit(1);
     }
   }
@@ -213,7 +213,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       }
       /* !!! FIXME should be sent to video out not spu */
       if(send_spu(msgq, &ev) == -1) {
-	ERROR("failed to send aspect info\n");
+	ERROR("failed to send aspect info\n", 0);
       }
     }     
   }
@@ -258,7 +258,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	new_subtype = 0x88 + audio_stream_id; // dts
 	break;
       default:
-	NOTE("please send a bug report, unknown Audio format!");
+	NOTE("please send a bug report, unknown Audio format!", 0);
 	break;
       }
       
@@ -272,7 +272,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	ev.demuxstreamchange2.new_stream_id = new_id;
 	ev.demuxstreamchange2.new_subtype = new_subtype;
 	if(send_demux(msgq, &ev) == -1) {
-	  ERROR("failed to send audio demuxstream\n");
+	  ERROR("failed to send audio demuxstream\n", 0);
 	}
       }
       old_id = new_id;
@@ -293,7 +293,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       ev.demuxstreamchange.stream_id = 0xbd; // SPU
       ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	ERROR("failed to send Subpicture demuxstream\n");
+	ERROR("failed to send Subpicture demuxstream\n", 0);
       }
     }
   }
@@ -312,7 +312,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   ev.demuxdvd.block_count = nr_sectors;
   ev.demuxdvd.flowcmd = flush;
   if(send_demux(msgq, &ev) == -1) {
-    FATAL("failed to send demux dvd block range\n");
+    FATAL("failed to send demux dvd block range\n", 0);
     exit(1);
   }
   //DNOTE("sent demux dvd block range (%d,%d)\n", start_sector, nr_sectors);
@@ -330,7 +330,7 @@ static void send_spu_palette(uint32_t palette[16]) {
   //DNOTE("sending subpicture palette\n");
   
   if(send_spu(msgq, &ev) == -1) {
-    ERROR("failed sending subpicture palette\n");
+    ERROR("failed sending subpicture palette\n", 0);
   }
 }
 
@@ -350,7 +350,7 @@ static void send_highlight(int x_start, int y_start, int x_end, int y_end,
     ev.spuhighlight.contrast[i] = 0xf & (btn_coli >> (4*i));
 
   if(send_spu(msgq, &ev) == -1) {
-    ERROR("faild sending highlight info\n");
+    ERROR("faild sending highlight info\n", 0);
   }
 }
 
@@ -454,7 +454,7 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
 	 keep the previous selected button */
       button_nr = (*btn_reg) >> 10;
     } else {
-      DNOTE("auto_action_mode set!\n");
+      DNOTE("auto_action_mode set!\n", 0);
       is_action = 1;
     }
     break;
@@ -641,7 +641,7 @@ static void do_run(void) {
 	//DNOTE("end of cell\n");
 	; // end of cell!
 	if(still_time == INF_STILL_TIME) // Inf. still time
-	  NOTE("Still picture select an item to continue.\n");
+	  NOTE("Still picture select an item to continue.\n", 0);
 	else if(still_time != 0)
 	  NOTE("Pause for %d seconds,\n", still_time/10);
 #if 0 
@@ -739,7 +739,7 @@ static void do_run(void) {
 	  NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
 	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
 	  if(!res)
-	    NOTE("No such menu!\n");
+	    NOTE("No such menu!\n", 0);
 	  break;
 	  
 	case DVDCtrlResume:
@@ -983,7 +983,7 @@ static void do_run(void) {
 		af = DVD_AUDIO_FORMAT_DTS;
 		break;
 	      default:
-		NOTE("please send a bug report, unknown Audio format!");
+		NOTE("please send a bug report, unknown Audio format!", 0);
 		break;
 	      }
 	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 

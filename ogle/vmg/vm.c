@@ -807,7 +807,7 @@ void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN)
 		     sizeof(dvd_time_t)));
       break;
     default:
-      WARNING("Cell is in block but did not enter at first cell!\n");
+      WARNING("Cell is in block but did not enter at first cell!\n", 0);
     }
   }
 }
@@ -913,7 +913,7 @@ static link_t play_PGC(void)
   if(state.domain != FP_DOMAIN)
     DNOTE("play_PGC: state.pgcN (%i)\n", get_PGCN());
   else
-    DNOTE("play_PGC: first_play_pgc\n");
+    DNOTE("play_PGC: first_play_pgc\n", 0);
 
   // These should have been set before play_PGC is called.
   // They won't be set automaticaly and the when the pre-commands are
@@ -934,7 +934,7 @@ static link_t play_PGC(void)
       // link_values contains the 'jump' return value
       return link_values;
     } else {
-      DNOTE("PGC pre commands didn't do a Jump, Link or Call\n");
+      DNOTE("PGC pre commands didn't do a Jump, Link or Call\n", 0);
     }
   }
   return play_PG();
@@ -1000,7 +1000,7 @@ static link_t play_Cell(void)
   case 3: // Last cell in the block
   // These might perhaps happen for RSM or LinkC commands?
   default:
-    WARNING("Cell is in block but did not enter at first cell!\n");
+    WARNING("Cell is in block but did not enter at first cell!\n", 0);
   }
   
   /* Updates state.pgN and PTTN_REG */
@@ -1556,19 +1556,19 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
   
   vtsi = ifoOpenVTSI(dvd, vtsN);
   if(vtsi == NULL) {
-    FATAL("ifoOpenVTSI failed\n");
+    FATAL("ifoOpenVTSI failed\n", 0);
     exit(1);
   }
   if(!ifoRead_VTS_PTT_SRPT(vtsi)) {
-    FATAL("ifoRead_VTS_PTT_SRPT failed\n");
+    FATAL("ifoRead_VTS_PTT_SRPT failed\n", 0);
     exit(1);
   }
   if(!ifoRead_PGCIT(vtsi)) {
-    FATAL("ifoRead_PGCIT failed\n");
+    FATAL("ifoRead_PGCIT failed\n", 0);
     exit(1);
   }
   if(!ifoRead_PGCI_UT(vtsi)) {
-    FATAL("ifoRead_PGCI_UT failed\n");
+    FATAL("ifoRead_PGCI_UT failed\n", 0);
     exit(1);
   }
   state.vtsN = vtsN;
@@ -1582,7 +1582,7 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
   int i;
   
   if(h == NULL || h->pgci_ut == NULL) {
-    WARNING("*** pgci_ut handle is NULL ***\n");
+    WARNING("*** pgci_ut handle is NULL ***\n", 0);
     return NULL; // error?
   }
   

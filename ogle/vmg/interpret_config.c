@@ -185,7 +185,7 @@ int interpret_config(void)
 
   home = getenv("HOME");
   if(home == NULL) {
-    WARNING("No $HOME\n");
+    WARNING("No $HOME\n", 0);
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -206,7 +206,7 @@ int interpret_config(void)
   }
 
   if(!config_read) {
-    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n");
+    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n", 0);
     return -1;
   }
     
