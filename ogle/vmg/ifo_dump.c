@@ -75,7 +75,9 @@ static void print_ifo(char *path, int title) {
     return;
   }
 
-  h = ifoOpen(dvd, title);
+  if((h = ifoOpen(dvd, title)) == NULL)
+    return;
+    
   if(h->vmgi_mat != NULL) {
     
     printf("VMG top level\n-------------\n");
