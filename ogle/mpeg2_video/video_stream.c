@@ -26,11 +26,6 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <signal.h>
-#include <semaphore.h>
-
-#include "video_stream.h"
-#include "video_types.h"
-#include "video_tables.h"
 
 #ifdef HAVE_MLIB
 #include <mlib_types.h>
@@ -45,37 +40,21 @@
 #include "c_mlib.h"
 #endif
 
-#include <X11/Xlib.h>
-#include <X11/Xutil.h>
-
-#include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-#if defined USE_SYSV_SEM
-#include <sys/sem.h>
-#endif
 #include <glib.h>
+
+#include "video_stream.h"
+#include "video_types.h"
+#include "video_tables.h"
+#include "c_getbits.h"
 
 #include "common.h"
 #include "timemath.h"
-#include "c_getbits.h"
+#include "ip_sem.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
-#endif
-
-#if defined USE_SYSV_SEM
-#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
-/* union semun is defined by including <sys/sem.h> */
-#else
-/* according to X/OPEN we have to define it ourselves */
-union semun {
-  int val;                    /* value for SETVAL */
-  struct semid_ds *buf;       /* buffer for IPC_STAT, IPC_SET */
-  unsigned short int *array;  /* array for GETALL, SETALL */
-  struct seminfo *__buf;      /* buffer for IPC_INFO */
-};
-#endif
 #endif
 
 
@@ -855,42 +834,15 @@ void init_out_q(int nr_of_bufs)
 				 sizeof(buf_ctrl_head_t) +
 				 nr_of_bufs * sizeof(picture_info_t));
   
-#if defined USE_POSIX_SEM
-
-  // Set the semaphores to the correct starting values
-  if(sem_init(&(buf_ctrl_head->pictures_ready_to_display), 1, 0) == -1){
-    perror("sem_init ready_to_display");
-  }
-  if(sem_init(&(buf_ctrl_head->pictures_displayed), 1, 0) == -1) {
-    perror("sem_init displayed");
-  }
-
-#elif defined USE_SYSV_SEM
-
-  if((buf_ctrl_head->semid_pics =
-      semget(IPC_PRIVATE, 2, (IPC_CREAT | IPC_EXCL | 0700))) == -1) {
-    perror("init_out_q(), semget(semid_pics)");
-  } else {
-    union semun arg;
+  {  // Set the semaphores to the correct starting values
+    int init_vals[2] = {0, 0};
     
-    arg.val = 0;
-    if(semctl(buf_ctrl_head->semid_pics, PICTURES_READY_TO_DISPLAY, SETVAL, arg) == -1) {
-      perror("semctl() semid_pics");
-    }
-    
-    arg.val = 0;
-    if(semctl(buf_ctrl_head->semid_pics, PICTURES_DISPLAYED, SETVAL, arg) == -1) {
-      perror("semctl() semid_pics");
+    if(ip_sem_init(&buf_ctrl_head->queue, init_vals) == -1){
+      perror("sem_init() display queue");
+      exit_program(1);
     }
   }
-  
-  
-#else
-#error No semaphore type set
-#endif
-  
 }
-
 
 
 #define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
@@ -1546,25 +1498,11 @@ int get_picture_buf()
   }
 
   // didn't find empty buffer, wait for a picture to display
-#if defined USE_POSIX_SEM
-  if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
+  if(ip_sem_wait(&buf_ctrl_head->queue, PICTURES_DISPLAYED) == -1) {
     perror("sem_wait get_picture_buf");
+    exit_program(1);
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = PICTURES_DISPLAYED;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-    
-    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
-      perror("video_decode: semop() wait");
-    }
-  }
-
-#else
-#error No semaphore type set
-#endif
+  
   id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
   buf_ctrl_head->picture_infos[id].displayed = 1;
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
@@ -1583,25 +1521,11 @@ int get_picture_buf()
   }
 
   //  fprintf(stderr, "decode: *** get_picture_buf\n");
-#if defined USE_POSIX_SEM
-  if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
+  if(ip_sem_wait(&buf_ctrl_head->queue, PICTURES_DISPLAYED) == -1) {
     perror("sem_wait get_picture_buf");
+    exit_program(1);
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = PICTURES_DISPLAYED;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-    
-    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
-      perror("video_decode: semop() wait");
-    }
-  }
-
-#else
-#error No semaphore type set
-#endif
+  
   id = buf_ctrl_head->dpy_q[dpy_q_displayed_pos];
   buf_ctrl_head->picture_infos[id].displayed = 1;
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
@@ -1640,25 +1564,11 @@ void dpy_q_put(int id)
       buf_ctrl_head->frame_interval = CT_FRACTION/forced_frame_rate; // XXX
     }
   }
-#if defined USE_POSIX_SEM
-  if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
-    perror("sempost pictures_ready");
-  }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = PICTURES_READY_TO_DISPLAY;
-    sops.sem_op =  1;
-    sops.sem_flg = 0;
 
-    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
-      perror("video_decode: semop() post");
-    }
+  if(ip_sem_post(&buf_ctrl_head->queue, PICTURES_READY_TO_DISPLAY) == -1) {
+    perror("sempost pictures_ready");
+    exit_program(1);
   }
-  
-#else
-#error No semaphore type set
-#endif
 }
 
 #define FPS_FRAMES 480

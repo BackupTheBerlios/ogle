@@ -30,19 +30,14 @@
 #include <unistd.h>
 #include <glib.h> // for byte swapping only
 #include <sys/msg.h>
-#include <semaphore.h>
 #include <errno.h>
-
-#if defined USE_SYSV_SEM
-#include <sys/sem.h>
-#endif
-
 
 #include "programstream.h"
 #include "common.h"
 #include "msgtypes.h"
 #include "queue.h"
 #include "mpeg.h"
+#include "ip_sem.h"
 
 
 
@@ -1789,86 +1784,65 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   int nr_waits = 0;
   
   static int scr_nr = 0;
-
+  
+  /* First find a entry in the big shared buffer pool. */
+  
   data_buf_head = (data_buf_head_t *)data_buf_addr;
   data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
   data_elem_nr = data_buf_head->write_nr;
   
-
+  /* It's a circular list and it the next packet is still in use we need
+   * to wait for it to be become available. 
+   * We migh also do someting smarter here but provided that we have a
+   * large enough buffer this will not be common.
+   */
   while(data_elems[data_elem_nr].in_use) {
     nr_waits++;
-    /* If this element is in use we have to wait till it is released.
-     * We know for which q we need to wait
+    /* If this element is in use we have to wait untill it is released.
+     * We know which consumer q we need to wait on. 
+     * Normaly a wait on a consumer queue is because there are no free buf 
+     * entries (i.e the wait should suspend on the first try). Here we
+     * instead want to wait untill the number of empty buffers changes
+     * (i.e. not necessarily between 0 and 1). 
+     * Because of this we will loop and call ip_sem_wait untill it suspends
+     * us or the buffer is no longer in use. 
+     * This will effectivly lower the maximum number of buffers untill
+     * we are at the 'normal case' of waiting for there to be 1 free buffer.
+     * Then we need to check if it was this specific buffer that was consumed
+     * if not then try again.
      */
-    /* Normally we shouldn't get here */
+    /* This is a contention case, normally we shouldn't get here */
+    
     //fprintf(stderr, "demux: put_in_q(), elem %d in use\n", data_elem_nr);
     
     q_head = (q_head_t *)data_elems[data_elem_nr].q_addr;
     
-#if defined USE_POSIX_SEM
-    if(sem_wait(&q_head->bufs_empty) == -1) {
+    if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
       perror("demux: put_in_q(), sem_wait()");
-      return -1;
+      exit(1); // XXX 
     }
-#elif defined USE_SYSV_SEM
-    {
-      struct sembuf sops;
-      sops.sem_num = BUFS_EMPTY;
-      sops.sem_op = -1;
-      sops.sem_flg = 0;
-
-      if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-	perror("demux: put_in_q(), semop() wait");
-      }
-    }
-#else
-#error No semaphore type set
-#endif
-    
   }
-
-
-
-  /* Now the element should be free */
+  /* Now the element should be free. 'paranoia check' */
   if(data_elems[data_elem_nr].in_use) {
     fprintf(stderr, "demux: somethings wrong, elem %d still in use\n",
 	    data_elem_nr);
   }
   
-  /*
-  if(nr_waits > 0) {
-    fprintf(stderr, "demux: waits %d times on buf %d\n",
-	    nr_waits, data_elem_nr);
-  }
-  */
-
+  /* If decremented earlier then increment it now to restor the normal 
+   * maximum free buffers for the queue. */
   for(n = 0; n < nr_waits; n++) {
-    /* We must increase the semaphore we waited on */
-#if defined USE_POSIX_SEM
-    if(sem_post(&q_head->bufs_empty) == -1) {
+    if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
       perror("demux: put_in_q(), sem_post()");
-      return -1;
+      exit(1); // XXX 
     }
-#elif defined USE_SYSV_SEM
-    {
-      struct sembuf sops;
-      sops.sem_num = BUFS_EMPTY;
-      sops.sem_op = 1;
-      sops.sem_flg = 0;
-
-      if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-	perror("demux: put_in_q(), semop() post");
-      }
-    }
-
-#else
-#error No sempahore type set
-#endif
   }
-
-    
+  
+  
+  
+  
   if(PTS_DTS_flags & 0x2) {
-    DPRINTF(1, "PTS: %llu.%09llu\n", PTS/90000, (PTS%90000)*(1000000000/90000));
+    DPRINTF(1, "PTS: %llu.%09llu\n", 
+	    PTS/90000, (PTS%90000)*(1000000000/90000));
   }
 
   data_elems[data_elem_nr].PTS_DTS_flags = PTS_DTS_flags;
@@ -1890,34 +1864,24 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
   data_elems[data_elem_nr].scr_nr = scr_nr;
 
-  data_buf_head->write_nr = (data_buf_head->write_nr+1)%data_buf_head->nr_of_dataelems;
+  data_buf_head->write_nr = 
+    (data_buf_head->write_nr+1) % data_buf_head->nr_of_dataelems;
 
-  //  fprintf(stderr, "demux: put_in_q() off: %d, len %d\n",
-  //	  off, len);
+  //  fprintf(stderr, "demux: put_in_q() off: %d, len %d\n", off, len);
+  
+  
+  
+  
+  /* Now put the data buffer in the right consumer queue. */
   q_head = (q_head_t *)q_addr;
   q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
   elem = q_head->write_nr;
   
-
-#if defined USE_POSIX_SEM
-  if(sem_wait(&q_head->bufs_empty) == -1) {
+  /* Make sure that there is room for it. */
+  if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
     perror("demux: put_in_q(), sem_wait()");
-    return -1;
+    exit(1); // XXX 
   }
-#elif USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = BUFS_EMPTY;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      perror("demux: put_in_q(), semop() wait");
-    }
-  }
-#else
-#error No semaphore type set
-#endif
 
   q_elem[elem].data_elem_index = data_elem_nr;
   /*
@@ -1930,30 +1894,14 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   q_elem[elem].off = off;
   q_elem[elem].len = len;
   */
-    
-
+  
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
-#if defined USE_POSIX_SEM
-  if(sem_post(&q_head->bufs_full) == -1) {
+  /* Let the consumber know that there is data available for consumption. */
+  if(ip_sem_post(&q_head->queue, BUFS_FULL) == -1) {
     perror("demux: put_in_q(), sem_post()");
-    return -1;
+    exit(1); // XXX 
   }
-#elif USE_SYSV_SEM
- {
-    struct sembuf sops;
-    sops.sem_num = BUFS_FULL;
-    sops.sem_op = 1;
-    sops.sem_flg = 0;
-
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      perror("demux: put_in_q(), semop() post");
-    }
-  }
-
-#else
-#error No semaphore type set
-#endif
   
   return 0;
 }

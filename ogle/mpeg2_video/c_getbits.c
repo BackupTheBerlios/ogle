@@ -24,13 +24,6 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#if defined USE_SYSV_SEM
-#include <sys/sem.h>
-#elif defined USE_POSIX_SEM
-#include <semaphore.h>
-#endif
-
-
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <errno.h>
@@ -41,7 +34,8 @@
 #include "msgtypes.h"
 #include "queue.h"
 #include "timemath.h"
-
+#include "sync.h"
+#include "ip_sem.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -72,7 +66,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 int attach_ctrl_shm(int shmid);
 
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
 
 
 
@@ -153,7 +146,7 @@ void get_next_packet()
       ctrl_time = malloc(sizeof(ctrl_time_t));
       scr_nr = 0;
       ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-      set_time_base(PTS, scr_nr, time_offset);
+      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
 
     } else {
       packet.length = 1000000000;
@@ -511,11 +504,14 @@ int get_q()
     data_elem->in_use = 0;
     
 #if defined USE_POSIX_SEM
-    sem_getvalue(&q_head->bufs_full, &sval);
+    if(sem_getvalue(&q_head->queue.bufs[BUFS_FULL], &sval) == -1) {
+      perror("sem_getval");
+      exit(1);
+    }
 #elif defined USE_SYSV_SEM
-    if((sval = semctl(q_head->semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
+    if((sval = semctl(q_head->queue.semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
       perror("semctl getval");
-      exit(-1);
+      exit(1);
     }
 #else
 #error No semaphore type set
@@ -523,23 +519,10 @@ int get_q()
 
     if(sval < 50) {
       for(n = 0; n < delayed_posts+1; n++) {
-#if defined USE_POSIX_SEM
-	if(sem_post(&q_head->bufs_empty) == -1) {
+	if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
 	  perror("video_decode: get_q(), sem_post()");
-	  return -1;
+	  exit(1); // XXX 
 	}
-#elif defined USE_SYSV_SEM
-	struct sembuf sops;
-	sops.sem_num = BUFS_EMPTY;
-	sops.sem_op = 1;
-	sops.sem_flg = 0;
-	if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-	  perror("video_decode: get_q(), semop() post");
-	  return -1;
-	}
-#else
-#error No semaphore type set
-#endif
       }
       delayed_posts = 0;
     } else {
@@ -550,9 +533,12 @@ int get_q()
   {
     int sval;
 #if defined USE_POSIX_SEM
-    sem_getvalue(&q_head->bufs_full, &sval);
+    if(sem_getvalue(&q_head->queue.bufs[BUFS_FULL], &sval) == -1) {
+      perror("sem_getval");
+      exit(1);
+    }
 #elif defined USE_SYSV_SEM
-    if((sval = semctl(q_head->semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
+    if((sval = semctl(q_head->queue.semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
       perror("semctl getval");
       exit(-1);
     }
@@ -565,25 +551,10 @@ int get_q()
     }
   }
 
-#if defined USE_POSIX_SEM
-  if(sem_wait(&q_head->bufs_full) == -1) {
+  if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
     perror("video_decode: get_q(), sem_wait()");
-    return -1;
+    exit(1); // XXX 
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = BUFS_FULL;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      perror("video_decode: get_q(), semop() wait");
-      return -1;
-    }
-  }
-#else
-#error No semaphore type set
-#endif
   have_buf = 1;
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -609,7 +580,7 @@ int get_q()
   
   if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
     if(PTS_DTS_flags & 0x2) {
-      set_time_base(PTS, scr_nr, time_offset);
+      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
   if(PTS_DTS_flags & 0x2) {
@@ -654,27 +625,6 @@ int attach_ctrl_shm(int shmid)
   return 0;  
 }
 
-
-
-
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
-{
-  clocktime_t curtime, ptstime, modtime;
-  
-  PTS_TO_CLOCKTIME(ptstime, PTS)
-
-  clocktime_get(&curtime);
-  timeadd(&modtime, &curtime, &offset);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
-  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-  
-  fprintf(stderr, "video_stream: setting offset[%d]: %ld.%09ld\n",
-	  scr_nr,
-	  TIME_S(ctrl_time[scr_nr].realtime_offset),
-	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
-  
-  return 0;
-}
 
 
 void print_time_offset(uint64_t PTS)

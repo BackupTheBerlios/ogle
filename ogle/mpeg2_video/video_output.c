@@ -25,16 +25,13 @@
 #include "common.h"
 #include "timemath.h"
 #include "video_types.h"
+#include "ip_sem.h"
 
 #include <time.h>
-
 #ifndef HAVE_CLOCK_GETTIME
 #include <sys/time.h>
 #endif
 
-#if defined USE_SYSV_SEM
-#include <sys/sem.h>
-#endif
 
 extern buf_ctrl_head_t *buf_ctrl_head;
 extern void display(yuv_image_t *current_image);
@@ -47,27 +44,12 @@ extern void display_exit(void);
 int get_next_picture_buf_id()
 {
   int id;
-  static int dpy_q_get_pos = 0;
+  static int dpy_q_get_pos = 0; // Fix me!!
 
-#if defined USE_POSIX_SEM
-  if(sem_wait(&(buf_ctrl_head->pictures_ready_to_display)) == -1) {
-    perror("sem_wait get_next_picture_buf_id");
+  if(ip_sem_wait(&buf_ctrl_head->queue, PICTURES_READY_TO_DISPLAY) == -1) {
+    perror("sem_wait() get_next_picture_buf_id");
+    exit(1); // XXX 
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = PICTURES_READY_TO_DISPLAY;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-    
-    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
-      perror("video_output: semop() wait");
-    }
-  }
-  
-#else
-#error No semaphore type set
-#endif
   id = buf_ctrl_head->dpy_q[dpy_q_get_pos];
   dpy_q_get_pos = (dpy_q_get_pos + 1) % (buf_ctrl_head->nr_of_buffers);
 
@@ -76,24 +58,10 @@ int get_next_picture_buf_id()
 
 void release_picture_buf(int id)
 {
-#if defined USE_POSIX_SEM
-  sem_post(&(buf_ctrl_head->pictures_displayed));
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = PICTURES_DISPLAYED;
-    sops.sem_op =  1;
-    sops.sem_flg = 0;
-    
-    if(semop(buf_ctrl_head->semid_pics, &sops, 1) == -1) {
-      perror("video_output: semop() post");
-    }
+  if(ip_sem_post(&buf_ctrl_head->queue, PICTURES_DISPLAYED) == -1) {
+    perror("sem_post() pictures_displayed");
+    exit(1); // XXX 
   }
-
-#else
-#error No semaphore type set
-#endif
-  return;
 }
 
 
@@ -104,7 +72,6 @@ int frame_nr = 0;
 void int_handler()
 {
   display_exit();
-  exit(0);
 }
 
 

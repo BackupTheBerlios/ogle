@@ -11,10 +11,6 @@
 #include <unistd.h>
 #include <sys/msg.h>
 
-#ifdef USE_SYSV_SEM
-#include <sys/sem.h>
-#endif
-
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif
@@ -22,6 +18,7 @@
 #include "common.h"
 #include "msgtypes.h"
 #include "queue.h"
+#include "ip_sem.h"
 
 
 int wait_for_msg(cmdtype_t cmdtype);
@@ -246,25 +243,10 @@ int get_q()
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
-#if defined USE_POSIX_SEM  
-  if(sem_wait(&q_head->bufs_full) == -1) {
+  if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
     perror("vmg: get_q(), sem_wait()");
-    return -1;
+    exit(1); // XXX 
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = BUFS_FULL;
-    sops.sem_op = -1;
-    sops.sem_flg = 0;
-
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      perror("vmg: get_q(), semop() wait");
-    }
-  }
-#else
-#error No semaphore type set
-#endif
 
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -334,25 +316,10 @@ int get_q()
   data_elem->in_use = 0;
   // release elem
 
-#if defined USE_POSIX_SEM
-  if(sem_post(&q_head->bufs_empty) == -1) {
+  if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
     perror("vmg: get_q(), sem_post()");
-    return -1;
+    exit(1);
   }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = BUFS_EMPTY;
-    sops.sem_op = 1;
-    sops.sem_flg = 0;
-    
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      perror("vmg: get_q(), semop() post");
-    }
-  }
-#else
-#error No semaphore type set
-#endif
 
   return 0;
 }

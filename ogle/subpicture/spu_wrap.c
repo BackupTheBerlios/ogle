@@ -14,6 +14,7 @@
 #include "common.h"
 #include "msgtypes.h"
 #include "queue.h"
+#include "ip_sem.h"
 
 
 int wait_for_msg(cmdtype_t cmdtype);
@@ -21,10 +22,6 @@ int eval_msg(cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
-
-void print_time_base_offset(uint64_t PTS, int scr_nr);
-int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
-struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
 
 
 char *program_name;
@@ -237,9 +234,9 @@ int get_q()
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
-  if(sem_wait(&q_head->bufs_full) == -1) {
+  if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
     perror("spu: get_q(), sem_wait()");
-    return -1;
+    exit(1); // XXX 
   }
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -265,75 +262,13 @@ int get_q()
   fflush(outfile);
   // release elem
   data_elem->in_use = 0;
-  if(sem_post(&q_head->bufs_empty) == -1) {
+  
+  if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
     perror("spu: get_q(), sem_post()");
-    return -1;
+    exit(1); // XXX 
   }
 
   return 0;
-}
-
-
-
-int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
-{
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec modtime;
-  
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
-
-  clock_gettime(CLOCK_REALTIME, &curtime);
-  timeadd(&modtime, &curtime, &offset);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
-  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-  
-  fprintf(stderr, "spu: setting offset[%d]: %ld.%09ld\n",
-	  scr_nr,
-	  ctrl_time[scr_nr].realtime_offset.tv_sec,
-	  ctrl_time[scr_nr].realtime_offset.tv_nsec);
-  
-  return 0;
-}
-  
-
-void print_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec predtime;
-  struct timespec offset;
-
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
-
-  clock_gettime(CLOCK_REALTIME, &curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-
-  //fprintf(stderr, "\nspu: offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
-}
-
-struct timespec get_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec predtime;
-  struct timespec offset;
-
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
-
-  clock_gettime(CLOCK_REALTIME, &curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-
-  //fprintf(stderr, "\nspu: get offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
-
-  return offset;
 }
 
 

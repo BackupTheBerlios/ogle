@@ -21,7 +21,7 @@ DFLAGS=@CFLAGS@ @DEFS@
 LDFLAGS=@LIBS@
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
-ctrl: ctrl.o
+ctrl: ctrl.o ../common/ip_sem.o
 
 clean:
 	rm -f ctrl *.o

@@ -1,10 +1,7 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-
-#include <semaphore.h>
-
-
+#include "ip_sem.h"
 
 
 typedef struct {
@@ -49,17 +46,10 @@ typedef struct {
 } q_elem_t;
 
 
-typedef struct {
-#if defined USE_POSIX_SEM
-  sem_t bufs_full;
-  sem_t bufs_empty;
-#elif defined USE_SYSV_SEM
-  int semid_bufs;
 #define BUFS_FULL 0
 #define BUFS_EMPTY 1
-#else
-#error No semaphore type set
-#endif
+typedef struct {
+  ip_sem_t queue;
   int data_buf_shmid;
   int nr_of_qelems;
   int write_nr;

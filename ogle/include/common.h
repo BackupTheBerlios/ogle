@@ -1,10 +1,8 @@
 #ifndef COMMON_H
 #define COMMON_H
 
-#include <inttypes.h>
-#include <semaphore.h>
-
 #include "timemath.h"
+#include "ip_sem.h"
 
 /* "There's len bytes of data for you in your file at this offset." */
 struct off_len_packet {
@@ -48,18 +46,10 @@ typedef struct {
   int scr_nr;
 } picture_info_t;
 
-
-typedef struct {
-#if defined USE_POSIX_SEM
-  sem_t pictures_ready_to_display;
-  sem_t pictures_displayed;
-#elif defined USE_SYSV_SEM
 #define PICTURES_READY_TO_DISPLAY 0
 #define PICTURES_DISPLAYED 1
-  int semid_pics;
-#else
-#error No semaphore type set
-#endif
+typedef struct {
+  ip_sem_t queue;
   int nr_of_buffers;
   picture_info_t *picture_infos;
   int *dpy_q;

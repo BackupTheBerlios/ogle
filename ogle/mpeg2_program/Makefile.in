@@ -16,6 +16,8 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 top_srcdir = @top_srcdir@
+top_builddir = ..
+
 CC=@CC@
 DFLAGS=@CFLAGS@ @DEFS@ @GLIB_CFLAGS@
 LDFLAGS=@LIBS@
@@ -23,7 +25,7 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 all:	programstream
 
-programstream:
+programstream: programstream.o $(top_builddir)/common/ip_sem.o
 
 clean:
 	rm -f programstream *.o

@@ -11,28 +11,12 @@
 #include <string.h>
 #include <errno.h>
 #include <signal.h>
-#include <semaphore.h>
 
-#ifdef USE_SYSV_SEM
-#include <sys/sem.h>
-#if defined(__GNU_LIBRARY__) && !defined(_SEM_SEMUN_UNDEFINED)
-     /* union semun is defined by including <sys/sem.h> */
-#else
-     /* according to X/OPEN we have to define it ourselves */
-     union semun {
-       int val;                    /* value for SETVAL */
-       struct semid_ds *buf;       /* buffer for IPC_STAT, IPC_SET */
-       unsigned short int *array;  /* array for GETALL, SETALL */
-       struct seminfo *__buf;      /* buffer for IPC_INFO */
-     };
-#endif
-#endif
-
+#include "mpeg.h"
 #include "common.h"
 #include "msgtypes.h"
 #include "queue.h"
-#include "mpeg.h"
-
+#include "ip_sem.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -1283,51 +1267,14 @@ int create_q(int nr_of_elems, int buf_shmid)
   add_q_shmid(shmid);
   
   q_head = (q_head_t *)shmaddr;
-
-#if defined USE_POSIX_SEM
-  
-  fprintf(stderr, "sem_init\n");
-  if(sem_init(&q_head->bufs_full, 1, 0) == -1) {
-    perror("create_q(), sem_init(bufs_full)");
-    return -1;
+  {
+    int init_nr[2] = { 0, nr_of_elems };
+    if(ip_sem_init(&q_head->queue, init_nr) == -1)
+      exit(1); // XXX 
   }
-
-  fprintf(stderr, "sem_init\n");
-  if(sem_init(&q_head->bufs_empty, 1, nr_of_elems) == -1) {
-    perror("create_q(), sem_init(bufs_empty)");
-    return -1;
-  }
-
-
-#elif defined USE_SYSV_SEM
-
-  if((q_head->semid_bufs =
-      semget(IPC_PRIVATE, 2, (IPC_CREAT | IPC_EXCL | 0700))) == -1) {
-    perror("create_q(), semget(semid_bufs)");
-  } else {
-    union semun arg;
-    
-    arg.val = 0;
-    if(semctl(q_head->semid_bufs, BUFS_FULL, SETVAL, arg) == -1) {
-      perror("create_q() semctl()");
-    }
-    
-    arg.val = nr_of_elems;
-    if(semctl(q_head->semid_bufs, BUFS_EMPTY, SETVAL, arg) == -1) {
-      perror("create_q() semctl()");
-    }
-  }
-  
-#else
-#error No semaphore type set
-#endif
-  
   q_head->data_buf_shmid = buf_shmid;
-  
   q_head->nr_of_qelems = nr_of_elems;
-  
   q_head->write_nr = 0;
-  
   q_head->read_nr = 0;
 
   if(shmdt(shmaddr) == -1) {
