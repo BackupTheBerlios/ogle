@@ -90,6 +90,7 @@ typedef	union {
 #define	packuswb_m2r(var,reg)	mmx_m2r (packuswb, var, reg)
 #define	packuswb_r2r(regs,regd) mmx_r2r (packuswb, regs, regd)
 
+/* packed addition (size b/w/d) */
 #define	paddb_m2r(var,reg)	mmx_m2r (paddb, var, reg)
 #define	paddb_r2r(regs,regd)	mmx_r2r (paddb, regs, regd)
 #define	paddd_m2r(var,reg)	mmx_m2r (paddd, var, reg)
@@ -97,11 +98,13 @@ typedef	union {
 #define	paddw_m2r(var,reg)	mmx_m2r (paddw, var, reg)
 #define	paddw_r2r(regs,regd)	mmx_r2r (paddw, regs, regd)
 
+/* packed addition saturation (size b/w) */
 #define	paddsb_m2r(var,reg)	mmx_m2r (paddsb, var, reg)
 #define	paddsb_r2r(regs,regd)	mmx_r2r (paddsb, regs, regd)
 #define	paddsw_m2r(var,reg)	mmx_m2r (paddsw, var, reg)
 #define	paddsw_r2r(regs,regd)	mmx_r2r (paddsw, regs, regd)
 
+/* packed addition unsigned saturation (size b/w) */
 #define	paddusb_m2r(var,reg)	mmx_m2r (paddusb, var, reg)
 #define	paddusb_r2r(regs,regd)	mmx_r2r (paddusb, regs, regd)
 #define	paddusw_m2r(var,reg)	mmx_m2r (paddusw, var, reg)
@@ -110,6 +113,7 @@ typedef	union {
 #define	pand_m2r(var,reg)	mmx_m2r (pand, var, reg)
 #define	pand_r2r(regs,regd)	mmx_r2r (pand, regs, regd)
 
+/* logical and not, regd = ~regd & regs*/
 #define	pandn_m2r(var,reg)	mmx_m2r (pandn, var, reg)
 #define	pandn_r2r(regs,regd)	mmx_r2r (pandn, regs, regd)
 
@@ -127,6 +131,7 @@ typedef	union {
 #define	pcmpgtw_m2r(var,reg)	mmx_m2r (pcmpgtw, var, reg)
 #define	pcmpgtw_r2r(regs,regd)	mmx_r2r (pcmpgtw, regs, regd)
 
+/* packed multiply add (size w) */
 #define	pmaddwd_m2r(var,reg)	mmx_m2r (pmaddwd, var, reg)
 #define	pmaddwd_r2r(regs,regd)	mmx_r2r (pmaddwd, regs, regd)
 
@@ -139,6 +144,7 @@ typedef	union {
 #define	por_m2r(var,reg)	mmx_m2r (por, var, reg)
 #define	por_r2r(regs,regd)	mmx_r2r (por, regs, regd)
 
+/* packed shift left logical (size w/d/q), regd = regd << imm/var/regs */
 #define	pslld_i2r(imm,reg)	mmx_i2r (pslld, imm, reg)
 #define	pslld_m2r(var,reg)	mmx_m2r (pslld, var, reg)
 #define	pslld_r2r(regs,regd)	mmx_r2r (pslld, regs, regd)
@@ -149,6 +155,7 @@ typedef	union {
 #define	psllw_m2r(var,reg)	mmx_m2r (psllw, var, reg)
 #define	psllw_r2r(regs,regd)	mmx_r2r (psllw, regs, regd)
 
+/* packed shift right aritmetic (size w/d), regd = regd >> imm/var/regs */
 #define	psrad_i2r(imm,reg)	mmx_i2r (psrad, imm, reg)
 #define	psrad_m2r(var,reg)	mmx_m2r (psrad, var, reg)
 #define	psrad_r2r(regs,regd)	mmx_r2r (psrad, regs, regd)
@@ -156,6 +163,7 @@ typedef	union {
 #define	psraw_m2r(var,reg)	mmx_m2r (psraw, var, reg)
 #define	psraw_r2r(regs,regd)	mmx_r2r (psraw, regs, regd)
 
+/* packed shift right logical (size w/d/q), regd = regd >> imm/var/regs */
 #define	psrld_i2r(imm,reg)	mmx_i2r (psrld, imm, reg)
 #define	psrld_m2r(var,reg)	mmx_m2r (psrld, var, reg)
 #define	psrld_r2r(regs,regd)	mmx_r2r (psrld, regs, regd)
@@ -166,6 +174,7 @@ typedef	union {
 #define	psrlw_m2r(var,reg)	mmx_m2r (psrlw, var, reg)
 #define	psrlw_r2r(regs,regd)	mmx_r2r (psrlw, regs, regd)
 
+/* packed subtract (size b/w), regd = regd - regs */
 #define	psubb_m2r(var,reg)	mmx_m2r (psubb, var, reg)
 #define	psubb_r2r(regs,regd)	mmx_r2r (psubb, regs, regd)
 #define	psubd_m2r(var,reg)	mmx_m2r (psubd, var, reg)
@@ -173,11 +182,13 @@ typedef	union {
 #define	psubw_m2r(var,reg)	mmx_m2r (psubw, var, reg)
 #define	psubw_r2r(regs,regd)	mmx_r2r (psubw, regs, regd)
 
+/* packed subtract signed saturation (size b/w) */
 #define	psubsb_m2r(var,reg)	mmx_m2r (psubsb, var, reg)
 #define	psubsb_r2r(regs,regd)	mmx_r2r (psubsb, regs, regd)
 #define	psubsw_m2r(var,reg)	mmx_m2r (psubsw, var, reg)
 #define	psubsw_r2r(regs,regd)	mmx_r2r (psubsw, regs, regd)
 
+/* packed subtract unsigned saturation (size b/w) */
 #define	psubusb_m2r(var,reg)	mmx_m2r (psubusb, var, reg)
 #define	psubusb_r2r(regs,regd)	mmx_r2r (psubusb, regs, regd)
 #define	psubusw_m2r(var,reg)	mmx_m2r (psubusw, var, reg)
