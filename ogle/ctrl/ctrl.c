@@ -851,6 +851,8 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   if(pid != -1) {
     add_to_pidlist(pid);
   }
+  
+  fprintf(stderr, "Started %s with pid %d\n", decoderstr, pid);
   //  starting_decoder = 0;
   return pid;
 
