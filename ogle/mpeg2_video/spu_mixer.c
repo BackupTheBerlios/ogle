@@ -26,6 +26,7 @@ typedef struct {
   uint16_t fieldoffset[2];
 
   unsigned char *buffer;
+  char *next_buffer;
   struct timespec base_time;
   struct timespec next_time;
   
@@ -38,7 +39,6 @@ typedef struct {
   int y_start;
   int y_end;
   int display_start;
-  int display_end;
   int menu;
   uint8_t color[4];
   uint8_t contrast[4];
@@ -66,7 +66,6 @@ static uint16_t fieldoffset[2];
 static uint16_t field=0;
 
 static spu_t spu_info = { 0 };
-static char *tmp_spu_buffer;
 
 static int initialized = 0;
 
@@ -469,8 +468,8 @@ int init_spu(void)
 {
   fprintf(stderr, "spu_mixer: init\n");
   spu_info.buffer = malloc(MAX_BUF_SIZE);
-  tmp_spu_buffer  = malloc(MAX_BUF_SIZE);
-  if(spu_info.buffer == NULL || tmp_spu_buffer == NULL)
+  spu_info.next_buffer = malloc(MAX_BUF_SIZE);
+  if(spu_info.buffer == NULL || spu_info.next_buffer == NULL)
     perror("init_spu");
 
   return 0;
@@ -638,6 +637,11 @@ void decode_dcsqt(spu_t *spu_info) {
   // init start position
   set_byte(spu_info->buffer);
   
+  /* Reset state  */
+  spu_info->menu = 0;
+  spu_info->display_start = 0;
+  // Maybe some other...
+  
   spu_info->spu_size = GETBYTES(2, "spu_size");
   DPRINTF(3, "SPU size: 0x%04x\n", spu_info->spu_size);
   
@@ -654,27 +658,13 @@ void decode_dcsqt(spu_t *spu_info) {
   return;
 }
 
-int get_next_start_time(spu_t *spu_info)
-{
-  int apa;
-  /*
-  set_byte(spu_info->buffer+spu_info->next_DCSQ_offset);    
-  DPRINTF(3, "\tDisplay Control Sequence:\n");
-    
-  return(GETBYTES(2, "start_time"));
-  
-  apa = (spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
-  */
-  return ((spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
-	  | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
-}
 
 void decode_dcsq(spu_t *spu_info) { 
   uint8_t command;
   uint32_t dummy;
   
   /* DCSQ */
-  set_byte(spu_info->buffer+spu_info->next_DCSQ_offset);    
+  set_byte(spu_info->buffer+spu_info->next_DCSQ_offset);
   DPRINTF(3, "\tDisplay Control Sequence:\n");
     
   spu_info->start_time = GETBYTES(2, "start_time");
@@ -773,7 +763,7 @@ void decode_dcsq(spu_t *spu_info) {
 	type = (dummy >> 12) & 0xf;
 	y_end = dummy & 0xfff;
 	  
-	u1 = GETBYTES(2, "wipe unknown 1");
+	u1 = GETBYTES(2, "wipe x_start 1?");
 	  
 	dummy = GETBYTES(2, "wipe color_left");
 	color_left[0] = dummy & 0xf;
@@ -787,12 +777,7 @@ void decode_dcsq(spu_t *spu_info) {
 	contrast_left[2] = (dummy >> 8) & 0xf;
 	contrast_left[3] = (dummy >> 12) & 0xf;
 	  
-	if(type == 1) {
-	    
-	  u2 = GETBYTES(2, "wipe unknown 2");
-	  u3 = GETBYTES(2, "wipe unknown 2");
-	    
-	} else if(type == 2) {
+	if(type == 2) {
 	    
 	  x_pos = GETBYTES(2, "wipe x_pos");
 	    
@@ -808,9 +793,12 @@ void decode_dcsq(spu_t *spu_info) {
 	  contrast_right[2] = (dummy >> 8) & 0xf;
 	  contrast_right[3] = (dummy >> 12) & 0xf;
 	    
+	} 
+	
+	if(type == 1 || type == 2) {
 	    
-	  u2 = GETBYTES(2, "wipe unknown 2");
-	  u3 = GETBYTES(2, "wipe unknown 2");
+	  u2 = GETBYTES(2, "wipe x_end 1?");
+	  u3 = GETBYTES(2, "wipe x_end 2?");
 	    
 	} else {
 	  fprintf(stderr, "unknown cmd 07 type\n");
@@ -822,17 +810,6 @@ void decode_dcsq(spu_t *spu_info) {
 	  exit(-1);
 	}
 	  
-	DPRINTF(4, "0x%x 0x%x 0x%x 0x%x",
-		contrast_left[0], contrast_left[1],
-		contrast_left[2], contrast_left[3]
-		);
-	DPRINTF(3, "\n");
-	  
-	/*
-	  for(n = 0; n < num-2; n++) {
-	  DPRINTF(4, ":%02x ", (unsigned char) GETBYTES(1, "field 0 start"));
-	  }
-	*/
       }
       break;
     default:
@@ -923,7 +900,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     length = vlc >> 2;
     
     colorid = vlc & 3;
-    pixel_data = (spu_info->contrast[colorid] << 4) | (spu_info->color[colorid] & 0x0f);
+    pixel_data = ((spu_info->contrast[colorid] << 4) 
+		  | (spu_info->color[colorid] & 0x0f));
     
     if(length==0) { // new line
       //   if (y >= height)
@@ -958,7 +936,6 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
       }
     }
     /*
-
       shm_buffer[shm_buf_pos++] = pixel_data;
       shm_buffer[shm_buf_pos++] = length;
     */
@@ -981,28 +958,27 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
  * future, return 'false'.
  */
 int next_spu_cmd_pending(spu_t *spu_info) {
-  int start_time;
-  spu_t tmp_spu_info;
+  int start_time, offset;
   struct timespec realtime, errtime;
 
   /* I nexttime haven't been set, try to set it. */
   if(spu_info->next_time.tv_sec == 0) {
-
+    
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
-
-      if(!get_data(tmp_spu_buffer, MAX_BUF_SIZE, &spu_info->base_time))
+      
+      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, &spu_info->base_time))
 	return 0;
       
-      tmp_spu_info.buffer = tmp_spu_buffer;
-      decode_dcsqt(&tmp_spu_info);
-      //decode_dcsq(&tmp_spu_info);
-      //start_time = tmp_spu_info.start_time;
-      start_time = get_next_start_time(&tmp_spu_info);
+      /* The offset to the first DCSQ */
+      offset = ((spu_info->next_buffer[2] << 8) | (spu_info->next_buffer[3]));
+      
+      /* The Start time is located at the start of the DCSQ */ 
+      start_time = ((spu_info->next_buffer[offset] << 8) 
+		    | spu_info->next_buffer[offset + 1]);
     } else {
-      // tmp_spu_info = *spu_info;
-      //decode_dcsq(&tmp_spu_info);
-      //start_time = tmp_spu_info.start_time;
-      start_time = get_next_start_time(spu_info);
+      /* The Start time is located at the start of the DCSQ */ 
+      start_time = ((spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
+		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
     
     spu_info->next_time.tv_sec = start_time/100;
@@ -1013,14 +989,6 @@ int next_spu_cmd_pending(spu_t *spu_info) {
   clock_gettime(CLOCK_REALTIME, &realtime);
   timesub(&errtime, &spu_info->next_time, &realtime);
 
-  /*
-    fprintf(stderr, " errtime: %d.%ld, nexttime: %d.%09ld, starttime: %d\n",
-	  errtime.tv_sec,
-	  errtime.tv_nsec,
-	  spu_info->next_time.tv_sec,
-	  spu_info->next_time.tv_nsec,
-	  start_time);
-  */
   if((errtime.tv_nsec < 0) || (errtime.tv_sec < 0)) {
     return 1;
   }
@@ -1043,14 +1011,14 @@ void mix_subpicture(char *data, int width, int height)
     return;
   }
 
-  while( next_spu_cmd_pending(&spu_info) ) {
+  while(next_spu_cmd_pending(&spu_info)) {
 
     if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
       char *swap;
-      /* Change to the other buffer that contains the new data */
+      /* Change to the next buffer and recycle the old */
       swap = spu_info.buffer;
-      spu_info.buffer = tmp_spu_buffer;
-      tmp_spu_buffer = swap;
+      spu_info.buffer = spu_info.next_buffer;
+      spu_info.next_buffer = swap;
       
       decode_dcsqt(&spu_info);
     }
@@ -1063,7 +1031,6 @@ void mix_subpicture(char *data, int width, int height)
      */
     spu_info.next_time.tv_sec = 0;
   }
-
 
 
   if(spu_info.display_start || spu_info.menu) {
