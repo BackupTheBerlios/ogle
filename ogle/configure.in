@@ -332,6 +332,25 @@ solaris*)
 linux*)
 	DEFAULT_DVD_DEVICE="/dev/dvd"
 	;;
+freebsd*)
+	DEFAULT_DVD_DEVICE="/dev/racd0"
+	;;
+netbsd*)
+  	case "$host_cpu" in
+   	i?86)
+		DEFAULT_DVD_DEVICE="/dev/rcd0c"
+		;;
+   	*)
+		DEFAULT_DVD_DEVICE="/dev/rcd0d"
+		;;
+  	esac
+  	;;
+openbsd*)
+	DEFAULT_DVD_DEVICE="/dev/rcd0c"
+	;;
+bsdi*)
+	DEFAULT_DVD_DEVICE="/dev/sr0"
+	;;
 *)
 	DEFAULT_DVD_DEVICE=""
 	;;
