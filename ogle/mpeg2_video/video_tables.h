@@ -75,9 +75,6 @@ extern const vlc_table_t table_b11[];
 extern const vlc_table_t table_b9[];
 
 /* Derived from Figure 7-1. Definition of scan[a][v][u] */
-extern const uint8_t scan[2][64];
-
-/* Derived from Figure 7-1. Definition of scan[a][v][u] */
 extern const uint8_t inverse_scan[2][64];
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */

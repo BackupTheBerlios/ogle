@@ -139,7 +139,7 @@ slice_t slice_data;
 #if PRAGMA_ALIGN
 #pragma align 32 (mb)
 #endif
-macroblock_t mb;
+macroblock_t ATTRIBUTE_ALIGNED(32) mb;
 
 
 yuv_image_t *image_bufs;
@@ -569,18 +569,10 @@ void sequence_header(void)
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
     
-    for(n = 0; n < 64; n++) {
-      seq.header.intra_quantiser_matrix[n] 
-	= GETBITS(8, "intra_quantiser_matrix[n]");
-    }
-    
     /* 7.3.1 Inverse scan for matrix download */
-    {
-      int v;
-      for(v=0; v < 64; v++) {
-	seq.header.intra_inverse_quantiser_matrix[v] =
-	  seq.header.intra_quantiser_matrix[scan[0][v]];
-      }
+    for(n = 0; n < 64; n++) {
+      seq.header.intra_inverse_quantiser_matrix[inverse_scan[0][n]] =
+	GETBITS(8, "intra_quantiser_matrix[n]");
     }
     
   } else {
@@ -594,18 +586,10 @@ void sequence_header(void)
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
     
-    for(n = 0; n < 64; n++) {
-      seq.header.non_intra_quantiser_matrix[n] 
-	= GETBITS(8, "non_intra_quantiser_matrix[n]");
-    }
-   
     /** 7.3.1 Inverse scan for matrix download */
-    {
-      int v;
-      for(v=0; v < 64; v++) {
-	seq.header.non_intra_inverse_quantiser_matrix[v] =
-	  seq.header.non_intra_quantiser_matrix[scan[0][v]];
-      }
+    for(n = 0; n < 64; n++) {
+      seq.header.non_intra_inverse_quantiser_matrix[inverse_scan[0][n]] =
+	GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
     
   } else {
@@ -2182,38 +2166,24 @@ void quant_matrix_extension()
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
 
+    /* 7.3.1 Inverse scan for matrix download */
     for(n = 0; n < 64; n++) {
-      seq.header.intra_quantiser_matrix[n] 
-	= GETBITS(8, "intra_quantiser_matrix[n]");
+      seq.header.intra_inverse_quantiser_matrix[inverse_scan[0][n]] =
+	GETBITS(8, "intra_quantiser_matrix[n]");
     }
     
-    /* 7.3.1 Inverse scan for matrix download */
-    {
-      int v;
-      for(v=0; v < 64; v++) {
-	seq.header.intra_inverse_quantiser_matrix[v] =
-	  seq.header.intra_quantiser_matrix[scan[0][v]];
-      }
-    }
   }
     
   if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
     
+    /*  7.3.1 Inverse scan for matrix download */
     for(n = 0; n < 64; n++) {
-      seq.header.non_intra_quantiser_matrix[n] 
-	= GETBITS(8, "non_intra_quantiser_matrix[n]");
+      seq.header.non_intra_inverse_quantiser_matrix[inverse_scan[0][n]] =
+	GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
    
-    /*  7.3.1 Inverse scan for matrix download */
-    {
-      int v;
-      for(v=0; v < 64; v++) {
-	seq.header.non_intra_inverse_quantiser_matrix[v] =
-	  seq.header.non_intra_quantiser_matrix[scan[0][v]];
-      }
-    }
   }
   GETBITS(1, "load_chroma_intra_quantiser_matrix (always 0 in 4:2:0)");
   GETBITS(1, "load_chroma_non_intra_quantiser_matrix (always 0 in 4:2:0)");
