@@ -78,9 +78,9 @@ static xmlNodePtr get_bookmark(xmlDocPtr doc, xmlNodePtr cur, int nr)
 DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
 {
   DVDBookmark_t *bm;
-  char *home;
+  char *home = NULL;
   xmlDocPtr doc = NULL;
-  char *filename;
+  char *filename = NULL;
   int fd;
   char dvdid_str[33];
   int n;
@@ -95,26 +95,43 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
     if(home == NULL) {
       return NULL;
     } else {
-      char *bmpath = NULL;
-      char bmdir[] = "/" OGLE_RC_DIR "/" OGLE_BOOKMARK_DIR "/";
-      
-      bmpath = malloc(strlen(home)+strlen(bmdir)+strlen(dvdid_str)+1);
-      strcpy(bmpath, home);
-      strcat(bmpath, bmdir);
-      strcat(bmpath, dvdid_str);
-      file = bmpath;
+      struct stat buf;
+      filename = malloc( strlen(home) + 1 + strlen(OGLE_RC_DIR) + 1 +
+			 strlen(OGLE_BOOKMARK_DIR) + 1 + strlen(dvdid_str) + 1 );
+      if(filename == NULL) {
+	return NULL;
+      }
+      strcpy(filename, home);
+      strcat(filename, "/");
+      strcat(filename, OGLE_RC_DIR);
+      if(stat(filename, &buf) == -1) {
+	if(errno == ENOENT) {
+	  mkdir(filename, 0755);
+	}
+      }
+      strcat(filename, "/");
+      strcat(filename, OGLE_BOOKMARK_DIR);
+      if(stat(filename, &buf) == -1) {
+	if(errno == ENOENT) {
+	  mkdir(filename, 0755);
+	}
+      }
+      strcat(filename, "/");
+      strcat(filename, dvdid_str);
     }
+  } else {
+    filename = strdup(file);
   }
-  filename = strdup(file);
-
   xmlKeepBlanksDefault(0);
+
+  
   if((fd = open(filename, O_RDONLY)) != -1) {
     close(fd);
   } else {
-    if(errno != ENOENT) {
+    if(!create || (errno != ENOENT)) {
       return NULL;
     } else {
-      if((fd = open(filename, O_CREAT | O_RDONLY, 0644)) != -1) {
+      if((fd = open(filename, O_RDONLY | O_CREAT, 0644)) != -1) {
 	close(fd);
 	if((doc = new_bookmark_doc(dvdid_str)) == NULL) {
 	  return NULL;
