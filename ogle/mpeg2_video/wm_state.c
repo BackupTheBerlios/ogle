@@ -17,6 +17,7 @@
 
 
 static WindowState_t current_state = WINDOW_STATE_NORMAL;
+static int kwin_bug = 0;
 
 typedef struct {
   int x;
@@ -243,7 +244,10 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
-    
+    if((strcmp(wm_name, "KWin") == 0) && kwin_bug) {
+      fprintf(stderr, "sleeping before map\n");
+      sleep(1);
+    }
     XMapWindow(dpy, win);
     
     /* wait for the window to be mapped */
@@ -439,6 +443,11 @@ static void switch_to_normal_state(Display *dpy, Window win)
     
     XSetWMNormalHints(dpy, win, sizehints);
     XFree(sizehints);
+
+    if((strcmp(wm_name, "KWin") == 0) && kwin_bug) {
+      fprintf(stderr, "sleeping before map\n");
+      sleep(1);
+    }
     
     XMapWindow(dpy, win);
     
@@ -1026,7 +1035,12 @@ int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
 {
   
   if(state != current_state) {
-    
+    if(getenv("OGLE_KWIN_BUG")) {
+      kwin_bug = 1;
+    } else {
+      kwin_bug = 0;
+    }
+
     EWMH_wm = check_for_EWMH_wm(dpy, &wm_name);
     if(EWMH_wm) {
       if(DpyInfoGetEWMHFullscreen()) {
