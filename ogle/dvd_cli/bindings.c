@@ -5,6 +5,9 @@
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
 
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+
 #include "bindings.h"
 
 
@@ -14,67 +17,67 @@ static int fs = 0;
 static int isPaused = 0;
 static double speed = 1.0;
 
-void actionUpperButtonSelect(void)
+void actionUpperButtonSelect(void *data)
 {
   DVDUpperButtonSelect(nav);	  
 }
 
-void actionLowerButtonSelect(void)
+void actionLowerButtonSelect(void *data)
 {
   DVDLowerButtonSelect(nav);
 }
 
-void actionLeftButtonSelect(void)
+void actionLeftButtonSelect(void *data)
 {
   DVDLeftButtonSelect(nav);
 }
 
-void actionRightButtonSelect(void)
+void actionRightButtonSelect(void *data)
 {
   DVDRightButtonSelect(nav);
 }
 
-void actionButtonActivate(void)
+void actionButtonActivate(void *data)
 {
   DVDButtonActivate(nav);
 }
 
-void actionMenuCallTitle(void)
+void actionMenuCallTitle(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Title);
 }
 
-void actionMenuCallRoot(void)
+void actionMenuCallRoot(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Root);
 }
 
-void actionMenuCallSubpicture(void)
+void actionMenuCallSubpicture(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Subpicture);
 }
 
-void actionMenuCallAudio(void)
+void actionMenuCallAudio(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Audio);
 }
 
-void actionMenuCallAngle(void)
+void actionMenuCallAngle(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Angle);
 }
 
-void actionMenuCallPTT(void)
+void actionMenuCallPTT(void *data)
 {
   DVDMenuCall(nav, DVD_MENU_Part);
 }
 
-void actionResume(void)
+void actionResume(void *data)
 {
   DVDResume(nav);
 }
 
-void actionPauseToggle(void)
+void actionPauseToggle(void *data)
 {
   
   if(isPaused) {
@@ -87,19 +90,19 @@ void actionPauseToggle(void)
   
 }
 
-void actionPauseOn(void)
+void actionPauseOn(void *data)
 {
     DVDPauseOn(nav);
     isPaused = 1;
 }
 
-void actionPauseOff(void)
+void actionPauseOff(void *data)
 {
     DVDPauseOff(nav);
     isPaused = 0;
 }
 
-void actionSubpictureToggle(void)
+void actionSubpictureToggle(void *data)
 {
   DVDResult_t res;
   int spu_nr;
@@ -119,17 +122,17 @@ void actionSubpictureToggle(void)
   }
 }
 
-void actionNextPG(void)
+void actionNextPG(void *data)
 {
   DVDNextPGSearch(nav);
 }
 
-void actionPrevPG(void)
+void actionPrevPG(void *data)
 {
   DVDPrevPGSearch(nav);
 }
 
-void actionQuit(void)
+void actionQuit(void *data)
 {
   DVDResult_t res;
   res = DVDCloseNav(nav);
@@ -139,7 +142,7 @@ void actionQuit(void)
   exit(0);
 }
 
-void actionFullScreenToggle(void)
+void actionFullScreenToggle(void *data)
 {
   fs = !fs;
   if(fs) {
@@ -149,13 +152,13 @@ void actionFullScreenToggle(void)
   }
 }
 
-void actionForwardScan(void)
+void actionForwardScan(void *data)
 {
   DVDForwardScan(nav, 1.0);
 }
 
 
-void actionPlay(void)
+void actionPlay(void *data)
 {
   if(isPaused) {
     isPaused = 0;
@@ -166,7 +169,7 @@ void actionPlay(void)
 }
 
 
-void actionFastForward(void)
+void actionFastForward(void *data)
 {
   if(isPaused) {
     isPaused = 0;
@@ -181,7 +184,7 @@ void actionFastForward(void)
   DVDForwardScan(nav, speed);
 }
 
-void actionSlowForward(void)
+void actionSlowForward(void *data)
 {
   if(isPaused) {
     isPaused = 0;
@@ -197,7 +200,7 @@ void actionSlowForward(void)
 }
 
 
-void actionFaster(void)
+void actionFaster(void *data)
 {
   if(isPaused) {
     isPaused = 0;
@@ -212,7 +215,7 @@ void actionFaster(void)
   DVDForwardScan(nav, speed);
 }
 
-void actionSlower(void)
+void actionSlower(void *data)
 {
   if(isPaused) {
     isPaused = 0;
@@ -229,12 +232,21 @@ void actionSlower(void)
 
 
 
+typedef struct {
+  PointerEventType event_type;
+  unsigned int button;
+  unsigned int modifier_mask;
+  void (*fun)(void *);
+} pointer_mapping_t;
 
+static unsigned int pointer_mappings_index = 0;
+static unsigned int nr_pointer_mappings = 0;
 
+static pointer_mapping_t *pointer_mappings;
 
 typedef struct {
   KeySym keysym;
-  void (*fun)(void);
+  void (*fun)(void *);
   void *arg;
 } ks_map_t;
 
@@ -245,7 +257,7 @@ static ks_map_t *ks_maps;
 
 typedef struct {
   char *str;
-  void (*fun)(void);
+  void (*fun)(void *);
 } action_mapping_t;
 
 static action_mapping_t actions[] = {
@@ -278,6 +290,24 @@ static action_mapping_t actions[] = {
 };
 
 
+void do_pointer_action(pointer_event_t *p_ev)
+{
+  int n;
+  
+  for(n = 0; n < pointer_mappings_index; n++) {
+    if((pointer_mappings[n].event_type == p_ev->type) &&
+       (pointer_mappings[n].modifier_mask == p_ev->modifier_mask)) {
+      if(pointer_mappings[n].fun != NULL) {
+	pointer_mappings[n].fun(p_ev);
+      }
+      return;
+    }
+  }
+  
+  return;
+}
+
+
 void do_keysym_action(KeySym keysym)
 {
   int n;
@@ -285,7 +315,7 @@ void do_keysym_action(KeySym keysym)
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
       if(ks_maps[n].fun != NULL) {
-	ks_maps[n].fun();
+	ks_maps[n].fun(NULL);
       }
       return;
     }
@@ -307,7 +337,7 @@ void remove_keysym_binding(KeySym keysym)
   }
 }
 
-void add_keysym_binding(KeySym keysym, void(*fun)(void))
+void add_keysym_binding(KeySym keysym, void(*fun)(void *))
 {
   int n;
   
@@ -367,3 +397,39 @@ void add_keybinding(char *key, char *action)
   return;
 }
 
+/*
+void add_pointerbinding(char *, char *action)
+{
+  KeySym keysym;
+  int n = 0;
+  
+  keysym = XStringToKeysym(key);
+  
+  if(keysym == NoSymbol) {
+    fprintf(stderr,
+	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
+	    key);
+    return;
+  }
+  
+  if(!strcmp("NoAction", action)) {
+    remove_keysym_binding(keysym);
+    return;
+  }
+    
+  for(n = 0; actions[n].str != NULL; n++) {
+    if(!strcmp(actions[n].str, action)) {
+      if(actions[n].fun != NULL) {
+	add_keysym_binding(keysym, actions[n].fun);
+      }
+      return;
+    }
+  }
+  
+  fprintf(stderr,
+	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
+	  action);
+  
+  return;
+}
+*/
