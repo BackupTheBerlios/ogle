@@ -42,7 +42,6 @@ char *dvd_path;
 int bookmarks_autosave = 0;
 int bookmarks_autoload = 0;
 
-int msgqid;
 extern int win;
 
 char *program_name;
@@ -107,14 +106,8 @@ void autoload_bookmark(void) {
 int main (int argc, char *argv[])
 {
   DVDResult_t res;
-
   int c;
-#ifdef SOCKIPC
-  MsgEventQType_t msgq_type;
-  char *msgqid;
-#else
-  int msgqid = -1;
-#endif
+  char *msgq_str;
   int msgq_set = 0;
 
   program_name = argv[0];
@@ -124,14 +117,7 @@ int main (int argc, char *argv[])
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
     case 'm':
-#ifdef SOCKIPC
-      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
-	fprintf(stderr, "dvd_cli: unknown msgq type: %s\n", optarg);
-	return 1;
-      }
-#else
-      msgqid = atoi(optarg);
-#endif
+      msgq_str = optarg;
       msgq_set = 1;
       break;
     case 'h':
@@ -153,7 +139,7 @@ int main (int argc, char *argv[])
   }
 
   sleep(1);
-  res = DVDOpenNav(&nav, msgqid);
+  res = DVDOpenNav(&nav, msgq_str);
   if(res != DVD_E_Ok ) {
     DVDPerror("DVDOpen:", res);
     exit(1);

@@ -25,7 +25,6 @@
 #include <X11/keysym.h>
 
 #include <ogle/dvdcontrol.h>
-#include <ogle/msgevents.h>
 
 #include "xsniffer.h"
 #include "bindings.h"
@@ -35,25 +34,25 @@ extern DVDNav_t *nav;
 
 
 void* xsniff_mouse(void* args) {
-  MsgEvent_t mev;
+  DVDEvent_t ev;
 
   while(1) {
     
-    if(DVDNextEvent(nav, &mev) != DVD_E_Ok)
+    if(DVDNextEvent(nav, &ev) != DVD_E_Ok)
       exit(1);
     
-    switch(mev.type) {
-    
+    switch(ev.type) {
+      
       
       //case MotionNotify:
-    case MsgEventQInputPointerMotion:
+    case DVDEventInputPointerMotion:
       
       {
 	DVDResult_t res;
 	int x, y;
 	
-	x = mev.input.x;
-	y = mev.input.y;
+	x = ev.input.x;
+	y = ev.input.y;
 	
 	res = DVDMouseSelect(nav, x, y);
 	
@@ -74,15 +73,15 @@ void* xsniff_mouse(void* args) {
       }
       */
       break;
-    case MsgEventQInputButtonPress:
-      switch(mev.input.input) {
+    case DVDEventInputButtonPress:
+      switch(ev.input.input) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
 	  int x, y;
 
-	  x = mev.input.x;
-	  y = mev.input.y;
+	  x = ev.input.x;
+	  y = ev.input.y;
 	  
 	  res = DVDMouseActivate(nav, x, y);
 	  if(res != DVD_E_Ok) {
@@ -96,10 +95,10 @@ void* xsniff_mouse(void* args) {
 	break;
       }
       break;
-    case MsgEventQInputKeyPress:
+    case DVDEventInputKeyPress:
       {
 	KeySym keysym;
-	keysym = mev.input.input;
+	keysym = ev.input.input;
 	/*
 	fprintf(stderr, "keysym: %ld, modifier: %ld\n",
 		mev.input.input,
