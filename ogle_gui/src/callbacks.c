@@ -87,6 +87,17 @@ on_open_activate                      (GtkMenuItem     *menuitem,
   file_selector_new();
 }
 
+void 
+on_opendvd_activate                  (GtkMenuItem     *menuitem,
+				      gpointer         user_data) 
+{
+  DVDResult_t res;
+  res = DVDSetDVDRoot(nav, "/dev/dvd");
+  if(res != DVD_E_Ok) {
+    DVDPerror("callbacks.on_opendvd_activate(): DVDSetDVDRoot", res);
+    return;
+  }
+}
 
 void
 on_save_activate                      (GtkMenuItem     *menuitem,

@@ -40,6 +40,10 @@ void
 on_open_activate                      (GtkMenuItem     *menuitem,
                                         gpointer         user_data);
 
+void 
+on_opendvd_activate                  (GtkMenuItem     *menuitem,
+				      gpointer         user_data);
+
 void
 on_save_activate                      (GtkMenuItem     *menuitem,
                                         gpointer         user_data);
@@ -169,3 +173,4 @@ on_angle_button_clicked                (GtkButton       *button,
                                         gpointer         user_data);
 
 #endif /* CALLBACKS_H */
+

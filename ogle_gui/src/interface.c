@@ -128,7 +128,7 @@ static GnomeUIInfo file_menu_uiinfo[] =
 {
   GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
   GNOMEUIINFO_ITEM_STOCK     ("Open", "Opens the device directly.",
-			      on_open_activate, GNOME_STOCK_PIXMAP_CDROM),
+			      on_opendvd_activate, GNOME_STOCK_PIXMAP_CDROM),
   //GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
   GNOMEUIINFO_SEPARATOR,
   GNOMEUIINFO_MENU_EXIT_ITEM (on_exit_activate, NULL),
