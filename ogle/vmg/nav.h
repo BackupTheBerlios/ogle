@@ -174,11 +174,29 @@ typedef struct { /* DSI General Information */
 } __attribute__ ((packed)) dsi_gi_t;
 
 typedef struct { /* Seamless PlayBack Information */ 
-  uint8_t unknown[148];
+  uint16_t category; // category of seamless VOBU
+  /* Xyyy yyyy PREU flag        1b: VOBU is in preunit 
+   *                            0b: VOBU is not in preunit
+   * yXyy yyyy ILVU flag        1b: VOBU is in ILVU   
+   *                            0b: VOBU is not in ILVU described
+   * yyXy yyyy Unit Start flag  1b: VOBU at the beginning of ILVU described
+   *                            0b: VOBU not at the beginning
+   * yyyX yyyy Unit End flag    1b: VOBU at end of PREU of ILVU described
+   *                            0b: not at the end
+   */
+  uint32_t ilvu_ea;  // end address of interleaved Unit (sectors)
+  uint32_t ilvu_sa;  // start address of next interleaved unit (sectors)
+  uint16_t size;     // size of next interleaved unit (sectors)
+  
+  uint8_t unknown[136];
 } __attribute__ ((packed)) sml_pbi_t;
 
 typedef struct { /* AnGLe Information for seamless playback */
-  uint8_t sml_agl_dsta[9][6]; // Address and size of destination ILVU in AGL_X
+  // Address and size of destination ILVU in AGL_X
+  struct {
+    uint32_t address; // Sector offset to next ILVU, high bit is before/after
+    uint16_t size;    // Byte size of the ILVU poited to by address.
+  } dsta[9];
 } __attribute__ ((packed)) sml_agli_t;
 
 typedef struct { /* VOBUnit SeaRch Information */
