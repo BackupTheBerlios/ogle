@@ -69,9 +69,9 @@ void ogle_ao_close(ogle_ao_instance_t *instance)
 }
 
 int ogle_ao_odelay(ogle_ao_instance_t *instance,
-		   uint32_t *samples_return)
+		   unsigned int *sample_intervals)
 {
-  return instance->odelay(instance, samples_return);
+  return instance->odelay(instance, sample_intervals);
 }
 
 int ogle_ao_flush(ogle_ao_instance_t *instance)

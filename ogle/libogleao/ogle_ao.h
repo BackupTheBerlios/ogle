@@ -59,10 +59,11 @@ int ogle_ao_play(ogle_ao_instance_t *instance, void* samples, size_t nbytes);
 /* Close the given driver instance */
 void ogle_ao_close(ogle_ao_instance_t *instance);
 
-/* Query the number of 'recived' samples that have not yet been played */
-int ogle_ao_odelay(ogle_ao_instance_t *instance, uint32_t *samples_return);
+/* Query the number of sample intervals left in the output queue. */
+int ogle_ao_odelay(ogle_ao_instance_t *instance,
+		   unsigned int *sample_intervals);
 
-/* Discard as much of the queued ouput data as possible */
+/* Discard as much of the queued ouput data as possible (as fast as possible)*/
 int ogle_ao_flush(ogle_ao_instance_t *instance);
 
 /* Block until all of the queued output data has been played */

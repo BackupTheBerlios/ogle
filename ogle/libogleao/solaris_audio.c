@@ -120,13 +120,14 @@ int solaris_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   }
 
   samples_played = info.play.samples;
-  
+  /*  
   fprintf(stderr, ":: %d :: %d -- e: %d, %d\n", 
 	  instance->samples_written,
 	  info.play.samples,
 	  info.play.error,
 	  e);
-  
+  */
+
   if(info.play.error) {
     e++;
     AUDIO_INITINFO(&info);
