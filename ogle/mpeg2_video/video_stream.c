@@ -42,12 +42,13 @@ int total_calls = 0;
 
 extern int show_stat;
 unsigned int debug = 0;
+int shm_ready = 0;
 static int shmem_flag = 1;
 int   ring_shmid;
 int   ring_c_shmid;
 int   ring_buffers = 4;
 char *ring_shmaddr;
-
+void setup_shm(int horiz_size, int vert_size);
 
 double time_pic[4] = { 0.0, 0.0, 0.0, 0.0};
 double time_max[4] = { 0.0, 0.0, 0.0, 0.0};
@@ -101,6 +102,7 @@ uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
 uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
 
 uint8_t new_scaled = 0;
+
 
 void statistics_init()
 {  
@@ -230,8 +232,111 @@ typedef struct {
 } macroblock_t;
 
 
-macroblock_t mb;
+typedef struct {
+  uint8_t extension_start_code_identifier;
+  uint8_t f_code[2][2];
+  uint8_t intra_dc_precision;
+  uint8_t picture_structure;
+  uint8_t top_field_first;
+  uint8_t frame_pred_frame_dct;
+  uint8_t concealment_motion_vectors;
+  uint8_t q_scale_type;
+  uint8_t intra_vlc_format;
+  uint8_t alternate_scan;
+  uint8_t repeat_first_field;
+  uint8_t chroma_420_type;
+  uint8_t progressive_frame;
+  uint8_t composite_display_flag;
+  uint8_t v_axis;
+  uint8_t field_sequence;
+  uint8_t sub_carrier;
+  uint8_t burst_amplitude;
+  uint8_t sub_carrier_phase;
+} picture_coding_extension_t;
 
+
+typedef struct {
+  uint16_t temporal_reference;
+  uint8_t picture_coding_type;
+  uint16_t vbv_delay;
+  uint8_t full_pel_forward_vector;
+  uint8_t forward_f_code;
+  uint8_t full_pel_backward_vector;
+  uint8_t backward_f_code;
+  uint8_t extra_bit_picture;
+  uint8_t extra_information_picture;  
+} picture_header_t;
+
+
+typedef struct {
+  picture_header_t header;
+  picture_coding_extension_t coding_ext;
+
+  int16_t PMV[2][2][2];
+} picture_t;
+
+
+typedef struct {
+
+  uint16_t horizontal_size_value;
+  uint16_t vertical_size_value;
+  uint8_t aspect_ratio_information;
+  uint8_t frame_rate_code;
+  uint32_t bit_rate_value;
+  uint16_t vbv_buffer_size_value;
+  uint8_t constrained_parameters_flag;
+  uint8_t load_intra_quantiser_matrix;
+  uint8_t intra_quantiser_matrix[64];
+  uint8_t load_non_intra_quantiser_matrix;
+  uint8_t non_intra_quantiser_matrix[64];
+  
+  /***/
+  uint8_t intra_inverse_quantiser_matrix[64];
+  uint8_t non_intra_inverse_quantiser_matrix[64];
+
+  /***/
+  int16_t scaled_intra_inverse_quantiser_matrix[8][8];
+
+} sequence_header_t;
+
+
+typedef struct {
+  uint8_t extension_start_code_identifier;
+  uint8_t profile_and_level_indication;
+  uint8_t progressive_sequence;
+  uint8_t chroma_format;
+  uint8_t horizontal_size_extension;
+  uint8_t vertical_size_extension;
+  uint16_t bit_rate_extension;
+  uint8_t vbv_buffer_size_extension;
+  uint8_t low_delay;
+  uint8_t frame_rate_extension_n;
+  uint8_t frame_rate_extension_d;
+  
+} sequence_extension_t;
+
+
+typedef struct {
+  sequence_header_t header;
+  sequence_extension_t ext;
+
+  /***/
+  int16_t horizontal_size;
+  int16_t vertical_size;
+
+  int16_t mb_width;
+  int16_t mb_height;
+  int16_t mb_row;
+  int16_t macroblock_address;
+  int16_t previous_macroblock_address;
+  int16_t mb_column;
+  
+} sequence_t;
+
+
+macroblock_t mb;
+picture_t pic;
+sequence_t seq;
 
 
 yuv_image_t r1_img;
@@ -261,6 +366,7 @@ macroblock_t *ref2_mbs;
 
 
 //prototypes
+int bytealigned(void);
 void next_start_code(void);
 void resync(void);
 void video_sequence(void);
@@ -341,7 +447,6 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 #define GETBITSMMAP
 
 
-int bytealigned(void);
 FILE *infile;
 
 #ifdef GETBITSMMAP // Mmap i/o
@@ -734,7 +839,7 @@ void read_buf()
       exit_program(0);
     } else {
       fprintf(stderr, "**File Error\n");
-      exit(0);
+      exit_program(0);
     }
   }
   offs = 0;
@@ -774,7 +879,7 @@ void next_word(void)
 	exit_program(0);
       } else {
 	fprintf(stderr, "**File Error\n");
-	exit(0);
+	exit_program(0);
       }
     }
   } else {
@@ -791,8 +896,6 @@ void next_word(void)
 
 
 
-
-
 int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
   int numberofbits=1;
@@ -802,7 +905,8 @@ int get_vlc(const vlc_table_t *table, char *func) {
     vlc=nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
-	DPRINTF(3, "%s ", func);
+	DPRINTF(3, "get_vlc(%s): len: %d, vlc: %d, val: %d\n",
+		func, numberofbits, table[pos].vlc, table[pos].value);
 	dropbits(numberofbits);
 	return (table[pos].value);
       }
@@ -813,7 +917,7 @@ int get_vlc(const vlc_table_t *table, char *func) {
   fprintf(stderr, "*** get_vlc(vlc_table *table): no matching bitstream found.\nnext 32 bits: %08x, ", nextbits(32));
   fprintbits(stderr, 32, nextbits(32));
   fprintf(stderr, "\n");
-  exit(-1);
+  exit_program(-1);
   return VLC_FAIL;
 }
 
@@ -953,6 +1057,13 @@ void video_sequence(void) {
 
     if(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
       sequence_extension();
+
+      if(!shm_ready) {
+	setup_shm(seq.horizontal_size, seq.vertical_size);
+	//display_init(...);
+	shm_ready = 1;
+      }
+      
       do {
 	extension_and_user_data(0);
 	do {
@@ -1005,12 +1116,12 @@ void marker_bit(void)
 {
   if(!GETBITS(1, "markerbit")) {
     fprintf(stderr, "*** incorrect marker_bit in stream\n");
-    exit(-1);
+    exit_program(-1);
   }
 }
 
 #else // DEBUG
-inline
+
 void marker_bit(void)
 {
   dropbits(1);
@@ -1018,65 +1129,6 @@ void marker_bit(void)
 
 #endif //DEBUG
 
-typedef struct {
-
-  uint16_t horizontal_size_value;
-  uint16_t vertical_size_value;
-  uint8_t aspect_ratio_information;
-  uint8_t frame_rate_code;
-  uint32_t bit_rate_value;
-  uint16_t vbv_buffer_size_value;
-  uint8_t constrained_parameters_flag;
-  uint8_t load_intra_quantiser_matrix;
-  uint8_t intra_quantiser_matrix[64];
-  uint8_t load_non_intra_quantiser_matrix;
-  uint8_t non_intra_quantiser_matrix[64];
-  
-  /***/
-  uint8_t intra_inverse_quantiser_matrix[64];
-  uint8_t non_intra_inverse_quantiser_matrix[64];
-
-  /***/
-  int16_t scaled_intra_inverse_quantiser_matrix[8][8];
-
-} sequence_header_t;
-
-
-typedef struct {
-  uint8_t extension_start_code_identifier;
-  uint8_t profile_and_level_indication;
-  uint8_t progressive_sequence;
-  uint8_t chroma_format;
-  uint8_t horizontal_size_extension;
-  uint8_t vertical_size_extension;
-  uint16_t bit_rate_extension;
-  uint8_t vbv_buffer_size_extension;
-  uint8_t low_delay;
-  uint8_t frame_rate_extension_n;
-  uint8_t frame_rate_extension_d;
-  
-} sequence_extension_t;
-
-typedef struct {
-  sequence_header_t header;
-  sequence_extension_t ext;
-
-  /***/
-  int16_t horizontal_size;
-  int16_t vertical_size;
-
-  int16_t mb_width;
-  int16_t mb_height;
-  int16_t mb_row;
-  int16_t macroblock_address;
-  int16_t previous_macroblock_address;
-  int16_t mb_column;
-  
-
-
-} sequence_t;
-
-sequence_t seq;
 
 /* 6.2.2.1 Sequence header */
 void sequence_header(void)
@@ -1195,6 +1247,8 @@ void sequence_header(void)
 
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
+  
+  seq.mb_width = (seq.horizontal_size+15)/16;
 
 }
 
@@ -1315,7 +1369,7 @@ void setup_shm(int horiz_size, int vert_size)
 
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
-  static int shm_ready = 0;
+
   uint32_t extension_start_code;
   
   extension_start_code = GETBITS(32, "extension_start_code");
@@ -1391,11 +1445,59 @@ void sequence_extension(void) {
   seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
+
+#ifdef DEBUG
+
+  DPRINTF(1, "bit rate: %d bits/s\n",
+	  400 *
+	  ((seq.ext.bit_rate_extension << 12) | seq.header.bit_rate_value));
+
+
+  DPRINTF(1, "frame rate: ");
+  switch(seq.header.frame_rate_code) {
+  case 0x0:
+    DPRINTF(1, "forbidden\n");
+    break;
+  case 0x1:
+    DPRINTF(1, "24000/1001 (23.976)\n");
+    break;
+  case 0x2:
+    DPRINTF(1, "24\n");
+    break;
+  case 0x3:
+    DPRINTF(1, "25\n");
+    break;
+  case 0x4:
+    DPRINTF(1, "30000/1001 (29.97)\n");
+    break;
+  case 0x5:
+    DPRINTF(1, "30\n");
+    break;
+  case 0x6:
+    DPRINTF(1, "50\n");
+    break;
+  case 0x7:
+    DPRINTF(1, "60000/1001 (59.94)\n");
+    break;
+  case 0x8:
+    DPRINTF(1, "60\n");
+    break;
+  default:
+    DPRINTF(1, "%f (computed)\n",
+	    (double)(seq.header.frame_rate_code)*
+	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
+	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
+    break;
+  }
+#endif
+#if 0
+  //this is moved out in case of MPEG-1
   if(!shm_ready) {
     setup_shm(seq.horizontal_size, seq.vertical_size);
     //display_init(...);
     shm_ready = 1;
   }
+#endif
 }
 
 /* 6.2.2.2 Extension and user data */
@@ -1417,52 +1519,6 @@ void extension_and_user_data(unsigned int i) {
   }
 }
 
-
-typedef struct {
-  uint8_t extension_start_code_identifier;
-  uint8_t f_code[2][2];
-  uint8_t intra_dc_precision;
-  uint8_t picture_structure;
-  uint8_t top_field_first;
-  uint8_t frame_pred_frame_dct;
-  uint8_t concealment_motion_vectors;
-  uint8_t q_scale_type;
-  uint8_t intra_vlc_format;
-  uint8_t alternate_scan;
-  uint8_t repeat_first_field;
-  uint8_t chroma_420_type;
-  uint8_t progressive_frame;
-  uint8_t composite_display_flag;
-  uint8_t v_axis;
-  uint8_t field_sequence;
-  uint8_t sub_carrier;
-  uint8_t burst_amplitude;
-  uint8_t sub_carrier_phase;
-} picture_coding_extension_t;
-
-
-typedef struct {
-  uint16_t temporal_reference;
-  uint8_t picture_coding_type;
-  uint16_t vbv_delay;
-  uint8_t full_pel_forward_vector;
-  uint8_t forward_f_code;
-  uint8_t full_pel_backward_vector;
-  uint8_t backward_f_code;
-  uint8_t extra_bit_picture;
-  uint8_t extra_information_picture;  
-} picture_header_t;
-
-
-
-typedef struct {
-  picture_header_t header;
-  picture_coding_extension_t coding_ext;
-
-  int16_t PMV[2][2][2];
-} picture_t;
-
-picture_t pic;
 
 /* 6.2.3.1 Picture coding extension */
 void picture_coding_extension(void)
@@ -1615,6 +1671,7 @@ void picture_header(void)
 
   DPRINTF(3, "picture_header\n");
 
+  seq.mb_row = 0;
   picture_start_code = GETBITS(32, "picture_start_code");
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
@@ -1834,7 +1891,6 @@ void picture_data(void)
   }
 
     
-  
   next_start_code();
 }
 
@@ -2269,7 +2325,48 @@ void macroblock(void)
 
   }
     
-  
+  /*** 7.6.3.5 Prediction in P-pictures ***/
+
+  if(pic.header.picture_coding_type == 0x2) {
+    /* P-picture */
+    if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
+      DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
+      DPRINTF(2, "motion_type: %02x\n", mb.modes.frame_motion_type);
+      if(pic.coding_ext.picture_structure == 0x3) {
+	
+	mb.prediction_type = PRED_TYPE_FRAME_BASED;
+	mb.mv_format = MV_FORMAT_FRAME;
+	reset_PMV();
+      } else {
+
+	mb.prediction_type = PRED_TYPE_FIELD_BASED;
+	mb.mv_format = MV_FORMAT_FIELD;
+      }
+      mb.modes.macroblock_motion_forward = 1;
+      mb.vector[0][0][0] = 0;
+      mb.vector[0][0][1] = 0;
+      mb.vector[1][0][0] = 0;
+      mb.vector[1][0][1] = 0;
+       
+    }
+
+    /* never happens */
+    /*
+      if(mb.macroblock_address_increment > 1) {
+      
+      fprintf(stderr, "prediction mode shall be Frame-based\n");
+      fprintf(stderr, "motion vector predictors shall be reset to zero\n");
+      fprintf(stderr, "motion vector shall be zero\n");
+      
+      // *** TODO
+      //mb.vector[0][0][0] = 0;
+      //mb.vector[0][0][1] = 0;
+
+      }
+    */
+    
+  }
+   
 
   /* Table 6-20 block_count as a function of chroma_format */
   if(seq.ext.chroma_format == 0x01) {
@@ -2280,7 +2377,8 @@ void macroblock(void)
     block_count = 12;
   }
   
-
+  
+  
   /* Intra blocks always have all sub block and are writen directly 
      to the output buffers by block() */
   if(mb.modes.macroblock_intra) {
@@ -2327,48 +2425,7 @@ void macroblock(void)
     }
   }
     
-  /*** 7.6.3.5 Prediction in P-pictures ***/
 
-  if(pic.header.picture_coding_type == 0x2) {
-    /* P-picture */
-    if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
-      DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
-      DPRINTF(2, "motion_type: %02x\n", mb.modes.frame_motion_type);
-      if(pic.coding_ext.picture_structure == 0x3) {
-	
-	mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	mb.mv_format = MV_FORMAT_FRAME;
-	reset_PMV();
-      } else {
-
-	mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	mb.mv_format = MV_FORMAT_FIELD;
-      }
-      mb.modes.macroblock_motion_forward = 1;
-      mb.vector[0][0][0] = 0;
-      mb.vector[0][0][1] = 0;
-      mb.vector[1][0][0] = 0;
-      mb.vector[1][0][1] = 0;
-       
-    }
-
-    /* never happens */
-    /*
-      if(mb.macroblock_address_increment > 1) {
-      
-      fprintf(stderr, "prediction mode shall be Frame-based\n");
-      fprintf(stderr, "motion vector predictors shall be reset to zero\n");
-      fprintf(stderr, "motion vector shall be zero\n");
-      
-      // *** TODO
-      //mb.vector[0][0][0] = 0;
-      //mb.vector[0][0][1] = 0;
-
-      }
-    */
-    
-  }
- 
   if(show_stat) {
     switch(pic.header.picture_coding_type) {
     case 0x1:
