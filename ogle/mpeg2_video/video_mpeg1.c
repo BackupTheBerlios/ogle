@@ -64,7 +64,6 @@ extern uint32_t stats_f_non_intra_compute_subseq_nr;
 
 extern uint32_t stats_block_intra_nr;
 extern uint32_t stats_f_intra_compute_subseq_nr;
-extern uint32_t stats_f_intra_compute_first_nr;
 
 extern uint32_t stats_f_non_intra_subseq_escaped_run_nr;
 extern uint32_t stats_f_non_intra_first_escaped_run_nr;

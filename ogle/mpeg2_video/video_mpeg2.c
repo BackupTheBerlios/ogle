@@ -64,7 +64,6 @@ extern uint32_t stats_f_non_intra_compute_nr;
 
 extern uint32_t stats_block_intra_nr;
 extern uint32_t stats_f_intra_compute_subseq_nr;
-extern uint32_t stats_f_intra_compute_first_nr;
 
 extern uint32_t stats_f_non_intra_escaped_run_nr;
 
@@ -619,12 +618,7 @@ void inverse_quantisation_final(int sum)
 static
 void block_intra(unsigned int i)
 {
-  unsigned int dct_dc_size;
-  int dct_diff;
-  
   unsigned int n;
-  
-  runlevel_t runlevel;    
   int inverse_quantisation_sum;
     
 #ifdef STATS
@@ -639,206 +633,175 @@ void block_intra(unsigned int i)
       memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
   }
     
+    
   /* DC - component */
-
-#ifdef STATS
-  stats_f_intra_compute_first_nr++;
-#endif
-    
-  if(i < 4) {
-    dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
-    DPRINTF(4, "luma_size: %d\n", dct_dc_size);
-  } else {
-    dct_dc_size = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
-    DPRINTF(4, "chroma_size: %d\n", dct_dc_size);
-  } 
-    
-  if(dct_dc_size != 0) {
-    int half_range = 1<<(dct_dc_size-1);
-    int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
-    
-    DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
-      
-    if(dct_dc_differential >= half_range) {
-      dct_diff = dct_dc_differential;
-    } else {
-      dct_diff = (dct_dc_differential+1)-(2*half_range);
-    }
-    DPRINTF(4, "%d\n", dct_diff);  
-	
-  } else {
-    dct_diff = 0;
-  }
-      
   {
-    // qfs is always between 0 and 2^(8+dct_dc_size)-1, i.e unsigned.
-    unsigned int qfs;
-    int cc;
-      
-    /* Table 7-1. Definition of cc, colour component index */ 
-    if(i < 4)
-      cc = 0;
-    else
-      cc = (i%2) + 1;
-      
-    qfs = mb.dc_dct_pred[cc] + dct_diff;
-    mb.dc_dct_pred[cc] = qfs;
-    DPRINTF(4, "QFS[0]: %d\n", qfs);
-      
-    /* inverse quantisation */
-    {
-      // mb.intra_dc_mult is 1, 2 , 4 or 8, i.e unsigned.
-      unsigned int f = mb.intra_dc_mult * qfs;
-#if 0
-      if(f > 2047) {
-	fprintf(stderr, "Clipp (block_intra first)\n");
-	f = 2047;
-      } 
-#endif
-      mb.QFS[0] = f;
-      inverse_quantisation_sum = f;
-    }
-    n = 1;
-  }
+    unsigned int dct_dc_size;
+    int dct_diff;
     
-  
-  /* AC - components */
-
-#ifdef DCT_INTRA_SPLIT
-  if(pic.coding_ext.intra_vlc_format) {
-    while( 1 ) {
-      //fprintf(stderr, "Subsequent dct_dc\n");
-      //Subsequent DCT coefficients
-      get_dct_intra_vlcformat_1(&runlevel, 
-				"dct_dc_subsequent");
-	
-#ifdef DEBUG
-      if(runlevel.run != VLC_END_OF_BLOCK) {
-	DPRINTF(4, "coeff run: %d, level: %d\n",
-		runlevel.run, runlevel.level);
-      }
-#endif
-      
-      if(runlevel.run == VLC_END_OF_BLOCK) {
-	break;
-      } else {
-	n += runlevel.run;
-	  
-	/* inverse quantisation */
-	{
-	  unsigned int i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	  int f = (runlevel.level 
-		   * mb.quantiser_scale
-		   * seq.header.intra_inverse_quantiser_matrix[i])/16;
-	    
-#ifdef STATS
-	  stats_f_intra_compute_subseq_nr++;
-#endif
-	    
-#if 0	      
-	  if(f > 2047) {
-	    fprintf(stderr, "Clipp !#!\n");
-	    f = 2047;
-	  } else if(f < -2048) {
-	    fprintf(stderr, "Clipp !$!\n");
-	    f = -2048;
-	  }
-#endif
-	  mb.QFS[i] = f;
-	  inverse_quantisation_sum += f;
-	}
-	  
-	n++;      
-      }
-    }
-  } else {
-    while( 1 ) {
-      //fprintf(stderr, "Subsequent dct_dc\n");
-      //Subsequent DCT coefficients
-      get_dct_intra_vlcformat_0(&runlevel, 
-				"dct_dc_subsequent");
-	
-#ifdef DEBUG
-      if(runlevel.run != VLC_END_OF_BLOCK) {
-	DPRINTF(4, "coeff run: %d, level: %d\n",
-		runlevel.run, runlevel.level);
-      }
-#endif
-	
-      if(runlevel.run == VLC_END_OF_BLOCK) {
-	break;
-      } else {
-	n += runlevel.run;
-	  
-	/* inverse quantisation */
-	{
-	  unsigned int i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	  int f = (runlevel.level 
-		   * mb.quantiser_scale
-		   * seq.header.intra_inverse_quantiser_matrix[i])/16;
-#ifdef STATS
-	  stats_f_intra_compute_subseq_nr++;
-#endif
-	    
-#if 0	      
-	  if(f > 2047) {
-	    fprintf(stderr, "Clipp !#!\n");
-	    f = 2047;
-	  } else if(f < -2048) {
-	    fprintf(stderr, "Clipp !$!\n");
-	    f = -2048;
-	  }
-#endif
-	  mb.QFS[i] = f;
-	  inverse_quantisation_sum += f;
-	}
-	  
-	n++;      
-      }
-    }
-  }
-#else
-  while( 1 ) {
-    //fprintf(stderr, "Subsequent dct_dc\n");
-    //Subsequent DCT coefficients
-    get_dct_intra(&runlevel, pic.coding_ext.intra_vlc_format, 
-		  "dct_dc_subsequent");
-      
-#ifdef DEBUG
-    if(runlevel.run != VLC_END_OF_BLOCK) {
-      DPRINTF(4, "coeff run: %d, level: %d\n",
-	      runlevel.run, runlevel.level);
-    }
-#endif
-      
-    if(runlevel.run == VLC_END_OF_BLOCK) {
-      break;
+    if(i < 4) {
+      dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
+      DPRINTF(4, "luma_size: %d\n", dct_dc_size);
     } else {
-      n += runlevel.run;
-	
+      dct_dc_size = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
+      DPRINTF(4, "chroma_size: %d\n", dct_dc_size);
+    } 
+    
+    if(dct_dc_size != 0) {
+      int half_range = 1<<(dct_dc_size-1);
+      int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+      
+      DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
+      
+      if(dct_dc_differential >= half_range) {
+	dct_diff = dct_dc_differential;
+      } else {
+	dct_diff = (dct_dc_differential+1)-(2*half_range);
+      }
+      DPRINTF(4, "%d\n", dct_diff);  
+      
+    } else {
+      dct_diff = 0;
+    }
+      
+    {
+      // qfs is always between 0 and 2^(8+dct_dc_size)-1, i.e unsigned.
+      unsigned int qfs;
+      int cc;
+      
+      /* Table 7-1. Definition of cc, colour component index */ 
+      if(i < 4)
+	cc = 0;
+      else
+	cc = (i%2) + 1;
+      
+      qfs = mb.dc_dct_pred[cc] + dct_diff;
+      mb.dc_dct_pred[cc] = qfs;
+      DPRINTF(4, "QFS[0]: %d\n", qfs);
+      
       /* inverse quantisation */
       {
-	unsigned int i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	int f = (runlevel.level 
-		 * mb.quantiser_scale 
-		 * seq.header.intra_inverse_quantiser_matrix[i])/16;
-#if 0	      
+	// mb.intra_dc_mult is 1, 2 , 4 or 8, i.e unsigned.
+	unsigned int f = mb.intra_dc_mult * qfs;
+#if 0
 	if(f > 2047) {
-	  fprintf(stderr, "Clipp !%!\n");
+	  fprintf(stderr, "Clipp (block_intra first)\n");
 	  f = 2047;
-	} else if(f < -2048) {
-	  fprintf(stderr, "Clipp !^!\n");
-	  f = -2048;
-	}
+	} 
 #endif
-	mb.QFS[i] = f;
-	inverse_quantisation_sum += f;
+	mb.QFS[0] = f;
+	inverse_quantisation_sum = f;
       }
+      n = 1;
+    }
+  }
+  
+  
+  /* AC - components */
+  
+  while( 1 ) {
+    //get_dct_intra(&runlevel,"dct_dc_subsequent");
+    
+    const DCTtab *tab;
+    const unsigned int code = nextbits(16);
+    
+    if(code>=16384)
+      if (pic.coding_ext.intra_vlc_format)
+	tab = &DCTtab0a[(code >> 8) - 4];   // 15
+      else
+	tab = &DCTtabnext[(code >> 12) - 4];  // 14
+    else if(code>=1024)
+      if (pic.coding_ext.intra_vlc_format)
+	tab = &DCTtab0a[(code >> 8) - 4];   // 15
+      else
+	tab = &DCTtab0[(code >> 8) - 4];   // 14
+    else if(code>=512)
+      if (pic.coding_ext.intra_vlc_format)
+	tab = &DCTtab1a[(code >> 6) - 8];  // 15
+      else
+	tab = &DCTtab1[(code >> 6) - 8];  // 14
+    else if(code>=256)
+      tab = &DCTtab2[(code >> 4) - 16];
+    else if(code>=128)
+      tab = &DCTtab3[(code >> 3) - 16];
+    else if(code>=64)
+      tab = &DCTtab4[(code >> 2) - 16];
+    else if(code>=32)
+      tab = &DCTtab5[(code >> 1) - 16];
+    else if(code>=16)
+      tab = &DCTtab6[code - 16];
+    else {
+      fprintf(stderr,
+	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	      code);
+      exit_program(1);
+    }
+    
+#ifdef DEBUG
+    if(tab->run != 64 /*VLC_END_OF_BLOCK*/ ) {
+      DPRINTF(4, "coeff run: %d, level: %d\n",
+	      tab->run, tab->level);
+    }
+#endif
+    
+    if(tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
+      dropbits(tab->len); // pic.coding_ext.intra_vlc_format ? 4 : 2 bits
+      break;
+    } 
+    else {
+      unsigned int i, f, run, val, sgn;
+      
+      if(tab->run == 65) { /* escape */
+	//    dropbits(tab->len); // always 6 bits.
+	//    run = GETBITS(6, "(get_dct escape - run )");
+	//    val = GETBITS(12, "(get_dct escape - level )");
+	val = GETBITS(6 + 6 + 12, "(get_dct escape - run & level )");
+	run = (val >> 12) & 0x3f;
+	val = val & 0xfff;
 	
+	if ((val & 2047) == 0) {
+	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+	  exit_program(1);
+	}
+	
+	sgn = (val >= 2048);
+	if(val >= 2048)                // !!!! ?sgn? 
+	  val = 4096 - val;
+      } else {
+	//    dropbits(tab->len);
+	run = tab->run;
+	val = tab->level; 
+	sgn = 0x1 & GETBITS(tab->len + 1, "(get_dct sign )"); //sign bit
+      }
+      
+      n += run;
+      
+      /* inverse quantisation */
+      i = inverse_scan[pic.coding_ext.alternate_scan][n];
+      f = (val 
+	   * mb.quantiser_scale
+	   * seq.header.intra_inverse_quantiser_matrix[i])/16;
+      
+#ifdef STATS
+      stats_f_intra_compute_subseq_nr++;
+#endif
+      
+#if 0	      
+      if(!sgn) {
+	if(f > 2047)
+	  f = 2047;
+      }
+      else {
+	if(f > 2048)
+	  f = 2048;
+      }
+#endif
+      mb.QFS[i] = sgn ? -f : f;
+      inverse_quantisation_sum += f; // The last bit is the same in f and -f.
+      
       n++;      
     }
   }
-#endif
   inverse_quantisation_final(inverse_quantisation_sum);
     
   DPRINTF(4, "nr of coeffs: %d\n", n);

@@ -103,7 +103,6 @@ uint32_t stats_f_non_intra_compute_subseq_nr = 0;
 
 uint32_t stats_block_intra_nr = 0;
 uint32_t stats_f_intra_compute_subseq_nr = 0;
-uint32_t stats_f_intra_compute_first_nr = 0;
 
 uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
 uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
@@ -145,7 +144,6 @@ void statistics_init()
 
   stats_block_intra_nr = 0;
   stats_f_intra_compute_subseq_nr = 0;
-  stats_f_intra_compute_first_nr = 0;
 
   stats_f_non_intra_subseq_escaped_run_nr = 0;
   stats_f_non_intra_first_escaped_run_nr = 0;
@@ -2645,8 +2643,6 @@ void exit_program(int exitcode)
 
   fprintf(stderr, "stats_block_intra_nr: %d\n",
 	  stats_block_intra_nr);
-  fprintf(stderr, "stats_f_intra_compute_first_nr: %d\n",
-	  stats_f_intra_compute_first_nr);
   fprintf(stderr, "stats_f_intra_compute_subseq_nr: %d\n",
 	  stats_f_intra_compute_subseq_nr);
 #endif
