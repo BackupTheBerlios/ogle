@@ -357,10 +357,11 @@ void pack_header()
 
 void push_stream_data(uint8_t stream_id, int len)
 {
+  uint8_t* data = &buf[offs-(bits_left/8)];
   DPRINTF(5, "bitsleft: %d\n", bits_left);
   if(stream_id == 0xe0) {
     if(video) {
-      fwrite(&buf[offs-(bits_left/8)], len, 1, video_file);
+      fwrite(data, len, 1, video_file);
     }
 
     DPRINTF(4, "Video packet: %u bytes\n", len);
@@ -368,22 +369,21 @@ void push_stream_data(uint8_t stream_id, int len)
   } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     DPRINTF(4, "Private_stream_1 packet: %u bytes\n", len);
     if(audio) {
-      //if(data[i+0] == 0x80) {
-      
-      //fprintf(stderr, "%02x %02x\n", data[i], data[i+1]);
-      // fwrite(&data[i], PES_packet_length-i, 1, audio_file);
-      //}
+      DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
+      if(*data == 0x80) {
+        fwrite(data+4, len-4, 1, audio_file);
+      }
     }
     if(subtitle) {
       DPRINTF(4, "(subpicture)\n");
 
-      //if(data[i] >= 0x20 && data[i]<=0x2f) {
-      //fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
-      //}
-      //      if(data[i+0] == subtitle_id ){ 
-      //	fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
-      //	fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
-      // }
+      if(*data >= 0x20 && *data <= 0x2f) {
+      DPRINTF(1, "subtitle 0x%02x exists\n", *data);
+      }
+            if(*data == subtitle_id ){ 
+      	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
+      	fwrite(data+1, len-1, 1, subtitle_file);
+      }
     }
 #if 0
   } else if(stream_id == MPEG2_PADDING_STREAM) {
