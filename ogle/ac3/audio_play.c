@@ -138,7 +138,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 		    TIME_S(t2), TIME_SS(t2));
 	    } else { 
 	      //fprintf(stderr, "(%d)", delay);
-	      if(TIME_S(t2) == 0 || TIME_SS(t2) > 0) {
+	      if(TIME_SS(t2) > 0) {
 		fprintf(stderr, "+");
 	      } else {
 		fprintf(stderr, "-");
