@@ -214,11 +214,10 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	int single_sample_size;
 	int err;
 	
-    snd_pcm_hw_params_alloca(&(instance->hwparams));
-    snd_pcm_sw_params_alloca(&(instance->swparams));
 	
-  	if(instance->initialized) {
-		return -1;  // for now we must close and open the device for reinit
+  	if(!instance->initialized) {
+	  snd_pcm_hw_params_alloca(&(instance->hwparams));
+	  snd_pcm_sw_params_alloca(&(instance->swparams));
 	}
 	instance->sample_rate = audio_info->sample_rate;
 	
@@ -362,15 +361,20 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 	alsa_instance_t *instance = (alsa_instance_t *)_instance;
 	snd_pcm_sframes_t avail;
 	int err;
-    
+
+	if(snd_pcm_state(instance->alsa_pcm) != SND_PCM_STATE_RUNNING) {
+	  *samples_return = 0;
+	  return 0;
+	}
   	if ((err = snd_pcm_delay(instance->alsa_pcm, &avail)) < 0) {
 		fprintf(stderr, "odelay error: %s\n", snd_strerror(err));
 		avail = 0;
 	}
-	
+
 	// If underrun, then we have 0 'delay'.
 	if (avail < 0)
 	  avail = 0;
+	snd_pcm_avail_update(instance->alsa_pcm);
 	
   	*samples_return = (uint32_t)avail;
 	//printf("remaining : %d\n", avail);
@@ -389,32 +393,29 @@ void alsa_close(ogle_ao_instance_t *_instance)
 static
 int alsa_flush(ogle_ao_instance_t *_instance)
 {
-	alsa_instance_t *instance = (alsa_instance_t *)_instance;
-	int err;
-	fprintf(stderr, "[ogle_alsa]: flushing...\n");
-	
-    if ((err = snd_pcm_reset(instance->alsa_pcm)) < 0) {
-		fprintf(stderr, "drop failed: %s\n", snd_strerror(err));
-    }
-    //if ((err = snd_pcm_start(instance->alsa_pcm)) < 0) {
-		//printf("drop failed: %s\n", snd_strerror(err));
-    //}
-	
-  	return 0;
+  alsa_instance_t *instance = (alsa_instance_t *)_instance;
+  int err;
+  fprintf(stderr, "[ogle_alsa]: flushing...\n");
+  
+  if ((err = snd_pcm_drop(instance->alsa_pcm)) < 0) {
+    fprintf(stderr, "drop failed: %s\n", snd_strerror(err));
+  }
+  
+  return 0;
 }
 
 static
 int alsa_drain(ogle_ao_instance_t *_instance)
 {
-	alsa_instance_t *instance = (alsa_instance_t *)_instance;
-	int err;
-	fprintf(stderr, "[ogle_alsa]: draining...\n");
-	
-    if ((err = snd_pcm_drop(instance->alsa_pcm)) < 0) {
-		printf("drain failed: %s\n", snd_strerror(err));
-    }
+  alsa_instance_t *instance = (alsa_instance_t *)_instance;
+  int err;
+  fprintf(stderr, "[ogle_alsa]: draining...\n");
   
-  	return 0;
+  if ((err = snd_pcm_drain(instance->alsa_pcm)) < 0) {
+    printf("drain failed: %s\n", snd_strerror(err));
+  }
+  
+  return 0;
 }
 
 static
