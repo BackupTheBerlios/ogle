@@ -223,7 +223,6 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   int elem;
   
   while(stream_shmaddr == NULL) {
-    MsgEvent_t t_ev;
     MsgNextEvent(msgq, ev);
     return 0;
   }

@@ -44,18 +44,18 @@ extern int vm_reset(void);
 extern int vm_start(void);
 extern int vm_eval_cmd(vm_cmd_t *cmd);
 extern int vm_get_next_cell();
-extern int vm_menuCall(int menuid, int block);
+extern int vm_menu_call(int menuid, int block);
 extern int vm_resume(void);
 extern int vm_top_pg(void);
 extern int vm_next_pg(void);
 extern int vm_prev_pg(void);
-extern int vm_get_Audio_stream(int audioN);
-extern int vm_get_Subp_stream(int subpN);
-extern int vm_get_Subp_active_stream(void);
-extern void vm_get_Audio_info(int *num_avail, int *current);
-extern void vm_get_Subp_info(int *num_avail, int *current);
-extern uint16_t vm_get_Subp_lang(int streamN);
-extern uint16_t vm_get_Audio_lang(int streamN);
+extern int vm_get_audio_stream(int audioN);
+extern int vm_get_subp_stream(int subpN);
+extern int vm_get_subp_active_stream(void);
+extern void vm_get_audio_info(int *num_avail, int *current);
+extern void vm_get_subp_info(int *num_avail, int *current);
+extern uint16_t vm_get_subp_lang(int streamN);
+extern uint16_t vm_get_audio_lang(int streamN);
 
 
 
@@ -71,7 +71,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 #if 1
   /* Tell the demuxer which audio track to demux */ 
   {
-    int sN = vm_get_Audio_stream(state.AST_REG);
+    int sN = vm_get_audio_stream(state.AST_REG);
     if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
     if(sN != audio_stream_id) {
       audio_stream_id = sN;
@@ -92,7 +92,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 #if 1
   /* Tell the demuxer which subp track to demux */ 
   {
-    int sN = vm_get_Subp_active_stream();
+    int sN = vm_get_subp_active_stream();
     if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
     if(sN != subp_stream_id) {
       subp_stream_id = sN;
@@ -544,7 +544,7 @@ void do_run(void) {
 	  
 	case DVDCtrlMenuCall:
 	  fprintf(stderr, "nav: Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
-	  res = vm_menuCall(ev.dvdctrl.cmd.menucall.menuid, block);
+	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
 	  break;
 	  
 	case DVDCtrlResume:
@@ -585,18 +585,20 @@ void do_run(void) {
 	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
 	  state.SPST_REG &= 0x40; // Keep the on/off bit.
 	  state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+	  fprintf(stderr, "DVDCtrlSubpictureStreamChange %x\n",state.SPST_REG);
 	  break;
 	case DVDCtrlSetSubpictureState:
-	  if(ev.dvdctrl.cmd.subpicturestate.type == DVDTrue)
-	    state.SPST_REG = state.SPST_REG | 0x40; // Turn it on
+	  if(ev.dvdctrl.cmd.subpicturestate.display == DVDTrue)
+	    state.SPST_REG |= 0x40; // Turn it on
 	  else
-	    state.SPST_REG = state.SPST_REG &= ~0x40; // Turn it off
+	    state.SPST_REG &= ~0x40; // Turn it off
+	  fprintf(stderr, "DVDCtrlSetSubpictureState %x\n",state.SPST_REG);
 	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {
 	    MsgEvent_t send_ev;
 	    int nS, cS;
-	    vm_get_Audio_info(&nS, &cS);
+	    vm_get_audio_info(&nS, &cS);
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
 	    send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
@@ -612,7 +614,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
 	    send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
-	      (vm_get_Audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	      (vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -626,7 +628,7 @@ void do_run(void) {
 	    memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
 		   sizeof(DVDAudioAttributes_t)); //TBD
 	    send_ev.dvdctrl.cmd.audioattributes.attr.Language =
-	      vm_get_Audio_lang(ev.dvdctrl.cmd.audioattributes.streamnr);
+	      vm_get_audio_lang(ev.dvdctrl.cmd.audioattributes.streamnr);
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -634,7 +636,7 @@ void do_run(void) {
 	  {
 	    MsgEvent_t send_ev;
 	    int nS, cS;
-	    vm_get_Subp_info(&nS, &cS);
+	    vm_get_subp_info(&nS, &cS);
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
 	    send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
@@ -652,7 +654,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
-	      (vm_get_Subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	      (vm_get_subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
@@ -666,7 +668,7 @@ void do_run(void) {
 	    memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
 		   sizeof(DVDSubpictureAttributes_t)); //TBD
 	    send_ev.dvdctrl.cmd.subpictureattributes.attr.Language =
-	      vm_get_Subp_lang(ev.dvdctrl.cmd.subpictureattributes.streamnr);
+	      vm_get_subp_lang(ev.dvdctrl.cmd.subpictureattributes.streamnr);
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);
 	  }	  
 	  break;

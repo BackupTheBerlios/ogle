@@ -368,7 +368,7 @@ static domain_t menuid2domain(DVDMenuID_t menuid)
 }
 
 
-int vm_menuCall(DVDMenuID_t menuid, int block)
+int vm_menu_call(DVDMenuID_t menuid, int block)
 {
   domain_t old_domain;
   link_t link_values;
@@ -457,7 +457,7 @@ int vm_resume(void)
   return 1; // Jump
 }
 
-int vm_get_Audio_stream(int audioN)
+int vm_get_audio_stream(int audioN)
 {
   int streamN = -1;
   
@@ -486,7 +486,7 @@ int vm_get_Audio_stream(int audioN)
   return streamN;
 }
 
-int vm_get_Subp_stream(int subpN)
+int vm_get_subp_stream(int subpN)
 {
   int streamN = -1;
   int source_aspect = get_video_aspect();
@@ -518,18 +518,18 @@ int vm_get_Subp_stream(int subpN)
   return streamN;
 }
 
-int vm_get_Subp_active_stream(void)
+int vm_get_subp_active_stream(void)
 {
   int subpN = state.SPST_REG;
   
   if(state.domain == VTS_DOMAIN && !(subpN & 0x40)) { /* Is the subp off? */
     return -1;
   } else {
-    return vm_get_Subp_stream(subpN & ~0x40);
+    return vm_get_subp_stream(subpN & ~0x40);
   }
 }
 
-void vm_get_Audio_info(int *num_avail, int *current)
+void vm_get_audio_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
@@ -546,7 +546,7 @@ void vm_get_Audio_info(int *num_avail, int *current)
   }
 }
 
-void vm_get_Subp_info(int *num_avail, int *current)
+void vm_get_subp_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
@@ -563,7 +563,7 @@ void vm_get_Subp_info(int *num_avail, int *current)
   }
 }
 
-subp_attr_t vm_get_Subp_attr(int streamN)
+subp_attr_t vm_get_subp_attr(int streamN)
 {
   subp_attr_t attr;
   
@@ -580,7 +580,7 @@ subp_attr_t vm_get_Subp_attr(int streamN)
   return attr;
 }
 
-audio_attr_t vm_get_Audio_attr(int streamN)
+audio_attr_t vm_get_audio_attr(int streamN)
 {
   audio_attr_t attr;
   
@@ -597,15 +597,15 @@ audio_attr_t vm_get_Audio_attr(int streamN)
   return attr;
 }
 
-uint16_t vm_get_Subp_lang(int streamN)
+uint16_t vm_get_subp_lang(int streamN)
 {
-  subp_attr_t attr = vm_get_Subp_attr(streamN);
+  subp_attr_t attr = vm_get_subp_attr(streamN);
   return (attr.lang_code[0] << 8) | attr.lang_code[1];
 }
 
-uint16_t vm_get_Audio_lang(int streamN)
+uint16_t vm_get_audio_lang(int streamN)
 {
-  audio_attr_t attr = vm_get_Audio_attr(streamN);
+  audio_attr_t attr = vm_get_audio_attr(streamN);
   return (attr.lang_code[0] << 8) | attr.lang_code[1];
 }
 
