@@ -383,8 +383,8 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   
   change_file(data_elem->filename);
 
-  off = data_elem->off;
-  len = data_elem->len;
+  off = data_elem->packet_data_offset;
+  len = data_elem->packet_data_len;
 
   
 
