@@ -26,9 +26,15 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
+#include <gtk/gtk.h>
+
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
+
+#include "support.h"
 #include "xsniffer.h"
+#include "callbacks.h"
+
 
 extern int msgqid;
 
@@ -163,11 +169,32 @@ void* xsniff_mouse(void* args) {
 	case XK_f:
 	  // fullscreen
 	  {
+	    extern GtkWidget *app;
+	    GtkWidget *w;
+	    gboolean val;
+	    
 	    zoom_mode = (zoom_mode == ZoomModeResizeAllowed) 
 	      ? ZoomModeFullScreen : ZoomModeResizeAllowed;
+
+	    val = (zoom_mode == ZoomModeFullScreen) ? TRUE : FALSE;
+
+	    w = lookup_widget(app, "full_screen");
+	    if(w==NULL) {
+	      fprintf(stderr, "xsniffer: failed to lookup_widget();\n");
+	    }
 	    
+	    gdk_threads_enter(); // Toggle the menu checkbutton.
+	    gtk_signal_handler_block_by_func(GTK_OBJECT(w), 
+					     on_full_screen_activate, NULL);
+	    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w), val);
+	    gtk_signal_handler_unblock_by_func(GTK_OBJECT(w),
+					     on_full_screen_activate, NULL);
+	    gdk_threads_leave();
+
 	    DVDSetZoomMode(nav2, zoom_mode);
-	      
+
+	    
+	    
 	  }
 	  break;
 	  

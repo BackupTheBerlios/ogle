@@ -63,12 +63,11 @@ struct poptOption options[] = {
 };
 
 ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
+GtkWidget *app;
 
 int
 main (int argc, char *argv[])
 {
-  GtkWidget *app;
-
 #ifdef ENABLE_NLS
   setlocale(LC_ALL, "");
   bindtextdomain (PACKAGE, PACKAGE_LOCALE_DIR);
