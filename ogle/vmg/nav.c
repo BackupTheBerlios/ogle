@@ -122,6 +122,7 @@ int main(int argc, char *argv[])
     
     /*  Call start here */
     // hack placed here because it calls DVDOpen...
+    DNOTE("Opening DVD at \"%s\"\n", get_dvdroot());
     if(vm_init(get_dvdroot()) == -1)
       exit(1);
 
@@ -383,7 +384,7 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
     }
     break;
   default:
-    DNOTE("ignoring dvdctrl event (%i)\n", ce->type);
+    DNOTE("ignoring dvdctrl event (%d)\n", ce->type);
     break;
   }
   
@@ -405,7 +406,9 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   case 2:
   case 3:
   default:
-    FATAL("send bug report, unknown auto_action_mode!! btn: %d\n", button_nr);
+    FATAL("send bug report, unknown auto_action_mode(%d) btn: %d\n", 
+	  pci->hli.btnit[button_nr - 1].auto_action_mode, button_nr);
+    navPrint_PCI(pci);
     exit(1);
   }
   
@@ -663,7 +666,7 @@ static void do_run(void) {
 	  break;
 	  
 	case DVDCtrlMenuCall:
-	  NOTE("Jumping to Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
+	  NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
 	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
 	  if(!res)
 	    NOTE("No such menu!\n");
@@ -764,6 +767,46 @@ static void do_run(void) {
 	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
 	      (vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
+	  }
+	  break;
+	case DVDCtrlGetCurrentUOPS: // FIXME XXX $$$ Not done
+	  {
+	   DVDUOP_t res = 0;
+	   MsgEvent_t send_ev;
+	   send_ev.type = MsgEventQDVDCtrl;
+	   send_ev.dvdctrl.cmd.currentuops.type = DVDCtrlCurrentUOPS;
+	   {
+	     user_ops_t p_uops = vm_get_uops();
+	     /* This mess is needed...
+	      * becuse we didn't do a endian swap in libdvdread */
+	     res |= (p_uops.title_or_time_play ? 0 : UOP_FLAG_TitleOrTimePlay);
+	     res |= (p_uops.chapter_search_or_play ? 0 : UOP_FLAG_ChapterSearchOrPlay);
+	     res |= (p_uops.title_play ? 0 : UOP_FLAG_TitlePlay);
+	     res |= (p_uops.stop ? 0 : UOP_FLAG_Stop);
+	     res |= (p_uops.go_up ? 0 : UOP_FLAG_PauseOn);
+	     res |= (p_uops.time_or_chapter_search ? 0 : UOP_FLAG_TimeOrChapterSearch);
+	     res |= (p_uops.prev_or_top_pg_search ? 0 : UOP_FLAG_PrevOrTopPGSearch);
+	     res |= (p_uops.next_pg_search ? 0 : UOP_FLAG_NextPGSearch);
+
+	     res |= (p_uops.title_menu_call ? 0 : UOP_FLAG_TitleMenuCall);
+	     res |= (p_uops.root_menu_call ? 0 : UOP_FLAG_RootMenuCall);
+	     res |= (p_uops.subpic_menu_call ? 0 : UOP_FLAG_SubPicMenuCall);
+	     res |= (p_uops.audio_menu_call ? 0 : UOP_FLAG_AudioMenuCall);
+	     res |= (p_uops.angle_menu_call ? 0 : UOP_FLAG_AngleMenuCall);
+	     res |= (p_uops.chapter_menu_call ? 0 : UOP_FLAG_ChapterMenuCall);
+	     
+	     res |= (p_uops.resume ? 0 : UOP_FLAG_Resume);
+	     res |= (p_uops.button_select_or_activate ? 0 : UOP_FLAG_ButtonSelectOrActivate);
+	     res |= (p_uops.still_off ? 0 : UOP_FLAG_StillOff);
+	     res |= (p_uops.pause_on ? 0 : UOP_FLAG_PauseOn);
+	     res |= (p_uops.audio_stream_change ? 0 : UOP_FLAG_AudioStreamChange);
+	     res |= (p_uops.subpic_stream_change ? 0 : UOP_FLAG_SubPicStreamChange);
+	     res |= (p_uops.angle_change ? 0 : UOP_FLAG_AngleChange);
+	     res |= (p_uops.karaoke_audio_pres_mode_change ? 0 : UOP_FLAG_KaraokeAudioPresModeChange);
+	     res |= (p_uops.video_pres_mode_change ? 0 : UOP_FLAG_VideoPresModeChange);
+	   }
+	   send_ev.dvdctrl.cmd.currentuops.uops = res;
+	   MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }
 	  break;
 	case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
