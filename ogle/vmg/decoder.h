@@ -46,7 +46,9 @@ typedef enum {
   CallSS_FP,
   CallSS_VMGM_MENU,
   CallSS_VTSM,
-  CallSS_VMGM_PGC
+  CallSS_VMGM_PGC,
+
+  PlayThis
 } link_cmd_t;
 
 typedef struct {

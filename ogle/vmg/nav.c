@@ -50,14 +50,15 @@ extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
 
 
-static void send_demux_sectors(int start_sector, int nr_sectors, int flush) {
+static void send_demux_sectors(int start_sector, int nr_sectors, 
+			       FlowCtrl_t flush) {
   MsgEvent_t ev;
   
   ev.type = MsgEventQPlayCtrl;
   ev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
   ev.playctrl.from = start_sector * 2048;
   ev.playctrl.to = (start_sector + nr_sectors) * 2048;
-  ev.playctrl.extra_cmd = flush;
+  ev.playctrl.flowcmd = flush;
   if(send_demux(msgq, &ev) == -1) {
     fprintf(stderr, "vm: send_demux_sectors\n");
   }
@@ -451,10 +452,10 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
 	process_pci(&pci, &sl_button_nr);
       
 	if((dsi.vobu_sri.next & 0x80000000)== 0) {
-	  flush_video = 1;
+	  flush_video = FlowCtrlCompleteVideoUnit;
 	  fprintf(stderr, "flush_video = 1;\n");
 	} else
-	  flush_video = 0;
+	  flush_video = FlowCtrlNone;
 	
 	/* Demux/play the content of this vobu */
 	send_demux_sectors(cell->first_sector + block + 1, 
@@ -467,7 +468,7 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
 	/* If there is more data in this cell to demux, then get the
 	 * next nav pack. */
 	if(cell->first_sector + block <= cell->last_sector) {
-	  send_demux_sectors(cell->first_sector + block, 1, 0);
+	  send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
 	  pending_packets += 2;
 	}
       }
