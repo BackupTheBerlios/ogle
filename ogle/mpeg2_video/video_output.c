@@ -48,7 +48,6 @@ static XShmSegmentInfo shm_info;
 static XShmSegmentInfo shm_info_ref1;
 static XShmSegmentInfo shm_info_ref2;
 static Display *mydisplay;
-static Window mywindow;
 static Window window_stat;
 static GC mygc;
 static GC statgc;
@@ -858,7 +857,7 @@ void draw_win(debug_win *dwin)
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
 	  dwin->image->padded_width,
 	  dwin->image->padded_height, 
-	  dwin->image->padded_width*(bpp/8),
+	  dwin->image->padded_width*(pixel_stride/8),
 	  dwin->image->padded_width, dwin->image->padded_width/2 );
   
   if(dwin->grid) {

@@ -764,7 +764,9 @@ void sequence_header(void)
     DPRINTF(1, "Reserved\n");
     break;
   }
-  buf_ctrl_head->frame_interval = frame_interval_nsec;
+  if(forced_frame_rate == -1) { /* No forced frame rate */
+    buf_ctrl_head->frame_interval = frame_interval_nsec;
+  }
   
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
@@ -1751,7 +1753,7 @@ void picture_data(void)
 	bits_read_old = bits_read_new;
 	bits_read_new = stats_bits_read;
 #endif
-	/*	
+	
 	fprintf(stderr, "decode: frame rate: %f fps\t",
 		25.0/(((double)tva.tv_sec+
 		       (double)(tva.tv_usec)/1000000.0)-
@@ -1775,7 +1777,7 @@ void picture_data(void)
 #else
        	fprintf(stderr, "\n");
 #endif
-	*/
+      
       }
       frame_nr--;
     }

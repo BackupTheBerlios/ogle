@@ -131,6 +131,7 @@ void reset_vectors()
 
 
 
+#if 0
 static inline
 void get_dct_intra(runlevel_t *runlevel, char *func) 
 {
@@ -198,7 +199,6 @@ void get_dct_intra(runlevel_t *runlevel, char *func)
 }
 
 
-#if 0
 static inline
 void get_dct_non_intra_first(runlevel_t *runlevel, char *func) 
 {
@@ -332,21 +332,19 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
 
 
 
+
+
+
 /* 6.2.6 Block */
 static
 void block_intra(unsigned int i)
 {
-  uint16_t dct_dc_size;
-  uint16_t dct_dc_differential = 0;
-  int n = 0;
+  unsigned int dct_dc_size;
+  unsigned int dct_dc_differential;
+  int dct_diff;
+  int half_range;
   
-  int16_t dct_diff;
-  int16_t half_range;
-  runlevel_t runlevel;
-    
-#ifdef STATS
-  stats_block_intra_nr++;
-#endif
+  int n;
   
   DPRINTF(3, "pattern_code(%d) set\n", i);
     
@@ -356,7 +354,9 @@ void block_intra(unsigned int i)
     for(m=0; m<16; m++)
       memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
   }
-    
+  
+  
+  /* DC - component */
   if(i < 4) {
     dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
     DPRINTF(4, "luma_size: %d\n", dct_dc_size);
@@ -393,7 +393,7 @@ void block_intra(unsigned int i)
     else
       cc = (i%2)+1;
       
-    qfs = mb.dc_dct_pred[cc]+dct_diff;
+    qfs = mb.dc_dct_pred[cc] + dct_diff;
     mb.dc_dct_pred[cc] = qfs;
     DPRINTF(4, "QFS[0]: %d\n", qfs);
       
@@ -409,56 +409,109 @@ void block_intra(unsigned int i)
 //#endif
       mb.QFS[0] = f;
     }
-#ifdef STATS
-    stats_f_intra_compute_first_nr++;
-#endif
-    n++;
+    n = 1;
   }
-    
-  /* 7.2.2.4 Summary */
+  
+  
+  /* AC - components */
+  
   while( 1 ) {
-    //fprintf(stderr, "Subsequent dct_dc\n");
-    //Subsequent DCT coefficients
-    get_dct_intra(&runlevel, "dct_dc_subsequent");
+    /* Manually inlined and optimized get_dct(..) */
+    //      get_dct_intra(&runlevel, "dct_dc_subsequent");
     
+    unsigned int code;
+    const DCTtab *tab;
+      
+    code = nextbits(16);
+    
+    if(code>=16384)
+      tab = &DCTtabnext[(code>>12)-4];  // 14 
+    else if(code>=1024)
+      tab = &DCTtab0[(code>>8)-4];      // 14
+    else if(code>=512)
+      tab = &DCTtab1[(code>>6)-8];      // 14
+    else if(code>=256)
+      tab = &DCTtab2[(code>>4)-16];
+    else if(code>=128)
+      tab = &DCTtab3[(code>>3)-16];
+    else if(code>=64)
+      tab = &DCTtab4[(code>>2)-16];
+    else if(code>=32)
+      tab = &DCTtab5[(code>>1)-16];
+    else if(code>=16)
+      tab = &DCTtab6[code-16];
+    else {
+      fprintf(stderr,
+	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	      code);
+      exit_program(1);
+    }
+
 #ifdef DEBUG
-    if(runlevel.run != VLC_END_OF_BLOCK) {
+    if(tab->run != 64 /*VLC_END_OF_BLOCK*/) {
       DPRINTF(4, "coeff run: %d, level: %d\n",
 	      runlevel.run, runlevel.level);
     }
 #endif
+
+    //  dropbits(tab->len);
     
-    if(runlevel.run == VLC_END_OF_BLOCK) {
+    if (tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
+      //run = VLC_END_OF_BLOCK;
+      //val = VLC_END_OF_BLOCK;
+      dropbits(2); // Always 2 bits.
       break;
-    } else {
-      n += runlevel.run;
-      
-      /* inverse quantisation */
-      {
-	int i = inverse_scan[0][n];
-	int f = (2 * runlevel.level 
-		 * mb.quantiser_scale
-		 * seq.header.intra_inverse_quantiser_matrix[i])/16;
-#ifdef STATS
-	stats_f_intra_compute_subseq_nr++;
-#endif
-	/* Oddification */
-	if(!(f & 0x1)) 
-	  f = f - (f > 0 ? 1 : -1);
+    } 
+    else {
+      unsigned int run, val, sgn, i, f;
+	  
+      if(tab->run == 65) { /* escape */
+	// dropbits(tab->len); // tab->len, escape always = 6 bits	
+	// run = GETBITS(6, "(get_dct escape - run )");
+	// val = GETBITS(8, "(get_dct escape - level )");
+	uint32_t tmp = GETBITS(6+6+8, "(get_dct escape - run & level)" );
+	val = abs((int8_t)(tmp & 0xff));
+	run = (tmp >> 8) & 0x3f;
+	sgn = tmp & 0x80;
 	
-//#if 0	      
-	if(f > 2047) {
-	  fprintf(stderr, "Clipp (block_intra subseq. +)\n");
-	  f = 2047;
-	} else if(f < -2048) {
-	  fprintf(stderr, "Clipp (block_intra subseq. -)\n");
-	  f = -2048;
+	if((tmp & 0x7f) == 0) { // ???
+	  val = GETBITS(8, "(get_dct escape - extended level)");
+	  val = sgn ? (0x100 - val) : val;
+	  if(val < 128) {
+	    fprintf(stderr, "invalid extended dct escape MPEG-1\n");
+	  }
 	}
-//#endif
-	mb.QFS[i] = f;
       }
+      else {
+	// dropbits(tab->len); 
+	run = tab->run;
+	val = tab->level; 
+	sgn = 0x1 & GETBITS(tab->len+1, "(get_dct sign )"); //sign bit
+	// val = sgn ? -val : val;
+      }
+    
+      n += run;
+    
+      /* inverse quantisation */
+      i = inverse_scan[0][n];
+      f = (2 * val
+	   * mb.quantiser_scale
+	   * seq.header.intra_inverse_quantiser_matrix[i])/16;
       
-      n++;      
+      f = f | 0x1; /* Oddification */
+	
+//#if 0
+      if(f > 2047) {
+	fprintf(stderr, "Clipp (block_intra subseq. +)\n");
+	if(sgn)
+	  f = 2048;
+	else
+	  f = 2047;
+      }
+//#endif
+      
+      mb.QFS[i] = sgn ? -f : f;
+      n++;
     }
   }
 
@@ -475,11 +528,6 @@ void block_non_intra(unsigned int b)
 {
   unsigned int n = 0;
     
-  
-#ifdef STATS
-  stats_block_non_intra_nr++;
-#endif
-  
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
   /* Reset all coefficients to 0 */
@@ -493,8 +541,8 @@ void block_non_intra(unsigned int b)
   while(1) {
     
     /* Manually inlined and optimized get_dct(..) */
-    //      get_dct_non_intra_subseq(&runlevel, "dct_dc_subsequent");
-    int code;
+    //      get_dct_non_intra(&runlevel, "dct_dc_subsequent");
+    unsigned int code;
     const DCTtab *tab;
     
     code = nextbits(16);
@@ -532,7 +580,7 @@ void block_non_intra(unsigned int b)
     }
 #endif
    
-    if (tab->run == 64) { // end_of_block 
+    if (tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
       // run = VLC_END_OF_BLOCK;
       // val = VLC_END_OF_BLOCK;
       dropbits( 2 ); // tab->len, end of block always = 2bits
@@ -580,12 +628,7 @@ void block_non_intra(unsigned int b)
 	    * mb.quantiser_scale
 	    * seq.header.non_intra_inverse_quantiser_matrix[i])/16;
 
-#ifdef STATS
-      stats_f_non_intra_compute_subseq_nr++;
-#endif
-      
-      /* Oddification */
-      f = f | 0x1;
+      f = f | 0x1; /* Oddification */
       
 //#if 0
       if(f > 2047) {
