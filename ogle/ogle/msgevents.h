@@ -67,7 +67,9 @@ typedef enum {
   MsgEventQDemuxStream,
   MsgEventQDemuxStreamChange,
   MsgEventQDemuxDefault,
-  MsgEventQDVDCtrlLong
+  MsgEventQDVDCtrlLong,
+  MsgEventQDemuxDVD,
+  MsgEventQDemuxDVDRoot
 } MsgEventType_t;
 
 
@@ -214,6 +216,16 @@ typedef struct {
   int state; // 0 - not registered, 1 - discard
 } MsgQDemuxDefaultEvent_t;
 
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int titlenum;        /* titlenum as described in libdvdread */
+  int domain;          /* dvd_domain_t as in libdvdread */
+  int block_offset;    /* blocks of 2048 bytes from start of title/file */
+  int block_count;     /* nr of blocks to demux */
+} MsgQDemuxDVDEvent_t;
+
 
 typedef struct {
   MsgEventType_t type;
@@ -251,6 +263,13 @@ typedef struct {
   MsgEventClient_t client;
   char filename[PATH_MAX+1];
 } MsgQChangefileEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  char path[PATH_MAX+1];
+} MsgQDemuxDVDRootEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -331,6 +350,8 @@ typedef union {
   MsgQDemuxStreamChangeEvent_t demuxstreamchange;
   MsgQDemuxDefaultEvent_t demuxdefault;
   MsgQDVDCtrlLongEvent_t dvdctrllong;
+  MsgQDemuxDVDEvent_t demuxdvd;
+  MsgQDemuxDVDRootEvent_t demuxdvdroot;
 } MsgEvent_t;
 
 typedef struct {
