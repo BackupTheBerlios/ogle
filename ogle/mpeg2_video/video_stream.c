@@ -258,7 +258,6 @@ int get_vlc(const vlc_table_t *table, char *func) {
 
 void sighandler(int dummy)
 {
-  fprintf(stderr, "video_stream: sighandler\n");
   exit_program(0);
 }
 
@@ -270,6 +269,7 @@ void init_program()
   // Setup signal handler.
   // SIGINT == ctrl-c
   sig.sa_handler = sighandler;
+  sig.sa_flags = 0;
   sigaction(SIGINT, &sig, NULL);
 }
 

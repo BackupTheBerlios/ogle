@@ -549,18 +549,21 @@ static void display_change_size(yuv_image_t *img, int new_width,
 }
 
 
+
 void display_exit(void) 
 {
   // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
   
   // Need to add some test to se if we can detatch/free/destroy things
-  if(use_xshm) {
-    XSync(mydisplay,True);
+  
+  XSync(mydisplay,True);
+  if(use_xshm)
     XShmDetach(mydisplay, &shm_info);
-    XDestroyImage(window.ximage);
-    shmdt(shm_info.shmaddr);
-    shmctl(shm_info.shmid, IPC_RMID, 0);
-  }
+  XDestroyImage(window.ximage);
+  shmdt(shm_info.shmaddr);
+  shmctl(shm_info.shmid, IPC_RMID, 0);
+  
+  fprintf(stderr, "vo: removed shm segment\n");
   display_process_exit();
 }
 

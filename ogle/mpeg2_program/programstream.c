@@ -1828,6 +1828,7 @@ int main(int argc, char **argv)
   // out of file without a test.
   
   sig.sa_handler = segvhandler;
+  sig.sa_flags = 0;
   rv = sigaction(SIGSEGV, &sig, NULL);
   if(rv == -1) {
     perror("sighandler");
@@ -1871,26 +1872,6 @@ int main(int argc, char **argv)
     }
   }
 }
-
-/*
-int create_shm(int size)
-{
-  
-  if((shmid =
-      shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0600)) = -1) {
-    perror("shmget shmid");
-    exit(-1);
-  }
-
-  shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU);
-  if(shmaddr == -1) {
-    perror("shmat");
-    exit(-1);
-  }
-
-  return 0;
-}  
-*/
 
 
 static void handle_events(MsgEvent_t *ev)

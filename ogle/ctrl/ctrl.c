@@ -50,7 +50,7 @@ int create_ctrl_data();
 int init_ui(char *msgqid_str);
 int register_stream(uint8_t stream_id, uint8_t subtype);
 
-void int_handler();
+void int_handler(int sig);
 void remove_q_shm();
 void add_q_shmid(int shmid);
 void destroy_msgq();
@@ -569,7 +569,7 @@ int main(int argc, char *argv[])
 
   
   sig.sa_handler = int_handler;
-
+  sig.sa_flags = 0;
   if(sigaction(SIGINT, &sig, NULL) == -1) {
     perror("sigaction");
   }
@@ -1515,7 +1515,7 @@ void remove_q_shm()
   
 }
 
-void int_handler()
+void int_handler(int sig)
 {
   /* send quit msg to demuxer and decoders
    * (and wait for ack? (timeout))
@@ -1528,7 +1528,7 @@ void int_handler()
    */
   
   
-  fprintf(stderr, "Caught SIGINT, cleaning up\n");
+  fprintf(stderr, "Caught signal %d, cleaning up\n", sig);
   remove_q_shm();
   destroy_msgq();
   exit(0);

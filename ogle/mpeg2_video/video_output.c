@@ -55,6 +55,8 @@ int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
 int video_scr_nr;
 
+int process_interrupted = 0;
+
 static char *program_name;
 
 static int ctrl_data_shmid;
@@ -290,7 +292,7 @@ static int get_next_picture_buf_id()
       //fprintf(stderr, "vo: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) == -1) {
 	perror("vo: waiting for notification");
-	exit(-1); //TODO clean up and exit
+	display_exit(); //clean up and exit
       }
       event_handler(msgq, &ev);
       if(redraw_needed) {
@@ -325,11 +327,11 @@ static void release_picture_buf(int id)
 	case EIDRM:
 	case EINVAL:
 	  fprintf(stderr, "vo: couldn't send notification no msgq\n");
-	  exit(-1); //TODO clean up and exit
+	  display_exit(); //TODO clean up and exit
 	  break;
 	default:
 	  fprintf(stderr, "vo: couldn't send notification\n");
-	  exit(-1); //TODO clean up and exit
+	  display_exit(); //TODO clean up and exit
 	  break;
 	}
       } else {
@@ -358,9 +360,9 @@ static void send_windowid(Window win)
 clocktime_t first_time;
 int frame_nr = 0;
 
-static void int_handler()
+static void int_handler(int sig)
 {
-  display_exit();
+  process_interrupted = 1;
 }
 
 static void display_process()
@@ -386,6 +388,7 @@ static void display_process()
   pinfos = picture_ctrl_data;
   
   sig.sa_handler = int_handler;
+  sig.sa_flags = 0;
   sigaction(SIGINT, &sig, NULL);
 
   while(1) {
