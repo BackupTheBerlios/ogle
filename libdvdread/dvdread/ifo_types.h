@@ -20,9 +20,11 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <inttypes.h>
 #include <dvdread/dvd_reader.h>
 
+#if !defined(UINT8_MAX) || !defined(UINT16_MAX) || !defined(INT32_MAX)
+#error "Must include <inttypes.h> or <stdint.h> before any libdvdread header."
+#endif
 
 #undef ATTRIBUTE_PACKED
 #undef PRAGMA_PACK_BEGIN 

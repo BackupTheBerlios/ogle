@@ -5,3 +5,5 @@
 * if an encrypted block is being read and libdvdcss is unavailable,
   we should probably return 0 to help it fail.
 
+* add some sort of header versioning , so that we don't get old headers mixed up with a newer version of the library  (or vise versa).
+* make portability changes, packed/align stuff

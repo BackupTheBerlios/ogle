@@ -18,11 +18,13 @@
  * USA
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <dvdread/ifo_print.h>
+#include <dvdread/dvd_reader.h>
 
 static char *program_name;
 

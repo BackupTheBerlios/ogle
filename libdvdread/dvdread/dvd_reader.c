@@ -32,7 +32,7 @@
 #include <limits.h>
 #include <dirent.h>
  
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__bsdi__)|| defined(__DARWIN__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__bsdi__) || defined(__DARWIN__)
 #define SYS_BSD 1
 #endif
 
@@ -44,9 +44,9 @@
 #include <mntent.h>
 #endif
 
-#include "dvd_udf.h"
-#include "dvd_input.h"
 #include "dvd_reader.h"
+#include "dvd_input.h"
+#include "dvd_udf.h"
 #include "md5.h"
 
 #define DEFAULT_UDF_CACHE_LEVEL 1

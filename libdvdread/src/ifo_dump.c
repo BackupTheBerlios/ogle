@@ -18,10 +18,19 @@
  * USA
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#if defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
+
+#include <dvdread/dvd_reader.h>
 #include <dvdread/ifo_print.h>
 
 static char *program_name;
