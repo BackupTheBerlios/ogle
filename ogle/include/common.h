@@ -42,6 +42,7 @@ typedef struct {
   struct timespec pts_time;
   struct timespec realtime_offset;
   uint64_t PTS;
+  int scr_nr;
 } picture_info_t;
 
 typedef struct {
