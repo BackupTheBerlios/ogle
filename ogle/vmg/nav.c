@@ -224,9 +224,9 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
     buffer.bit_position = 8; // First byte is SUBSTREAM_ID
     read_dsi_packet(&dsi, &buffer);
     
-    if(pci->hli.hl_gi.hli_ss & 0x03) {
+    if(pci.hli.hl_gi.hli_ss & 0x03) {
       fprintf(stdout, "Menu detected\n");
-      print_pci_packet(stdout, pci);
+      print_pci_packet(stdout, &pci);
     }
     
     /* Check for user input, and set highlight */
