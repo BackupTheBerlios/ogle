@@ -411,8 +411,7 @@ int DVDBookmarkRemove(DVDBookmark_t *bm, int nr)
  * @param compressed If 1 the output file will be compressed and not human
  * readable. If 0 it will be normal indented text.
  * 0 is recommended if not disk space is very limited.
- * When opening a bookmark file with DVDBookmarkOpen the compression is
- * autodetected.
+ * DVDBookmarkOpen opens and reads both compressed and uncompressed files.
  *
  * @return 0 on success, -1 on failure.
  */
