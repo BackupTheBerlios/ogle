@@ -30,7 +30,7 @@ DVDP_DEMUX=$DVDP_ROOT/ogle_mpeg_ps
 export DVDP_DEMUX
 DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
 export DVDP_CLI_UI
-if [ -z "$DVDP_UI" -o ! -x $DVDP_UI ]; then
+if [ -z "$DVDP_UI" -o ! -x "$DVDP_UI" ]; then
 if [ -x $DVDP_ROOT/ogle_gui ]; then
 DVDP_UI=$DVDP_ROOT/ogle_gui
 else
