@@ -237,7 +237,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	st.tv_sec = TIME_S(sleep_time);
 	st.tv_nsec = TIME_SS(sleep_time) * 1000;
 	
-	nanosleep(&st, NULL):
+	nanosleep(&st, NULL);
 #else
 	nanosleep(&sleep_time, NULL);
 #endif
