@@ -26,6 +26,7 @@
 
 #include <libogleao/ogle_ao.h> // Remove me
 
+#include "parse_config.h"
 #include "decode.h"
 #include "decode_private.h"
 
@@ -51,6 +52,8 @@ typedef struct {
   a52_state_t *state;
   sample_t *samples;
   int disable_dynrng;
+  sample_t level;
+  int adjust_level;
 } adec_a52_handle_t;
 
 
@@ -271,12 +274,31 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
     } else {
       int i;
       int flags;
-      sample_t level = 1;  // Hack for the float_to_int function
+      sample_t level; // Hack for the float_to_int function
       int bias = 384;
       //we have a whole frame to decode
       //fprintf(stderr, "decode frame\n");
       //decode
+      
+      switch(handle->availflags & A52_CHANNEL_MASK) {
+      case A52_3F:
+      case A52_2F1R:
+      case A52_3F1R:
+      case A52_2F2R:
+      case A52_3F2R:
+	level = handle->level;
+	break;
+      default:
+	level = 1.0;
+	break;
+      }
+      
       flags = handle->output_flags;
+
+      if(handle->adjust_level) {
+	flags |= A52_ADJUST_LEVEL;
+      }
+
       if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
 	fprintf(stderr, "a52_frame error\n");
 	//DNOTE("a52_frame() error\n");
@@ -317,7 +339,24 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	convert_samples((adec_handle_t *)handle, handle->samples, 256);
       }
 
-
+#if 0
+      {
+	int n;
+	static short max_s = 0;
+	static int t = 0;
+	for(n = 0; n < 1536; n++) {
+	  if(((short *)(handle->handle.output_buf))[n] > max_s) {
+	    max_s = ((short *)(handle->handle.output_buf))[n];
+	  }
+	}
+	t++;
+	if(t == 10) {
+	  t = 0;
+	  fprintf(stderr, "max: %d\n", max_s);
+	  max_s = 0;
+	}
+      }
+#endif
       //output, look over how the pts/scr is handle for sync here 
       play_samples((adec_handle_t *)handle, handle->scr_nr, 
 		   handle->PTS, handle->pts_valid);
@@ -399,7 +438,9 @@ adec_handle_t *init_a52(void)
         exit(1);
     }
   }
-  handle->disable_dynrng = 0;
+  handle->disable_dynrng = !get_a52_drc();
+  handle->level = (sample_t)get_a52_level();
+  handle->adjust_level = get_a52_adjust_level();
   
   return (adec_handle_t *)handle;
 }
