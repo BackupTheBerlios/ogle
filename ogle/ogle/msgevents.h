@@ -216,6 +216,12 @@ typedef struct {
   int state; // 0 - not registered, 1 - discard
 } MsgQDemuxDefaultEvent_t;
 
+typedef enum {
+  FlowCtrlNone = 0,
+  FlowCtrlCompleteVideoUnit = 1,
+  FlowCtrlFlush = 2 
+} FlowCtrl_t;
+
 typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
@@ -224,8 +230,8 @@ typedef struct {
   int domain;          /* dvd_domain_t as in libdvdread */
   int block_offset;    /* blocks of 2048 bytes from start of title/file */
   int block_count;     /* nr of blocks to demux */
+  FlowCtrl_t flowcmd;
 } MsgQDemuxDVDEvent_t;
-
 
 typedef struct {
   MsgEventType_t type;
@@ -233,12 +239,6 @@ typedef struct {
   MsgEventClient_t client;
   int q_shmid;
 } MsgQAttachQEvent_t;
-
-typedef enum {
-  FlowCtrlNone = 0,
-  FlowCtrlCompleteVideoUnit = 1,
-  FlowCtrlFlush = 2 
-} FlowCtrl_t;
 
 typedef struct {
   MsgEventType_t type;

@@ -20,7 +20,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQGntCapability",
   "MsgEventQPlayCtrl",
   "MsgEventQChangeFile",
-  "MsgEventQReqStreamBuf",
+  "MsgEventQReqStreamBuf", // 10
   "MsgEventQGntStreamBuf",
   "MsgEventQDecodeStreamBuf",
   "MsgEventQReqBuf",
@@ -30,7 +30,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQGntPicBuf",
   "MsgEventQAttachQ",
   "MsgEventQSPUPalette",
-  "MsgEventQSPUHighlight",
+  "MsgEventQSPUHighlight", // 20
   "MsgEventQSpeed",
   "MsgEventQDVDCtrl",
   "MsgEventQFlow",
@@ -39,7 +39,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDemuxStreamChange",
   "MsgEventQDemuxDefault",
   "MsgEventQDVDCtrlLong",
-  "MsgEventQDemuxDVD",
+  "MsgEventQDemuxDVD", // 29
   "MsgEventQDemuxDVDRoot",
   NULL
 };
