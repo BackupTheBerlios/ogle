@@ -2,7 +2,6 @@
 #define COMMON_H
 
 #include "timemath.h"
-#include "ip_sem.h"
 #include "queue.h"
 
 /* "There's len bytes of data for you in your file at this offset." */
@@ -50,7 +49,6 @@ typedef struct {
 #define PICTURES_READY_TO_DISPLAY 0
 #define PICTURES_DISPLAYED 1
 typedef struct {
-  ip_sem_t queue;
   int nr_of_buffers;
   picture_info_t *picture_infos;
   int *dpy_q;

@@ -1,7 +1,6 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-#include "ip_sem.h"
 #include "msgevents.h"
 
 typedef struct {
@@ -77,7 +76,6 @@ typedef struct {
 #define BUFS_EMPTY 1
 typedef struct {
   int qid;
-  //  ip_sem_t queue;
   int data_buf_shmid;
   int nr_of_qelems;
   int write_nr;

@@ -1,7 +1,7 @@
 #ifndef DVDEVENTS_H
 #define DVDEVENTS_H
 
-#include "dvd.h"
+#include <dvd.h>
 
 typedef enum {
   DVDCtrlButtonMask = 0x01000000,
