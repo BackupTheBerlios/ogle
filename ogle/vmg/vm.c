@@ -555,7 +555,7 @@ int vm_get_titles(void)
 {
  int titles = 0;
 
- titles = vmgi->vmgi_mat->vmg_nr_of_title_sets;
+ titles = vmgi->tt_srpt->nr_of_srpts;
 
  return titles;
 }
