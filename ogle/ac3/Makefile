@@ -1,7 +1,7 @@
 CC=gcc
 
 
- __sun__
+# __sun__
 DFLAGS= -g -Wall -O2  \
 	-DHAVE_MADVISE -DHAVE_SHM_SHARE_MMU -DHAVE_CLOCK_GETTIME -DHAVE_MLIB \
 	-DUSE_POSIX_SEM \
