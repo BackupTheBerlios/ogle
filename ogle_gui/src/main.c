@@ -26,6 +26,8 @@
 #include <string.h>
 
 #include <gtk/gtk.h>
+#include <gdk/gdk.h>
+#include <gdk/gdkx.h>
 
 #include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
@@ -81,7 +83,12 @@ main (int argc, char *argv[])
   interpret_config();
   
   gtk_init(&argc, &argv);
-
+  
+  // Make Solaris 8+24 displays work
+  gdk_rgb_init();
+  gtk_widget_set_default_colormap(gdk_rgb_get_cmap());
+  gtk_widget_set_default_visual(gdk_rgb_get_visual());
+  
   // Initialize glade, and read in the glade file
   my_glade_setup();
 
