@@ -60,7 +60,8 @@ typedef enum {
   MsgEventQSPUHighlight,
   MsgEventQSpeed,
   MsgEventQDVDCtrl,
-  MsgEventQFlow
+  MsgEventQFlow,
+  MsgEventQFlushData
 } MsgEventType_t;
 
 
@@ -183,8 +184,23 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  uint8_t stream_id;
+  int subtype;
+} MsgQDemuxStreamChangeEvent_t;
+
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
   int q_shmid;
 } MsgQAttachQEvent_t;
+
+typedef enum {
+  FlowCtrlNone = 0,
+  FlowCtrlCompleteVideoUnit = 1,
+  FlowCtrlFlush = 2 
+} FlowCtrl_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -193,8 +209,15 @@ typedef struct {
   MsgQPlayCtrlCmd_t cmd;
   int from;
   int to;
-  int extra_cmd;
+  FlowCtrl_t flowcmd;
 } MsgQPlayCtrlEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int to_scrnr;
+} MsgQFlushDataEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -277,6 +300,7 @@ typedef union {
   MsgQSpeedEvent_t speed;
   MsgQFlowEvent_t flow;
   MsgQDVDCtrlEvent_t dvdctrl;
+  MsgQFlushDataEvent_t flushdata;
 } MsgEvent_t;
 
 typedef struct {

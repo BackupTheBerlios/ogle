@@ -76,6 +76,7 @@ typedef enum {
 typedef struct {
   clocktime_t realtime_offset;
   offset_valid_t offset_valid;
+  int sync_master;
 } ctrl_time_t;
 
 #define SYNC_NONE 0
