@@ -49,6 +49,9 @@
 9.  Announce on ogle-user, ogle-devel mailinglists
     Announce on freshmeat/...
 
-10. ???
+10. Tag all files in cvs with the release
+    'cvs tag ogle-X_X_X .'
 
-11. Profit.
+11. ???
+
+12. Profit.
