@@ -30,7 +30,9 @@
 #include <glib.h> // for byte swapping only
 #include <sys/msg.h>
 #include <semaphore.h>
+#include <errno.h>
 #include "programstream.h"
+#include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
 
@@ -60,6 +62,8 @@ int id_stat(uint8_t id, uint8_t subtype);
 char *id_qaddr(uint8_t id, uint8_t subtype);
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 	     uint64_t PTS, uint64_t DTS);
+int attach_buffer(int shmid, int size);
+int chk_for_msg(void);
 
 typedef struct {
   uint8_t *buf_start;
@@ -89,6 +93,12 @@ int shmid;
 char *shmaddr;
 int shmsize;
 unsigned int bytes_read = 0;
+
+char *data_buf_addr;
+
+
+int off_from;
+int off_to;
 
 extern char *optarg;
 extern int   optind, opterr, optopt;
@@ -166,6 +176,186 @@ int bytealigned(void)
 #define GETBITS(a,b) getbits(a)
 #endif
 
+#if READ
+
+static inline
+uint32_t nextbits(unsigned int nr)
+{
+  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return result >> (32-nr);
+  //  return (cur_word << (64-bits_left)) >> (64-nr);
+}
+
+#ifdef DEBUG
+uint32_t getbits(unsigned int nr, char *func)
+#else
+static inline uint32_t getbits(unsigned int nr)
+#endif
+{
+  uint32_t result;
+  result = (cur_word << (64-bits_left)) >> 32;
+  result = result >> (32-nr);
+  //  result = cur_word >> (64-nr); //+
+  //  cur_word = cur_word << nr; //+
+  
+  bits_left -= nr;
+  if(bits_left <= 32) {
+    if(offs >= buf_size)
+      read_buf();
+    else {
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+      cur_word = (cur_word << 32) | new_word;
+      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
+      bits_left += 32;
+    }
+  }
+  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+  DPRINTBITS(6, nr, result);
+  DPRINTF(5, "\n");
+  return result;
+}
+
+
+static inline
+void dropbits(unsigned int nr)
+{
+  //cur_word = cur_word << nr; //+
+  bits_left -= nr;
+  if(bits_left <= 32) {
+    if(offs >= buf_size)
+      read_buf();
+    else {
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+      cur_word = (cur_word << 32) | new_word;
+      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
+      bits_left += 32;
+    }
+  }
+}
+
+
+
+void get_next_packet()
+{
+
+  if(msgqid == -1) {
+    if(mmap_base == NULL) {
+      static struct timespec time_offset = { 0, 0 };
+      setup_mmap(infilename);
+      packet.offset = 0;
+      packet.length = 1000000000;
+
+      ctrl_time = malloc(sizeof(ctrl_time_t));
+      scr_nr = 0;
+      ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+      set_time_base(PTS, scr_nr, time_offset);
+
+    } else {
+      packet.length = 1000000000;
+
+
+    }
+  } else {
+    
+    if(stream_shmid != -1) {
+      // msg
+      while(chk_for_msg() != -1)
+	;
+      
+      // Q
+      get_q();
+    } 
+    
+    while(mmap_base == NULL) {
+      wait_for_msg(CMD_FILE_OPEN);
+    }
+    while(stream_shmid == -1) {
+      wait_for_msg(CMD_DECODE_STREAM_BUFFER);
+    }
+    
+  }
+}  
+
+
+void read_buf()
+{
+  uint8_t *packet_base = &mmap_base[packet.offset];
+  int end_bytes;
+  int i, j;
+  
+  /* How many bytes are there left? (0, 1, 2 or 3). */
+  end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
+  
+  /* Read them, as we have at least 32 bits free they will fit. */
+  i = 0;
+  while( i < end_bytes ) {
+    //cur_word=cur_word|(((uint64_t)packet_base[packet.length-end_bytes+i++])<<(56-bits_left)); //+
+    cur_word=(cur_word << 8) | packet_base[packet.length - end_bytes + i++];
+    bits_left += 8;
+  }
+   
+  /* If we have enough 'free' bits so that we always can align
+     the buff[] pointer to a 4 byte boundary. */
+  if( (64-bits_left) >= 24 ) {
+    int start_bytes;
+    get_next_packet(); // Get new packet struct
+    packet_base = &mmap_base[packet.offset];
+    
+    /* How many bytes to the next 4 byte boundary? (0, 1, 2 or 3). */
+    start_bytes = (4 - ((long)packet_base % 4)) % 4; 
+    
+    /* Do we have that many bytes in the packet? */
+    j = start_bytes < packet.length ? start_bytes : packet.length;
+    
+    /* Read them, as we have at least 24 bits free they will fit. */
+    i = 0;
+    while( j-- ) {
+      //cur_word=cur_word|(((uint64_t)packet_base[i++])<<(56-bits_left)); //+
+      cur_word  = (cur_word << 8) | packet_base[i++];
+      bits_left += 8;
+    }
+     
+    buf = (uint32_t *)&packet_base[start_bytes];
+    buf_size = (packet.length - start_bytes) / 4; // Number of 32 bit words
+    offs = 0;
+    
+    /* If there were fewer bytes than needed to get to the first 4 byte boundary,
+       then we need to make this inte a valid 'empty' packet. */
+    if( start_bytes > packet.length ) {
+      /* This make the computation of end_bytes come 0 and 
+	 forces us to call read_buff() the next time get/dropbits are used. */
+      packet.length = start_bytes;
+      buf_size = 0;
+    }
+    
+    /* Make sure we have enough bits before we return */
+    if(bits_left <= 32) {
+      /* If the buffer is empty get the next one. */
+      if(offs >= buf_size)
+	read_buf();
+      else {
+	uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+	//cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
+	cur_word = (cur_word << 32) | new_word;
+	bits_left += 32;
+      }
+    }
+  
+  } else {
+    /* The trick!! 
+       We have enough data to return. Infact it's so much data that we 
+       can't be certain that we can read enough of the next packet to 
+       align the buff[ ] pointer to a 4 byte boundary.
+       Fake it so that we still are at the end of the packet but make
+       sure that we don't read the last bytes again. */
+    
+    packet.length -= end_bytes;
+  }
+
+}
+
+#else
+
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
@@ -220,6 +410,7 @@ unsigned int nextbits(unsigned int nr_of_bits)
   DPRINTF(4, "nextbits %08x\n",(result >> (32-nr_of_bits )));
   return result >> (32-nr_of_bits);
 }
+#endif
 
 static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
@@ -628,7 +819,7 @@ void PES_packet()
   uint8_t data_alignment_indicator;
   uint8_t copyright;
   uint8_t original_or_copy;
-  uint8_t PTS_DTS_flags;
+  uint8_t PTS_DTS_flags = 0;
   uint8_t ESCR_flag;
   uint8_t ES_rate_flag;
   uint8_t DSM_trick_mode_flag;
@@ -637,8 +828,8 @@ void PES_packet()
   uint8_t PES_extension_flag;
   uint8_t PES_header_data_length;
   
-  uint64_t PTS;
-  uint64_t DTS;
+  uint64_t PTS = 0;
+  uint64_t DTS = 0;
   uint64_t ESCR_base;
   uint32_t ESCR_extension;
   
@@ -874,7 +1065,7 @@ void PES_packet()
   } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
     push_stream_data(stream_id, PES_packet_length,
 		     PTS_DTS_flags, PTS, DTS);
-    //fprintf(stderr, "*PRIVATE_stream_2\n");
+    //fprintf(stderr, "*PRIVATE_stream_2, %d\n", PES_packet_length);
   } else if(stream_id == MPEG2_PADDING_STREAM) {
     drop_bytes(PES_packet_length);
     //    push_stream_data(stream_id, PES_packet_length);
@@ -891,8 +1082,8 @@ void packet()
   uint16_t packet_length;
   uint8_t P_STD_buffer_scale;
   uint16_t P_STD_buffer_size;
-  uint64_t PTS;
-  uint64_t DTS;
+  uint64_t PTS = 0;
+  uint64_t DTS = 0;
   int N;
   uint8_t pts_dts_flags = 0;
 
@@ -972,19 +1163,68 @@ void pack()
   
 
   SCR_flags = 0;
+
+  if(off_to != -1) {
+    if(off_to <= offs-(bits_left/8)) {
+      fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
+      off_to = -1;
+      wait_for_msg(CMD_CTRL_CMD);
+    }
+  }
+  if(off_from != -1) {
+    fprintf(stderr, "demux: off_from pack\n");
+    offs = off_from;
+    bits_left = 64;
+    off_from = -1;
+    GETBITS(32, "skip1");
+    GETBITS(32, "skip2");
+  }
+
+  chk_for_msg();  
   mpeg_version = pack_header();
   switch(mpeg_version) {
   case MPEG1:
+    if(off_to != -1) {
+      if(off_to <= offs-(bits_left/8)) {
+      fprintf(stderr, "demux: off_to %d offs %d mpeg1\n", off_to, offs);
+	off_to = -1;
+	wait_for_msg(CMD_CTRL_CMD);
+      }
+    }
+    if(off_from != -1) {
+      fprintf(stderr, "demux: off_from mpeg1\n");
+      offs = off_from;
+      bits_left = 64;
+      off_from = -1;
+      GETBITS(32, "skip1");
+      GETBITS(32, "skip2");
+    }
+    chk_for_msg();
     next_start_code();
     while(nextbits(32) >= 0x000001BC) {
       packet();
+      if(off_to != -1) {
+	if(off_to <= offs-(bits_left/8)) {
+	  fprintf(stderr, "demux: off_to %d offs %d packet\n", off_to, offs);
+	  off_to = -1;
+	  wait_for_msg(CMD_CTRL_CMD);
+	}
+      }
+      if(off_from != -1) {
+	fprintf(stderr, "demux: off_from packet\n");
+	offs = off_from;
+	bits_left = 64;
+	off_from = -1;
+	GETBITS(32, "skip1");
+	GETBITS(32, "skip2");
+      }
+      chk_for_msg();
       next_start_code();
     }
     break;
   case MPEG2:
     while((((start_code = nextbits(32))>>8)&0x00ffffff) ==
 	  MPEG2_PES_PACKET_START_CODE_PREFIX) {
-      
       stream_id = (start_code&0xff);
       
       is_PES = 0;
@@ -1025,6 +1265,25 @@ void pack()
       
       PES_packet();
       SCR_flags = 0;
+
+      if(off_to != -1) {
+	if(off_to <= offs-(bits_left/8)) {
+	  fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
+	  off_to = -1;
+	  wait_for_msg(CMD_CTRL_CMD);
+	}
+      }
+      if(off_from != -1) {
+	fprintf(stderr, "demux: off_from mpeg2\n");
+	offs = off_from;
+	bits_left = 64;
+	off_from = -1;
+	GETBITS(32, "skip1");
+	GETBITS(32, "skip2");
+      }
+
+      chk_for_msg();
+
     }
     break;
   }
@@ -1251,7 +1510,7 @@ int create_shm(int size)
     exit(-1);
   }
 
-  shmaddr = shmat(shmid, NULL, 0);
+  shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU);
   if(shmaddr == -1) {
     perror("shmat");
     exit(-1);
@@ -1268,6 +1527,10 @@ int register_id(uint8_t id, int subtype)
 {
   msg_t msg;
   cmd_t *cmd;
+  data_buf_head_t *data_buf_head;
+
+
+  data_buf_head = (data_buf_head_t *)data_buf_addr;
 
   cmd = (cmd_t *)&msg.mtext;
   
@@ -1277,6 +1540,7 @@ int register_id(uint8_t id, int subtype)
   cmd->cmd.new_stream.stream_id = id;
   cmd->cmd.new_stream.subtype = subtype; // different private streams
   cmd->cmd.new_stream.nr_of_elems = 300;
+  cmd->cmd.new_stream.data_buf_shmid = data_buf_head->shmid;
   send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_new_stream_t));
 
   /* wait for answer */
@@ -1343,6 +1607,27 @@ int init_id_reg()
 
 
 
+int chk_for_msg(void)
+{
+  msg_t msg;
+  cmd_t *cmd;
+  cmd = (cmd_t *)(msg.mtext);
+  
+  if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_DEMUX, IPC_NOWAIT) == -1) {
+    if(errno == ENOMSG) {
+      //fprintf(stderr ,"demux: no msg in q\n");
+      return 0;
+    }
+    perror("msgrcv");
+    return -1;
+  } else {
+    fprintf(stderr, "demux: got msg\n");
+    eval_msg(cmd);
+  }
+  
+  return 1;
+}
+
 int wait_for_msg(cmdtype_t cmdtype)
 {
   msg_t msg;
@@ -1374,6 +1659,8 @@ int eval_msg(cmd_t *cmd)
     fprintf(stderr, "demux: got buffer id %d, size %d\n",
 	    cmd->cmd.gnt_buffer.shmid,
 	    cmd->cmd.gnt_buffer.size);
+    attach_buffer(cmd->cmd.gnt_buffer.shmid,
+		  cmd->cmd.gnt_buffer.size);
     break;
   case CMD_DEMUX_STREAM_BUFFER:
     fprintf(stderr, "demux: got stream %x, %x buffer \n",
@@ -1383,6 +1670,34 @@ int eval_msg(cmd_t *cmd)
 			  cmd->cmd.stream_buffer.subtype,
 			  cmd->cmd.stream_buffer.q_shmid);
 
+    break;
+  case CMD_CTRL_CMD:
+    {
+      static ctrlcmd_t prevcmd = CTRLCMD_PLAY;
+      switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
+      case CTRLCMD_STOP:
+	if(prevcmd != CTRLCMD_STOP) {
+	  wait_for_msg(CMD_ALL);
+	}
+	break;
+      case CTRLCMD_PLAY:
+	break;
+      case CTRLCMD_PLAY_FROM:
+	off_from = cmd->cmd.ctrl_cmd.off_from;
+	off_to = -1;
+	break;
+      case CTRLCMD_PLAY_TO:
+	off_from = -1;
+	off_to = cmd->cmd.ctrl_cmd.off_to;
+	break;
+      case CTRLCMD_PLAY_FROM_TO:
+	off_from = cmd->cmd.ctrl_cmd.off_from;
+	off_to = cmd->cmd.ctrl_cmd.off_to;
+	break;
+      default:
+	break;
+      }
+    }
     break;
   default:
     fprintf(stderr, "demux: unrecognized command\n");
@@ -1401,7 +1716,7 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   fprintf(stderr, "demux: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("attach_decoder_buffer(), shmat()");
       return -1;
     }
@@ -1428,11 +1743,50 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 }
 
 
+int attach_buffer(int shmid, int size)
+{
+  char *shmaddr;
+  data_buf_head_t *data_buf_head;
+  data_elem_t *data_elems;
+  int n;
+  
+  fprintf(stderr, "demux: attach_buffer() shmid: %d\n", shmid);
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("attach_buffer(), shmat()");
+      return -1;
+    }
+
+    data_buf_addr = shmaddr;
+    data_buf_head = (data_buf_head_t *)data_buf_addr;
+    data_buf_head->shmid = shmid;
+    data_buf_head->nr_of_dataelems = 900;
+    data_buf_head->write_nr = 0;
+    
+    data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
+    for(n = 0; n < data_buf_head->nr_of_dataelems; n++) {
+      data_elems[n].in_use = 0;
+    }
+    
+    
+
+  } else {
+    return -1;
+  }
+    
+  return 0;
+  
+}
+
+
 int get_buffer(int size)
 {
   msg_t msg;
   cmd_t *cmd;
   
+  size+= sizeof(data_buf_head_t)+900*sizeof(data_elem_t);
+
   msg.mtype = MTYPE_CTL;
   cmd = (cmd_t *)&msg.mtext;
   
@@ -1460,28 +1814,110 @@ int send_msg(msg_t *msg, int mtext_size)
 }
 
 
+
+
+
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 	     uint64_t PTS, uint64_t DTS)
 {
-  q_head_t *q_head;
+  q_head_t *q_head = NULL;
   q_elem_t *q_elem;
+  data_buf_head_t *data_buf_head;
+  data_elem_t *data_elems;
+  int data_elem_nr;
   int elem;
+  int n;
+  int nr_waits = 0;
   
   static int scr_nr = 0;
+
+  data_buf_head = (data_buf_head_t *)data_buf_addr;
+  data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
+  data_elem_nr = data_buf_head->write_nr;
   
+
+  while(data_elems[data_elem_nr].in_use) {
+    nr_waits++;
+    /* If this element is in use we have to wait till it is released.
+     * We know for which q we need to wait
+     */
+    /* Normally we shouldn't get here */
+    //fprintf(stderr, "demux: put_in_q(), elem %d in use\n", data_elem_nr);
+    
+    q_head = (q_head_t *)data_elems[data_elem_nr].q_addr;
+    
+    if(sem_wait(&q_head->bufs_empty) == -1) {
+      perror("demux: put_in_q(), sem_wait()");
+      return -1;
+    }
+
+    
+  }
+
+
+
+  /* Now the element should be free */
+  if(data_elems[data_elem_nr].in_use) {
+    fprintf(stderr, "demux: somethings wrong, elem %d still in use\n",
+	    data_elem_nr);
+  }
+  
+  /*
+  if(nr_waits > 0) {
+    fprintf(stderr, "demux: waits %d times on buf %d\n",
+	    nr_waits, data_elem_nr);
+  }
+  */
+
+  for(n = 0; n < nr_waits; n++) {
+    /* We must increase the semaphore we waited on */
+    if(sem_post(&q_head->bufs_empty) == -1) {
+      perror("demux: put_in_q(), sem_post()");
+      return -1;
+    }
+  }
+
+    
+  if(PTS_DTS_flags & 0x2) {
+    DPRINTF(1, "PTS: %llu.%09llu\n", PTS/90000, (PTS%90000)*(1000000000/90000));
+  }
+
+  data_elems[data_elem_nr].PTS_DTS_flags = PTS_DTS_flags;
+  data_elems[data_elem_nr].PTS = PTS;
+  data_elems[data_elem_nr].DTS = DTS;
+  data_elems[data_elem_nr].SCR_base = SCR_base;
+  data_elems[data_elem_nr].SCR_ext = SCR_ext;
+  data_elems[data_elem_nr].SCR_flags = SCR_flags;
+  data_elems[data_elem_nr].off = off;
+  data_elems[data_elem_nr].len = len;
+  data_elems[data_elem_nr].q_addr = q_addr;
+  data_elems[data_elem_nr].in_use = 1;
+
+  if(scr_discontinuity) {
+    scr_discontinuity = 0;
+    scr_nr = (scr_nr+1)%16;
+    fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
+  }
+
+  data_elems[data_elem_nr].scr_nr = scr_nr;
+
+  data_buf_head->write_nr = (data_buf_head->write_nr+1)%data_buf_head->nr_of_dataelems;
+
   //  fprintf(stderr, "demux: put_in_q() off: %d, len %d\n",
   //	  off, len);
   q_head = (q_head_t *)q_addr;
   q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
   elem = q_head->write_nr;
   
+
+
   if(sem_wait(&q_head->bufs_empty) == -1) {
     perror("demux: put_in_q(), sem_wait()");
     return -1;
   }
-  if(PTS_DTS_flags & 0x2) {
-    DPRINTF(1, "PTS: %llu.%09llu\n", PTS/90000, (PTS%90000)*(1000000000/90000));
-  }
+
+  q_elem[elem].data_elem_index = data_elem_nr;
+  /*
   q_elem[elem].PTS_DTS_flags = PTS_DTS_flags;
   q_elem[elem].PTS = PTS;
   q_elem[elem].DTS = DTS;
@@ -1490,15 +1926,8 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   q_elem[elem].SCR_flags = SCR_flags;
   q_elem[elem].off = off;
   q_elem[elem].len = len;
-  
+  */
     
-  if(scr_discontinuity) {
-    scr_discontinuity = 0;
-    scr_nr = (scr_nr+1)%16;
-    fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
-  }
-
-  q_elem[elem].scr_nr = scr_nr;
 
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
