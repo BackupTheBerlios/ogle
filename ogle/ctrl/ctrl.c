@@ -103,7 +103,7 @@ static int child_killed = 0;
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-h] [-u cli|gui] [<path>]", program_name);
+  fprintf(stderr, "Usage: %s [-h] [-u cli|gui] [<path>]\n", program_name);
   //"[-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
 }
 
