@@ -271,6 +271,8 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	  //change a52 flags to generic channel flags
 	  
 	  chtypemask = a52flags_to_channels(handle->availflags);
+	  chtypemask |= ChannelType_AC3;
+	  
 	  audio_config(handle->handle.config, chtypemask,
 		       handle->sample_rate, 16);
 	  format = handle->handle.config->dst_format.sample_format;

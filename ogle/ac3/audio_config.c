@@ -104,13 +104,23 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
       DNOTE("  <chtype>%s</chtype>\n", channeltype_str(configs[n].chtype[m]));
     }
     DNOTE("</channel_config>\n");
-    if(((chtypemask_avail & chtypemask_wanted)
-	== (chtypemask_wanted & ChannelTypeMask_Channels)) ||
-       ((chtypemask_avail & chtypemask_wanted)
-	== (chtypemask_wanted & ChannelTypeMask_Streams))) {
-      chconf = &configs[n];
-      DNOTE("Found matching channel_config\n");
-      break;
+    /* Want some channel based format, check if we can output that. */
+    if(chtypemask_wanted & ChannelTypeMask_Channels) {
+      if((chtypemask_wanted & chtypemask_avail) ==
+	 (chtypemask_wanted & ChannelTypeMask_Channels)) {
+	chconf = &configs[n];
+	DNOTE("Found matching channel_config\n");
+	break;
+      }
+    }
+    /* Want some stream based format, check if it matches. */
+    if(chtypemask_wanted & ChannelTypeMask_Streams) {
+      if((chtypemask_wanted & chtypemask_avail) ==
+	 (chtypemask_wanted & ChannelTypeMask_Streams)) {
+	chconf = &configs[n];
+	DNOTE("Found matching channel_config\n");
+	break;
+      }
     }
   }
   if((!chconf) && (nr_configs > 0)) {
