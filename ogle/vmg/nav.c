@@ -44,6 +44,7 @@ extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern char *get_dvdroot(void);
 
 extern dvd_state_t state;
+extern unsigned char discid[16];
 
 static void do_run(void);
 static int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
@@ -942,6 +943,16 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
       
       free(state_str);
+    }
+    break;
+  case DVDCtrlGetDiscID:
+    {
+      MsgEvent_t send_ev;
+
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlDiscID;
+      memcpy(send_ev.dvdctrl.cmd.discid.id, discid, sizeof(discid));
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
     break;
   default:

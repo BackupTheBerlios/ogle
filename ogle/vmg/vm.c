@@ -50,7 +50,7 @@ static ifo_handle_t *vmgi;
 static ifo_handle_t *vtsi;
 
 dvd_state_t state;
-
+unsigned char discid[16];
 
 
 /* Local prototypes */
@@ -497,6 +497,11 @@ int vm_init(char *dvdroot) // , register_t regs)
     ERROR("%s", "faild to open/read the DVD\n");
     return -1;
   }
+
+  if(DVDDiscID(dvd, discid) == -1) {
+    memset(discid, 0, sizeof(discid));
+  }
+  
   vmgi = ifoOpenVMGI(dvd);
   if(!vmgi) {
     ERROR("%s", "faild to read VIDEO_TS.IFO\n");
