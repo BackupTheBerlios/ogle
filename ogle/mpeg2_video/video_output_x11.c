@@ -1857,3 +1857,9 @@ static void draw_win_xv(window_info *dwin)
 #endif /* HAVE_XV */
 }
 
+void display_reset_screensaver(void)
+{
+
+  XResetScreenSaver(mydisplay);
+
+}

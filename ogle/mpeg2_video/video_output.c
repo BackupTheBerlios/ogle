@@ -58,6 +58,7 @@ extern void display_reset(void);
 extern void display(yuv_image_t *current_image);
 extern void display_poll(yuv_image_t *current_image);
 extern void display_exit(void);
+extern void display_reset_screensaver(void);
 
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
@@ -517,17 +518,19 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
     
     clocktime_get(&real_time);
 
-    if(talk_to_xscreensaver) {
-       if(TIME_S(real_time) - TIME_S(last_ss_disable) > 50) {
-           clocktime_t prof_time;
-           nudge_xscreensaver();
-           clocktime_get(&prof_time);
-           timesub(&prof_time, &prof_time, &real_time);
-           fprintf(stderr, "ss disable took %ld.%09ld s\n",
-                  TIME_S(prof_time), TIME_SS(prof_time));
-           TIME_S(last_ss_disable) = TIME_S(real_time);
-       }
+    if(TIME_S(real_time) - TIME_S(last_ss_disable) > 50) {
+      clocktime_t prof_time;
+      if(talk_to_xscreensaver) {
+	nudge_xscreensaver();
+	clocktime_get(&prof_time);
+	timesub(&prof_time, &prof_time, &real_time);
+	fprintf(stderr, "ss disable took %ld.%09ld s\n",
+		TIME_S(prof_time), TIME_SS(prof_time));
+      }
+      display_reset_screensaver();
+      TIME_S(last_ss_disable) = TIME_S(real_time);
     }
+    
 
     calc_realtime_left_to_scrtime(&time_left, &real_time,
 				  scr, sp);
