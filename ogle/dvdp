@@ -1,0 +1,20 @@
+#!/bin/sh
+
+DVDP_ROOT=/users/dtek/d94/d4bjorn/src/dvd
+export DVDP_ROOT
+DVDP_CTRL=$DVDP_ROOT/ctrl/ctrl
+export DVDP_CTRL
+DVDP_DEMUX=$DVDP_ROOT/mpeg2_program/programstream
+export DVDP_DEMUX
+DVDP_UI=$DVDP_ROOT/ui/ui
+export DVDP_UI
+DVDP_AC3=$DVDP_ROOT/ac3/ac3dec_wrap
+export DVDP_AC3
+DVDP_MPEGAUDIO=$DVDP_ROOT/mpeg_audio/mpg123_wrap
+export DVDP_MPEGAUDIO
+DVDP_VIDEO=$DVDP_ROOT/mpeg2_video/video_stream
+export DVDP_VIDEO
+DVDP_VMG=$DVDP_ROOT/vmg/vmg
+export DVDP_VMG
+
+$DVDP_CTRL $*
