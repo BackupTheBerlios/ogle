@@ -34,6 +34,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQUserInput",
   "MsgEventQSpeed",
   "MsgEventQDVDMenuCall",
+  "MsgEventQDVDAudioStreamChange",
   NULL
 };
 
@@ -205,6 +206,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDVDMenuCall:
     size = sizeof(MsgQDVDMenuCallEvent_t);
+    break;
+  case MsgEventQDVDAudioStreamChange:
+    size = sizeof(MsgQDVDAudioStreamChangeEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event\n");

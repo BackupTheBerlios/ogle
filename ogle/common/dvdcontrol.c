@@ -180,6 +180,16 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t Lang)
   return DVD_E_NotImplemented;
 }
 
+DVDResult_t DVDAudioStreamChange(DVDAudioStream_t StreamNr)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDAudioStreamChange;
+  ev.menucall.streamnr = StreamNr;
+  
+  MsgSendEvent(msgq, nav_client, &ev);
+  
+  return DVD_E_Ok;
+}
 
 const static char DVD_E_Ok_STR[] = "OK";
 const static char DVD_E_Unspecified_STR[] = "Unspecified";
