@@ -111,32 +111,50 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 {
   msg_t msg;
   
-  if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
-	    q->mtype, 0) == -1) {
-    perror("MsgNextEvent");
+  while(1) {
+    if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
+	      q->mtype, 0) == -1) {
+      switch(errno) {
+      case EINTR:  // interrupted by syscall, try again
+	continue;
+	break;
+      default:
+	perror("MsgNextEvent");
+	break;
+      }
       return -1;
-  } else {
-    
-    memcpy(event_return, msg.event_data, sizeof(MsgEvent_t));
-    return 0;
-  }
-  
+    } else {
+      
+      memcpy(event_return, msg.event_data, sizeof(MsgEvent_t));
+      return 0;
+    }
+  }    
+
 }
 
 int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 {
   msg_t msg;
   
-  if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
-	    q->mtype, IPC_NOWAIT) == -1) {
-    if(errno != ENOMSG) {
-      perror("MsgNextEvent");
+  while (1) {
+    if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
+	      q->mtype, IPC_NOWAIT) == -1) {
+      switch(errno) {
+      case ENOMSG:
+	break;
+      case EINTR:     // interrupted by system call, try again
+	continue;
+	break;
+      default:
+	perror("MsgNextEvent");
+	break;
+      }
+      return -1;
+    } else {
+      
+      memcpy(event_return, msg.event_data, sizeof(MsgEvent_t));
+      return 0;
     }
-    return -1;
-  } else {
-    
-    memcpy(event_return, msg.event_data, sizeof(MsgEvent_t));
-    return 0;
   }
 
 }
@@ -259,12 +277,22 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 	  msg.mtype);
 #endif
   
-  if(msgsnd(q->msqid, (void *)&msg, size, msgflg) == -1) {
-    perror("MsgSendEvent");
-    return -1;
+  while(1) {
+    if(msgsnd(q->msqid, (void *)&msg, size, msgflg) == -1) {
+      switch(errno) {
+      case EINTR: //interrupted by syscall, try again
+	continue;
+	break;
+      default:
+	perror("MsgSendEvent");
+	break;
+      }
+      return -1;
+    } else {
+      return 0;
+    }
   }
   
-  return 0;
 }
 
 

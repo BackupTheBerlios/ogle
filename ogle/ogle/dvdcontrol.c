@@ -34,11 +34,14 @@ static MsgEventClient_t get_nav_client(MsgEventQ_t *msq)
   
   if(MsgSendEvent(msq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     fprintf(stderr, "dvdcontrol: get_nav_client\n");
-    return 0;
+    return -1;
   }
 
   while(ev.type != MsgEventQGntCapability) {
-    MsgNextEvent(msq, &ev);
+    if(MsgNextEvent(msq, &ev) == -1) {
+      fprintf(stderr, "dvdcontrol: get_nav_client\n");
+      return -1;
+    }
   }
   
   return ev.gntcapability.capclient;
@@ -83,9 +86,15 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
 
   (*nav)->client = get_nav_client((*nav)->msgq);
   
-  if((*nav)->client == CLIENT_NONE) {
+  switch((*nav)->client) {
+  case -1:
     free(*nav);
     return DVD_E_Unspecified;
+  case CLIENT_NONE:
+    free(*nav);
+    return DVD_E_Unspecified;
+  default:
+    break;
   }
   
   return DVD_E_Ok;
@@ -208,9 +217,15 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetAudioAttributes;
   ev.dvdctrl.cmd.audioattributes.streamnr = StreamNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlAudioAttributes)) {
       if(ev.dvdctrl.cmd.audioattributes.streamnr == StreamNr) {
@@ -266,9 +281,15 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAudio;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentAudio)) {
       *StreamsAvailable = ev.dvdctrl.cmd.currentaudio.nrofstreams;
@@ -277,6 +298,7 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
     }
   } 
 }
+
 
 /**
  * Check if an audio stream is enabled
@@ -300,9 +322,15 @@ DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlIsAudioStreamEnabled;
   ev.dvdctrl.cmd.audiostreamenabled.streamnr = StreamNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlAudioStreamEnabled)) {
       if(ev.dvdctrl.cmd.audiostreamenabled.streamnr == StreamNr) {
@@ -396,9 +424,15 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentSubpicture;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+    
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentSubpicture)) {
       *StreamsAvailable = ev.dvdctrl.cmd.currentsubpicture.nrofstreams;
@@ -434,9 +468,15 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlIsSubpictureStreamEnabled;
   ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = StreamNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlSubpictureStreamEnabled)) {
       if(ev.dvdctrl.cmd.subpicturestreamenabled.streamnr == StreamNr) {
@@ -473,9 +513,15 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetSubpictureAttributes;
   ev.dvdctrl.cmd.subpictureattributes.streamnr = StreamNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
   while(1) {
-    MsgNextEvent(nav->msgq, &ev);
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlSubpictureAttributes)) {
       if(ev.dvdctrl.cmd.subpictureattributes.streamnr == StreamNr) {
@@ -569,7 +615,10 @@ DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
 	  sizeof(ev.dvdctrllong.cmd.dvdroot.path));
   ev.dvdctrllong.cmd.dvdroot.path[sizeof(ev.dvdctrllong.cmd.dvdroot.path)-1]
     = '\0';
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -591,7 +640,9 @@ DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlLeftButtonSelect;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -615,7 +666,9 @@ DVDResult_t DVDRightButtonSelect(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlRightButtonSelect;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -639,7 +692,9 @@ DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlUpperButtonSelect;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -663,7 +718,9 @@ DVDResult_t DVDLowerButtonSelect(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlLowerButtonSelect;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -687,8 +744,10 @@ DVDResult_t DVDButtonActivate(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlButtonActivate;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
-  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) { 
+    return DVD_E_Unspecified;
+  }
+ 
   return DVD_E_Ok;
 }
 
@@ -713,7 +772,9 @@ DVDResult_t DVDButtonSelect(DVDNav_t *nav, int Button)
   ev.dvdctrl.cmd.type = DVDCtrlButtonSelect;
   ev.dvdctrl.cmd.button.nr = Button;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -739,7 +800,9 @@ DVDResult_t DVDButtonSelectAndActivate(DVDNav_t *nav, int Button)
   ev.dvdctrl.cmd.type = DVDCtrlButtonSelectAndActivate;
   ev.dvdctrl.cmd.button.nr = Button;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -767,7 +830,9 @@ DVDResult_t DVDMouseSelect(DVDNav_t *nav, int x, int y)
   ev.dvdctrl.cmd.mouse.x = x;
   ev.dvdctrl.cmd.mouse.y = y;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -795,8 +860,10 @@ DVDResult_t DVDMouseActivate(DVDNav_t *nav, int x, int y)
   ev.dvdctrl.cmd.mouse.x = x;
   ev.dvdctrl.cmd.mouse.y = y;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
-  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
   return DVD_E_Ok;
 }
 
@@ -821,7 +888,9 @@ DVDResult_t DVDMenuCall(DVDNav_t *nav, DVDMenuID_t MenuId)
   ev.dvdctrl.cmd.type = DVDCtrlMenuCall;
   ev.dvdctrl.cmd.menucall.menuid = MenuId;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -845,7 +914,9 @@ DVDResult_t DVDResume(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlResume;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -870,7 +941,9 @@ DVDResult_t DVDGoUp(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGoUp;
   
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -897,7 +970,9 @@ DVDResult_t DVDForwardScan(DVDNav_t *nav, double Speed)
   ev.dvdctrl.cmd.type = DVDCtrlForwardScan;
   ev.dvdctrl.cmd.scan.speed = Speed;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -924,7 +999,9 @@ DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
   ev.dvdctrl.cmd.type = DVDCtrlBackwardScan;
   ev.dvdctrl.cmd.scan.speed = Speed;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -948,7 +1025,9 @@ DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlNextPGSearch;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -972,7 +1051,9 @@ DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPrevPGSearch;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -996,7 +1077,9 @@ DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTopPGSearch;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1022,7 +1105,9 @@ DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
   ev.dvdctrl.cmd.type = DVDCtrlPTTSearch;
   ev.dvdctrl.cmd.pttsearch.ptt = PTT;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1050,8 +1135,10 @@ DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
   ev.dvdctrl.cmd.pttplay.title = Title;
   ev.dvdctrl.cmd.pttplay.ptt = PTT;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
-  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) { 
+    return DVD_E_Unspecified;
+  }
+ 
   return DVD_E_Ok;
 }
 
@@ -1075,7 +1162,9 @@ DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
   ev.dvdctrl.cmd.type = DVDCtrlTitlePlay;
   ev.dvdctrl.cmd.titleplay.title = Title;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1100,7 +1189,9 @@ DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
   ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
   ev.dvdctrl.cmd.timesearch.time = time;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1125,8 +1216,10 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
   ev.dvdctrl.cmd.type = DVDCtrlTimePlay;
   ev.dvdctrl.cmd.timeplay.title = Title;
   ev.dvdctrl.cmd.timeplay.time = time;
-
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1150,7 +1243,9 @@ DVDResult_t DVDPauseOn(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPauseOn;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1174,7 +1269,9 @@ DVDResult_t DVDPauseOff(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPauseOff;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1197,7 +1294,9 @@ DVDResult_t DVDStop(DVDNav_t *nav)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlStop;
 
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1240,7 +1339,10 @@ DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlAudioStreamChange;
   ev.dvdctrl.cmd.audiostreamchange.streamnr = StreamNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1368,7 +1470,10 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamChange;
   ev.dvdctrl.cmd.subpicturestreamchange.streamnr = SubpictureNr;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }
@@ -1393,7 +1498,10 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlSetSubpictureState;
   ev.dvdctrl.cmd.subpicturestate.display = Display;
-  MsgSendEvent(nav->msgq, nav->client, &ev, 0);
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
   
   return DVD_E_Ok;
 }

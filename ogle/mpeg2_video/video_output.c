@@ -259,7 +259,10 @@ static int get_next_picture_buf_id()
 
     while(!picture_q_elems[elem].in_use) {
       //fprintf(stderr, "vo: waiting for notification\n");
-      MsgNextEvent(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) == -1) {
+	perror("vo: waiting for notification");
+	exit(-1); //TODO clean up and exit
+      }
       event_handler(msgq, &ev);
       if(redraw_needed) {
 	redraw_screen();
@@ -299,9 +302,14 @@ static void release_picture_buf(int id)
 	    event_handler(msgq, &c_ev);
 	  }
 	  break;
+	case EIDRM:
+	case EINVAL:
+	  fprintf(stderr, "vo: couldn't send notification no msgq\n");
+	  exit(-1); //TODO clean up and exit
+	  break;
 	default:
 	  fprintf(stderr, "vo: couldn't send notification\n");
-
+	  exit(-1); //TODO clean up and exit
 	  break;
 	}
       } else {
@@ -367,7 +375,6 @@ static void display_process()
       while(MsgCheckEvent(msgq, &ev) != -1) {
 	event_handler(msgq, &ev);
       }
-      //chk_for_msg();
     }
     
     //#ifdef SYNCMASTER
@@ -546,6 +553,8 @@ int main(int argc, char **argv)
 {
   MsgEvent_t ev;
   int c; 
+  int msg_sent = 0;
+
   program_name = argv[0];
   
   /* Parse command line options */
@@ -582,16 +591,26 @@ int main(int argc, char **argv)
 
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = VIDEO_OUTPUT | DECODE_DVD_SPU;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      DPRINTF(1, "vo: register capabilities\n");
-    }
-
+    
+    msg_sent = 0;
+    do {
+      if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+	  DPRINTF(1, "vo: register capabilities\n");
+	  exit(-1); //TODO clean up and exit
+      } else {
+	msg_sent = 1;
+      }
+    } while(!msg_sent);
+    
     fprintf(stderr, "vo: sent caps\n");
-
+    
     fprintf(stderr, "vo: waiting for attachq\n");
     
     while(ev.type != MsgEventQAttachQ) {
-      MsgNextEvent(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) == -1) {
+	perror("vo: waiting for q attach");
+	exit(-1);
+      }
       event_handler(msgq, &ev);
     }
 
