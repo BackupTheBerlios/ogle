@@ -127,6 +127,8 @@ uint64_t     cur_word = 0;
 
 unsigned int nextbits(unsigned int nr_of_bits);
 
+int synced = 0;
+
 int audio       = 0;
 int video       = 0;
 int subtitle    = 0;
@@ -434,8 +436,8 @@ unsigned int nextbits(unsigned int nr_of_bits)
 
 static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
-    fprintf(stderr, "*** incorrect marker_bit in stream\n");
-    exit(-1);
+    fprintf(stderr, "*** demux: incorrect marker_bit in stream\n");
+    //exit(-1);
   }
 }
  
@@ -1364,8 +1366,9 @@ void MPEG2_program_stream()
     DPRINTF(1, "MPEG Program End\n");
     system_header_set = 0;
   } else {
-    fprintf(stderr, "*** Lost Sync\n");
-    fprintf(stderr, "*** at offset: %u bytes\n", offs);
+    synced = 0;
+    fprintf(stderr, "demux: *** Lost Sync\n");
+    fprintf(stderr, "demux: *** at offset: %u bytes\n", offs);
   }
 }
 
@@ -1625,7 +1628,10 @@ int main(int argc, char **argv)
   while(1) {
     //    fprintf(stderr, "Searching for Program Stream\n");
     if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
-      //      fprintf(stderr, "Found Program Stream\n");
+      if(!synced) {
+	synced = 1;
+	fprintf(stderr, "demux: Found Program Stream\n");
+      }
       MPEG2_program_stream();
     }
     GETBITS(8, "resync");

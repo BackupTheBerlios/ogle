@@ -38,7 +38,8 @@
 extern buf_ctrl_head_t *buf_ctrl_head;
 extern void display(yuv_image_t *current_image);
 extern void display_init(int padded_width, int padded_height,
-			 int horizontal_size, int vertical_size);
+			 int horizontal_size, int vertical_size,
+			 buf_ctrl_head_t *buf_ctrl_head);
 
 extern void display_exit(void);
 
@@ -46,7 +47,7 @@ int get_next_picture_buf_id()
 {
   int id;
   static int dpy_q_get_pos = 0;
-  
+
 #if defined USE_POSIX_SEM
   if(sem_wait(&(buf_ctrl_head->pictures_ready_to_display)) == -1) {
     perror("sem_wait get_next_picture_buf_id");
@@ -68,7 +69,7 @@ int get_next_picture_buf_id()
 #endif
   id = buf_ctrl_head->dpy_q[dpy_q_get_pos];
   dpy_q_get_pos = (dpy_q_get_pos + 1) % (buf_ctrl_head->nr_of_buffers);
-  
+
   return id;
 }
 
@@ -282,7 +283,8 @@ void display_process()
       display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
 		   buf_ctrl_head->picture_infos[buf_id].picture.padded_height,
 		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
-		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size);
+		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size,
+		   buf_ctrl_head);
       display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       clock_gettime(CLOCK_REALTIME, &first_time);      
@@ -441,7 +443,8 @@ void display_process()
       display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
 		   buf_ctrl_head->picture_infos[buf_id].picture.padded_height,
 		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
-		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size);
+		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size,
+		   buf_ctrl_head);
       display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       gettimeofday(&first_time, NULL);      

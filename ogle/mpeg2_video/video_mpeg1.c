@@ -226,7 +226,7 @@ int block_intra(unsigned int i)
       tab = &DCTtab6[code - 16];
     else {
       fprintf(stderr,
-	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff() (intra)\n",
 	      code);
       //exit_program(1);
       return -1;
@@ -354,7 +354,7 @@ int block_non_intra(unsigned int b)
       tab = &DCTtab6[code-16];
     else {
       fprintf(stderr,
-	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
+	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff() (non intra)\n",
 	      code);
       //exit_program(1);
       return -1;
@@ -555,12 +555,15 @@ int macroblock_modes(void)
 
   } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
-    
   } else {
     fprintf(stderr, "*** Unsupported picture type %02x\n", 
 	    pic.header.picture_coding_type);
     return -1;
     //exit_program(-1);
+  }
+
+  if(mb.modes.macroblock_type == VLC_FAIL) {
+    return -1;
   }
   
   mb.modes.macroblock_quant = mb.modes.macroblock_type & MACROBLOCK_QUANT;
@@ -636,7 +639,11 @@ int macroblock(void)
   }
   mb.macroblock_address_increment
     = get_vlc(table_b1, "macroblock_address_increment");
-
+  
+  if(mb.macroblock_address_increment == VLC_FAIL) {
+    return -1;
+  }
+  
   mb.macroblock_address_increment += inc_add;  
   seq.macroblock_address += mb.macroblock_address_increment;
 
@@ -698,8 +705,9 @@ int macroblock(void)
 
   
   /* What kind of macroblock is this. */
-  if(macroblock_modes() == -1)
+  if(macroblock_modes() == -1) {
     return -1; // Error parsing bitstream
+  }
   
   if(mb.modes.macroblock_quant) {
     mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
@@ -868,8 +876,10 @@ int mpeg1_slice(void)
   slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
 
   do {
-    if( macroblock() )
+    if( macroblock() ) {
+      //break;
       return -1;
+    }
   } while(nextbits(23) != 0);
 
   next_start_code();

@@ -33,7 +33,7 @@ LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lrt
 # __lnux__
 
 #DFLAGS= -Wall -O2 -fomit-frame-pointer -funroll-loops -malign-double `glib-config --cflags` \
-#	-DHAVE_MMX -DHAVE_XV\
+#	-DHAVE_MMX -DHAVE_XV -DHAVE_XV_NO_CP\
 #	-DUSE_SYSV_SEM \
 #	-mcpu=pentiumpro -march=pentiumpro -I/usr/pd/include
 #LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lnsl -lrt  -lXv

@@ -71,8 +71,10 @@ int eval_msg(cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 #ifdef HAVE_CLOCK_GETTIME
 int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
+struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
 #else
 int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset);
+struct timeval get_time_base_offset(uint64_t PTS, int scr_nr);
 #endif
 int attach_ctrl_shm(int shmid);
 
@@ -601,6 +603,15 @@ int get_q()
   int len;
   static int have_buf = 0;
 
+#ifdef SYNCMASTER
+  static int prev_scr_nr = 0;
+#ifdef HAVE_CLOCK_GETTIME
+  static struct timespec time_offset = { 0, 0 };
+#else
+  static struct timeval time_offset = { 0, 0 };
+#endif  
+#endif
+
   //fprintf(stderr, "video_dec: get_q()\n");
   
   q_head = (q_head_t *)stream_shmaddr;
@@ -705,7 +716,24 @@ int get_q()
     DTS = data_elem->DTS;
   }
   
+#ifdef SYNCMASTER
 
+    
+  //TODO release scr_nr when done
+  if(prev_scr_nr != scr_nr) {
+    ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
+  }
+  
+  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+    if(PTS_DTS_flags && 0x2) {
+      set_time_base(PTS, scr_nr, time_offset);
+    }
+  }
+  if(PTS_DTS_flags && 0x2) {
+    time_offset = get_time_base_offset(PTS, scr_nr);
+  }
+  prev_scr_nr = scr_nr;
+#endif
   
   off = data_elem->off;
   len = data_elem->len;
@@ -784,6 +812,26 @@ int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
   
   return 0;
 }
+
+struct timespec get_time_base_offset(uint64_t PTS, int scr_nr)
+{
+  struct timespec curtime;
+  struct timespec ptstime;
+  struct timespec predtime;
+  struct timespec offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+
+  clock_gettime(CLOCK_REALTIME, &curtime);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  //fprintf(stderr, "\nac3: get offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
+
+  return offset;
+}
   
 #else
 
@@ -807,6 +855,26 @@ int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset)
 	  ctrl_time[scr_nr].realtime_offset.tv_usec);
   
   return 0;
+}
+
+struct timeval get_time_base_offset(uint64_t PTS, int scr_nr)
+{
+  struct timeval curtime;
+  struct timeval ptstime;
+  struct timeval predtime;
+  struct timeval offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
+  gettimeofday(&curtime, NULL);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  //fprintf(stderr, "\nac3: get offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
+
+  return offset;
 }
   
 #endif

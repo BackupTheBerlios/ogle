@@ -466,7 +466,7 @@ int get_vlc(const vlc_table_t *table, char *func) {
 	  "bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
   fprintbits(stderr, 32, nextbits(32));
   fprintf(stderr, "\n");
-  exit_program(-1);
+  //exit_program(-1);
   return VLC_FAIL;
 }
 
@@ -1038,15 +1038,21 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
     perror("shmat picture_buffers");
     exit_program(1);
   }
-
+  buf_ctrl_head->shmid = picture_buffers_shmid;
+  buf_ctrl_head->shmaddr = picture_buffers_shmaddr;
   // Setup the pointers to the pictures in the buffer
   baseaddr = picture_buffers_shmaddr;
 
   for(i=0 ; i< nr_of_bufs ; i++) {
     
     buf_ctrl_head->picture_infos[i].picture.y = baseaddr;
+#ifndef HAVE_XV_NO_CP  // TODO hack to get correct order for YV12 (yvu)
     buf_ctrl_head->picture_infos[i].picture.u = baseaddr + y_size;
     buf_ctrl_head->picture_infos[i].picture.v = baseaddr + y_size + uv_size;
+#else
+    buf_ctrl_head->picture_infos[i].picture.v = baseaddr + y_size;
+    buf_ctrl_head->picture_infos[i].picture.u = baseaddr + y_size + uv_size;
+#endif
     buf_ctrl_head->picture_infos[i].picture.horizontal_size = seq.horizontal_size;
     buf_ctrl_head->picture_infos[i].picture.vertical_size = seq.vertical_size;
     buf_ctrl_head->picture_infos[i].picture.start_x = 0;
@@ -1598,7 +1604,7 @@ int get_picture_buf()
   static int dpy_q_displayed_pos = 0;
   int n;
   int id;
-  
+
   //  search for empty buffer
   for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
     /*    fprintf(stderr, "decode: BUF[%d]: is_ref:%d, displayed: %d\n",
@@ -1748,7 +1754,9 @@ void picture_data(void)
   static int prev_coded_temp_ref = -2;
   static int last_timestamped_temp_ref = -1;
   static int drop_frame = 0;
+  int temporal_reference_error = 0;
   pinfos = buf_ctrl_head->picture_infos;
+  
 
   //fprintf(stderr, ".");
   
@@ -1847,6 +1855,28 @@ void picture_data(void)
     switch(pic.header.picture_coding_type) {
     case PIC_CODING_TYPE_I:
     case PIC_CODING_TYPE_P:
+
+      /* check to see if a temporal reference has been skipped */
+  
+      if(bwd_ref_temporal_reference != -1) {
+	
+	fprintf(stderr, "** temporal reference skipped\n");
+	
+	last_temporal_ref_to_dpy = bwd_ref_temporal_reference;
+	
+	/* bwd_ref should not be in the dpy_q more than one time */
+	bwd_ref_temporal_reference = -1;
+	
+	/* put bwd_ref in dpy_q */
+	
+	last_pts_to_dpy = pinfos[bwd_ref_buf_id].PTS;
+	last_scr_nr_to_dpy = pinfos[bwd_ref_buf_id].scr_nr;
+	
+	dpy_q_put(bwd_ref_buf_id);
+	
+      }
+	
+
       if(fwd_ref_buf_id != -1) {
 	/* current fwd_ref_image is not used as reference any more */
 	pinfos[fwd_ref_buf_id].is_ref = 0;
@@ -2201,12 +2231,12 @@ void picture_data(void)
 	  pic.header.picture_coding_type,
 	  pic.header.temporal_reference);
   */
+
   // Picture decoded
   if((prev_coded_temp_ref == pic.header.temporal_reference) ||
      (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE)) {
     
     if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
-      
       if(pic.header.temporal_reference == (last_temporal_ref_to_dpy+1)%1024) {
 	
 	last_temporal_ref_to_dpy = pic.header.temporal_reference;
@@ -2235,12 +2265,32 @@ void picture_data(void)
       } else {
 	/* TODO: what should happen if the temporal reference is wrong */
 	fprintf(stderr, "** temporal reference for B-picture incorrect\n");
+	
+	temporal_reference_error =
+	  pic.header.temporal_reference - (last_temporal_ref_to_dpy + 1)%1024;
+	
+	last_temporal_ref_to_dpy = pic.header.temporal_reference;
+	//last_temporal_ref_to_dpy++;
+	last_pts_to_dpy = pinfos[buf_id].PTS;
+	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
+	
+	dpy_q_put(buf_id);
+	
+	
+      	
       }
     }
+    /*
+    if(temporal_reference_error) {
+      if((bwd_ref_temporal_reference != -1)) {
+	dpy_q_put(bwd_ref_buf_id);
+      }
+    }
+    */
     
     if((bwd_ref_temporal_reference != -1) && 
        (bwd_ref_temporal_reference == (last_temporal_ref_to_dpy+1)%1024)) {
-
+      
       if((pinfos[bwd_ref_buf_id].pts_time.tv_sec == -1)) {
 	fprintf(stderr, "***** NO pts set\n");
       }

@@ -293,8 +293,8 @@ static inline
 void marker_bit(void)
 {
   if(!GETBITS(1, "markerbit")) {
-    fprintf(stderr, "*** incorrect marker_bit in stream\n");
-    exit_program(-1);
+    fprintf(stderr, "*** video_decoder: incorrect marker_bit in stream\n");
+    //exit_program(-1);
   }
 }
 #else // DEBUG

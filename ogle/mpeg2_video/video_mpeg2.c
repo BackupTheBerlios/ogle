@@ -71,7 +71,7 @@ extern int get_vlc(const vlc_table_t *table, char *func);
   void block_intra(unsigned int);
   void block_non_intra(unsigned int);
   void macroblock(void);
-  void macroblock_modes(void);
+  int macroblock_modes(void);
   void coded_block_pattern(void);
   void reset_dc_dct_pred(void);
   void reset_PMV();
@@ -763,7 +763,7 @@ void motion_vectors(unsigned int s)
 
 /* 6.2.5.1 Macroblock modes */
 static
-void macroblock_modes(void)
+int macroblock_modes(void)
 {
   DPRINTF(3, "macroblock_modes\n");
 
@@ -778,11 +778,14 @@ void macroblock_modes(void)
   } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     /* B-picture */
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
-    
   } else {
     fprintf(stderr, "*** Unsupported picture type %02x\n", 
 	    pic.header.picture_coding_type);
     exit_program(-1);
+  }
+  
+  if(mb.modes.macroblock_type == VLC_FAIL) {
+    return -1;
   }
   
   mb.modes.macroblock_quant = mb.modes.macroblock_type & MACROBLOCK_QUANT;

@@ -26,7 +26,7 @@ DFLAGS= -g -Wall -O2 `glib-config --cflags` \
 LDFLAGS= -lrt 
 
 # __linux__
-
+#
 #DFLAGS= -Wall -O2 -fomit-frame-pointer -funroll-loops -malign-double \
 #	`glib-config --cflags` \
 #	-DHAVE_MMX -DHAVE_XV\

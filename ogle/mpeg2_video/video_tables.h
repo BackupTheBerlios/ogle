@@ -26,8 +26,11 @@
 #define DCT_DC_FIRST          0
 #define DCT_DC_SUBSEQUENT     1
 
-
+#if 1
+#define VLC_FAIL           0x8000
+#else
 #define VLC_FAIL           0
+#endif
 #define VLC_ESCAPE         255
 #define VLC_END_OF_BLOCK   254 
 

@@ -65,6 +65,10 @@ static XvImageFormatValues *xv_formats;
 static int xv_id;
 #endif /* HAVE_XV */
 
+
+
+int CompletionType;
+
 typedef struct {
   Window win;
   unsigned char *data;
@@ -105,7 +109,8 @@ extern void display_process_exit(void);
 static void draw_win(debug_win *dwin);
 
 void display_init(int padded_width, int padded_height,
-		  int horizontal_size, int vertical_size)
+		  int horizontal_size, int vertical_size,
+		  buf_ctrl_head_t *buf_ctrl_head)
 {
   int screen;
   
@@ -250,17 +255,31 @@ void display_init(int padded_width, int padded_height,
               /* allocate XvImages */
               xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
                                             padded_width, padded_height, 
-                                            &shm_info);
+					   &shm_info);
+#ifndef HAVE_XV_NO_CP // TODO hack, check if correct
               shm_info.shmid = shmget (IPC_PRIVATE, xv_image->data_size, 
                                          IPC_CREAT | 0777);
               shm_info.shmaddr = shmat (shm_info.shmid, 0, 0);
+#else
+              shm_info.shmid = buf_ctrl_head->shmid;
+
+              shm_info.shmaddr = buf_ctrl_head->shmaddr;;
+
+#endif
+	      
               shm_info.readOnly = FALSE;
+#ifndef HAVE_XV_NO_CP // TODO hack
               xv_image->data = shm_info.shmaddr;
+#else
+	      xv_image->data = buf_ctrl_head->picture_infos[0].picture.y;
+#endif
               XShmAttach (mydisplay, &shm_info);
               XSync (mydisplay, FALSE);
               shmctl (shm_info.shmid, IPC_RMID, 0);
-              memset (xv_image->data, 128, xv_image->data_size); /* grayscale */
-
+              memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
+	      
+	      CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
+	      
               return; /* All set up! */
             } else {
               xv_port = 0;
@@ -751,16 +770,27 @@ void draw_win(debug_win *dwin)
 #endif /* HAVE_MLIB */
 
 #ifdef HAVE_XV
+
+Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
+{
+
+  if(ev->type == CompletionType) {
+    return True;
+  } else {
+    return False;
+  }
+}
+
 void draw_win(debug_win *dwin)
 {
   unsigned char *dst;
   int size;
-
+  
   if (xv_port == 0) { /* No xv found */
     draw_win_x11(dwin);
   } else {
     dst = xv_image->data;
-#if 1
+#ifndef HAVE_XV_NO_CP  // TODO hack, needs checking for correctness
     /* Copy Y data */
     size = dwin->image->padded_width*dwin->image->padded_height;
     memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
@@ -771,15 +801,36 @@ void draw_win(debug_win *dwin)
     size = dwin->image->padded_width*dwin->image->padded_height/4;
     memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
 #else
-    //    xv_image->data = dwin->image->y;
+    //buf_ctrl_head->picture_infos[i].picture.y;
+    xv_image->data = dwin->image->y;
 #endif
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
                   dwin->image->horizontal_size, dwin->image->vertical_size,
                   0, 0, 
                   scaled_image_width, scaled_image_height,
-                  False);
-    XFlush(mydisplay);
+                  True);
+    {
+      XEvent ev;
+      XEvent *e;
+      e = &ev;
+      
+      /* this is to make sure that we are free to use the image again
+         It waits for an XShmCompletionEvent */
+      XIfEvent(mydisplay, &ev, predicate, NULL);
+
+      
+      /*
+      if(ev.type == CompletionType) {
+	fprintf(stderr, ".");
+      } else {
+	fprintf(stderr, ",%d, %d", ev.type,
+		((XShmCompletionEvent *)e)->offset);
+	
+      }
+      */
+    }
+    //XFlush(mydisplay);
   }
 }
 #endif /* HAVE_XV */

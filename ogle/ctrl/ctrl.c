@@ -1402,7 +1402,7 @@ void int_handler()
    * exit
    */
   
-  
+  fprintf(stderr, "Caught SIGINT, cleaning up\n");
   remove_q_shm();
   destroy_msgq();
   exit(0);

@@ -40,31 +40,22 @@ typedef struct {
   uint16_t padded_width, padded_height;
 } yuv_image_t;
 
-#ifdef HAVE_CLOCK_GETTIME
 
 typedef struct {
   yuv_image_t picture;
   int is_ref;
   int displayed;
+#ifdef HAVE_CLOCK_GETTIME
   struct timespec pts_time;
   struct timespec realtime_offset;
-  uint64_t PTS;
-  int scr_nr;
-} picture_info_t;
-
 #else
-
-typedef struct {
-  yuv_image_t picture;
-  int is_ref;
-  int displayed;
   struct timeval pts_time;
   struct timeval realtime_offset;
+#endif
   uint64_t PTS;
   int scr_nr;
 } picture_info_t;
 
-#endif
 
 typedef struct {
 #if defined USE_POSIX_SEM
@@ -81,6 +72,8 @@ typedef struct {
   picture_info_t *picture_infos;
   int *dpy_q;
   long int frame_interval;
+  int shmid;
+  char *shmaddr;
 } buf_ctrl_head_t;
 
 
@@ -95,21 +88,16 @@ typedef enum {
   OFFSET_VALID
 } offset_valid_t;
 
+
+typedef struct {
 #ifdef HAVE_CLOCK_GETTIME
-
-typedef struct {
   struct timespec realtime_offset;
-  offset_valid_t offset_valid;
-} ctrl_time_t;
-
 #else
-
-typedef struct {
   struct timeval realtime_offset;
+#endif
   offset_valid_t offset_valid;
 } ctrl_time_t;
 
-#endif
 
 typedef struct {
   playmode_t mode;
