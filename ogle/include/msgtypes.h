@@ -13,7 +13,8 @@ typedef enum {
   MTYPE_AUDIO_OUT = 7,
   MTYPE_DECODE_MPEG_PRIVATE_STREAM_2 = 8,
   MTYPE_CTRL_INPUT = 9,
-  MTYPE_SPU_DECODE = 10
+  MTYPE_SPU_DECODE = 10,
+  MTYPE_DVD_NAV = 11
 } mtype_t;
 
 
@@ -33,8 +34,24 @@ typedef enum {
   CMD_DECODE_OUTPUT_BUFFER = 12,
   CMD_OUTPUT_BUFFER = 13,
   CMD_SPU_SET_PALETTE = 14,
-  CMD_SPU_SET_HIGHLIGHT = 15
+  CMD_SPU_SET_HIGHLIGHT = 15,
+  CMD_NAV_CMD = 16
 } cmdtype_t;
+
+typedef enum {
+  NAV_CMD_UP_BUTTON,
+  NAV_CMD_DOWN_BUTTON,
+  NAV_CMD_LEFT_BUTTON,
+  NAV_CMD_RIGHT_BUTTON,
+  NAV_CMD_ACTIVATE_BUTTON,
+  NAV_CMD_SELECT_BUTTON_NR,
+  NAV_CMD_SELECT_ACTIVATE_BUTTON_NR
+} nav_cmd_t;
+
+typedef struct {
+  nav_cmd_t cmd;
+  int button_nr;
+} cmd_nav_cmd_t;
 
 typedef enum {
   CTRLCMD_NONE = 0,
@@ -134,6 +151,7 @@ typedef struct {
     cmd_output_buffer_t output_buffer;
     cmd_spu_palette_t spu_palette;
     cmd_spu_highlight_t spu_highlight;
+    cmd_nav_cmd_t nav_cmd;
   } cmd;
 } cmd_t;
 
