@@ -46,6 +46,7 @@ typedef struct {
   int output_flags;
   int decoding_flags;
   /* A/52 */
+  a52_state_t *state;
   sample_t *samples;
   int disable_dynrng;
 } adec_a52_handle_t;
@@ -259,7 +260,6 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	
       }
     } else {
-      a52_state_t state;
       int i;
       int flags;
       sample_t level = 1;  // Hack for the float_to_int function
@@ -268,7 +268,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       //fprintf(stderr, "decode frame\n");
       //decode
       flags = handle->output_flags;
-      if(a52_frame(&state, handle->coded_buf, &flags, &level, bias)) {
+      if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
 	fprintf(stderr, "a52_frame error\n");
 	//DNOTE("a52_frame() error\n");
 	goto error;
@@ -296,11 +296,11 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 
 	
       if(handle->disable_dynrng) {
-	a52_dynrng(&state, NULL, NULL);
+	a52_dynrng(handle->state, NULL, NULL);
       }
       for(i = 0; i < 6; i++) {
 
-	if(a52_block(&state, handle->samples)) {
+	if(a52_block(handle->state)) {
 	  fprintf(stderr, "a52_block error\n");
 	  //DNOTE("a52_block() error\n");
 	  goto error;
@@ -345,6 +345,7 @@ static
 void free_a52(adec_a52_handle_t *handle)
 {
   free(handle->coded_buf);
+  a52_free(handle->state);
   free(handle);
   return;
 }
@@ -376,11 +377,16 @@ adec_handle_t *init_a52(void)
 
   {
     uint32_t accel;
-    accel = MM_ACCEL_MLIB;
+    accel = MM_ACCEL_DJBFFT;
 
-    handle->samples = a52_init(accel);
-    if(handle->samples == NULL) {
+    handle->state = a52_init(accel);
+    if(handle->state == NULL) {
         fprintf(stderr, "A/52 init failed\n");
+        exit(1);
+    }
+    handle->samples = a52_samples(handle->state);
+    if(handle->samples == NULL) {
+        fprintf(stderr, "A/52 samples failed\n");
         exit(1);
     }
   }
