@@ -1,0 +1,44 @@
+
+
+This program is used for getting and setting Xv attributes such as
+XV_BRIGHTNESS, XV_CONTRAST, XV_SATURATION, XV_HUE, XV_COLORKEY, ...
+
+'xvattr' 
+	will give a list of the available attributes
+	on different ports.
+
+'xvattr -a <attribute name>'
+	will show the current value of the attribute.
+
+'xvattr -a <attribute name> -v <value>'
+	will set the attribute to value.
+
+'xvattr -p <port nr> ...'
+	will set get the attribute on the specified port. 
+	If -p is not set, the first available port is used.
+
+
+note:
+	On some cards XV_BRIGHTNESS and XV_CONTRAST
+	are not listed among the available attributes, but they can
+	still be set/changed.
+
+example:
+> xvattr 
+Adaptor: 0
+Name: Matrox G-Series Backend Scaler
+ Port: 46
+  Name: XV_COLORKEY
+   Flags: XvGettable XvSettable 
+   Min value: 0
+   Max value: 16777215
+   Current value: 66046
+
+> xvattr -a XV_COLORKEY -v 10
+XV_COLORKEY set to 10
+
+> xvattr -a XV_BRIGHTNESS
+XV_BRIGHTNESS = 24
+
+bugs:
+Send bug reports to d4bjorn@dtek.chalmers.se
