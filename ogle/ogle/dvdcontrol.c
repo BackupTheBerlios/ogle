@@ -195,7 +195,7 @@ static const char DVD_E_Ok_STR[] = "OK";
 static const char DVD_E_Unspecified_STR[] = "Unspecified";
 static const char DVD_E_NotImplemented_STR[] = "Not Implemented";
 static const char DVD_E_NoSuchError_STR[] = "No such error code";
-
+static const char DVD_E_RootNotSet_STR[] = "Root not set";
 /**
  * Print DVD error messages
  */
@@ -212,6 +212,9 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
     break;
   case DVD_E_NotImplemented:
     errstr = DVD_E_NotImplemented_STR;
+    break;
+  case DVD_E_RootNotSet:
+    errstr = DVD_E_RootNotSet_STR;
     break;
   default:
     errstr = DVD_E_NoSuchError_STR;
@@ -273,8 +276,10 @@ DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, DVDSPRMArray_t *const Registers)
 DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.currentuops.type = DVDCtrlGetCurrentUOPS;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -285,6 +290,13 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
     }
+
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
+    }
+
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentUOPS)) {
       *uop = ev.dvdctrl.cmd.currentuops.uops;
@@ -315,7 +327,9 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				  DVDAudioAttributes_t *const Attr)
 {
   MsgEvent_t ev;
+  int32_t serial;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetAudioAttributes;
   ev.dvdctrl.cmd.audioattributes.streamnr = StreamNr;
@@ -327,6 +341,11 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlAudioAttributes)) {
@@ -381,8 +400,10 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 			       DVDAudioStream_t *const CurrentStream)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAudio;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -392,6 +413,11 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentAudio)) {
@@ -422,8 +448,10 @@ DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				    DVDBool_t *const Enabled)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlIsAudioStreamEnabled;
   ev.dvdctrl.cmd.audiostreamenabled.streamnr = StreamNr;
 
@@ -434,6 +462,11 @@ DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlAudioStreamEnabled)) {
@@ -479,8 +512,10 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAngle;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -490,6 +525,11 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentAngle)) {
@@ -516,8 +556,10 @@ DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav,
 				DVDVolumeInfo_t *const VolumeInfo)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetDVDVolumeInfo;
  
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -527,6 +569,11 @@ DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlDVDVolumeInfo)) {
@@ -550,8 +597,10 @@ DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav,
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetTitles;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -561,6 +610,11 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlTitles)) {
@@ -584,8 +638,10 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
 DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentDomain;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -595,6 +651,11 @@ DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentDomain)) {
@@ -618,8 +679,10 @@ DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
 DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentLocation;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -629,6 +692,11 @@ DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentLocation)) {
@@ -655,23 +723,30 @@ DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title,
 			       int *const PartsAvailable)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetNumberOfPTTs;
   ev.dvdctrl.cmd.parts.title = Title;
-
+  
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
     return DVD_E_Unspecified;
   }
-
+  
   while(1) {
-   if(MsgNextEvent(nav->msgq, &ev) == -1) {
-     return DVD_E_Unspecified;
-   }
-   if((ev.type == MsgEventQDVDCtrl) &&
-      (ev.dvdctrl.cmd.type == DVDCtrlNumberOfPTTs)) {
-     *PartsAvailable = ev.dvdctrl.cmd.parts.ptts;
-     return DVD_E_Ok;
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlNumberOfPTTs)) {
+      *PartsAvailable = ev.dvdctrl.cmd.parts.ptts;
+      return DVD_E_Ok;
     }
   }
 }
@@ -719,8 +794,10 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    DVDBool_t *const Display)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentSubpicture;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -730,6 +807,11 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentSubpicture)) {
@@ -763,8 +845,10 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
 					 DVDBool_t *const Enabled)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlIsSubpictureStreamEnabled;
   ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = StreamNr;
   
@@ -775,6 +859,11 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlSubpictureStreamEnabled)) {
@@ -809,8 +898,10 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
 				       DVDSubpictureAttributes_t *const Attr)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetSubpictureAttributes;
   ev.dvdctrl.cmd.subpictureattributes.streamnr = StreamNr;
 
@@ -821,6 +912,11 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlSubpictureAttributes)) {
@@ -895,8 +991,10 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetState;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -906,6 +1004,11 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrlLong) &&
        (ev.dvdctrllong.cmd.type == DVDCtrlLongState)) {
@@ -938,8 +1041,10 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
 DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetDiscID;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -949,6 +1054,11 @@ DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
        (ev.dvdctrl.cmd.type == DVDCtrlDiscID)) {
@@ -996,8 +1106,10 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
 				    unsigned char *volsetid)
 {
   MsgEvent_t ev;
+  int32_t serial;
   ev.type = MsgEventQDVDCtrl;
   DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  serial = ev.dvdctrl.cmd.any.serial;
   ev.dvdctrl.cmd.type = DVDCtrlGetVolIds;
   ev.dvdctrl.cmd.volids.voltype = type;
 
@@ -1008,6 +1120,11 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
   while(1) {
     if(MsgNextEvent(nav->msgq, &ev) == -1) {
       return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlRetVal) &&
+       (ev.dvdctrl.cmd.retval.serial == serial)) {
+      return ev.dvdctrl.cmd.retval.val;
     }
     if((ev.type == MsgEventQDVDCtrlLong) &&
        (ev.dvdctrllong.cmd.type == DVDCtrlLongVolIds)) {

@@ -28,7 +28,8 @@ typedef enum {
   DVD_E_Ok = 0,               /**< Success, No Error */
   DVD_E_Unspecified = 127,    /**< An Error */
   DVD_E_NotImplemented = 128,  /**< The function is not implemented */
-  DVD_E_NOMEM
+  DVD_E_NOMEM,
+  DVD_E_RootNotSet
 } DVDResult_t;
 
 
