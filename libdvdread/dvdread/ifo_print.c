@@ -210,8 +210,10 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
      && attr->quantization == 0
      && attr->sample_frequency == 0
      && attr->channels == 0
+     && attr->lang_code == 0
      && attr->lang_extension == 0
-     && attr->unknown1 == 0
+     && attr->code_extension == 0
+     && attr->unknown2 == 0
      && attr->unknown1 == 0) {
     printf("-- Unspecified --");
     return;
@@ -252,7 +254,8 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
     CHECK_VALUE(attr->lang_code == 0 || attr->lang_code == 0xffff);
     break;
   case 1:
-    printf("%c%c ", attr->lang_code>>8, attr->lang_code & 0xff);
+    printf("%c%c (%c) ", attr->lang_code>>8, attr->lang_code & 0xff,
+           attr->lang_extension ? attr->lang_extension : ' ');
     break;
   default:
     printf("(please send a bug report) ");
@@ -303,7 +306,7 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   
   printf("%dCh ", attr->channels + 1);
   
-  switch(attr->lang_extension) {
+  switch(attr->code_extension) {
   case 0:
     printf("Not specified ");
     break;
@@ -331,11 +334,12 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
 static void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
   
   if(attr->type == 0
+     && attr->code_mode == 0
      && attr->lang_code == 0
+     && attr->lang_extension == 0
      && attr->zero1 == 0
      && attr->zero2 == 0
-     && attr->subp_code_ext == 0
-     && attr->lang_extension== 0) {
+     && attr->code_extension == 0) {
     printf("-- Unspecified --");
     return;
   }
@@ -364,8 +368,9 @@ static void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
   
   printf("%d ", attr->zero1);
   printf("%d ", attr->zero2);
-  printf("%d ", attr->subp_code_ext);
-
+  printf("%d ", attr->code_extension);
+  
+  /* Is this correct?  should it not be subp_code_ext here instead? */
   switch(attr->lang_extension) {
   case 0:
     printf("Not specified ");
@@ -917,7 +922,7 @@ void ifoPrint_PGCI_UT(pgci_ut_t *pgci_ut) {
     printf("\nMenu Language Code: %c%c (%c)\n",
 	   pgci_ut->lu[i].lang_code >> 8,
 	   pgci_ut->lu[i].lang_code & 0xff,
-	   pgci_ut->lu[i].lang_ext ? pgci_ut->lu[i].lang_ext : ' ');
+	   pgci_ut->lu[i].lang_extension ? pgci_ut->lu[i].lang_extension :' ');
     printf("Menu Existence: %02x\n", pgci_ut->lu[i].exists);
     ifoPrint_PGCIT(pgci_ut->lu[i].pgcit);
   }

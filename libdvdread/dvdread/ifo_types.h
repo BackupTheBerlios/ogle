@@ -132,8 +132,8 @@ typedef struct {
   unsigned int quantization           : 2;
 #endif
   uint16_t lang_code;
-  uint8_t  lang_code2; /* ?? */
   uint8_t  lang_extension;
+  uint8_t  code_extension;
   uint16_t unknown2;
 } ATTRIBUTE_PACKED audio_attr_t;
 
@@ -163,7 +163,7 @@ typedef struct {
   uint8_t  zero2;
   uint16_t lang_code;
   uint8_t  lang_extension;
-  uint8_t  subp_code_ext;
+  uint8_t  code_extension;
 } ATTRIBUTE_PACKED subp_attr_t;
 
 
@@ -371,7 +371,7 @@ typedef struct {
  */
 typedef struct {
   uint16_t lang_code;
-  uint8_t  lang_ext;
+  uint8_t  lang_extension;
   uint8_t  exists;
   uint32_t lang_start_byte;
   pgcit_t *pgcit;
