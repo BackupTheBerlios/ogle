@@ -19,13 +19,14 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-/* For now, just 32 bit byteswap */
+/* For now, just 16,32 bit byteswap */
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
 #endif
 
 #ifdef WORDS_BIGENDIAN
+#  define FROM_BE_16(x) (x)
 #  define FROM_BE_32(x) (x)
 #else
 
@@ -35,15 +36,19 @@
 
 #if defined(HAVE_BYTESWAP_H)
 #  include <byteswap.h>
+#  define FROM_BE_16(x) (bswap_16(x))
 #  define FROM_BE_32(x) (bswap_32(x))
 #elif defined(HAVE_SYS_BSWAP_H)
 #  include <sys/bswap.h>
+#  define FROM_BE_16(x) (bswap16(x))
 #  define FROM_BE_32(x) (bswap32(x))
 #elif defined(HAVE_SYS_ENDIAN_H) && !defined(__FreeBSD__)
 #  include <sys/endian.h>
+#  define FROM_BE_16(x) (swap16(x))
 #  define FROM_BE_32(x) (swap32(x))
 #elif defined(HAVE_SYS_ENDIAN_H) && defined(__FreeBSD__) && __FreeBSD_version >= 470000
 #  include <sys/endian.h>
+#  define FROM_BE_16(x) (be16toh(x))
 #  define FROM_BE_32(x) (be32toh(x))
 #else
 #  warning "No accelerated byte swap found. Using slow c version."
@@ -54,6 +59,12 @@ static inline uint32_t FROM_BE_32(uint32_t x)
           ((x & 0x00ff0000) >>  8) |
           ((x & 0x0000ff00) <<  8) |
           ((x & 0x000000ff) << 24));
+}
+
+static inline uint16_t FROM_BE_16(uint16_t x)
+{
+  return (((x & 0xff00) >> 8) |
+          ((x & 0x00ff) <<  8));
 }
 
 #endif /* INCLUDE TESTS */
