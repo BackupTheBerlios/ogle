@@ -3,7 +3,6 @@
 #include <string.h>
 
 #include <gtk/gtk.h>
-#include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
@@ -12,8 +11,7 @@
 #include "bindings.h"
 #include "actions.h"
 
-
-extern GladeXML *xml;
+#include "my_glade.h"
 
 extern ZoomMode_t zoom_mode;
 extern int isPaused;
@@ -164,7 +162,7 @@ void actionFullScreenToggle(void *data)
   
   val = (zoom_mode == ZoomModeFullScreen) ? TRUE : FALSE;
   
-  w = glade_xml_get_widget(xml, "full_screen");
+  w = get_glade_widget("full_screen");
   if(w==NULL) {
     fprintf(stderr, "xsniffer: failed to lookup_widget();\n");
   }

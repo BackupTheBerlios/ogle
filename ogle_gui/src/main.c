@@ -26,7 +26,6 @@
 #include <string.h>
 
 #include <gtk/gtk.h>
-#include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
@@ -37,6 +36,7 @@
 #include "subpicture.h"
 #include "bindings.h"
 #include "interpret_config.h"
+#include "my_glade.h"
 
 #define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "ogle_gui.glade"
 
@@ -44,7 +44,6 @@ char *program_name;
 DVDNav_t *nav;
 char *dvd_path;
 int msgqid;
-GladeXML *xml;
 
 GtkWidget *app;
 
@@ -85,7 +84,8 @@ main (int argc, char *argv[])
   DNOTE("return interpret_config\n");
   
   gtk_init(&argc, &argv);
-  glade_init();
+
+  my_glade_setup(OGLE_GLADE_FILE);
 
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;
@@ -96,15 +96,12 @@ main (int argc, char *argv[])
     }
   }
   
-  
   xsniff_init();
   
   audio_menu_new();
   subpicture_menu_new();
   
-  xml = glade_xml_new(OGLE_GLADE_FILE, NULL);
-  glade_xml_signal_autoconnect(xml);
-  app = glade_xml_get_widget(xml, "app");
+  app = get_glade_widget("app");
   gtk_widget_show(app);
 
   menu_new(app);  

@@ -22,7 +22,6 @@
 
 #include <stdio.h>
 #include <gtk/gtk.h>
-#include <glade/glade.h>
 #include <ogle/dvdcontrol.h>
 
 #include "callbacks.h"
@@ -33,6 +32,7 @@
 #include "fileselector.h"
 
 #include "myintl.h"
+#include "my_glade.h"
 
 #include "xsniffer.h" //hack
 
@@ -40,7 +40,6 @@ ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 
 extern DVDNav_t *nav;
 extern char *dvd_path;
-extern GladeXML *xml;
 
 int isPaused = 0;
 double speed = 1.0;
@@ -214,12 +213,12 @@ on_about_activate                     (GtkMenuItem     *menuitem,
   GtkWidget *version_label;
   gchar* version_text;
 
-  version_label = glade_xml_get_widget(xml, "version");
+  version_label = get_glade_widget("version");
   version_text = g_strdup_printf(_("Ogle GUI version %s"), VERSION);
   gtk_label_set_text(GTK_LABEL(version_label), version_text);
   g_free(version_text);
 
-  widget = glade_xml_get_widget(xml, "about");
+  widget = get_glade_widget("about");
   gtk_widget_show(widget);
 }
 

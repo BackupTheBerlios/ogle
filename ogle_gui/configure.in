@@ -34,11 +34,19 @@ ALL_LINGUAS="de sv"
 AM_GNU_GETTEXT
 
 AM_PATH_GTK
+
 AM_PATH_LIBGLADE
+dnl Hack to get the path to the libglade so-file
+LIBGLADE_PREFIX=`$LIBGLADE_CONFIG --prefix`
+AC_DEFINE_UNQUOTED(LIBGLADE_LIB, 
+  "${LIBGLADE_PREFIX}/lib/libglade.so.0",
+  [Location of the libglade lib (for dlopen)])
 
 dnl Set PACKAGE_LOCALE_DIR in config.h.
 if test "x${prefix}" = "xNONE"; then
-  AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "${ac_default_prefix}/${DATADIRNAME}/locale")
+  AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, 
+    "${ac_default_prefix}/${DATADIRNAME}/locale",
+    [Dir for the locale files])
 else
   AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "${prefix}/${DATADIRNAME}/locale")
 fi
