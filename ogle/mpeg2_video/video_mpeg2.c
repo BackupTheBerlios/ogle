@@ -164,19 +164,6 @@ void reset_vectors()
 
 
 
-
-static inline
-void inverse_quantisation_final(int sum)
-{
-  if((sum & 1) == 0) {
-    if((mb.QFS[63]&1) != 0) {
-      mb.QFS[63] = mb.QFS[63]-1;
-    } else {
-      mb.QFS[63] = mb.QFS[63]+1;
-    }
-  }
-}
-
 #if NEW_TABLES
 /* 6.2.6 Block */
 static
@@ -252,7 +239,7 @@ void block_intra(unsigned int i)
 	} 
 #endif
 	mb.QFS[0] = f;
-	inverse_quantisation_sum = f;
+	inverse_quantisation_sum = f + 1;
       }
       n = 1;
     }
@@ -318,8 +305,8 @@ void block_intra(unsigned int i)
   }
   
   //cpc_count_usr_events(0);
-  
-  inverse_quantisation_final(inverse_quantisation_sum);
+
+  mb.QFS[63] ^= inverse_quantisation_sum & 1;
   
   DPRINTF(4, "nr of coeffs: %d\n", n);
 }
@@ -335,7 +322,7 @@ void block_non_intra(unsigned int b)
   unsigned int bits;
   
   unsigned int n = 0;
-  int inverse_quantisation_sum = 0;
+  int inverse_quantisation_sum = 1;
   
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
@@ -403,7 +390,7 @@ void block_non_intra(unsigned int b)
   
   //cpc_count_usr_events(0);
   
-  inverse_quantisation_final(inverse_quantisation_sum);
+  mb.QFS[63] ^= inverse_quantisation_sum & 1;
   
   DPRINTF(4, "nr of coeffs: %d\n", n);
 }
@@ -486,7 +473,7 @@ void block_intra(unsigned int i)
 	} 
 #endif
 	mb.QFS[0] = f;
-	inverse_quantisation_sum = f;
+	inverse_quantisation_sum = f + 1;
       }
       n = 1;
     }
@@ -634,7 +621,7 @@ void block_intra(unsigned int i)
 
   //cpc_count_usr_events(0);
   
-  inverse_quantisation_final(inverse_quantisation_sum);
+  mb.QFS[63] ^= inverse_quantisation_sum & 1;
   
   // Clean-up
   bits_left = left;
@@ -651,7 +638,7 @@ static
 void block_non_intra(unsigned int b)
 {
   unsigned int n = 0;
-  int inverse_quantisation_sum = 0;
+  int inverse_quantisation_sum = 1;
   
   /* Make a local 'getbits' implementation. */
   unsigned int left = bits_left;
@@ -801,7 +788,7 @@ void block_non_intra(unsigned int b)
   
   //cpc_count_usr_events(0);
 
-  inverse_quantisation_final(inverse_quantisation_sum);
+  mb.QFS[63] ^= inverse_quantisation_sum & 1;
   
   // Clean-up
   bits_left = left;
@@ -1194,7 +1181,6 @@ void mpeg2_slice(void)
           }
 	*/
 #if HAVE_ALTIVEC
-	  unsigned int x, y;
 	  const int x = seq.mb_column - macroblock_address_increment;
 	  const int y = seq.mb_row;
 	  const int offs_y = x * 16 + y * 16 * seq.mb_width * 16;

@@ -26,6 +26,11 @@ clip_to_u8 (int16_t value)
 }
 
 void
+mlib_Init(void)
+{
+}
+
+void
 mlib_VideoIDCTAdd_U8_S16 (uint8_t *curr_block,
 			  int16_t *coeffs, 
 			  int32_t stride) 
