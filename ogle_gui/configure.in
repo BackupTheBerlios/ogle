@@ -30,7 +30,7 @@ AC_HEADER_STDC
 AM_PROG_LIBTOOL
 
 dnl Add the languages which your application supports here.
-ALL_LINGUAS=""
+ALL_LINGUAS="de"
 AM_GNU_GETTEXT
 
 AM_PATH_GTK
@@ -122,11 +122,10 @@ case "$host_os" in
 esac
 
 AC_OUTPUT([
-Makefile
-macros/Makefile
-src/Makefile
 intl/Makefile
 po/Makefile.in
+Makefile
+src/Makefile
 doc/Makefile
 doc/C/Makefile
 ])
