@@ -793,7 +793,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
 	res |= (p_uops.chapter_search_or_play ? 0 : UOP_FLAG_ChapterSearchOrPlay);
 	res |= (p_uops.title_play ? 0 : UOP_FLAG_TitlePlay);
 	res |= (p_uops.stop ? 0 : UOP_FLAG_Stop);
-	res |= (p_uops.go_up ? 0 : UOP_FLAG_PauseOn);
+	res |= (p_uops.go_up ? 0 : UOP_FLAG_GoUp);
 	res |= (p_uops.time_or_chapter_search ? 0 : UOP_FLAG_TimeOrChapterSearch);
 	res |= (p_uops.prev_or_top_pg_search ? 0 : UOP_FLAG_PrevOrTopPGSearch);
 	res |= (p_uops.next_pg_search ? 0 : UOP_FLAG_NextPGSearch);
