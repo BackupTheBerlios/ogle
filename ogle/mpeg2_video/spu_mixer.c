@@ -1,3 +1,21 @@
+/* Ogle - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -135,17 +153,22 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
   int Eg, Eb, Er;
   uint32_t result;
   
-  Y  = (yuv_color >> 8)  & 0xff00;
-  Cb = (yuv_color << 8)  & 0xff00;
-  Cr = (yuv_color     )  & 0xff00;
-  
-  Ey  = (Y-(16<<8));
-  Epb = (Cb-(128<<8));
-  Epr = (Cr-(128<<8));
-
-  Eg = Ey/219 - 48*Epb/224 - 120*Epr/224;
-  Eb = Ey/219 + 475*Epb/224;
-  Er = Ey/219 + 403*Epr/224;
+  Y  = (yuv_color >> 16) & 0xff;
+  Cb = (yuv_color      ) & 0xff;
+  Cr = (yuv_color >> 8 ) & 0xff;
+ 
+  Ey  = (Y-16);
+  Epb = (Cb-128);
+  Epr = (Cr-128);
+  /* ITU-R 709
+  Eg = (298*Ey - 55*Epb - 137*Epr)/256;
+  Eb = (298*Ey + 543*Epb)/256;
+  Er = (298*Ey + 460*Epr)/256;
+  */
+  /* FCC ~= mediaLib */
+  Eg = (298*Ey - 100*Epb - 208*Epr)/256;
+  Eb = (298*Ey + 516*Epb)/256;
+  Er = (298*Ey + 408*Epr)/256;
   
   if(Eg > 255)
     Eg = 255;
@@ -162,7 +185,7 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
   if(Er < 0)
     Er = 0;
   
-  result = ((Eb&0xff)<<16) | ((Eg&0xff)<<8) | (Er&0xff);
+  result = (Eb << 16) | (Eg << 8) | Er;
   
   return result;
 }
@@ -809,23 +832,24 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       if(contrast != 0) {
 	uint32_t *pixel;
 	uint32_t r, g, b;
-	r = color&0xff;
+	r = color & 0xff;
 	g = (color>>8) & 0xff;
 	b = (color>>16) & 0xff;
 
 	pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
 				    +(x+spu_info->x_start)]);
 	
-	for(n = 0; n < length; n++,pixel++) {
-	  
-	  /* if no transparancy just overwrite */
-	  if(contrast == (0xf<<4)) {
+	/* if no transparancy just overwrite */
+	if(contrast == (0xf<<4)) {
+	  for(n = 0; n < length; n++, pixel++) {
 	    *pixel = color;
-	  } else {
-	    uint32_t pr,pg,pb;
-	    pr = *pixel&0xff;
-	    pg = (*pixel>>8)&0xff;
-	    pb = (*pixel>>16)&0xff;
+	  }
+	} else {
+	  for(n = 0; n < length; n++, pixel++) {
+	    uint32_t pr, pg, pb;
+	    pr = *pixel & 0xff;
+	    pg = (*pixel>>8) & 0xff;
+	    pb = (*pixel>>16) & 0xff;
 	    
 	    pr = (pr*(invcontrast)+r*contrast)>>8;
 	    pg = (pg*(invcontrast)+g*contrast)>>8;
@@ -834,19 +858,19 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	    *pixel = pb<<16 | pg<<8 | pr;
 	  }
 	}
-
+	
       } 
     } else {
       int n;
 
       /* if total transparency do nothing */
       if(contrast != 0) {
-	uint8_t yl,u,v;
 	uint8_t *y_pixel, *u_pixel, *v_pixel;
+	uint8_t yl, u, v;
 
-	yl = (color>>16) & 0xff;
-	u = (color>>8) & 0xff;
-	v = (color) & 0xff;
+	yl = (color >> 16) & 0xff;
+	u  = (color >> 8) & 0xff;
+	v  = color & 0xff;
 	
 	y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
 				     +(x+spu_info->x_start)]);
@@ -857,25 +881,28 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 				     (y+spu_info->y_start)*width/4
 				     +(x+spu_info->x_start)/2]);
 	
-	for(n = 0; n < length; n++, y_pixel++) {
 	  
-	  /* if no transparancy just overwrite */
-	  if(contrast == (0xf<<4)) {
+	/* if no transparancy just overwrite */
+	if(contrast == (0xf<<4)) {
+	  for(n = 0; n < length; n++, y_pixel++) {
 	    *y_pixel = yl;
-	    
 	    /* only write uv on even columns and rows */
 	    if(!((x+spu_info->x_start + n) & 1) &&
 	       !((y+spu_info->y_start)&1)) {
 	      *u_pixel = u;
 	      *v_pixel = v;
 	    }
-	    
-	  } else {
+	    if((x+spu_info->x_start + n) & 1) {
+	      u_pixel++;
+	      v_pixel++;
+	    }
+	  }
+	} else {
+	  for(n = 0; n < length; n++, y_pixel++) {
 	    uint32_t py,pu,pv;
 	    py = *y_pixel;
 	    py = (py*(invcontrast) + yl*contrast)>>8;
 	    *y_pixel = (py & 0xff);
-	    
 	    /* only write uv on even columns and rows */
 	    if(!((x+spu_info->x_start + n) & 1) &&
 	       !((y+spu_info->y_start) & 1)) {
@@ -886,11 +913,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	      pv = (pv*(invcontrast) + v*contrast)>>8;
 	      *v_pixel = pv;
 	    }
-	  }
-	  
-	  if((x+spu_info->x_start + n) & 1) {
-	    u_pixel++;
-	    v_pixel++;
+	    if((x+spu_info->x_start + n) & 1) {
+	      u_pixel++;
+	      v_pixel++;
+	    }
 	  }
 	}
       }

@@ -162,8 +162,6 @@ Window display_init(yuv_image_t *picture_data,
     int horizontal_pixels;
     int vertical_pixels;
   } dpy_size;
-  int sar_frac_n, sar_frac_d;
-  int64_t scale_frac_n, scale_frac_d;
 
   mydisplay = XOpenDisplay(NULL);
 
@@ -173,107 +171,68 @@ Window display_init(yuv_image_t *picture_data,
   /* Check for availability of shared memory */
   if(!XShmQueryExtension(mydisplay)) {
     fprintf(stderr, "No shared memory available!\n");
-    exit(1);
+    //exit(1);
   }
 
   screen = DefaultScreen(mydisplay);
   
+  /* Querry and calculate the displays aspect rate. */
   dpy_size.width = DisplayWidthMM(mydisplay, screen);
   dpy_size.height = DisplayHeightMM(mydisplay, screen);
   
   dpy_size.horizontal_pixels = DisplayWidth(mydisplay, screen);
   dpy_size.vertical_pixels = DisplayHeight(mydisplay, screen);
   
-  dpy_sar_frac_n =
-    (int64_t)dpy_size.height * (int64_t)dpy_size.horizontal_pixels;
-  dpy_sar_frac_d =
-    (int64_t)dpy_size.width * (int64_t)dpy_size.vertical_pixels;
+  dpy_sar_frac_n = dpy_size.height * dpy_size.horizontal_pixels;
+  dpy_sar_frac_d = dpy_size.width * dpy_size.vertical_pixels;
   
   fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
-	  DisplayHeightMM(mydisplay, screen),
-	  DisplayWidthMM(mydisplay, screen),
-	  DisplayHeight(mydisplay, screen),
-	  DisplayWidth(mydisplay, screen));
+	  dpy_size.height, dpy_size.width,
+	  dpy_size.vertical_pixels, dpy_size.horizontal_pixels);
   fprintf(stderr, "*** display_sar: %d/%d\n", dpy_sar_frac_n, dpy_sar_frac_d);
   
   
-  // TODO replace image->sar.. with image->dar
-  sar_frac_n = picture_data->info->picture.sar_frac_n;
-  sar_frac_d = picture_data->info->picture.sar_frac_d;
-
-  scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
-  scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
-    
-  fprintf(stderr, "resize: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
-	  sar_frac_n, sar_frac_d,
-	  dpy_sar_frac_n, dpy_sar_frac_d,
-	  scale_frac_n, scale_frac_d); 
-    
-  if(scale_frac_n > scale_frac_d) {
-    scaled_image_width = (picture_data->info->picture.horizontal_size *
-			  scale_frac_n) / scale_frac_d;
-    scaled_image_height = picture_data->info->picture.vertical_size;
-  } else {
-    scaled_image_width = picture_data->info->picture.horizontal_size;
-    scaled_image_height = (picture_data->info->picture.vertical_size *
-			   scale_frac_d) / scale_frac_n;
+  /* Assume (for now) that the window will be the same size as the source. */
+  scaled_image_width = picture_data->info->picture.horizontal_size;
+  scaled_image_height = picture_data->info->picture.vertical_size;
+  
+  /* Make the window */
+  XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
+  color_depth = attribs.depth;
+  if(color_depth != 15 && color_depth != 16 && 
+     color_depth != 24 && color_depth != 32) {
+    fprintf(stderr,"Only 15, 16, 24, and 32bpp supported. Trying 24bpp!\n");
+    color_depth = 24;
   }
   
-  /* If we cant scale (i.e no Xv or mediaLib) reset the values. */
-#ifndef HAVE_MLIB
-  if(!use_xv) {
-    scaled_image_width = picture_data->info->picture.horizontal_size;
-    scaled_image_height = picture_data->info->picture.vertical_size;
-  }
-#endif
-  
-  fprintf(stderr, "vo: image width: %d, height: %d\n",
-	  scaled_image_width,
-	  scaled_image_height);
+  XMatchVisualInfo(mydisplay, screen, color_depth, TrueColor, &vinfo);
+  fprintf(stderr, "visual id is  %lx\n", vinfo.visualid);
 
   hint.x = 0;
   hint.y = 0;
   hint.width = scaled_image_width;
   hint.height = scaled_image_height;
   hint.flags = PPosition | PSize;
-
-
   
-  /* Make the window */
-  XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
-  color_depth = attribs.depth;
-  if (color_depth != 15 && color_depth != 16 && 
-      color_depth != 24 && color_depth != 32) {
-    fprintf(stderr,"Only 15,16,24, and 32bpp supported. Trying 24bpp!\n");
-    color_depth = 24;
-  }
-  
-  XMatchVisualInfo(mydisplay, screen, color_depth, TrueColor, &vinfo);
-  printf("visual id is  %lx\n", vinfo.visualid);
-
   theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
 			      vinfo.visual, AllocNone);
-
+  
   xswa.background_pixel = 0;
   xswa.border_pixel     = 1;
   xswa.colormap         = theCmap;
   xswamask = CWBackPixel | CWBorderPixel | CWColormap;
-
+  
   window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 			     hint.x, hint.y, hint.width, hint.height, 
 			     4, color_depth, CopyFromParent, vinfo.visual, 
 			     xswamask, &xswa);
   
-  //fprintf(stderr, "Window id: 0x%lx\n", window.win);
-  
   XSelectInput(mydisplay, window.win, StructureNotifyMask | ExposureMask);
 
-  /* Tell other applications about this window? */
-  
+  /* Tell other applications/the window manager about us. */
   snprintf(&title[0], 99, "Ogle v%s", VERSION);
-
-  XSetStandardProperties(mydisplay, window.win, 
-			 &title[0], &title[0], None, NULL, 0, &hint);
+  XSetStandardProperties(mydisplay, window.win, &title[0], &title[0], 
+			 None, NULL, 0, &hint);
 
   /* Map window. */
   XMapWindow(mydisplay, window.win);
@@ -285,13 +244,13 @@ Window display_init(yuv_image_t *picture_data,
   }
   while (xev.type != MapNotify || xev.xmap.event != window.win);
   
-  //   XSelectInput(mydisplay, mywindow, NoEventMask);
+  // XSelectInput(mydisplay, mywindow, NoEventMask);
 
   XSync(mydisplay, False);
-   
+  
   /* Create the colormaps. */   
   mygc = XCreateGC(mydisplay, window.win, 0L, &xgcv);
-   
+  
 #ifdef HAVE_XV
   /* This section of the code looks for the Xv extension for hardware
    * yuv->rgb and scaling. If it is not found, or any suitable adapter
@@ -371,11 +330,11 @@ Window display_init(yuv_image_t *picture_data,
 	      XSetErrorHandler(prev_xerrhandler);
 
 	      if(use_xshm) {
-		shmctl(shm_info.shmid, IPC_RMID, 0);
+		shmctl(shm_info.shmid, IPC_RMID, 0); // only works on Linux..
 		CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
 	      }
 	      use_xv = 1;
-	      return; /* All set up! */
+	      /* All set up! */
             } else {
               xv_port = 0;
             }
@@ -383,95 +342,87 @@ Window display_init(yuv_image_t *picture_data,
         }
       }
     }
-    if(xv_port != 0)
-      use_xv = 1;
   }
 #endif /* HAVE_XV */
-
-  CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
-  /* Create shared memory image */
-  if((scaled_image_width * scaled_image_height) 
-     < (picture_data->info->picture.padded_width 
-	* picture_data->info->picture.padded_height)) {
-    window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
-				    ZPixmap, NULL, &shm_info,
-				    picture_data->info->picture.padded_width,
-				    picture_data->info->picture.padded_height);
-  } else {
+  /* Try XShm if we didn't have/couldn't use Xv. */
+  if(!use_xv) {
+    
+    CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
+    
+    /* Create shared memory image */
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				    ZPixmap, NULL, &shm_info,
 				    scaled_image_width,
 				    scaled_image_height);
+    
+    if(window.ximage == NULL) {
+      fprintf(stderr, "Shared memory: couldn't create Shm image\n");
+      goto shmemerror;
+    }
+    
+    /* Get a shared memory segment */
+    shm_info.shmid = shmget(IPC_PRIVATE,
+			    window.ximage->bytes_per_line * 
+			    window.ximage->height, 
+			    IPC_CREAT | 0777);
+    
+    if(shm_info.shmid < 0) {
+      fprintf(stderr, "Shared memory: Couldn't get segment\n");
+      goto shmemerror;
+    }
+    
+    /* Attach shared memory segment */
+    shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+    
+    if(shm_info.shmaddr == ((char *) -1)) {
+      fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+      goto shmemerror;
+    }
+    
+    window.ximage->data = shm_info.shmaddr;
+    shm_info.readOnly = False;
+    
+    /* make sure we don't have any unhandled errors */
+    XSync(mydisplay, False);
+    
+    /* set error handler so we can check if xshmattach failed */
+    prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+    
+    /* get the serial of the xshmattach request */
+    req_serial = NextRequest(mydisplay);
+    
+    /* try to attach */
+    XShmAttach(mydisplay, &shm_info);
+    
+    /* make sure xshmattach has been processed and any errors
+       have been returned to us */
+    XSync(mydisplay, False);
+    
+    /* revert to the previous xerrorhandler */
+    XSetErrorHandler(prev_xerrhandler);
+    
+    window.data = window.ximage->data;
+  
+    pixel_stride = window.ximage->bits_per_pixel;
+    // If we have blue in the lowest bit then obviously RGB 
+    mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
+    /*
+      #ifdef WORDS_BIGENDIAN 
+      if (window.ximage->byte_order != MSBFirst)
+      #else
+      if (window.ximage->byte_order != LSBFirst) 
+      #endif
+      {
+      fprintf( stderr, "No support for non-native XImage byte order!\n" );
+      exit(1);
+      }
+    */
+    yuv2rgb_init(pixel_stride, mode);
   }
-  
-  if(window.ximage == NULL) {
-    fprintf(stderr, "Shared memory: couldn't create Shm image\n");
-    goto shmemerror;
-  }
-  
-  /* Get a shared memory segment */
-  shm_info.shmid = shmget(IPC_PRIVATE,
-			  window.ximage->bytes_per_line * 
-			  window.ximage->height, 
-			  IPC_CREAT | 0777);
-  
-  if(shm_info.shmid < 0) {
-    fprintf(stderr, "Shared memory: Couldn't get segment\n");
-    goto shmemerror;
-  }
-  
-  
-  /* Attach shared memory segment */
-  shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
-
-  if(shm_info.shmaddr == ((char *) -1)) {
-    fprintf(stderr, "Shared memory: Couldn't attach segment\n");
-    goto shmemerror;
-  }
-  
-  window.ximage->data = shm_info.shmaddr;
-  shm_info.readOnly = False;
-
-  /* make sure we don't have any unhandled errors */
-  XSync (mydisplay, False);
-  
-  /* set error handler so we can check if xshmattach failed */
-  prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
-  
-  /* get the serial of the xshmattach request */
-  req_serial = NextRequest(mydisplay);
-  
-  /* try to attach */
-  XShmAttach(mydisplay, &shm_info);
-
-  /* make sure xshmattach has been processed and any errors
-     have been returned to us */
-  XSync(mydisplay, False);
-  
-  /* revert to the previous xerrorhandler */
-  XSetErrorHandler(prev_xerrhandler);
-  
+    
   snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
   XStoreName(mydisplay, window.win, &title[0]);
-  
-  window.data = window.ximage->data;
-  
-  pixel_stride = window.ximage->bits_per_pixel;
-  // If we have blue in the lowest bit then obviously RGB 
-  mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
-  /*
-#ifdef WORDS_BIGENDIAN 
-  if (window.ximage->byte_order != MSBFirst)
-#else
-  if (window.ximage->byte_order != LSBFirst) 
-#endif
-  {
-    fprintf( stderr, "No support for non-native XImage byte order!\n" );
-    exit(1);
-  }
-  */
-  yuv2rgb_init(pixel_stride, mode);
   
   return window.win;
   
@@ -499,7 +450,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
   
   // Check to not 'reallocate' if the size is the same or less than 
   // minimum size...
-  if((new_width < padded_width && new_height < padded_height) ||
+  if((new_width <= padded_width && new_height <= padded_height) ||
      (scaled_image_width == new_width && scaled_image_height == new_height)){
     scaled_image_width = new_width;
     scaled_image_height = new_height;
@@ -514,11 +465,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
   /* Stop events temporarily, while creating new display_image */
   XSelectInput(mydisplay, window.win, NoEventMask);
 #endif
-
-  if(!use_xv && use_xshm) {
+  
+  if(use_xshm && !use_xv) {
     
     XSync(mydisplay,True);
-
+    
     /* Destroy old display */
     XShmDetach(mydisplay, &shm_info);
     XDestroyImage(window.ximage);
@@ -531,16 +482,17 @@ static void display_change_size(yuv_image_t *img, int new_width,
       perror("shmctl ipc_rmid");
       exit(-10);
     }
+    
     XSync(mydisplay, True);
     
-    memset( &shm_info, 0, sizeof( XShmSegmentInfo ) );
+    memset(&shm_info, 0, sizeof(XShmSegmentInfo));
     
     /* Create new display */
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, 
-					color_depth, ZPixmap, 
-					NULL, &shm_info,
-					scaled_image_width,
-					scaled_image_height);
+				    color_depth, ZPixmap, 
+				    NULL, &shm_info,
+				    scaled_image_width,
+				    scaled_image_height);
     
     if(window.ximage == NULL) {
       fprintf(stderr, "Shared memory: couldn't create Shm image\n");
@@ -685,30 +637,29 @@ void display(yuv_image_t *current_image)
 
 
 
-#ifdef HAVE_MLIB
 static void draw_win_x11(window_info *dwin)
 {
-  mlib_image *mimage_s;
-  mlib_image *mimage_d;
-  
-  /* Put the decode rgb data at the end of the data segment. */
   char *address = dwin->data;
   
+#ifdef HAVE_MLIB
   int dest_size = dwin->ximage->bytes_per_line * dwin->ximage->height;
   int sorce_size = (dwin->image->info->picture.padded_width*(pixel_stride/8) 
 		    * dwin->image->info->picture.padded_height);
   
-  int offs = dest_size - sorce_size - 4096;
-  if(offs > 0)
-    address += offs;
-    
+  mlib_image *mimage_s;
+  mlib_image *mimage_d;
+  
+  /* Put the decode rgb data close to the end of the data segment. */
   // Because mlib_YUV* reads out of bounds we need to make sure that the end
   // of the picture isn't on the pageboundary for in the last page allocated
   // There is also something strange with the mlib_ImageZoom in NEAREST mode.
-			      
-  /* We must some how guarantee that the ximage isn't used by X11. 
-     Rigth now it's done by the XSync call at the bottom... */
+  int offs = dest_size - sorce_size - 4096;
+  if(offs > 0)
+    address += offs;
+#endif /* HAVE_MLIB */
   
+  /* We must some how guarantee that the ximage isn't used by X11.
+     Rigth now it's (almost) done by the XSync call at the bottom... */
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
 	  dwin->image->info->picture.padded_width, 
 	  dwin->image->info->picture.padded_height, 
@@ -723,6 +674,8 @@ static void draw_win_x11(window_info *dwin)
   }
 #endif
   
+
+#ifdef HAVE_MLIB
   if((scaled_image_width != dwin->image->info->picture.horizontal_size) ||
      (scaled_image_height != dwin->image->info->picture.vertical_size)) {
     /* Destination image */
@@ -751,6 +704,7 @@ static void draw_win_x11(window_info *dwin)
     mlib_ImageDelete(mimage_s);
     mlib_ImageDelete(mimage_d);
   }
+#endif /* HAVE_MLIB */
   
   if(screenshot) {
     screenshot = 0;
@@ -759,7 +713,7 @@ static void draw_win_x11(window_info *dwin)
   
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0, 
-		 scaled_image_width, scaled_image_height, 1);
+		 scaled_image_width, scaled_image_height, True);
   } else {
     XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0,
 	      scaled_image_width, scaled_image_height);
@@ -769,46 +723,6 @@ static void draw_win_x11(window_info *dwin)
   XSync(mydisplay, False);
   // XFlush(mydisplay);
 }
-
-#else /* HAVE_MLIB */
-
-static void draw_win_x11(window_info *dwin)
-{ 
-  yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
-          dwin->image->info->picture.padded_width,
-          dwin->image->info->picture.padded_height,
-          dwin->image->info->picture.padded_width*(pixel_stride/8),
-          dwin->image->info->picture.padded_width, 
-	  dwin->image->info->picture.padded_width/2);
-
-#ifdef SPU
-  if(msgqid != -1) {
-    mix_subpicture_rgb(dwin->data, dwin->image->info->picture.padded_width,
-		       dwin->image->info->picture.padded_height);
-  }
-#endif
-            
-  if(screenshot) {
-    screenshot = 0;
-    screenshot_jpg(dwin->data, dwin->ximage);
-  }
-
-  if(use_xshm) {
-    XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0, 
-		 dwin->image->info->picture.horizontal_size, 
-		 dwin->image->info->picture.vertical_size, True);
-  } else {
-    XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0,
-	      dwin->image->info->picture.horizontal_size,
-	      dwin->image->info->picture.vertical_size);
-  }
-
-  //TEST
-  XSync(mydisplay, False);
-  // XFlush(mydisplay);
-}
-#endif /* HAVE_MLIB */
-
 
 static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
 {
