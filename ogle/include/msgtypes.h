@@ -32,7 +32,8 @@ typedef enum {
   CMD_DECODE_NEW_OUTPUT = 11,
   CMD_DECODE_OUTPUT_BUFFER = 12,
   CMD_OUTPUT_BUFFER = 13,
-  CMD_SPU_SET_PALETTE = 14
+  CMD_SPU_SET_PALETTE = 14,
+  CMD_SPU_SET_HIGHLIGHT = 15
 } cmdtype_t;
 
 typedef enum {
@@ -49,6 +50,15 @@ typedef enum {
   OUTPUT_VIDEO_YUV = 1,
   OUTPUT_SPU = 2
 } output_t;
+
+typedef struct {
+  int x_start;
+  int y_start;
+  int x_end;
+  int y_end;
+  uint8_t color[4];
+  uint8_t contrast[4];
+} cmd_spu_highlight_t;
 
 typedef struct {
   uint32_t colors[16];
@@ -123,6 +133,7 @@ typedef struct {
     cmd_new_output_t new_output;
     cmd_output_buffer_t output_buffer;
     cmd_spu_palette_t spu_palette;
+    cmd_spu_highlight_t spu_highlight;
   } cmd;
 } cmd_t;
 

@@ -216,7 +216,33 @@ int input() {
 	sendcmd->cmd.spu_palette.colors[n] = strtol(tok, NULL, 0);
       }
       
+    } else if(strcmp(tok, "highlight") == 0) {
+      int n;
+      msg.mtype = MTYPE_SPU_DECODE;
+      sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
+      cmd = CTRLCMD_STOP;
+      
+      tok = strtok(NULL, " ");
+      sendcmd->cmd.spu_highlight.x_start = strtol(tok, NULL, 0);
+      tok = strtok(NULL, " ");
+      sendcmd->cmd.spu_highlight.y_start = strtol(tok, NULL, 0);
+      tok = strtok(NULL, " ");
+      sendcmd->cmd.spu_highlight.x_end = strtol(tok, NULL, 0);
+      tok = strtok(NULL, " ");
+      sendcmd->cmd.spu_highlight.y_end = strtol(tok, NULL, 0);
+      for(n = 0; n < 4; n++) {
+	tok = strtok(NULL, " ");
+	sendcmd->cmd.spu_highlight.color[n] =
+	  (unsigned char)strtol(tok, NULL, 0);
+      }
+      for(n = 0; n < 4; n++) {
+	tok = strtok(NULL, " ");
+	sendcmd->cmd.spu_highlight.contrast[n] =
+	  (unsigned char)strtol(tok, NULL, 0);
+      }
+      
     }
+
     
 
     fprintf(stderr, "****input() tok end\n");
@@ -241,7 +267,11 @@ int input() {
       if(cmd != CTRLCMD_STOP) {
 	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
       } else {
-	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
+	if(sendcmd->cmdtype == CMD_SPU_SET_HIGHLIGHT) {
+	  send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_highlight_t));
+	} else if(sendcmd->cmdtype == CMD_SPU_SET_PALETTE) {
+	  send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
+	}
       }
     }
     

@@ -22,6 +22,7 @@
 #define SHM_SHARE_MMU 0
 #endif
 
+
 typedef struct {
   int spu_size;
   uint16_t DCSQT_offset;
@@ -47,7 +48,14 @@ typedef struct {
   uint8_t contrast[4];
 } spu_t;
 
-
+typedef struct {
+  uint8_t color[4];
+  uint8_t contrast[4];
+  int x_start;
+  int y_start;
+  int x_end;
+  int y_end;
+} highlight_t;
 
 
 
@@ -74,6 +82,8 @@ static int initialized = 0;
 
 static uint32_t palette_yuv[16];
 static uint32_t palette_rgb[16];
+
+static highlight_t highlight  = { 0 };
 
 extern int msgqid;
 
@@ -226,8 +236,13 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   
   if(!read_offset) {    
     if(ip_sem_trywait(&q_head->queue, BUFS_FULL) == -1) {
-      perror("spu_mixer: get_q(), sem_wait()");
-      return -1;
+      switch(errno) {
+      case EAGAIN:
+	return 0;
+      default:
+	perror("spu_mixer: get_q(), sem_wait()");
+	return -1;
+      }
     }
     fprintf(stderr, "spu_mixer: get element\n");
   }
@@ -326,6 +341,23 @@ static int eval_msg(cmd_t *cmd)
       for(n = 0; n < 16; n++) {
 	palette_yuv[n] = cmd->cmd.spu_palette.colors[n];
 	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
+      }
+    }
+    break;
+  case CMD_SPU_SET_HIGHLIGHT:
+    {
+      int n;
+      
+      highlight.x_start = cmd->cmd.spu_highlight.x_start;
+      highlight.y_start = cmd->cmd.spu_highlight.y_start;
+      highlight.x_end = cmd->cmd.spu_highlight.x_end;
+      highlight.y_end = cmd->cmd.spu_highlight.y_end;
+
+      for(n = 0; n < 4; n++) {
+	highlight.color[n] = cmd->cmd.spu_highlight.color[n];
+      }
+      for(n = 0; n < 4; n++) {
+	highlight.contrast[n] = cmd->cmd.spu_highlight.contrast[n];
       }
     }
     break;
@@ -747,14 +779,15 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
   x=0;
   y=0;
   nr_vlc = 0;
-  
+
+  /*  
   {
     int i;
     for(i = 0; i < 16; i++) {
       fprintf(stderr, "[%d] %08x %08x\n", i, palette_yuv[i], palette_rgb[i]);
     }
   }
-  
+  */
   DPRINTF(5, "vlc decoding\n");
   while((fieldoffset[1] < spu_info->DCSQT_offset) && (y < spu_info->height)) {
     unsigned int vlc;
@@ -811,9 +844,20 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     colorid = vlc & 3;
     pixel_data = ((spu_info->contrast[colorid] << 4) 
 		  | (spu_info->color[colorid] & 0x0f));
-  
-    color = palette_rgb[spu_info->color[colorid]];
-    contrast = spu_info->contrast[colorid]<<4;
+
+    if(!spu_info->menu) {
+      color = palette_rgb[spu_info->color[colorid]];
+      contrast = spu_info->contrast[colorid]<<4;
+    } else {
+      if(y >= highlight.y_start && y <= highlight.y_end &&
+	 x >= highlight.x_start && x <= highlight.x_end) {
+	color = palette_rgb[highlight.color[colorid]];
+	contrast = highlight.contrast[colorid]<<4;
+      } else {
+	color = palette_rgb[spu_info->color[colorid]];
+	contrast = spu_info->contrast[colorid]<<4;
+      }
+    }
     invcontrast = 256-contrast;
     if(length==0) { // new line
       //   if (y >= height)
