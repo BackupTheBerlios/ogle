@@ -168,7 +168,8 @@ static inline uint8_t get_nibble (void)
 
 /* Start of a new picture */
 void initialize() {
-   
+  char *apa;
+  DPRINTF(5, "initialize()\n");
   if (subpicture_image != NULL) {
     XDestroyImage(subpicture_image);
   } 
@@ -177,12 +178,21 @@ void initialize() {
     XDestroyImage(subpicture_mask);
   } 
  /* Create an XImage to draw in very 8-bitish */
-  
+
+    
+  DPRINTF(1, "malloc() data\n");
+  apa = malloc(256);
+  DPRINTF(1, "size: %d\n", (width+7)/8*8*height);
   data = malloc((width+7)/8*8*height);
+  free(apa);
+  DPRINTF(1, "malloc() mask_data\n");
   mask_data = malloc((width+7)/8*8*height);
+
+  DPRINTF(5, "XCreateImage() subpicture_image\n");
   subpicture_image = XCreateImage(display, visual, depth, XYPixmap, 0, data,
                               width, height, 8, 0);
   
+  DPRINTF(5, "XCreateImage() subpicture_mask\n");
   subpicture_mask = XCreateImage(display, visual, 1, XYBitmap, 0, mask_data,
                               width, height, 8, 0);
 
@@ -397,8 +407,11 @@ int main (int argc, char *argv[]) {
     initialize();
     x=0;
     y=0;
-    while(fieldoffset[1] < DCSQT_offset) {
+    DPRINTF(5, "vlc decoding\n");
+    while((fieldoffset[1] < DCSQT_offset) && (y < height)) {
       unsigned int vlc;
+      DPRINTF(6, "fieldoffset[0]: %d, fieldoffset[1]: %d, DCSQT_offset: %d\n",
+	      fieldoffset[0], fieldoffset[1], DCSQT_offset);
       vlc = get_nibble();
       if(vlc < 0x4) {   //  vlc!= 0xN
         vlc = (vlc << 4) | get_nibble();
@@ -425,13 +438,15 @@ void draw_subpicture(int x, int y, int w, int h)
 {
   DPRINTF(3, "w,h: %d, %d\n", w, h);
   XMoveResizeWindow(display, win, x, y, w, h);
-  //  XFlush(display);
-  //XSync(display, False);
+  XFlush(display);
+  XSync(display, False);
   XPutImage(display, shape_pixmap, gc1, subpicture_mask, 0, 0, 0, 0, w, h);
   XShapeCombineMask(display, win, ShapeBounding, 0, 0, shape_pixmap, ShapeSet);
-  //XFlush(display);
+  XFlush(display);
+  XSync(display, False);
   XPutImage(display, win, gc, subpicture_image, 0, 0, 0, 0, w, h);
-  //XFlush(display);
+  XFlush(display);
+  XSync(display, False);
   sleep(3);
     
 }
