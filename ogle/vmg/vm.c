@@ -472,6 +472,26 @@ void vm_get_subp_info(int *num_avail, int *current)
   }
 }
 
+int vm_get_titles(void)
+{
+ int titles = 0;
+
+ titles = vmgi->vmgi_mat->vmg_nr_of_title_sets;
+
+ return titles;
+}
+
+int vm_get_ptts_for_title(int titleN)
+{
+ int ptts = 0;
+
+ if(titleN <= vmgi->tt_srpt->nr_of_srpts) {
+   ptts = vmgi->tt_srpt->title[titleN - 1].nr_of_ptts;
+ }
+
+ return ptts;
+}
+
 subp_attr_t vm_get_subp_attr(int streamN)
 {
   subp_attr_t attr;
