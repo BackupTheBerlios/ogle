@@ -747,6 +747,8 @@ static void do_run(void) {
 	  break;
 	  
 	case DVDCtrlGoUp:
+	  res = vm_goup_pgc();
+	  break;
 	case DVDCtrlBackwardScan:
 	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
 		ev.dvdctrl.cmd.type);

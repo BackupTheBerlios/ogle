@@ -248,6 +248,21 @@ int vm_prev_pg(void)
   return 1; // Jump
 }
 
+int vm_goup_pgc(void)
+{
+  link_t link_values;
+  
+  if(get_PGC(state.pgc->goup_pgc_nr))
+    return 0;  / do nothing
+  
+  link_values = play_PGC();
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Jump
+}
+
+
 int vm_jump_ptt(int pttN)
 {
   link_t link_values;

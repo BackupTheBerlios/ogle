@@ -86,6 +86,7 @@ int vm_resume(void);
 int vm_top_pg(void);
 int vm_next_pg(void);
 int vm_prev_pg(void);
+int vm_goup_pgc(void);
 int vm_jump_ptt(int pttN);
 int vm_jump_title_ptt(int titleN, int pttN);
 int vm_jump_title(int titleN);
