@@ -10,7 +10,7 @@ typedef struct
 static cmd_t cmd;
 
 char *op_table[] = {
-  NULL, "&", "==", "!=", ">", ">=", "<", "<="
+  NULL, "&", "==", "!=", ">=", ">", "<=", "<"
 };
 char *set_op_table[] = {
   NULL, "=", "<->", "+=", "-=", "*=", "/=", "%=", "rnd", "&=", "|=", "^="
