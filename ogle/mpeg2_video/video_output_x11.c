@@ -36,6 +36,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/keysym.h>
 #include <X11/extensions/XShm.h>
 #include <sys/types.h>
 #include <sys/ipc.h>
@@ -89,16 +90,16 @@ static debug_win windows[1];
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
 static Display *mydisplay;
-static Window window_stat;
+//static Window window_stat;
 static GC mygc;
-static GC statgc;
-static char *title = "Mjölner";
+//static GC statgc;
+static char title[100];
 static int color_depth, pixel_stride, mode;
 
 
 extern unsigned int debug;
 static int show_window[1] = {1};
-static int run = 0;
+static int run = 1;
 static int screenshot = 0;
 static int scaled_image_width;
 static int scaled_image_height;
@@ -210,25 +211,30 @@ void display_init(int padded_width, int padded_height,
 				 4, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
-  fprintf(stderr, "Window id: 0x%lx\n", windows[0].win);
+  //fprintf(stderr, "Window id: 0x%lx\n", windows[0].win);
   
-  window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
-				    hint.x, hint.y, 200, 200, 0,
-				    0, 0);
+  //window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
+  //hint.x, hint.y, 200, 200, 0,
+  //0, 0);
 
-  XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | KeyPressMask 
-	       | ExposureMask);
-  XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask 
-	       | ButtonPressMask | ExposureMask);
+  XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | ExposureMask);
+  //XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | KeyPressMask 
+  //| ExposureMask);
+  
+  //XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask 
+  //| ButtonPressMask | ExposureMask);
 
   /* Tell other applications about this window */
+  
+  snprintf(&title[0], 99, "Mjölner: 0x%lx", windows[0].win);
+
   XSetStandardProperties(mydisplay, windows[0].win, 
-			 title, title, None, NULL, 0, &hint);
-  XSetStandardProperties(mydisplay, window_stat, 
-			 "stat", "stat", None, NULL, 0, &hint);
+			 &title[0], &title[0], None, NULL, 0, &hint);
+  //XSetStandardProperties(mydisplay, window_stat, 
+  //"stat", "stat", None, NULL, 0, &hint);
 
   /* Map window. */
-  XMapWindow(mydisplay, window_stat);
+  //XMapWindow(mydisplay, window_stat);
   XMapWindow(mydisplay, windows[0].win);
   
   
@@ -246,7 +252,7 @@ void display_init(int padded_width, int padded_height,
    
   /* Create the colormaps. */   
   mygc = XCreateGC(mydisplay, windows[0].win, 0L, &xgcv);
-  statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
+  //statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
    
 #ifdef HAVE_XV
   /* This section of the code looks for the Xv extension for hardware
@@ -486,8 +492,10 @@ void display_change_size(int new_width, int new_height) {
 		scaled_image_width, scaled_image_height);
   
   /* Turn on events */
+  //XSelectInput(mydisplay, windows[0].win, StructureNotifyMask 
+  //| KeyPressMask | ExposureMask);
   XSelectInput(mydisplay, windows[0].win, StructureNotifyMask 
-	       | KeyPressMask | ExposureMask);
+	       | ExposureMask);
 }
 
 void display_exit(void) 
@@ -628,13 +636,29 @@ void display(yuv_image_t *current_image)
 	break;
       }
       break;
+#if 0     
     case KeyPress:
       {
 	char buff[2];
 	static int debug_change = 0;
-
-	XLookupString(&(ev.xkey), buff, 2, NULL, NULL);
+	KeySym keysym;
+	XLookupString(&(ev.xkey), buff, 2, &keysym, NULL);
 	buff[1] = '\0';
+
+	switch(keysym) {
+	case XK_Up:
+	  
+	  break;
+	case XK_Down:
+	  break;
+	case XK_Left:
+	  break;
+	case XK_Right:
+	  break;
+	default:
+	  break;
+	}
+	
 	switch(buff[0]) {
 	case 'n':
 	  nextframe = 1;
@@ -703,6 +727,7 @@ void display(yuv_image_t *current_image)
 	}
       }
       break;
+#endif
     default:
       break;
     }
