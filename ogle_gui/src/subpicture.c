@@ -151,7 +151,16 @@ void subpicture_menu_update(void) {
   }
 
   selecteditem = g_list_nth_data(GTK_MENU_SHELL(menu)->children, selectedpos);
+  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
+				   subpicture_item_activate, 
+				   GINT_TO_POINTER( (Shown) ?
+						    CurrentStream : OFF));
   gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(selecteditem), TRUE);
+  gtk_signal_handler_unblock_by_func(GTK_OBJECT(selecteditem), 
+				     subpicture_item_activate,
+				     GINT_TO_POINTER((Shown) ?
+						     CurrentStream : OFF));
+  
 
 }
 

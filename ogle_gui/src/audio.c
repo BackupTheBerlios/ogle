@@ -18,6 +18,8 @@ static GnomeUIInfo *menu_items_uiinfo;
 static GSList *labellist = NULL;
 static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
+static const int OFF = 15;
+
 char* guiDVDAudioFormat(DVDAudioFormat_t format) {
   switch(format) {
   case DVD_AUDIO_FORMAT_AC3:
@@ -104,7 +106,7 @@ void audio_menu_update(void) {
     GnomeUIInfo tmp_info =  {
       GNOME_APP_UI_ITEM, (gchar*) N_("None"),
       NULL,
-      audio_item_activate, GINT_TO_POINTER(15), NULL,
+      audio_item_activate, GINT_TO_POINTER(OFF), NULL,
       GNOME_APP_PIXMAP_NONE, NULL,
       0, 0, NULL
     };
@@ -178,7 +180,17 @@ void audio_menu_update(void) {
   }
   
   selecteditem = g_list_nth_data(GTK_MENU_SHELL(menu)->children, selectedpos);
+  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
+				   audio_item_activate, 
+				   GINT_TO_POINTER( (selectedpos!=0) ?
+						    CurrentStream : OFF));
+  
   gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(selecteditem), TRUE);
+  gtk_signal_handler_block_by_func(GTK_OBJECT(selecteditem),
+				   audio_item_activate, 
+				   GINT_TO_POINTER( (selectedpos!=0) ?
+						    CurrentStream : OFF));
+
 }
 
 
@@ -188,8 +200,6 @@ void audio_item_activate( GtkRadioMenuItem *item,
   int stream = GPOINTER_TO_INT(user_data);
 
   if(GTK_CHECK_MENU_ITEM(item)->active) {
-    fprintf(stderr, "item %d\n", stream);
-    
     res = DVDAudioStreamChange(nav, stream);
     if(res != DVD_E_Ok) {
       DVDPerror("audio.audio_item_activate: DVDAudioChange", res);
