@@ -387,7 +387,8 @@ void get_next_demux_q(void)
 	}
 	break;
       default:
-	fprintf(stderr, "demux: unrecognized command\n");
+	handle_events(&ev);
+	//fprintf(stderr, "demux: unrecognized command\n");
 	break;
       }
     }
@@ -1599,8 +1600,11 @@ int main(int argc, char **argv)
 	attach_ctrl_shm(regev.ctrldata.shmid);
 	break;
       default:
+	handle_events(&regev);
+	/*
 	fprintf(stderr, "demux: msg not wanted %d, from %ld\n",
 		regev.type, regev.any.client);
+	*/
 	break;
       }
     }
