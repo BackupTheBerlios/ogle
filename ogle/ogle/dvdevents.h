@@ -336,7 +336,7 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
-  DVDVolumeInfo_t volumeinfo
+  DVDVolumeInfo_t volumeinfo;
 } DVDCtrlVolumeInfoEvent_t;
 
 typedef struct {
