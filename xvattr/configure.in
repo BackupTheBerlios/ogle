@@ -27,6 +27,7 @@ AC_CHECK_LIB(Xv, XvQueryExtension ,,
 	AC_MSG_WARN([Did not find Xv this program is meaningless without Xv]),
 	[$X_LIBS $X_PRE_LIBS -lXext $X_EXTRA_LIBS])
 
-AC_HAVE_HEADERS(stdio.h stdlib.h X11/Xlib.h X11/extensions/Xvlib.h)
+AC_CHECK_HEADERS(stdio.h stdlib.h X11/Xlib.h X11/extensions/Xvlib.h , , ,
+                 [#include <X11/Xlib.h>])
 
 AC_OUTPUT([Makefile xvattr.pod])
