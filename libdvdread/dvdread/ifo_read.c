@@ -815,14 +815,14 @@ int ifoRead_TT_SRPT(ifo_handle_t *ifofile) {
     assert(tt_srpt->title[i].pb_ty.zero_1 == 0);
     assert(tt_srpt->title[i].nr_of_angles != 0);
     assert(tt_srpt->title[i].nr_of_angles < 10);
-    assert(tt_srpt->title[i].nr_of_ptts != 0);
+    //assert(tt_srpt->title[i].nr_of_ptts != 0);
     // XXX: this assertion breaks Ghostbusters:
     assert(tt_srpt->title[i].nr_of_ptts < 1000); // ??
     assert(tt_srpt->title[i].title_set_nr != 0);
     assert(tt_srpt->title[i].title_set_nr < 100); // ??
     assert(tt_srpt->title[i].vts_ttn != 0);
     assert(tt_srpt->title[i].vts_ttn < 100); // ??
-    assert(tt_srpt->title[i].title_set_sector != 0);
+    //assert(tt_srpt->title[i].title_set_sector != 0);
   }
   
   // Make this a function
@@ -909,7 +909,11 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
 
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++) {
     B2N_32(data[i]);
-    assert(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1);
+    /* assert(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1);
+       Magic Knight Rayearth Daybreak is mastered very strange and has 
+       Titles with 0 PTTs. They all have a data[i] offsets beyond the end of
+       of the vts_ptt_srpt structure. */
+    assert(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1 + 4);
   }
   
   vts_ptt_srpt->title = malloc(vts_ptt_srpt->nr_of_srpts * sizeof(ttu_t));
@@ -925,8 +929,12 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
       n = (data[i+1] - data[i]);
     else
       n = (vts_ptt_srpt->last_byte + 1 - data[i]);
-    assert(n > 0 && (n % 4) == 0);
-
+    /* assert(n > 0 && (n % 4) == 0);
+       Magic Knight Rayearth Daybreak is mastered very strange and has 
+       Titles with 0 PTTs. */
+    if(n < 0) n = 0;
+    assert(n % 4 == 0);
+    
     vts_ptt_srpt->title[i].nr_of_ptts = n / 4;
     vts_ptt_srpt->title[i].ptt = malloc(n * sizeof(ptt_info_t));
     if(!vts_ptt_srpt->title[i].ptt) {
@@ -938,6 +946,8 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
       return 0;
     }
     for(j = 0; j < vts_ptt_srpt->title[i].nr_of_ptts; j++) {
+      /* The assert placed here because of Magic Knight Rayearth Daybreak */
+      assert(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1);
       vts_ptt_srpt->title[i].ptt[j].pgcn 
         = *(uint16_t*)(((char *)data) + data[i] + 4*j - VTS_PTT_SRPT_SIZE);
       vts_ptt_srpt->title[i].ptt[j].pgn 
@@ -1007,7 +1017,6 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   ifofile->ptl_mait = ptl_mait;
 
   if(!(DVDReadBytes(ifofile->file, ptl_mait, PTL_MAIT_SIZE))) {
-    fprintf(stderr, "libdvdread: Unable to read PTL_MAIT.\n");
     free(ptl_mait);
     ifofile->ptl_mait = 0;
     return 0;
@@ -1138,7 +1147,9 @@ static int ifoRead_C_ADT_internal(ifo_handle_t *ifofile,
   info_length = c_adt->last_byte + 1 - C_ADT_SIZE;
   
   CHECK_ZERO(c_adt->zero_1);
-  assert(c_adt->nr_of_vobs > 0);  
+  /* assert(c_adt->nr_of_vobs > 0);  
+     Magic Knight Rayearth Daybreak is mastered very strange and has 
+     Titles with a VOBS that has no cells. */
   assert(info_length % sizeof(cell_adr_t) == 0);
   assert(info_length / sizeof(cell_adr_t) >= c_adt->nr_of_vobs);
   
@@ -1146,7 +1157,8 @@ static int ifoRead_C_ADT_internal(ifo_handle_t *ifofile,
   if(!c_adt->cell_adr_table)
     return 0;
 
-  if(!(DVDReadBytes(ifofile->file, c_adt->cell_adr_table, info_length))) {
+  if(info_length && 
+     !(DVDReadBytes(ifofile->file, c_adt->cell_adr_table, info_length))) {
     free(c_adt->cell_adr_table);
     return 0;
   }
@@ -1261,14 +1273,18 @@ static int ifoRead_VOBU_ADMAP_internal(ifo_handle_t *ifofile,
   B2N_32(vobu_admap->last_byte);
   
   info_length = vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE;
-  assert(info_length > 0);
+  /* assert(info_length > 0);
+     Magic Knight Rayearth Daybreak is mastered very strange and has 
+     Titles with a VOBS that has no VOBUs. */
   assert(info_length % sizeof(uint32_t) == 0);
   
   vobu_admap->vobu_start_sectors = (uint32_t *)malloc(info_length); 
   if(!vobu_admap->vobu_start_sectors) {
     return 0;
   }
-  if(!(DVDReadBytes(ifofile->file, vobu_admap->vobu_start_sectors, info_length))) {
+  if(info_length && 
+     !(DVDReadBytes(ifofile->file, 
+		    vobu_admap->vobu_start_sectors, info_length))) {
     free(vobu_admap->vobu_start_sectors);
     return 0;
   }
@@ -1343,7 +1359,9 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
   B2N_32(pgcit->last_byte);
   
   CHECK_ZERO(pgcit->zero_1);
-  assert(pgcit->nr_of_pgci_srp != 0);
+  /* assert(pgcit->nr_of_pgci_srp != 0);
+     Magic Knight Rayearth Daybreak is mastered very strange and has 
+     Titles with 0 PTTs. */
   assert(pgcit->nr_of_pgci_srp < 10000); // ?? seen max of 1338
   
   info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
@@ -1351,7 +1369,7 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
   if(!data)
     return 0;
 
-  if(!(DVDReadBytes(ifofile->file, data, info_length))) {
+  if(info_length && !(DVDReadBytes(ifofile->file, data, info_length))) {
     free(data);
     return 0;
   }
