@@ -23,8 +23,8 @@ AM_CPPFLAGS = @TOP_INCLUDES@ @XML_CFLAGS@
 AM_CFLAGS = @O_CFLAGS@
 
 libmsgevents_la_SOURCES = msgevents.c
-libmsgevents_la_LDFLAGS = -version-info 7:0:1
+libmsgevents_la_LDFLAGS = -version-info 8:0:2
 
 libdvdcontrol_la_SOURCES = dvdcontrol.c dvdbookmarks.c
 libdvdcontrol_la_LIBADD = libmsgevents.la @XML_LIBS@
-libdvdcontrol_la_LDFLAGS = -version-info 10:0:1
+libdvdcontrol_la_LDFLAGS = -version-info 11:0:2
