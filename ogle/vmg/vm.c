@@ -253,7 +253,7 @@ int vm_goup_pgc(void)
   link_t link_values;
   
   if(get_PGC(state.pgc->goup_pgc_nr))
-    return 0;  / do nothing
+    return 0;  // do nothing
   
   link_values = play_PGC();
   link_values = process_command(link_values);
