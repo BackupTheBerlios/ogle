@@ -1,5 +1,5 @@
 bin_SCRIPTS = ogle
-pkglib_SCRIPTS = ogle_audio_debug \
+dist_pkglib_SCRIPTS = ogle_audio_debug \
 		ogle_cli_debug \
 		ogle_ctrl_debug \
 		ogle_gui_debug \
