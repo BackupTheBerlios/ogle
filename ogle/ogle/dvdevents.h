@@ -128,7 +128,9 @@ typedef enum {
   
   DVDCtrlTimeSkip,
 
-  DVDCtrlRetVal
+  DVDCtrlRetVal,
+
+  DVDCtrlSetVideoState
 
 } DVDCtrlEventType_t;
 
@@ -333,6 +335,12 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
   int32_t serial;
+  DVDVideoState_t display;
+} DVDCtrlVideoStateEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int32_t serial;
   int nrofstreams;
   DVDSubpictureStream_t currentstream;
   DVDSubpictureState_t display;
@@ -424,6 +432,8 @@ typedef union {
   DVDCtrlSubpictureStreamChangeEvent_t subpicturestreamchange;
 
   DVDCtrlSubpictureStateEvent_t subpicturestate;
+
+  DVDCtrlVideoStateEvent_t videostate;
 
   DVDCtrlAngleChangeEvent_t anglechange;
   

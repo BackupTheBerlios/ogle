@@ -177,6 +177,10 @@
 	  <key>s</key>
   	</b>
 	<b>	
+	  <action>VideoToggle</action>
+	  <key>v</key>
+  	</b>
+	<b>	
 	  <action>FullScreenToggle</action>
 	  <key>f</key>
 	  <key>F</key>

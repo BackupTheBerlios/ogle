@@ -174,6 +174,7 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDSubpictureState_t state);
 DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav,
 					       DVDLangID_t Lang);
 
+DVDResult_t DVDSetVideoState(DVDNav_t *nav, DVDVideoState_t State);
 DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country);
 DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level);
 

@@ -178,6 +178,23 @@ void actionSubpictureToggle(void *data)
   }
 }
 
+
+void actionVideoToggle(void *data)
+{
+  DVDResult_t res;
+  static DVDVideoState_t video_state = DVD_VIDEO_STATE_ON;
+
+  if(video_state == DVD_VIDEO_STATE_ON) {
+    video_state = DVD_VIDEO_STATE_OFF;
+  } else {
+    video_state = DVD_VIDEO_STATE_ON;
+  }
+
+  DVDSetVideoState(nav, video_state);
+}
+
+
+
 struct timeval pg_timestamp = {0, 0};
 
 void actionNextPG(void *data)
@@ -976,6 +993,7 @@ static action_mapping_t actions[] = {
   { "Resume", do_action, actionResume },
   { "FullScreenToggle", do_action, actionFullScreenToggle },
   { "SubtitleToggle", do_number_action, actionSubpictureToggle },
+  { "VideoToggle", do_number_action, actionVideoToggle },
   { "Quit", do_action, actionQuit },
   { "BookmarkAdd", do_action, actionBookmarkAdd },
   { "BookmarkRemove", do_number_action, actionBookmarkRemove },

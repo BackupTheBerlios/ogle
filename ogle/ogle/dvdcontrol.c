@@ -2514,6 +2514,35 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDSubpictureState_t State)
 
 
 /**
+ * Set the display of video on or off.
+ * @todo more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Display Specifies wheter to disaply or hide video.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_FailedToSend Failed to send the request.
+ */
+DVDResult_t DVDSetVideoState(DVDNav_t *nav, DVDVideoState_t State)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  DVD_SETSERIAL(nav, ev.dvdctrl.cmd);
+  ev.dvdctrl.cmd.type = DVDCtrlSetVideoState;
+  ev.dvdctrl.cmd.videostate.display = State;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_FailedToSend;
+  }
+  
+  return DVD_E_Ok;
+}
+
+
+/**
  * Select the country for parental check.
  * @todo more return values
  *

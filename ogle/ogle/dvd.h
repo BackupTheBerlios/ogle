@@ -153,6 +153,14 @@ typedef struct {
 
 
 /**
+ * Video state
+ */
+typedef enum {
+  DVD_VIDEO_STATE_OFF       = 0, /**< video off */
+  DVD_VIDEO_STATE_ON        = 1, /**< video on  */
+} DVDVideoState_t;
+
+/**
  * Subpicture state
  */
 typedef enum {
