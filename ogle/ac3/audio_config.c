@@ -74,21 +74,23 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
 
   nr_configs = get_channel_configs(&configs);
   
-  DNOTE("Searching <speakers> for\n");
+  DNOTE("Searching <speakers> for:\n");
   if(chtypemask_wanted & ChannelTypeMask_Channels) {
+    DNOTE("");
     for(n = 1; n <= 0x100; n = n << 1) {
       if(n & chtypemask_wanted) {
 	fprintf(stderr, " '%s'", channeltype_str(n));
       }
     }
+    fprintf(stderr, "\n");
     if(chtypemask_wanted & ChannelTypeMask_Streams) {
-      fprintf(stderr, "\n or for\n");
+      DNOTE("or for:\n");
     }
   }
 
   if(chtypemask_wanted & ChannelTypeMask_Streams) {
-    fprintf(stderr, " '%s'",
-	    channeltype_str(chtypemask_wanted & ChannelTypeMask_Streams));
+    DNOTE(" '%s'",
+	  channeltype_str(chtypemask_wanted & ChannelTypeMask_Streams));
   }
   fprintf(stderr, "\n");
   
@@ -126,6 +128,8 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
   if((!chconf) && (nr_configs > 0)) {
     chconf = &configs[nr_configs-1];
     DNOTE("Didn't find matching channel_config, using the last one\n");
+  } else if(nr_configs == 0) {
+    DNOTE("No channel configs found\n");
   }
   
   return chconf;
