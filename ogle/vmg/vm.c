@@ -384,12 +384,22 @@ int vm_get_subp_active_stream(void)
 
 void vm_get_angle_info(int *num_avail, int *current)
 {
+  *num_avail = 1;
+  *current = 1;
+  
   if(state.domain == VTS_DOMAIN) {
-    *num_avail = vmgi->tt_srpt->title_info[state.TTN_REG].nr_of_angles;
+    // TTN_REG does not allways point to the correct title..
+    title_info_t *title;
+    if(state.TTN_REG > vmgi->tt_srpt->nr_of_srpts)
+      return;
+    title = &vmgi->tt_srpt->title_info[state.TTN_REG - 1];
+    if(title->title_set_nr != state.vtsN || 
+       title->vts_ttn != state.VTS_TTN_REG)
+      return; 
+    *num_avail = title->nr_of_angles;
     *current = state.AGL_REG;
-  } else {
-    *num_avail = 1;
-    *current = 1;
+    if(*current > *num_avail) // Is this really a good idee?
+      *current = *num_avail; 
   }
 }
 

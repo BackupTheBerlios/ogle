@@ -649,7 +649,7 @@ void display(yuv_image_t *current_image)
     switch(ev.type) {
     case Expose:
       if(ev.xexpose.window == window.win)
-	//draw_win(&window);
+	; //draw_win(&window);
       break;
     case ConfigureNotify:
       while(XCheckTypedWindowEvent(mydisplay, window.win, 
@@ -762,6 +762,7 @@ static void draw_win_x11(window_info *dwin)
   
   //TEST
   XSync(mydisplay, False);
+  // XFlush(mydisplay);
 }
 
 #else /* HAVE_MLIB */
