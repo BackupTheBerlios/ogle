@@ -31,5 +31,9 @@ Bernd Ernesti, NetBSD patches for Ogle and libdvdread
 Charles M. Hannum, AltiVec patches and other speed improvements
 Mario Sergio Fujikawa Ferreira, FreeBSD fixes
 Marc Espie, Simple sample rate conversion 48->44.1 kHz in libao, OpenBSD fixes
+Mikael Hedin, making debian debs.
 David Price, speaker configuration patch to allow different speaker setups.
 Arjen Hommersom, exporting allowed User Opreations flags to dvdcontrol.
+Maik Schulz, sent a few DVD from a game magazine that refused to work.
+Dan Weeks, have provided us with a couple of DVDs.
+Torgeir Veimo, ALSA sound support.
