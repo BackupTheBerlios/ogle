@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-g -Wall -O6 
+CFLAGS=-g -pg -Wall -O6 -mcpu=ultrasparc -mvis 
 LDFLAGS= -lX11 -lXext -lsocket -lnsl
 all:	subpicture
 clean:

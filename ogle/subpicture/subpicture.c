@@ -42,6 +42,7 @@
 #include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/extensions/shape.h>
 
 int fd;
 int aligned;
@@ -65,7 +66,9 @@ uint16_t spu_size;
 
 /* Variables pertaining to the x window */
 XImage *subpicture_image = NULL;
+XImage *subpicture_mask = NULL;
 uint8_t *data;
+uint8_t *mask_data;
 Visual* visual;
 unsigned int depth = 8;
 
@@ -76,11 +79,12 @@ Display *display;
 Window win;
 int screen_num;
 Colormap cmap;
-GC gc;
+GC gc, gc1;
 Pixmap shape_pixmap;
 
 int InitWindow(int x, int y, int w, int h, char *display_name);
 void draw_subpicture(int x, int y, int w, int h);
+int create_shape(int w, int h);
 
 #ifdef DEBUG
 int debug;
@@ -164,23 +168,29 @@ static inline uint8_t get_nibble (void)
 
 /* Start of a new picture */
 void initialize() {
-  
+   
   if (subpicture_image != NULL) {
     XDestroyImage(subpicture_image);
   } 
-  /* Create an XImage to draw in very 8-bitish */
+
+  if (subpicture_mask != NULL) {
+    XDestroyImage(subpicture_mask);
+  } 
+ /* Create an XImage to draw in very 8-bitish */
   
   data = malloc((width+7)/8*8*height);
+  mask_data = malloc((width+7)/8*8*height);
   subpicture_image = XCreateImage(display, visual, depth, XYPixmap, 0, data,
                               width, height, 8, 0);
-
+  
+  subpicture_mask = XCreateImage(display, visual, 1, XYBitmap, 0, mask_data,
+                              width, height, 8, 0);
 
 }
 
 void send_rle (unsigned int vlc) {
   unsigned int length;
   static unsigned int colorid;
-  static uint8_t apa = 0;
   DPRINTF(3, "send_rle: %08x\n", vlc)
   if(vlc==0) { // new line
     if (y >= height)
@@ -196,6 +206,11 @@ void send_rle (unsigned int vlc) {
   while (length-- && (x < width)) {
     DPRINTF(6, "pos: %d, %d, col: %d\n", x, y, color[colorid]);
     XPutPixel(subpicture_image, x, y, color[colorid]);
+    if(contrast[colorid]) {
+      XPutPixel(subpicture_mask, x, y, 0);
+    } else {
+      XPutPixel(subpicture_mask, x, y, 1);
+    }      
     x++;
   }
 
@@ -409,9 +424,13 @@ void draw_subpicture(int x, int y, int w, int h)
 {
   DPRINTF(3, "w,h: %d, %d\n", w, h);
   XMoveResizeWindow(display, win, x, y, w, h);
-  XSync(display, True);
+  //  XFlush(display);
+  //XSync(display, False);
+  XPutImage(display, shape_pixmap, gc1, subpicture_mask, 0, 0, 0, 0, w, h);
+  XShapeCombineMask(display, win, ShapeBounding, 0, 0, shape_pixmap, ShapeSet);
+  //XFlush(display);
   XPutImage(display, win, gc, subpicture_image, 0, 0, 0, 0, w, h);
-  XFlush(display);
+  //XFlush(display);
   sleep(3);
     
 }
@@ -423,21 +442,18 @@ int InitWindow(int x, int y, int w, int h, char *display_name)
 {
   XGCValues gcvalues;
   unsigned long gcvaluemask;
-  unsigned long plane_masks[8];
-  unsigned long pixels[16];
   XSetWindowAttributes attr;
-  XColor colblue, hwcol;
   XColor colarr[16] = {
     {
       0,
-      65535, 65535, 65535,
+      0, 0, 0,
       (DoRed | DoGreen | DoBlue),
       0
     },
 
     {
       1,
-      0, 65535, 0,
+      0, 0, 0,
       (DoRed | DoGreen | DoBlue),
       0
     },
@@ -493,7 +509,7 @@ int InitWindow(int x, int y, int w, int h, char *display_name)
 
     {
       9,
-      65535, 0, 1000,
+      55000, 55000, 55000,
       (DoRed | DoGreen | DoBlue),
       0
     },
@@ -563,25 +579,12 @@ typedef struct {
   XSync(display, False);
   //    cmap = XCopyColormapAndFree(display, DefaultColormap(display, screen_num));
   cmap = XCreateColormap(display, RootWindow(display, screen_num), visual, AllocAll);
-    //  cmap = DefaultColormap(display, screen_num);
-  //XAllocColorCells(display, cmap, True, plane_masks, 8, pixels, 16);
   XFlush(display);
-  XSync(display, False);
-  {
-    int n;
-    for(n = 0; n < 16; n++) {
-      fprintf(stderr, "%lu, ", pixels[n]);
-    }
-  }
   XSync(display, False);
   
   XStoreColors(display, cmap, colarr, 16);
   XInstallColormap(display, cmap);
-  XAllocNamedColor(display, cmap, "Blue", &colblue, &hwcol);
-  fprintf(stderr, "pix: %d\n", colblue.pixel);
-  colblue.pixel = 9;
-  XAllocNamedColor(display, cmap, "Red", &colblue, &hwcol);
-  fprintf(stderr, "pix: %d\n", colblue.pixel);
+
   XFlush(display);
  
   
@@ -593,12 +596,12 @@ typedef struct {
 		      CWColormap,
 		      &attr);
 
-  
-  gcvalues.foreground = 0;
+  gcvalues.foreground = 1;
   gcvalues.background = 0;
   gcvalues.function = GXcopy;
   gcvaluemask = GCForeground | GCBackground |GCFunction;
   gc = XCreateGC(display, win, gcvaluemask, &gcvalues);
+
   
   XMapWindow(display, win);
   XSync(display,True);
@@ -609,6 +612,14 @@ typedef struct {
   
   XDrawLine(display, win,gc, 0,0,100,100);
   XFlush(display);
+  create_shape(720, 576);
+  gcvalues.foreground = 0;
+  gcvalues.background = 1;
+  gcvalues.function = GXcopy;
+  gcvaluemask = GCForeground | GCBackground |GCFunction;
+  gc1 = XCreateGC(display, shape_pixmap, gcvaluemask, &gcvalues);
+
+  XDrawLine(display, shape_pixmap, gc1, 0,0,100,100);
   sleep(1);
   return 0;
 
@@ -622,8 +633,9 @@ void apa()
 
 int create_shape(int w, int h)
 {
-  shape_pixmap = XCreatePixmap(display, screen_num, w, h, 1);
-
+  shape_pixmap = XCreatePixmap(display, win, w, h, 1);
+  XFlush(display);
+  return 0;
 }
 
 void free_shape()
