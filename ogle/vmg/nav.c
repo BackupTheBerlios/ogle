@@ -31,6 +31,8 @@
 #include <dvdread/nav_read.h>
 #include <dvdread/nav_print.h>
 #include "vm.h"
+#include "interpret_config.h"
+
 
 extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
 extern int get_q(MsgEventQ_t *msgq, unsigned char *buffer);
@@ -112,6 +114,9 @@ int main(int argc, char *argv[])
     }
     
     vm_reset();
+
+    interpret_config();
+
     wait_for_init(msgq);
     
     /*  Call start here */

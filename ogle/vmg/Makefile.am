@@ -19,8 +19,8 @@ pkglib_PROGRAMS = ogle_nav
 bin_PROGRAMS = ifo_dump
 noinst_PROGRAMS =  vmg_dump dump
 
-INCLUDES = @TOP_INCLUDES@
-CFLAGS = @CFLAGS@ @DVDREAD_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ 
+CFLAGS = @CFLAGS@ @DVDREAD_CFLAGS@ @XML_CFLAGS@
 
 #vmg_LDADD = $(top_builddir)/common/libcommon.a \
 #	$(top_builddir)/ogle/libmsgevents.la
@@ -42,10 +42,11 @@ ifo_dump_SOURCES = ifo_dump.c \
 
 ogle_nav_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
-	@DVDREAD_LIBS@
+	@DVDREAD_LIBS@ @XML_LIBS@
 ogle_nav_SOURCES = nav.c \
 	vm.c vm.h \
 	decoder.c decoder.h \
 	vmcmd.c vmcmd.h \
-	com.c
+	com.c \
+	interpret_config.c interpret_config.h
 
