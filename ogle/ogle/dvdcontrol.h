@@ -20,6 +20,7 @@
  */
 
 #include <ogle/dvd.h>
+#include <ogle/msgevents.h> // Only for the hack with DVDNextEvent !!
 
 
 typedef struct DVDNav_s DVDNav_t;
@@ -71,8 +72,8 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 /* end info commands */
 
 /* hack */
-DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
-			    const void *windowid);
+DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev);
+DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask);
 
 /* control commands */
 
