@@ -66,8 +66,8 @@ void* xsniff_mouse(void* args) {
 	DVDResult_t res;
 	int x, y;
 
-	x = mev.input.x * 65536 / 720;
-	y = mev.input.y * 65536 / 576;
+	x = mev.input.x;
+	y = mev.input.y;
 	res = DVDMouseSelect(nav2, x, y);
 	  
 	if(res != DVD_E_Ok) {
@@ -81,8 +81,8 @@ void* xsniff_mouse(void* args) {
 	{ 
 	  DVDResult_t res;
 	  int x, y;
-	  x = mev.input.x * 65536 / 720;
-	  y = mev.input.y * 65536 / 576;
+	  x = mev.input.x;
+	  y = mev.input.y;
 	  res = DVDMouseActivate(nav2, x, y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
