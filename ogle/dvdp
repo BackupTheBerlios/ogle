@@ -1,28 +1,23 @@
-#!/bin/sh
+#!/bin/sh -x
+
+export NODE
 
 DVDP_CMD=$0
 
-create_pipe() {
-    if [ ! -p "$NODE" ]; then
-	if [ -e "$NODE" ]; then
-	    rm -f "$NODE";
-	fi
+create_pipe() { 
+    if [ ! -p $1 ]; then
+	rm -f $1;
+        mknod $1 p;
     fi
-    mknod "$NODE" p;
-    chgrp dvd "$NODE";
-    chmod 666 "$NODE";
+    chgrp dvd $1;
+    chmod 666 $1;
 }
 
-NODE=/tmp/ac3
-create_pipe();
-NODE=/tmp/audio
-create_pipe();
-NODE=/tmp/vmg
-create_pipe();
-NODE=/tmp/spu
-create_pipe();
-NODE=/tmp/cmd
-create_pipe();
+create_pipe "/tmp/ac3"
+create_pipe "/tmp/audio"
+create_pipe "/tmp/vmg"
+create_pipe "/tmp/spu"
+create_pipe "/tmp/cmd"
 
 if [ -h "$DVDP_CMD" ]; then
     if [ -x "`which readlink`" ]; then
