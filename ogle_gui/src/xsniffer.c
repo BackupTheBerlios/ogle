@@ -49,15 +49,14 @@ void* xsniff_mouse(void* args) {
     case MotionNotify:
       {
 	DVDResult_t res;
-	int i=5;
+	int i = 5;
 	Bool b;
 
-	usleep(150000);  // wait for 1.5 s
+	usleep(100000);  // wait for 0.1 s
 	b = XCheckMaskEvent(display, PointerMotionMask, &ev);
-	while(b == True && i>=0) {
+	while(b == True && i >= 0) {
 	  i--;
 	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
-	  fprintf(stderr, "#\n");
 	}
 	fprintf(stderr, "MotionNotify: (%d,%d)\n", ev.xbutton.x, ev.xbutton.y);
 	res = DVDMouseSelect(nav, ev.xbutton.x, ev.xbutton.y);
