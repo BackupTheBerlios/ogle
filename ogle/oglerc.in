@@ -258,6 +258,14 @@
 	  <key>KP_Left</key>
 	  <key>Prior</key>
   	</b>
+	<b>	
+	  <action>SaveScreenshot</action>
+	  <key>i</key>
+  	</b>
+	<b>	
+	  <action>SaveScreenshotWithSPU</action>
+	  <key>I</key>
+  	</b>
     </bindings>
   </user_interface>
 </ogle_conf>

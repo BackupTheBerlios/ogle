@@ -562,6 +562,19 @@ void actionSkipBackward(void *data)
   DVDTimeSkip(nav, -skip_seconds);
 }
 
+
+void actionSaveScreenshot(void *data)
+{
+  DVDSaveScreenshot(nav, ScreenshotModeWithoutSPU, NULL);
+}
+
+
+void actionSaveScreenshotWithSPU(void *data)
+{
+  DVDSaveScreenshot(nav, ScreenshotModeWithSPU, NULL);
+}
+
+
 void do_number_action(void *vfun)
 {
   void (*number_action)(void *) = vfun;
@@ -661,6 +674,8 @@ static action_mapping_t actions[] = {
   { "DigitNine", actionDigit, (void *)&digits[9] },
   { "SkipForward", do_number_action, actionSkipForward },
   { "SkipBackward", do_number_action, actionSkipBackward },
+  { "SaveScreenshot", do_action, actionSaveScreenshot },
+  { "SaveScreenshotWithSPU", do_action, actionSaveScreenshotWithSPU },
   { NULL, NULL }
 };
 

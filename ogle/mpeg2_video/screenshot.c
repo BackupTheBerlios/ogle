@@ -318,7 +318,7 @@ static char *strffile(char *format)
 static char *new_file(void) {
   int fd;
   static char *formatted_name = NULL;
-
+  static char oldname[PATH_MAX] = { 0 };
   
     while(file_nr < 10000) {
       formatted_name = strffile(user_formatstr);
@@ -336,7 +336,15 @@ static char *new_file(void) {
       }
       if(errno != EEXIST) { 
 	return "screenshot.jpg"; 
-      } 
+      } else {
+	if(strcmp(formatted_name, oldname) == 0) {
+	  //the generated filename doesn't change
+	  return "screenshot.jpg";
+	}
+      }
+      strncpy(oldname, formatted_name, sizeof(oldname));
+      oldname[sizeof(oldname)-1] = '\0';
+
       file_nr++;
     }
     return formatted_name;
