@@ -94,6 +94,11 @@ static void ifoFree_PGC(pgc_t *pgc);
 static void ifoFree_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl);
 static void ifoFree_PGCIT_internal(pgcit_t *pgcit);
 
+static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title, 
+				  char *suffix);
+static ifo_handle_t *ifoOpenVMGI_File(ifo_handle_t *ifofile, char *suffix);
+static ifo_handle_t *ifoOpenVTSI_File(ifo_handle_t *ifofile, int title,
+				      char *suffix);
 
 static inline int DVDFileSeek_( dvd_file_t *dvd_file, uint32_t offset ) {
   return (DVDFileSeek(dvd_file, (int)offset) == (int)offset);
@@ -110,13 +115,29 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
-  if(!ifofile->file) /* Should really catch any error and try to fallback */
+  if(!ifoOpen_File(ifofile, title, "IFO")) {
+    /* lower functions free the pointer, reallocate */
+    ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
+    if(!ifofile)
+      return 0;
+
+    memset(ifofile, 0, sizeof(ifo_handle_t));
+
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
+    if(!ifoOpen_File(ifofile, title, "BUP"))
+      return 0;
+  }
+  return ifofile;
+}
+
+static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title, 
+				  char *suffix) {
   if(!ifofile->file) {
     if(title) {
-      fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.IFO.\n", title);
+      fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", 
+	      title, suffix);
     } else {
-      fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.IFO.\n");
+      fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
     }
     free(ifofile);
     return 0;
@@ -127,7 +148,8 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 
     /* These are both mandatory. */
     if(!ifoRead_FP_PGC(ifofile) || !ifoRead_TT_SRPT(ifofile)) {
-      fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.IFO).\n");
+      fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n",
+	      suffix);
       ifoClose(ifofile);
       return 0;
     }
@@ -137,7 +159,8 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 
     /* This is also mandatory. */
     if(!ifoRead_VTS_ATRT(ifofile)) {
-      fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.IFO).\n");
+      fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n",
+	      suffix);
       ifoClose(ifofile);
       return 0;
     }
@@ -152,12 +175,11 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
   if(ifoRead_VTS(ifofile)) {
 
     if(!ifoRead_VTS_PTT_SRPT(ifofile) || !ifoRead_PGCIT(ifofile)) {
-      fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.IFO).\n",
-              title);
+      fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.%s).\n",
+              title, suffix);
       ifoClose(ifofile);
       return 0;
     }
-
 
     ifoRead_PGCI_UT(ifofile);
     ifoRead_VTS_TMAPT(ifofile);
@@ -165,8 +187,8 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
     ifoRead_VOBU_ADMAP(ifofile);
 
     if(!ifoRead_TITLE_C_ADT(ifofile) || !ifoRead_TITLE_VOBU_ADMAP(ifofile)) {
-      fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.IFO).\n",
-              title);
+      fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.%s).\n",
+              title, suffix);
       ifoClose(ifofile);
       return 0;
     }
@@ -175,10 +197,11 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
   }
 
   if(title) {
-    fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.IFO).\n",
-	    title, title);
+    fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.%s).\n",
+	    title, title, suffix);
   } else {
-    fprintf(stderr, "libdvdread: Invalid IFO for VMGM (VIDEO_TS.IFO).\n");
+    fprintf(stderr, "libdvdread: Invalid IFO for VMGM (VIDEO_TS.%s).\n", 
+	    suffix);
   }
   ifoClose(ifofile);
   return 0;
@@ -195,10 +218,24 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
   ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_FILE);
-  if(!ifofile->file) /* Should really catch any error and try to fallback */
+  if(!ifoOpenVMGI_File(ifofile, "IFO")) {
+    /* lower functions free the pointer, reallocate */
+    ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
+    if(!ifofile)
+      return 0;
+
+    memset(ifofile, 0, sizeof(ifo_handle_t));
+
     ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_BACKUP_FILE);
+    if(!ifoOpenVMGI_File(ifofile, "BUP"))
+      return 0;
+  }
+  return ifofile;
+}
+
+static ifo_handle_t *ifoOpenVMGI_File(ifo_handle_t *ifofile, char *suffix) {
   if(!ifofile->file) {
-    fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.IFO.\n");
+    fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
     free(ifofile);
     return 0;
   }
@@ -206,7 +243,8 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
   if(ifoRead_VMG(ifofile))
     return ifofile;
 
-  fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.IFO).\n");
+  fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n", 
+	  suffix);
   ifoClose(ifofile);
   return 0;
 }
@@ -228,10 +266,24 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
   }
     
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
-  if(!ifofile->file) /* Should really catch any error and try to fallback */
+  if(!ifoOpenVTSI_File(ifofile, title, "IFO")) {
+    /* lower functions free the pointer, reallocate */
+    ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
+    if(!ifofile)
+      return 0;
+
+    memset(ifofile, 0, sizeof(ifo_handle_t));
+
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
+    if(!ifoOpenVTSI_File(ifofile, title, "BUP"))
+      return 0;
+  }
+  return ifofile;
+}
+
+static ifo_handle_t *ifoOpenVTSI_File(ifo_handle_t* ifofile, int title, char *suffix) {
   if(!ifofile->file) {
-    fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.IFO.\n", title);
+    fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", title, suffix);
     free(ifofile);
     return 0;
   }
@@ -240,8 +292,8 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
   if(ifofile->vtsi_mat)
     return ifofile;
 
-  fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.IFO).\n",
-          title, title);
+  fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.%s).\n",
+          title, title, suffix);
   ifoClose(ifofile);
   return 0;
 }
