@@ -1560,7 +1560,8 @@ int register_id(uint8_t id, int subtype)
   msg_t msg;
   cmd_t *cmd;
   data_buf_head_t *data_buf_head;
-
+  int qsize;
+  
   if(msgqid != -1) {
     
     data_buf_head = (data_buf_head_t *)data_buf_addr;
@@ -1572,7 +1573,25 @@ int register_id(uint8_t id, int subtype)
     cmd->cmdtype = CMD_DEMUX_NEW_STREAM;
     cmd->cmd.new_stream.stream_id = id;
     cmd->cmd.new_stream.subtype = subtype; // different private streams
-    cmd->cmd.new_stream.nr_of_elems = 300;
+    switch(id) {
+    case MPEG2_PRIVATE_STREAM_1:
+      if((subtype&0x1f) == 0x80) {
+	qsize = 30;
+      } else if((subtype&0x1f) == 0x20) {
+	qsize = 30;
+      } else {
+	qsize = 30;
+      }
+      break;
+    case MPEG2_PRIVATE_STREAM_2:
+      qsize = 10;
+      break;
+    default:
+      qsize = 300;
+      break;
+    }
+      
+    cmd->cmd.new_stream.nr_of_elems = qsize;
     cmd->cmd.new_stream.data_buf_shmid = data_buf_head->shmid;
     send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_new_stream_t));
     
