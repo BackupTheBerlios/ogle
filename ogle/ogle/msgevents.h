@@ -125,9 +125,9 @@ typedef struct {
   int y;
   int x_root;
   int y_root;
-  unsigned long time; /* milliseconds */
   unsigned long mod_mask; /* X modifiers (keys/buttons)*/
   unsigned long input;
+  unsigned long time; /* milliseconds */
 } MsgQInputEvent_t;
 
 
