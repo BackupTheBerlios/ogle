@@ -889,6 +889,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
       XResizeWindow(mydisplay, window.win, 
 		    scale.image_width, scale.image_height);
     }
+
     return;
   }
   
@@ -1120,6 +1121,46 @@ static void display_toggle_fullscreen(yuv_image_t *current_image) {
 }
 
 
+void clear_borders(void)
+{
+  // top border
+  if(window.video_area.y > 0) {
+    XClearArea(mydisplay, window.win,
+	       0, 0,
+	       window.window_area.width,
+	       window.video_area.y - 0,
+	       False);
+  }
+  // bottom border
+  if((window.video_area.y + window.video_area.height) <
+     window.window_area.height) {
+    XClearArea(mydisplay, window.win,
+	       0, (window.video_area.y + window.video_area.height),
+	       window.window_area.width,
+	       window.window_area.height -
+	       (window.video_area.y + window.video_area.height),
+	       False);
+  }
+  // left border
+  if(window.video_area.x > 0) {
+    XClearArea(mydisplay, window.win,
+	       0, 0,
+	       window.video_area.x - 0,
+	       window.window_area.height,
+	       False);
+  }
+  // right border
+  if((window.video_area.x + window.video_area.width) <
+     window.window_area.width) {
+    XClearArea(mydisplay, window.win,
+	       (window.video_area.x + window.video_area.width), 0,
+	       window.window_area.width -
+	       (window.video_area.x + window.video_area.width),
+	       window.window_area.height,
+	       False);
+  }
+}
+
 void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
@@ -1315,43 +1356,7 @@ void check_x_events(yuv_image_t *current_image)
 	DpyInfoUpdateResolution(mydisplay, screen_nr,
 				window.window_area.x,
 				window.window_area.y);
-
-	// top border
-	if(window.video_area.y > 0) {
-	  XClearArea(mydisplay, window.win,
-		     0, 0,
-		     window.window_area.width,
-		     window.video_area.y - 0,
-		     False);
-	}
-	// bottom border
-	if((window.video_area.y + window.video_area.height) <
-	   window.window_area.height) {
-	  XClearArea(mydisplay, window.win,
-		     0, (window.video_area.y + window.video_area.height),
-		     window.window_area.width,
-		     window.window_area.height -
-		     (window.video_area.y + window.video_area.height),
-		     False);
-	}
-	// left border
-	if(window.video_area.x > 0) {
-	  XClearArea(mydisplay, window.win,
-		     0, 0,
-		     window.video_area.x - 0,
-		     window.window_area.height,
-		     False);
-	}
-	// right border
-	if((window.video_area.x + window.video_area.width) <
-	   window.window_area.width) {
-	  XClearArea(mydisplay, window.win,
-		     (window.video_area.x + window.video_area.width), 0,
-		     window.window_area.width -
-		     (window.video_area.x + window.video_area.width),
-		     window.window_area.height,
-		     False);
-	}
+	clear_borders();
       }
       break;    
     default:
@@ -1382,6 +1387,13 @@ void display(yuv_image_t *current_image)
       sar_frac_d = current_image->info->picture.sar_frac_d;
       
       display_adjust_size(current_image, -1, -1);
+      //TODO move this
+      XClearArea(mydisplay, window.win,
+		 0, 0,
+		 window.window_area.width,
+		 window.window_area.height,
+		 False);
+
     }
   }
   if(aspect_mode == AspectModeSrcVM) {
@@ -1392,6 +1404,13 @@ void display(yuv_image_t *current_image)
       sar_frac_d = aspect_new_frac_d;
     
       display_adjust_size(current_image, -1, -1);
+      //TODO move this
+      XClearArea(mydisplay, window.win,
+		 0, 0,
+		 window.window_area.width,
+		 window.window_area.height,
+		 False);
+
     }
   }
   
