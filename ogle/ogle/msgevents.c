@@ -246,7 +246,7 @@ void MsgClose(MsgEventQ_t *q)
   
 }
 
-int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
+static int MsgNextEvent_internal(MsgEventQ_t *q, MsgEvent_t *event_return, int interruptible)
 {
   msg_t msg;
   
@@ -254,7 +254,10 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
     if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
 	      q->mtype, 0) == -1) {
       switch(errno) {
-      case EINTR:  // interrupted by syscall, return
+      case EINTR:  // syscall interrupted 
+	if(!interruptible) {
+	  continue;
+	}
 	break;
       default:
 	perror("MsgNextEvent");
@@ -269,6 +272,15 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
   }    
 
 }
+
+int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return) {
+  return MsgNextEvent_internal(q, event_return, 0);
+}
+
+int MsgNextEventInterruptible(MsgEventQ_t *q, MsgEvent_t *event_return) {
+  return MsgNextEvent_internal(q, event_return, 1);
+}
+
 
 #if (defined(BSD) && (BSD >= 199306))
 int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return)

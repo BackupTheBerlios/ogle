@@ -534,6 +534,7 @@ MsgEventQ_t *MsgOpen(int msqid);
 void MsgClose(MsgEventQ_t *q);
 
 int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
+int MsgNextEventInterruptible(MsgEventQ_t *q, MsgEvent_t *event_return);
 
 #if (defined(BSD) && (BSD >= 199306))
 int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return);
