@@ -1246,7 +1246,7 @@ static pgcit_t* get_VTSM_PGCIT(uint16_t lang)
     ifoRead_MENU_PGCI_UT(vtsi);
   
   if(vtsi->vtsm_pgci_ut == NULL)
-    return NULL;
+    return NULL; // error!
   
   i = 0;
   while(i < vtsi->vtsm_pgci_ut->nr_of_lang_units
@@ -1267,8 +1267,8 @@ static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
   if(vmgi->vmgm_pgci_ut == NULL)
     ifoRead_MENU_PGCI_UT(vmgi);
   
-  if(vmgi->vtsm_pgci_ut == NULL)
-    return NULL;
+  if(vmgi->vmgm_pgci_ut == NULL)
+    return NULL; // error!
  
   i = 0;
   while(i < vmgi->vmgm_pgci_ut->nr_of_lang_units
