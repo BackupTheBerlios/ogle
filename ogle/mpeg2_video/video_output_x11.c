@@ -51,6 +51,8 @@
 #include "screenshot.h"
 #include "wm_state.h"
 
+#include "ffb_asm.h"
+
 #define SPU
 #ifdef SPU
 #include "spu_mixer.h"
@@ -969,6 +971,62 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
+	//TODO this is just for testing, should be done from vm/ui
+	//#ifdef NEW_SYNC
+	if(keysym >= XK_1 && keysym <= XK_9) {
+	  m_ev.type = MsgEventQSpeed;
+	  switch(keysym) {
+	  case XK_1:
+	    m_ev.speed.speed = 0.125;
+	    break;
+	  case XK_2:
+	    m_ev.speed.speed = 0.25;
+	    break;
+	  case XK_3:
+	    m_ev.speed.speed = 0.5;
+	    break;
+	  case XK_4:
+	    m_ev.speed.speed = 0.75;
+	    break;
+	  case XK_5:
+	    m_ev.speed.speed = 1.0;
+	    break;
+	  case XK_6:
+	    m_ev.speed.speed = 1.5;
+	    break;
+	  case XK_7:
+	    m_ev.speed.speed = 2.0;
+	    break;
+	  case XK_8:
+	    m_ev.speed.speed = 4.0;
+	    break;
+	  case XK_9:
+	    m_ev.speed.speed = 8.0;
+	    break;
+	  default:
+	    break;
+	  }	    
+	  
+	  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &m_ev, IPC_NOWAIT) == -1) {
+	    switch(errno) {
+	    case EAGAIN:
+	      // msgq full, drop message
+	      break;
+	    case EIDRM:
+	    case EINVAL:
+	      fprintf(stderr, "vo: speed: no msgq\n");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    default:
+	      fprintf(stderr, "vo: speed: couldn't send notification\n");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    }
+	  }
+	
+	
+	}
+	//#endif
 	// hack
 	if(keysym == XK_i) {
 	  screenshot = 1;
@@ -1013,7 +1071,9 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
+
       }
+      
 
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
@@ -1255,11 +1315,10 @@ static void draw_win_x11(window_info *dwin)
 
   if(use_ffb2_yuv2rgb) {
     int stride;
-    int n, m;
+    int m;
     unsigned char *y;
     unsigned char *u;
     unsigned char *v;
-    unsigned int pixel_data;
     area_t fb_area;
     area_t src_area;
     rect_t fb_rect;
@@ -1331,52 +1390,51 @@ static void draw_win_x11(window_info *dwin)
 	    src_area.x, src_area.y, src_area.width, src_area.height);
     */
 
-    for(m = 0; m < src_area.height; m++) {
+
+#define FFB_ASM
+
+#ifdef FFB_ASM
+    for(m = 0; m < src_area.height; m+=2) {
+      uint8_t  *yp;
+      uint8_t *up;
+      uint8_t *vp;
+
+      y = dwin->image->y+(src_area.y+m)*stride;
+      u = dwin->image->u+(src_area.y+m)/2*stride/2;
+      v = dwin->image->v+(src_area.y+m)/2*stride/2;
+
+      yp = &y[src_area.x];
+      up = &u[src_area.x/2];
+      vp = &v[src_area.x/2];
       
+      yuv_plane_to_yuyv_packed(yp, up, vp,
+			       &yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/4)*2],
+			       src_area.width);
+    }
+#else  /* FFB_ASM */
+    
+    for(m = 0; m < src_area.height; m++) {
+      int n;
       y = dwin->image->y+(src_area.y+m)*stride;
       
       u = dwin->image->u+(src_area.y+m)/2*stride/2;
       v = dwin->image->v+(src_area.y+m)/2*stride/2;
       
       for(n = 0; n < src_area.width/2; n++) {
+	unsigned int pixel_data;
+	
 	pixel_data =
 	  (y[src_area.x+n*2]<<24) |
 	  (u[src_area.x/2+n]<<16) |
 	  (y[src_area.x+n*2+1]<<8) | 
 	  (v[src_area.x/2+n]);
 	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n)] = pixel_data;
+	
       }
-      
-      /*
-      for(n = 0; n < src_area.width/2; n+=4) {
-	int p0,p1,p2,p3;
-	p0 =
-	  (y[(src_area.x+n)*2]<<24) |
-	  (u[src_area.x/2+n]<<16) |
-	  (y[(src_area.x+n)*2+1]<<8) | 
-	  (v[src_area.x/2+n]);
-	p1 =
-	  (y[(src_area.x+n+1)*2]<<24) |
-	  (u[src_area.x/2+n+1]<<16) |
-	  (y[(src_area.x+n+1)*2+1]<<8) | 
-	  (v[src_area.x/2+n+1]);
-	p2 =
-	  (y[(src_area.x+n+2)*2]<<24) |
-	  (u[src_area.x/2+n+2]<<16) |
-	  (y[(src_area.x+n+2)*2+1]<<8) | 
-	  (v[src_area.x/2+n+2]);
-	p3 =
-	  (y[(src_area.x+n+3)*2]<<24) |
-	  (u[src_area.x/2+n+3]<<16) |
-	  (y[(src_area.x+n+3)*2+1]<<8) | 
-	  (v[src_area.x/2+n+3]);
-	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n)] = p0;
-	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+1)] = p1;
-	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+2)] = p2;
-	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+3)] = p3;
-      }
-      */
     }
+#endif /* INT_WRITE */
+	
+    
 #ifdef SPU
     if(msgqid != -1) {
       mix_subpicture_rgb(&rgb_fb[fb_area.y*8192+fb_area.x*4], 2048,
@@ -1386,12 +1444,13 @@ static void draw_win_x11(window_info *dwin)
     }
 #endif
     }
-  return;
+    return;
   }  
   /*** end sun ffb2 ***/
-
+  
   /* We must some how guarantee that the ximage isn't used by X11. 
-   This is done by the XIfEvent at the bottom */
+     This is done by the XIfEvent at the bottom */
+  
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
 	  dwin->image->info->picture.padded_width, 
 	  dwin->image->info->picture.padded_height, 
@@ -1407,7 +1466,7 @@ static void draw_win_x11(window_info *dwin)
     // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
   }
 #endif
-
+  
   if(screenshot_spu) {
     screenshot_spu = 0;
     screenshot_rgb_jpg(address,

@@ -52,6 +52,7 @@
 
 #include "common.h"
 #include "timemath.h"
+#include "sync.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -1371,13 +1372,13 @@ void picture_header(void)
     if(last_scr_nr != prev_scr_nr) {   
       fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
 	      last_scr_nr, prev_scr_nr);
-      
+      /*
       fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
 	      TIME_S (ctrl_time[last_scr_nr].realtime_offset),
 	      TIME_SS(ctrl_time[last_scr_nr].realtime_offset),
 	      TIME_S (ctrl_time[prev_scr_nr].realtime_offset),
 	      TIME_SS(ctrl_time[prev_scr_nr].realtime_offset));
-
+      */
       fprintf(stderr, "+++ last_pts: %lld\n", last_pts);
     }
   }
@@ -1873,22 +1874,13 @@ void picture_data(void)
 
       PTS_TO_CLOCKTIME(pts_time, pinfos[buf_id].PTS);
       clocktime_get(&realtime);
+
       if(ctrl_time[last_scr_nr].offset_valid == OFFSET_VALID) {
-	timeadd(&calc_rt,
-		&pts_time,
-		&ctrl_time[last_scr_nr].realtime_offset);
+	calc_realtime_from_scrtime(&calc_rt, &pts_time,
+				   &ctrl_time[last_scr_nr].sync_point);
       } else {
 	calc_rt = realtime;
 	fprintf(stderr, "*vs: offset not valid\n");
-      }
-      
-      if(ctrl_data->mode == MODE_SPEED) {
-	clocktime_t difftime;
-	
-	timesub(&difftime, &realtime, &(ctrl_data->rt_start));
-	timemul(&difftime, &difftime, ctrl_data->speed);
-	timeadd(&realtime, &(ctrl_data->rt_start), &difftime);
-	timesub(&realtime, &realtime, &ctrl_data->vt_offset);
       }
       
       timesub(&err_time, &calc_rt, &realtime);

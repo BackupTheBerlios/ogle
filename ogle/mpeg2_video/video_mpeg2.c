@@ -260,7 +260,8 @@ void block_intra(unsigned int i)
   left = bits_left;
   offset = offs;
   word = nextbits(24);
-  
+
+
   while( 1 ) {
     //get_dct_intra(&runlevel,"dct_dc_subsequent");
     
@@ -303,7 +304,7 @@ void block_intra(unsigned int i)
 	      code);
       exit_program(1);
     }
-    
+
     
     if(tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
       /*dropbits(tab->len); // pic.coding_ext.intra_vlc_format ? 4 : 2 bits */
@@ -390,13 +391,14 @@ void block_intra(unsigned int i)
     word = (cur_word << (64-left)) >> 40;
     
   }
+
   inverse_quantisation_final(inverse_quantisation_sum);
   
   // Clean-up
   bits_left = left;
   offs = offset;
   dropbits(0);
-    
+  
   DPRINTF(4, "nr of coeffs: %d\n", n);
 }
 

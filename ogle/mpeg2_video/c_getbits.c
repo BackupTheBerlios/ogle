@@ -170,16 +170,21 @@ void get_next_packet()
 {
   if(msgqid == -1) {
     if(mmap_base == NULL) {
-      static clocktime_t time_offset = { 0, 0 };
-
+      clocktime_t real_time;
+      clocktime_t scr_time;
+      
       change_file(infilename);
       packet_offset = 0;
       packet_length = 1000000000;
-
+      clocktime_get(&real_time);
       ctrl_time = malloc(sizeof(ctrl_time_t));
       scr_nr = 0;
       ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+      PTS_TO_CLOCKTIME(scr_time, PTS);
+      set_sync_point(&ctrl_time[scr_nr],
+		     &real_time,
+		     &scr_time,
+		     ctrl_data->speed);
 
     } else {
       packet_length = 1000000000;

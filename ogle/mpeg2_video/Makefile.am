@@ -50,8 +50,9 @@ video_output_SOURCES = \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
+	ffb_asm.h ffb_asm.s \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
 
-video_stream_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+video_stream_LDADD = @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
 
 video_output_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ @JPEG_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la

@@ -33,6 +33,7 @@
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
+#include "sync.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -83,8 +84,8 @@ typedef struct {
   unsigned char *buffer;
   unsigned char *next_buffer;
   int scr_nr;
-  clocktime_t base_time;
-  clocktime_t next_time;
+  uint64_t base_time;
+  uint64_t next_time;
   
   int start_time;
   int width;
@@ -286,7 +287,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 }
 
 
-static int get_q(char *dst, int readlen, clocktime_t *display_base_time, 
+static int get_q(char *dst, int readlen, uint64_t *display_base_time, 
 		 int *new_scr_nr)
 {
   MsgEvent_t ev;
@@ -305,7 +306,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   int off;
   int len;
   static int read_offset = 0;
-  clocktime_t pts_time;
+  //  clocktime_t pts_time;
   int cpy_len;
 
   q_head = (q_head_t *)stream_shmaddr;
@@ -335,8 +336,12 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   if(PTS_DTS_flags & 0x2) {
     PTS = data_elem->PTS;
     scr_nr = data_elem->scr_nr;
+    *display_base_time = PTS;
+      /*
     PTS_TO_CLOCKTIME(pts_time, PTS);
-    timeadd(display_base_time, &pts_time, &ctrl_time[scr_nr].realtime_offset);
+    calc_realtime_from_scrtime(display_base_time, &pts_time, 
+			       &ctrl_time[scr_nr].sync_point);
+      */
     *new_scr_nr = scr_nr;
   }
   if(PTS_DTS_flags & 0x1) {
@@ -404,7 +409,7 @@ int init_spu(void)
 
 
 
-int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime, int *scr_nr)
+int get_data(uint8_t *databuf, int bufsize, uint64_t *dtime, int *scr_nr)
 {
   int r;
   static int bytes_to_read = 0;
@@ -1056,10 +1061,10 @@ void decode_display_data(spu_t *spu_info, char *data,
  */
 int next_spu_cmd_pending(spu_t *spu_info) {
   int start_time, offset;
-  clocktime_t realtime, errtime;
+  clocktime_t realtime, errtime, next_time;
 
   /* If next_time haven't been set, try to set it. */
-  if(TIME_S(spu_info->next_time) == 0) {
+  if(spu_info->next_time == 0) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       
@@ -1079,12 +1084,17 @@ int next_spu_cmd_pending(spu_t *spu_info) {
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
     /* starttime measured in 1024/90000 seconds */
-    PTS_TO_CLOCKTIME(spu_info->next_time, 1024 * start_time);
-    timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
+    //   PTS_TO_CLOCKTIME(spu_info->next_time, 1024 * start_time);
+    spu_info->next_time = start_time*1024;
+    spu_info->next_time = spu_info->base_time + spu_info->next_time;
+    //    timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
-
+  
+  PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
   clocktime_get(&realtime);
-  timesub(&errtime, &spu_info->next_time, &realtime);
+  calc_realtime_left_to_scrtime(&errtime, &realtime, &next_time,
+				&ctrl_time[spu_info->scr_nr].sync_point);
+  //  timesub(&errtime, &spu_info->next_time, &realtime);
 
   if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0)
     return 1;
@@ -1140,7 +1150,7 @@ void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
      * The 'next command' is no longer the same, the time needs to
      * be recomputed. 
      */
-    TIME_S(spu_info.next_time) = 0;
+    spu_info.next_time = 0;
   }
 
 
@@ -1180,7 +1190,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
      * The 'next command' is no longer the same, the time needs to
      * be recomputed. 
      */
-    TIME_S(spu_info.next_time) = 0;
+    spu_info.next_time = 0;
   }
 
 
@@ -1238,6 +1248,6 @@ void flush_subpicture(int scr_nr)
      * The 'next command' is no longer the same, the time needs to
      * be recomputed. 
      */
-    TIME_S(spu_info.next_time) = 0;
+    spu_info.next_time = 0;
   }
 }
