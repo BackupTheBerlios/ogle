@@ -319,16 +319,16 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
   
   switch(bytes_read) {
   case -1:
-    fprintf(stderr, "demux: dvdreadblocksfromfile failed\n");
+    fprintf(stderr, "demux: dvdreadblocks failed\n");
     return -1;
   case 0:
-    fprintf(stderr, "demux: dvdreadblocksfromfile returned 0\n");
+    fprintf(stderr, "demux: dvdreadblocks returned 0\n");
     break;
   default:
     break;
   }
   if(bytes_read != nblocks * 2048)
-    fprintf(stderr, "demux: dvdreadblocksfromfile only got %d, wanted %d\n",
+    fprintf(stderr, "demux: dvdreadblocks only got %d, wanted %d\n",
 	    bytes_read, nblocks * 2048);
   
   return 0;
