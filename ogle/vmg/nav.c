@@ -621,14 +621,9 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       }
       if(idx < 19) {
 	// Fake this, as a jump with blockN as destination
-	// Humm was this fwda a absolute VOBU addres withing the VOBS or
-	// was it just within VOB/the cell... 
-	cell_playback_t *cell;
-
-	cell = &state.pgc->cell_playback[state.cellN - 1];
+	// blockN is relative the start of the cell
 	state.blockN = dsi->dsi_gi.nv_pck_lbn +
 	  (dsi->vobu_sri.fwda[idx] & 0x3fffffff) - cell->first_sector;
-
 	res = 1;
       } else
 	res = 0; // no new block found.. must be at the end of the cell..
@@ -654,12 +649,9 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       }
       if(idx < 19) {
 	// Fake this, as a jump with blockN as destination
-	cell_playback_t *cell;
-
-	cell = &state.pgc->cell_playback[state.cellN - 1];
+	// blockN is relative the start of the cell
 	state.blockN = dsi->dsi_gi.nv_pck_lbn -
 	  (dsi->vobu_sri.bwda[18-idx] & 0x3fffffff) - cell->first_sector;
-
 	res = 1;
       } else
 	res = 0; // no new_block found.. must be at the end of the cell..    
