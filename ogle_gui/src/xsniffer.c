@@ -34,16 +34,14 @@
 
 #include "xsniffer.h"
 #include "callbacks.h"
-
+#include "bindings.h"
 
 extern int msgqid;
 
-extern ZoomMode_t zoom_mode;
 
 static DVDNav_t *nav2;
 pthread_t at;
 
-extern GladeXML *xml;
 
 void xsniff_init() {
   DVDResult_t res;
@@ -64,6 +62,8 @@ void xsniff_init() {
 
 void* xsniff_mouse(void* args) {
   MsgEvent_t mev;
+
+  init_actions(nav2);
   
   fprintf(stderr, "xsniff_mouse\n");
   while(1) {
@@ -110,99 +110,8 @@ void* xsniff_mouse(void* args) {
       {
 	KeySym keysym;
 	keysym = mev.input.input;
-	
-	switch(keysym) {
-	case XK_Up:
-	  DVDUpperButtonSelect(nav2);	  
-	  break;
-	case XK_Down:
-	  DVDLowerButtonSelect(nav2);
-	  break;
-	case XK_Left:
-	  DVDLeftButtonSelect(nav2);
-	  break;
-	case XK_Right:
-	  DVDRightButtonSelect(nav2);
-	  break;
-	case XK_Return:
-	case XK_KP_Enter:
-	  DVDButtonActivate(nav2);
-	break;
-	case XK_t:
-	  DVDMenuCall(nav2, DVD_MENU_Title);
-	  break;
-	case XK_r:
-	  DVDMenuCall(nav2, DVD_MENU_Root);
-	  break;
-	case XK_s:
-	  DVDMenuCall(nav2, DVD_MENU_Subpicture);
-	  break;
-	case XK_a:
-	  DVDMenuCall(nav2, DVD_MENU_Audio);
-	  break;
-	case XK_g:
-	  DVDMenuCall(nav2, DVD_MENU_Angle);
-	  break;
-	case XK_p:
-	  DVDMenuCall(nav2, DVD_MENU_Part);
-	  break;
-	case XK_c:
-	  DVDResume(nav2);
-	  break;
-	case XK_greater:
-	  // next;
-	  DVDNextPGSearch(nav2);
-	  break;
-	case XK_less:
-	// prev;
-	DVDPrevPGSearch(nav2);
-	break;
-	case XK_q:
-	  {
-	    DVDResult_t res;
-	    res = DVDCloseNav(nav2);
-	    if(res != DVD_E_Ok ) {
-	      DVDPerror("DVDCloseNav2", res);
-	    }
-	    exit(0);
-	  }
-	  break;
-	case XK_f:
-	  // fullscreen
-	  {
-	    GtkWidget *w;
-	    gboolean val;
-	    
-	    zoom_mode = (zoom_mode == ZoomModeResizeAllowed) 
-	      ? ZoomModeFullScreen : ZoomModeResizeAllowed;
 
-	    val = (zoom_mode == ZoomModeFullScreen) ? TRUE : FALSE;
-
-            w = glade_xml_get_widget(xml, "full_screen");
-	    if(w==NULL) {
-	      fprintf(stderr, "xsniffer: failed to lookup_widget();\n");
-	    }
-	    
-	    gdk_threads_enter(); // Toggle the menu checkbutton.
-	    gtk_signal_handler_block_by_func(GTK_OBJECT(w), 
-					     on_full_screen_activate, NULL);
-	    gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(w), val);
-	    gtk_signal_handler_unblock_by_func(GTK_OBJECT(w),
-					     on_full_screen_activate, NULL);
-	    gdk_threads_leave();
-
-	    DVDSetZoomMode(nav2, zoom_mode);
-
-	    
-	    
-	  }
-	  break;
-	  
-	default:
-	  break;
-	}
-      default:
-	break;
+	do_keysym_action(keysym);
       }
     }
   }

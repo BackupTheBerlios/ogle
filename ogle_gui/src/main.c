@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <locale.h>
+#include <string.h>
 
 #include <gtk/gtk.h>
 #include <glade/glade.h>
@@ -30,23 +31,38 @@
 #include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
 
+#include "debug_print.h"
 #include "menu.h"
 #include "audio.h"
 #include "subpicture.h"
+#include "bindings.h"
+#include "interpret_config.h"
 
 #define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "ogle_gui.glade"
 
+char *program_name;
 DVDNav_t *nav;
-
+char *dvd_path;
 int msgqid;
 GladeXML *xml;
 
-ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 GtkWidget *app;
+
+void set_dvd_path(char *new_path)
+{
+  if(dvd_path != NULL) {
+    free(dvd_path);
+    dvd_path = NULL;
+  }
+  if(new_path != NULL) {
+    dvd_path = strdup(new_path);
+  }
+}
 
 int
 main (int argc, char *argv[])
 {
+  program_name = argv[0];
 #ifdef ENABLE_NLS
   setlocale(LC_ALL, "");
   bindtextdomain (PACKAGE, PACKAGE_LOCALE_DIR);
@@ -58,6 +74,16 @@ main (int argc, char *argv[])
   }
   msgqid = atoi(argv[2]);
 
+  DNOTE("call init_interpret_config\n");
+  init_interpret_config(program_name,
+			add_keybinding,
+			set_dvd_path);
+  DNOTE("return init_interpret_config\n");
+
+  DNOTE("call interpret_config\n");
+  interpret_config();
+  DNOTE("return interpret_config\n");
+  
   gtk_init(&argc, &argv);
   glade_init();
 
@@ -69,6 +95,7 @@ main (int argc, char *argv[])
       exit(1);
     }
   }
+  
   
   xsniff_init();
   

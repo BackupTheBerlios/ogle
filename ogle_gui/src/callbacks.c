@@ -36,13 +36,14 @@
 
 #include "xsniffer.h" //hack
 
-extern ZoomMode_t zoom_mode;
+ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 
 extern DVDNav_t *nav;
+extern char *dvd_path;
 extern GladeXML *xml;
 
-static int isPaused = 0;
-static double speed = 1.0;
+int isPaused = 0;
+double speed = 1.0;
 
 void
 on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
@@ -120,17 +121,8 @@ on_opendvd_activate                  (GtkMenuItem     *menuitem,
 				      gpointer         user_data) 
 {
   DVDResult_t res;
-#ifdef LINUX
-  char *dev="/dev/dvd";
-#else
-#ifdef SOLARIS
-  char *dev="/cdrom/cdrom0";
-#else
-#error "No default path."
-#endif
-#endif
 
-  res = DVDSetDVDRoot(nav, dev);
+  res = DVDSetDVDRoot(nav, dvd_path);
   if(res != DVD_E_Ok) {
     DVDPerror("callbacks.on_opendvd_activate(): DVDSetDVDRoot", res);
     return;
