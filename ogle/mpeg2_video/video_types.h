@@ -226,9 +226,8 @@ typedef struct {
   uint16_t temporal_reference;
   uint8_t picture_coding_type;
   uint16_t vbv_delay;
-  uint8_t full_pel_forward_vector;
+  uint8_t full_pel_vector[2];
   uint8_t forward_f_code;
-  uint8_t full_pel_backward_vector;
   uint8_t backward_f_code;
   uint8_t extra_bit_picture;
   uint8_t extra_information_picture;  

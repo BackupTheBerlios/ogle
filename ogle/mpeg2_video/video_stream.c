@@ -1241,21 +1241,22 @@ void picture_header(void)
 #endif
 
   pic.header.vbv_delay = GETBITS(16, "vbv_delay");
+  
+  /* To be able to use the same motion vector code for MPEG-1 and 2 we
+     use f_code[] instead of forward_f_code/backward_f_code. 
+     In MPEG-2 f_code[] values will be read from the bitstream (later) in 
+     picture_coding_extension(). */
 
   if((pic.header.picture_coding_type == 0x02) ||
      (pic.header.picture_coding_type == 0x03)) {
-    pic.header.full_pel_forward_vector 
-      = GETBITS(1, "full_pel_forward_vector");
+    pic.header.full_pel_vector[0] = GETBITS(1, "full_pel_forward_vector");
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
-    /* To be able to use the same motion vector code for MPEG-1 and 2. In 
-       MPEG-2 these values will be read later in picture_coding_extension(). */
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
   }
   
   if(pic.header.picture_coding_type == 0x03) {
-    pic.header.full_pel_backward_vector 
-      = GETBITS(1, "full_pel_backward_vector");
+    pic.header.full_pel_vector[1] = GETBITS(1, "full_pel_backward_vector");
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
     pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
