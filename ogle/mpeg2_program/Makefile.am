@@ -17,7 +17,8 @@
 
 pkglib_PROGRAMS = ogle_mpeg_ps
 
-INCLUDES = @TOP_INCLUDES@ @DVDREAD_CFLAGS@
+AM_CPPFLAGS = @TOP_INCLUDES@ @DVDREAD_CPPFLAGS@
+AM_CFLAGS = @O_CFLAGS@
 
 ogle_mpeg_ps_SOURCES = programstream.c programstream.h
 

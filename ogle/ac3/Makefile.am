@@ -17,7 +17,9 @@
 
 pkglib_PROGRAMS = ogle_ac3_p ogle_audio
 
-INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@ @MAD_CFLAGS@ @XML_CFLAGS@
+AM_CPPFLAGS = @TOP_INCLUDES@ @A52_CPPFLAGS@ @MAD_CPPFLAGS@ @XML_CFLAGS@
+
+AM_CFLAGS = @O_CFLAGS@
 
 ogle_ac3_p_SOURCES = ac3dec_wrap.c
 ogle_ac3_p_LDADD = $(top_builddir)/common/libcommon.a \

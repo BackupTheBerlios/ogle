@@ -17,6 +17,7 @@
 
 noinst_LIBRARIES = libcommon.a  
 
-INCLUDES = @TOP_INCLUDES@
+AM_CPPFLAGS = @TOP_INCLUDES@
+AM_CFLAGS = @O_CFLAGS@
 
 libcommon_a_SOURCES = sync.c timemath.c

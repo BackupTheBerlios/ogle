@@ -43,7 +43,8 @@ EXTRA_DIST = \
 
 pkglib_PROGRAMS = ogle_mpeg_vs ogle_vout
 
-INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@ @XML_CFLAGS@
+AM_CPPFLAGS = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CPPFLAGS@ @JPEG_CPPFLAGS@ @XML_CFLAGS@
+AM_CFLAGS = @O_CFLAGS@
 
 ogle_mpeg_vs_SOURCES = \
 	video_stream.c video_stream.h \

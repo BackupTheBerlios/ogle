@@ -17,7 +17,8 @@
 
 pkglib_PROGRAMS = ogle_ctrl
 
-INCLUDES = @TOP_INCLUDES@
+AM_CPPFLAGS = @TOP_INCLUDES@
+AM_CFLAGS = @O_CFLAGS@
 
 ogle_ctrl_SOURCES = ctrl.c
 ogle_ctrl_LDADD = $(top_builddir)/common/libcommon.a \

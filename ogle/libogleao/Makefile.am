@@ -1,4 +1,5 @@
 
+AM_CFLAGS = @O_CFLAGS@
 
 noinst_LTLIBRARIES = libogleao.la
 libogleao_la_SOURCES = ogle_ao.h ogle_ao_private.h ogle_ao.c \

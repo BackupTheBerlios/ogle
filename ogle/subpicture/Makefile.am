@@ -17,7 +17,8 @@
 
 pkglib_PROGRAMS = spu_wrap
 
-INCLUDES = @TOP_INCLUDES@
+AM_CPPFLAGS = @TOP_INCLUDES@
+AM_CFLAGS = @O_CFLAGS@
 
 spu_wrap_SOURCES = spu_wrap.c
 spu_wrap_LDADD = $(top_builddir)/common/libcommon.a \

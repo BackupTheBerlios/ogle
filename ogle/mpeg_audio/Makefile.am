@@ -17,8 +17,8 @@
 
 pkglib_PROGRAMS = mpg123_wrap
 
-INCLUDES = @TOP_INCLUDES@
-
+AM_CPPFLAGS = @TOP_INCLUDES@
+AM_CFLAGS = @O_CFLAGS@
 mpg123_wrap_SOURCES = mpg123_wrap.c
 mpg123_wrap_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

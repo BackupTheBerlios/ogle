@@ -17,7 +17,8 @@
 
 pkglib_PROGRAMS = ogle_cli
 
-INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @XML_CFLAGS@
+AM_CPPFLAGS = @TOP_INCLUDES@ @X_CFLAGS@ @XML_CFLAGS@
+AM_CFLAGS = @O_CFLAGS@
 
 ogle_cli_SOURCES = main.c \
 	xsniffer.c xsniffer.h \

@@ -7,7 +7,6 @@ AC_CANONICAL_HOST
 
 dnl Checks for programs.
 AC_PROG_CC
-ifdef([AM_PROG_AS],[AM_PROG_AS],[])
 
 dnl AM_DISABLE_SHARED
 AM_PROG_LIBTOOL
@@ -100,7 +99,7 @@ TMPCFLAGS=$CFLAGS
 CFLAGS="-L$jpeg_path/lib"
 AC_CHECK_LIB(jpeg, main, 
   [ JPEG_LIBS="-L$jpeg_path/lib -R$jpeg_path/lib -ljpeg"
-    JPEG_CFLAGS=-I$jpeg_path/include
+    JPEG_CPPFLAGS=-I$jpeg_path/include
   ],
   [AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])], 
   -L$jpeg_path/lib)
@@ -110,25 +109,25 @@ CFLAGS=$TMPCFLAGS
 AC_ARG_WITH(libjpeg-includes, 
   AC_HELP_STRING([--with-libjpeg-includes=path],
                  [specify location of libjpeg headers]), 
-  [JPEG_CFLAGS=-I$with_libjpeg_includes])
+  [JPEG_CPPFLAGS=-I$with_libjpeg_includes])
 
-dnl if test x"$JPEG_CFLAGS" = x"-I/usr/local/include"; then
-dnl  JPEG_CFLAGS=""
+dnl if test x"$JPEG_CPPFLAGS" = x"-I/usr/local/include"; then
+dnl  JPEG_CPPFLAGS=""
 dnl fi
-if test x"$JPEG_CFLAGS" = x"-I/usr/include"; then
-  JPEG_CFLAGS=""
+if test x"$JPEG_CPPFLAGS" = x"-I/usr/include"; then
+  JPEG_CPPFLAGS=""
 fi
 
 saved_CPPFLAGS=$CPPFLAGS
 dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
-CPPFLAGS="-w $CPPFLAGS $JPEG_CFLAGS"
+CPPFLAGS="-w $CPPFLAGS $JPEG_CPPFLAGS"
 AC_CHECK_HEADER(jpeglib.h,, 
   [ AC_MSG_WARN([Can not find jpeglib.h, need the libjpeg headers])
     AC_MSG_ERROR([Install the headers and/or specify their location]) 
   ])
 CPPFLAGS=$saved_CPPFLAGS
 
-AC_SUBST(JPEG_CFLAGS)
+AC_SUBST(JPEG_CPPFLAGS)
 AC_SUBST(JPEG_LIBS)
 
 dnl ---------------------------------------------------------
@@ -186,7 +185,7 @@ CFLAGS="-L$dvd_path/lib"
 
 AC_CHECK_LIB(dvdread, DVDDiscID, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
-    DVDREAD_CFLAGS=-I$dvd_path/include
+    DVDREAD_CPPFLAGS=-I$dvd_path/include
   ],
   [
     AC_CHECK_LIB(dvdread, DVDOpen, 
@@ -200,29 +199,29 @@ CFLAGS=$TMPCFLAGS
 AC_ARG_WITH(dvdread-includes, 
   AC_HELP_STRING([--with-dvdread-includes=path],
               [specify location of libdvdread headers]), 
-  [DVDREAD_CFLAGS=-I$with_dvdread_includes])
+  [DVDREAD_CPPFLAGS=-I$with_dvdread_includes])
 
-dnl if test x"$DVDREAD_CFLAGS" = x"-I/usr/local/include"; then
-dnl  DVDREAD_CFLAGS=""
+dnl if test x"$DVDREAD_CPPFLAGS" = x"-I/usr/local/include"; then
+dnl  DVDREAD_CPPFLAGS=""
 dnl fi
-if test x"$DVDREAD_CFLAGS" = x"-I/usr/include"; then
-  DVDREAD_CFLAGS=""
+if test x"$DVDREAD_CPPFLAGS" = x"-I/usr/include"; then
+  DVDREAD_CPPFLAGS=""
 fi
 
 dnl Linux and Solaris needs this to prototype lseek64 and others
 dnl Should really be taken from getconf...
-DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
+DVDREAD_CPPFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CPPFLAGS"
 
 saved_CPPFLAGS=$CPPFLAGS
 dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
-CPPFLAGS="-w $CPPFLAGS $DVDREAD_CFLAGS"
+CPPFLAGS="-w $CPPFLAGS $DVDREAD_CPPFLAGS"
 AC_CHECK_HEADER(dvdread/dvd_reader.h,, 
   [ AC_MSG_WARN([Can not find dvd_reader.h, need the libdvdread headers])
     AC_MSG_ERROR([Install the headers and/or specify their location]) 
   ])
 CPPFLAGS=$saved_CPPFLAGS
 
-AC_SUBST(DVDREAD_CFLAGS)
+AC_SUBST(DVDREAD_CPPFLAGS)
 AC_SUBST(DVDREAD_ALIGN_CFLAGS)
 AC_SUBST(DVDREAD_LIBS)
 
@@ -248,22 +247,22 @@ if test "x$mlib_path" != xno; then
   CFLAGS="$CFLAGS -L$mlib_path/lib"
   AC_CHECK_LIB(mlib, mlib_VideoDCT8x8_S16_S16, 
 	       [ MLIB_LIBS="-L$mlib_path/lib -R$mlib_path/lib -lmlib"
-                 MLIB_CFLAGS=-I$mlib_path/include
+                 MLIB_CPPFLAGS=-I$mlib_path/include
                  have_mlib=yes
                ])
   CFLAGS=$saved_CPPFLAGS
 fi
 if test "x$have_mlib" = xyes; then
-  dnl if test x"$MLIB_CFLAGS" = x"-I/usr/local/include"; then
-  dnl   MLIB_CFLAGS=""
+  dnl if test x"$MLIB_CPPFLAGS" = x"-I/usr/local/include"; then
+  dnl   MLIB_CPPFLAGS=""
   dnl fi
-  if test x"$MLIB_CFLAGS" = x"-I/usr/include"; then
-    MLIB_CFLAGS=""
+  if test x"$MLIB_CPPFLAGS" = x"-I/usr/include"; then
+    MLIB_CPPFLAGS=""
   fi
 
   saved_CPPFLAGS=$CPPFLAGS
   dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
-  CPPFLAGS="-w $CPPFLAGS $MLIB_CFLAGS"
+  CPPFLAGS="-w $CPPFLAGS $MLIB_CPPFLAGS"
   AC_CHECK_HEADER(mlib_types.h,, 
     [ AC_MSG_WARN([Can not find mlib_types.h, need the mediaLib headers])
       AC_MSG_ERROR([Install the headers and/or specify their location]) 
@@ -272,7 +271,7 @@ if test "x$have_mlib" = xyes; then
 fi
 
 
-AC_SUBST(MLIB_CFLAGS)
+AC_SUBST(MLIB_CPPFLAGS)
 AC_SUBST(MLIB_LIBS)
 AM_CONDITIONAL(MLIB_LIBS, [test "x$have_mlib" = xyes])
 if test "x$have_mlib" = xyes; then
@@ -315,7 +314,7 @@ dnl a52_free is a new function in 0.7.3
 AC_CHECK_LIB(a52, a52_free, 
   [ 
     A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
-    A52_CFLAGS=-I$a52_path/include
+    A52_CPPFLAGS=-I$a52_path/include
   ],
   [
     if test "x$have_mlib" = xyes; then
@@ -338,27 +337,27 @@ CFLAGS=$TMPCFLAGS
 AC_ARG_WITH(liba52-includes, 
   AC_HELP_STRING([--with-liba52-includes=path],
                  [specify location of liba52 headers]), 
-  [A52_CFLAGS=-I$with_liba52_includes])
+  [A52_CPPFLAGS=-I$with_liba52_includes])
 
 dnl update to test for 0.7.2 / 0.7.3 MM_ACCEL_DJBFFT ?
 
-dnl if test x"$A52_CFLAGS" = x"-I/usr/local/include"; then
-dnl  A52_CFLAGS=""
+dnl if test x"$A52_CPPFLAGS" = x"-I/usr/local/include"; then
+dnl  A52_CPPFLAGS=""
 dnl fi
-if test x"$A52_CFLAGS" = x"-I/usr/include"; then
-  A52_CFLAGS=""
+if test x"$A52_CPPFLAGS" = x"-I/usr/include"; then
+  A52_CPPFLAGS=""
 fi
 
 saved_CPPFLAGS=$CPPFLAGS
 dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
-CPPFLAGS="-w $CPPFLAGS $A52_CFLAGS"
+CPPFLAGS="-w $CPPFLAGS $A52_CPPFLAGS"
 AC_CHECK_HEADER(a52dec/a52.h,, 
     [ AC_MSG_WARN([Can not find a52dec/a52.h, need the liba52 headers])
       AC_MSG_ERROR([Install a52dec(-dev) and/or specify it's location]) 
     ])
 CPPFLAGS=$saved_CPPFLAGS
 
-AC_SUBST(A52_CFLAGS)
+AC_SUBST(A52_CPPFLAGS)
 AC_SUBST(A52_LIBS)
 
 dnl ---------------------------------------------------------
@@ -394,7 +393,7 @@ CFLAGS="-L$mad_path/lib"
 AC_CHECK_LIB(mad, mad_frame_decode, 
   [ 
     MAD_LIBS="-L$mad_path/lib -R$mad_path/lib -lmad" 
-    MAD_CFLAGS=-I$mad_path/include
+    MAD_CPPFLAGS=-I$mad_path/include
   ],[AC_MSG_ERROR([Need libmad, install it or specify it's location])],
     [-L$mad_path/lib])
 
@@ -403,18 +402,18 @@ CFLAGS=$TMPCFLAGS
 AC_ARG_WITH(libmad-includes, 
   AC_HELP_STRING([--with-libmad-includes=path],
                  [specify location of libmad headers]), 
-  [MAD_CFLAGS=-I$with_libmad_includes])
+  [MAD_CPPFLAGS=-I$with_libmad_includes])
 
 saved_CPPFLAGS=$CPPFLAGS
 dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
-CPPFLAGS="-w $CPPFLAGS $MAD_CFLAGS"
+CPPFLAGS="-w $CPPFLAGS $MAD_CPPFLAGS"
 AC_CHECK_HEADER(mad.h,, 
     [ AC_MSG_WARN([Can not find mad.h, need the libmad headers])
       AC_MSG_ERROR([Install libmad and/or specify it's location]) 
     ])
 CPPFLAGS=$saved_CPPFLAGS
 
-AC_SUBST(MAD_CFLAGS)
+AC_SUBST(MAD_CPPFLAGS)
 AC_SUBST(MAD_LIBS)
 
 dnl ---------------------------------------------------------
@@ -694,14 +693,14 @@ else
     dnl non-GCC flags - we probably need exact configuration triplets here.
     case "$host" in
     sparc-sun-solaris*)
-        CFLAGS="$CFLAGS -xCC -fast"
+	O_CFLAGS="-xCC -fast"
 	dnl The pragma pack(0) parts are not sticky, so we need to give this
 	dnl 'noalign' flag to cc for parts that access the ifo and nav structs.
 	DVDREAD_ALIGN_CFLAGS="-xmemalign"
     ;;
     alpha*)
         dnl Compaq cc
-        CFLAGS="$CFLAGS -fast"
+        O_CFLAGS="-fast"
     esac
 fi
 
@@ -720,7 +719,7 @@ USE_SPARCASM=
 case "$host_cpu" in
 i?86)
 	if test "x$GCC" = xyes; then
-	  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
+	  O_CFLAGS="$O_CFLAGS -fomit-frame-pointer -funroll-loops"
 dnl Do we need this ? should we hard code it to pentium/pentiumpro?
 dnl what about k6 / athlon
 dnl will it still assemble the mmx instructions when -march=i386
@@ -731,14 +730,14 @@ dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
 	;;
 sparc)
 	if test "x$GCC" = xyes; then
-	  CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
+	  O_CFLAGS="$O_CFLAGS -mcpu=ultrasparc -mvis"
 	  AC_DEFINE([USE_SPARCASM],1,[use assembler routines])
 	  USE_SPARCASM=yes
 	fi
 	;;
 powerpc|ppc)
 	if test "x$GCC" = xyes; then
-	  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
+	  O_CFLAGS="$O_CFLAGS -fomit-frame-pointer -funroll-loops"
 dnl is the right? needed? use just -m7400 ? need new gcc for that..
 dnl is there a -mcpu -march flag that we should use?
 dnl should be a try compile on this line.. 
@@ -749,9 +748,9 @@ dnl that sets USE_ALTIVEC depending on the success
         ;;
 alphaev6|alphaev67|alphaev68|alphaev7)
 	if test "x$GCC" = xyes; then
-	  CFLAGS="$CFLAGS -mcpu=ev6"
+	  O_CFLAGS="$O_CFLAGS -mcpu=ev6"
         else  dnl Probably compaq cc
-          CFLAGS="$CFLAGS -mcpu=ev6"
+          O_CFLAGS="$O_CFLAGS -mcpu=ev6"
 	fi
 esac
 
@@ -783,7 +782,10 @@ BUILDINFO="${BUILDINFO}${BUILD_MLIB:+ mlib}${BUILD_XV:+ Xv}"
 BUILDINFO="${BUILDINFO}${BUILD_AUDIO_OSS:+ oss}${BUILD_AUDIO_ALSA:+ alsa}"
 BUILDINFO="${BUILDINFO}${BUILD_AUDIO_SOLARIS:+ solaris}${BUILD_AUDIO_OBSD:+ obsd}"
 
+CCASFLAGS="$O_CFLAGS $CFLAGS"
+ifdef([AM_PROG_AS],[AM_PROG_AS],[])
 
+AC_SUBST(O_CFLAGS)
 AC_SUBST(BUILDINFO)
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, [test "x$USE_MMX" = xyes])
