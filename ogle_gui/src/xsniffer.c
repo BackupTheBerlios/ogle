@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <config.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -27,6 +29,10 @@
 #include <X11/keysym.h>
 
 #include <gtk/gtk.h>
+
+#ifdef HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
@@ -64,7 +70,14 @@ void* xsniff_mouse(void* args) {
   init_actions(nav2);
   
   while(1) {
-    DVDNextEvent(nav2, &mev);
+
+#if (defined(BSD) && (BSD >= 199306))
+    if (DVDNextEventNonBlocking(nav2, &mev) != DVD_E_Ok)
+      pthread_exit(NULL);
+#else
+    if (DVDNextEvent(nav2, &mev) != DVD_E_Ok)
+      pthread_exit(NULL);
+#endif
     
     switch(mev.type) {
 
