@@ -35,15 +35,6 @@
 #include "vm.h"
 
 #include "debug_print.h"
-#ifndef TRACE
-#undef DNOTE
-#if defined(__GNUC__) && ( __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95))
-#define DNOTE(str, args...) while(0)
-#else /* __GNUC__ < 2 */
-#define DNOTE(format, ...) while(0) 
-#endif 
-#endif /* TRACE */
-
 
 static dvd_reader_t *dvd;
 static ifo_handle_t *vmgi;
@@ -739,6 +730,10 @@ static int vm_resume_int(link_t *link_return)
   int i;
   link_t link_values;
   
+  if(state.domain == VTS_DOMAIN) { // Not allowed in the Titlte domain
+    return 0; // Fail
+  }
+  
   // Check and see if there is any rsm info!!
   if(state.rsm_vtsN == 0) {
     return 0; // Fail
@@ -845,7 +840,7 @@ int vm_get_subp_stream(int subpN)
   
   if(subpN < 32) { /* a valid logical stream */
     /* Is this logical stream present */ 
-    if(state.pgc->subp_control[subpN] & (1<<31)) {
+    if(state.pgc->subp_control[subpN] >> 31) {
       if(source_aspect == 0) /* 4:3 */	     
 	streamN = (state.pgc->subp_control[subpN] >> 24) & 0x1f;  
       if(source_aspect == 3) /* 16:9 */
@@ -872,7 +867,7 @@ int vm_get_subp_active_stream(void)
   /* If no such stream, then select the first one that exists. */
   if(streamN == -1)
     for(subpN = 0; subpN < 32; subpN++)
-      if(state.pgc->subp_control[subpN] & (1<<31)) {
+      if(state.pgc->subp_control[subpN] >> 31) {
 	streamN = vm_get_subp_stream(subpN);
 	break;
       }
@@ -1397,7 +1392,7 @@ static link_t play_Cell_post(void)
 {
   cell_playback_t *cell;
   
-  DNOTE("play_Cell_post: state.cellN (%i)\n", state.cellN);
+  DNOTE("%s", "play_Cell_post: state.cellN (%i)\n", state.cellN);
   
   cell = &state.pgc->cell_playback[state.cellN - 1];
   
@@ -1415,12 +1410,12 @@ static link_t play_Cell_post(void)
   if(cell->cell_cmd_nr != 0) {
     link_t link_values;
     
-    DNOTE("Cell command pressent, executing\n");
+    DNOTE("%s", "Cell command pressent, executing\n");
     if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell->cell_cmd_nr - 1], 1,
 		  &state.registers, &link_values)) {
       return link_values;
     } else {
-       DNOTE("Cell command didn't do a Jump, Link or Call\n");
+       DNOTE("%s", "Cell command didn't do a Jump, Link or Call\n");
       // Error ?? goto tail? goto next PG? or what? just continue?
     }
   }
@@ -1461,7 +1456,7 @@ static link_t play_Cell_post(void)
   
   /* Figure out the correct pgN for the new cell */ 
   if(update_PGN()) {
-    DNOTE("last cell in this PGC\n");
+    DNOTE("%s", "last cell in this PGC\n");
     return play_PGC_post();
   }
 
@@ -1473,7 +1468,7 @@ static link_t play_PGC_post(void)
 {
   link_t link_values;
 
-  DNOTE("play_PGC_post:\n");
+  DNOTE("%s", "play_PGC_post:\n");
   
   assert(state.pgc->still_time == 0); // FIXME $$$
 
@@ -1491,7 +1486,7 @@ static link_t play_PGC_post(void)
   // Or perhaps handle it here?
   {
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
-    DNOTE("** Fell of the end of the pgc, continuing in NextPGC\n");
+    DNOTE("%s", "** Fell of the end of the pgc, continuing in NextPGC\n");
     if(state.domain == FP_DOMAIN) {
       /* User should select a title them self, i.e. we should probably go 
 	 to the STOP_DOMAIN.  Untill we have that implemented start playing
@@ -1994,13 +1989,13 @@ static pgcit_t* get_PGCIT(void) {
 }
 
 int vm_get_udf_volids(char *volid, unsigned int volidlen,
-		      char *volsetid, unsigned int volsetidlen)
+		      unsigned char *volsetid, unsigned int volsetidlen)
 {
   return DVDUDFVolumeInfo(dvd, volid, volidlen, volsetid, volsetidlen);
 }
 
 int vm_get_iso_volids(char *volid, unsigned int volidlen,
-		      char *volsetid, unsigned int volsetidlen)
+		      unsigned char *volsetid, unsigned int volsetidlen)
 {
   return DVDISOVolumeInfo(dvd, volid, volidlen, volsetid, volsetidlen);
 }
