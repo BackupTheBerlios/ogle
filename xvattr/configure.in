@@ -1,0 +1,25 @@
+AC_INIT(xvattr.c)
+AM_INIT_AUTOMAKE(xvattr, 1.2)
+     
+dnl Checks for programs.
+AC_PROG_CC
+     
+dnl Checks for header files.
+AC_STDC_HEADERS
+     
+dnl
+dnl Checks for X11
+dnl
+AC_PATH_XTRA
+
+dnl Checks for libraries.
+AC_ARG_WITH(xv-path,[  --with-xv-path=path    Where $xv_lib is installed],
+            xv_path="$withval", xv_path="/usr/X11R6/lib")
+
+AC_CHECK_LIB(Xv, XvQueryExtension ,,
+	AC_MSG_WARN([This program is meaningless without Xv]),
+	[$X_LIBS $X_PRE_LIBS -lXext $X_EXTRA_LIBS])
+
+AC_HAVE_HEADERS(stdio.h stdlib.h X11/Xlib.h X11/extensions/Xvlib.h)
+
+AC_OUTPUT([Makefile xvattr.pod])

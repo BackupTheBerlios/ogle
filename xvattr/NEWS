@@ -1,0 +1,5 @@
+1.2: 
+  - Use Automake/autoconf
+  - Turn README into manual page via perlpod (rocky@panix.com)
+
+1.1: Initial release.

@@ -1,0 +1,86 @@
+=pod
+
+=head1 NAME
+
+@PACKAGE@ - Query/Set X11 XVideo Setting(s)
+
+=head1 SYNOPSIS
+
+B<@PACKAGE@> [I<options>...] 
+
+This program is used for getting and setting X11 Xv attributes such as
+XV_BRIGHTNESS, XV_CONTRAST, XV_SATURATION, XV_HUE, XV_COLORKEY, ...
+
+For this program to work, you must have a version of X11 with the
+Xvideo extension and a graphics card that has Xv graphics acceleration.
+
+Note: On some cards XV_BRIGHTNESS and XV_CONTRAST are not listed among
+the available attributes, but they can still be set/changed.
+
+=head2 OPTIONS
+
+With no options, all parameters are displayed.
+
+Example:
+
+  > @PACKAGE@
+  Adaptor: 0
+  Name: Matrox G-Series Backend Scaler
+   Port: 46
+    Name: XV_COLORKEY
+     Flags: XvGettable XvSettable 
+     Min value: 0
+     Max value: 16777215
+     Current value: 66046
+
+=item -a I<attribute name>
+
+Show value of attribute I<attribute name>
+
+Example:
+
+  > @PACKAGE@ -a XV_BRIGHTNESS
+  XV_BRIGHTNESS = 24
+
+Z<>
+
+=item -a I<attribute name> -v I<value>
+
+Set attribute I<attribute name> to value I<value>.
+
+Example:
+
+  > xvattr -a XV_COLORKEY -v 10
+  XV_COLORKEY set to 10
+
+Z<>
+
+=item -p I<port number>
+
+Get the attribute on the specified port.  If -p is not set, the first
+available port is used.
+
+=head1 AUTHOR
+
+Send bug reports to C<d4bjorn@dtek.chalmers.se>
+
+
+=head1 COPYRIGHT
+
+  Copyright (C) 2001 Björn Englund
+
+  This program is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation; either version 2 of the License, or
+  (at your option) any later version.
+
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this program; if not, write to the Free Software
+  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+
+=cut
