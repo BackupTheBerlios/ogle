@@ -717,14 +717,15 @@ void video_sequence(void) {
     next_start_code();
     extension_and_user_data(1);
     do {
-      group_of_pictures_header();
-      extension_and_user_data(1);
-      do {
-	picture_header();
+      if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
+	group_of_pictures_header();
 	extension_and_user_data(1);
-	picture_data();
-      } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE);
-    } while(nextbits(32) == MPEG2_VS_GROUP_START_CODE);
+      }
+      picture_header();
+      extension_and_user_data(1);
+      picture_data();
+    } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE ||
+	    (nextbits(32) == MPEG2_VS_GROUP_START_CODE));
   }
     
   
