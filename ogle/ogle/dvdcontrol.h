@@ -20,7 +20,7 @@
  */
 
 #include <ogle/dvd.h>
-#include <ogle/msgevents.h> // Only for the hack with DVDNextEvent !!
+#include <ogle/msgevents.h> /* Only for the hack with DVDNextEvent !! */
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>

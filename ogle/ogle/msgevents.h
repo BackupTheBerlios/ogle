@@ -357,7 +357,7 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  int state; // 0 - not registered, 1 - discard
+  int state; /* 0 - not registered, 1 - discard */
 } MsgQDemuxDefaultEvent_t;
 
 typedef enum {
@@ -432,7 +432,7 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client; 
-  MsgEventClient_t newclientid; //new client id to use
+  MsgEventClient_t newclientid; /* new client id to use */
 } MsgQInitGntEvent_t;
 
 typedef struct {
