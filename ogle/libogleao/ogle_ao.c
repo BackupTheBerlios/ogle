@@ -40,6 +40,9 @@ static ao_driver_t audio_out_drivers[] = {
 #ifdef LIBOGLEAO_SOLARIS
     {"solaris", ao_solaris_open},
 #endif
+#ifdef LIBOGLEAO_NULL
+    {"null", ao_null_open},
+#endif
     {NULL, NULL}
 };
 
