@@ -176,7 +176,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 		(double)(TIME_SS(delta_sync_time)) / CT_FRACTION) *
 	       srate);
 	    // fprintf(stderr, "<%ld.%+010ld>", TIME_S(delta_sync_time), TIME_SS(delta_sync_time));
-	    fprintf(stderr, "[%.6f]", drift_factor);
+	    //fprintf(stderr, "[%.6f]", drift_factor);
 	    
 	    diff = drift_factor/prev_df;
 	    if(diff > 0.998 && diff < 1.001) {
