@@ -62,13 +62,10 @@ void actionRightButtonSelect(void *data)
 void actionButtonActivate(void *data)
 {
   struct action_number *user = (struct action_number *)data;
-  if(user != NULL && user->valid && (user->nr >= 0)) {
+  if(user != NULL && (user->nr >= 0)) {
     DVDButtonSelectAndActivate(nav, user->nr);
   } else { 
     DVDButtonActivate(nav);
-  }
-  if(user != NULL) {
-    user->valid = 0;
   }
 }
 
@@ -449,10 +446,9 @@ void actionBookmarkRemove(void *data)
     NOTE("%s", "DVDBookmarkGetNr failed\n");
   } else if(n > 0) {
     if(user != NULL) {
-      if(user->valid && (user->nr < n) && (user->nr > 0)) {
+      if((user->nr < n) && (user->nr > 0)) {
 	n = user->nr;
       }
-      user->valid = 0;
     }
 
     if(DVDBookmarkRemove(bm, n-1) != -1) {
@@ -495,10 +491,9 @@ void actionBookmarkRestore(void *data)
     NOTE("%s", "DVDBookmarkGetNr failed\n");
   } else if(n > 0) {
     if(user != NULL) {
-      if(user->valid && (user->nr < n) && (user->nr > 0)) {
+      if((user->nr < n) && (user->nr > 0)) {
 	n = user->nr;
       }
-      user->valid = 0;
     }
     if(DVDBookmarkGet(bm, n-1, &state, NULL, NULL, NULL) != -1) {
       if(state) {
@@ -575,6 +570,101 @@ void actionSaveScreenshotWithSPU(void *data)
 }
 
 
+void actionAudioStreamChange(void *data)
+{
+  int res;
+  int streams_avail;
+  DVDAudioStream_t cur_stream;
+  DVDAudioStream_t new_stream;
+  
+  struct action_number *user = (struct action_number *)data;
+  
+  
+  res = DVDGetCurrentAudio(nav, &streams_avail, &cur_stream);
+  if(res == DVD_E_Ok) {
+    if(streams_avail > 0) {
+      if(user != NULL && user->nr >= 0 && user->nr < streams_avail) {
+	new_stream = user->nr;
+      } else {
+	new_stream = cur_stream+1;
+      }
+      
+      if(new_stream >= streams_avail) {
+	new_stream = 0;
+      }
+      res = DVDAudioStreamChange(nav, new_stream);
+      if(res != DVD_E_Ok) {
+	DVDPerror("DVDAudioStreamChange: ", res);
+      }
+    }
+  } else {
+    DVDPerror("DVDGetCurrentAudio: ", res);
+  }
+}
+
+
+void actionSubtitleStreamChange(void *data)
+{
+  int res;
+  int streams_avail;
+  DVDSubpictureStream_t cur_stream;
+  DVDSubpictureStream_t new_stream;
+  DVDBool_t subp_on;
+
+  struct action_number *user = (struct action_number *)data;
+  
+  
+  
+  res = DVDGetCurrentSubpicture(nav, &streams_avail,
+				&cur_stream, &subp_on);
+  if(res == DVD_E_Ok) {
+    if(streams_avail > 0) {
+      if(subp_on == DVDTrue) {
+	if(user != NULL && user->nr >=0 && user->nr < streams_avail) {
+	  new_stream = user->nr;
+	} else {
+	  new_stream = cur_stream+1;
+	}
+	
+	if(new_stream >= streams_avail) {
+	  new_stream = 0;
+	  // if we are at the last stream, turn off subtitles
+	  res = DVDSetSubpictureState(nav, DVDFalse);
+	  if(res != DVD_E_Ok) {
+	    DVDPerror("DVDSetSubpictureState: ", res);
+	  }
+	}
+	res = DVDSubpictureStreamChange(nav, new_stream);
+	if(res != DVD_E_Ok) {
+	  DVDPerror("DVDSubpictureStreamChange: ", res);
+	}
+
+      } else {
+	// if subtitles are off, turn them on and
+	// change stream if requested
+	if(user != NULL && user->nr >=0 && user->nr < streams_avail) {
+	  new_stream = user->nr;
+	  res = DVDSubpictureStreamChange(nav, new_stream);
+	  if(res != DVD_E_Ok) {
+	    DVDPerror("DVDSubpictureStreamChange: ", res);
+	  }
+	}
+
+	res = DVDSetSubpictureState(nav, DVDTrue);
+	if(res != DVD_E_Ok) {
+	  DVDPerror("DVDSetSubpictureState: ", res);
+	}
+      }  
+    }     
+  } else {
+    DVDPerror("DVDGetCurrentSubpicture: ", res);
+  }
+
+}
+
+/* Calls vfun() with the data parameter set to a pointer
+ *  to the user number if valid, otherwise the data parameter is NULL
+ */
 void do_number_action(void *vfun)
 {
   void (*number_action)(void *) = vfun;
@@ -676,6 +766,8 @@ static action_mapping_t actions[] = {
   { "SkipBackward", do_number_action, actionSkipBackward },
   { "SaveScreenshot", do_action, actionSaveScreenshot },
   { "SaveScreenshotWithSPU", do_action, actionSaveScreenshotWithSPU },
+  { "AudioStreamChange", do_number_action, actionAudioStreamChange },
+  { "SubtitleStreamChange", do_number_action, actionSubtitleStreamChange },
   { NULL, NULL }
 };
 

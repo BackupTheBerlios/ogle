@@ -266,6 +266,15 @@
 	  <action>SaveScreenshotWithSPU</action>
 	  <key>I</key>
   	</b>
+	<b>	
+	  <action>AudioStreamChange</action>
+	  <key>z</key>
+  	</b>
+	<b>	
+	  <action>SubtitleStreamChange</action>
+	  <key>x</key>
+  	</b>
+	
     </bindings>
   </user_interface>
 </ogle_conf>
