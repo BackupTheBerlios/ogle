@@ -17,13 +17,15 @@
 
 pkglib_PROGRAMS = ogle_ac3_p ogle_a52
 
-INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@ @XML_CFLAGS@
 
 ogle_ac3_p_SOURCES = ac3dec_wrap.c
 ogle_ac3_p_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 
-ogle_a52_SOURCES = a52_decoder.c
+ogle_a52_SOURCES = a52_decoder.c parse_config.h parse_config.c
 ogle_a52_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
-	$(top_builddir)/libao/libao.la @A52_LIBS@
+	$(top_builddir)/libao/libao.la \
+	@A52_LIBS@ \
+	@XML_LIBS@

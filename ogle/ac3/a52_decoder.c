@@ -39,8 +39,10 @@
 #include "sync.h"
 
 #include <a52dec/a52.h>
-#include <a52dec/audio_out.h>
+#include <libao/audio_out.h>
 #include <a52dec/mm_accel.h>
+
+#include "parse_config.h"
 
 /* A/52 */
 static ao_instance_t * output;
@@ -120,9 +122,9 @@ int main(int argc, char *argv[])
     accel = MM_ACCEL_MLIB;
     
     drivers = ao_drivers();
-    output = ao_open(drivers[0].open);
+    output = ao_open(drivers[0].open, get_audio_device());
     if(output == NULL) {
-        fprintf(stderr, "Can not open output\n");
+        fprintf(stderr, "Can not open audio output\n");
         exit(1);
     }
 
