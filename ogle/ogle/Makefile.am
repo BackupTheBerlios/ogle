@@ -18,6 +18,9 @@
 pkglib_LTLIBRARIES = libmsgevents.la libdvdcontrol.la
 pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h
 
+man_MANS = ogle.1
+EXTRA_DIST = $(man_MANS)
+
 INCLUDES = @TOP_INCLUDES@
 
 libmsgevents_la_SOURCES = msgevents.c
