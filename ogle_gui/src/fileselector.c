@@ -9,7 +9,7 @@
 extern DVDNav_t *nav;
 
 static GtkWidget *file_selector = NULL;
-
+static gchar *last_visited = NULL;
 
 void file_selector_new(void) {
   if(file_selector != NULL)
@@ -34,7 +34,12 @@ void file_selector_new(void) {
 					 (file_selector)->cancel_button),
 			     "clicked", GTK_SIGNAL_FUNC (file_selector_remove),
 			     (gpointer) file_selector);
-  
+
+  if(last_visited!=NULL) {  
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(file_selector),
+				    last_visited);
+  }
+
   /* Display that dialog */
   gtk_widget_show (file_selector);
 }
@@ -48,9 +53,15 @@ void file_selector_change_root(GtkFileSelection *selector,
 			       gpointer user_data) {
   gchar *selected_filename;
   DVDResult_t res;
-  
+
+  if(last_visited!=NULL) {
+    g_free(last_visited);
+  }
+
   selected_filename =
     gtk_file_selection_get_filename (GTK_FILE_SELECTION(file_selector));
+    
+  last_visited = g_strdup(selected_filename);
   
   res = DVDSetDVDRoot(nav, (char*)selected_filename);
   if(res != DVD_E_Ok) {
