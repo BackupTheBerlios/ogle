@@ -18,7 +18,7 @@ DVDResult_t DVDGetCurrentAudio(const int *StreamsAvailable,
 			       const DVDAudioStream_t *CurrentStream);
 
 DVDResult_t DVDIsAudioStreamEnabled(DVDAudioStream_t StreamNr,
-				    const Bool *Enabled);
+				    const DVDBool_t *Enabled);
 
 DVDResult_t DVDGetDefaultAudioLanguage(const DVDLangID_t *Language,
 				       const DVDAudioLangExt_t *AudioExtension);

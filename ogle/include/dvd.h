@@ -51,15 +51,15 @@ typedef enum {
 
 typedef uint16_t DVDLangID_t;
 
-typedef uint16_t DVDRegister;
+typedef uint16_t DVDRegister_t;
 
 typedef enum {
   DVDFalse = 0,
   DVDTrue = 1
 } DVDBool_t; 
 
-typedef DVDRegister DVDGPRMArray_t[16];
-typedef DVDRegister DVDSPRMArray_t[24];
+typedef DVDRegister_t DVDGPRMArray_t[16];
+typedef DVDRegister_t DVDSPRMArray_t[24];
 
 //typedef int DVDStream_t;
 typedef int DVDAngle_t;
@@ -105,6 +105,10 @@ typedef enum {
   DVD_AUDIO_LANG_EXT_DirectorsComments2 = 4  /**< TBD */
 } DVDAudioLangExt_t;
 
+typedef int DVDAudioSampleFreq_t;  /**< TBD */
+typedef int DVDAudioSampleQuant_t; /**< TBD */
+typedef int DVDChannelNumber_t;    /**< TBD */
+
 
 typedef struct {
   DVDAudioAppMode_t     AppMode;
@@ -118,6 +122,7 @@ typedef struct {
 } DVDAudioAttributes_t;
 
 
+typedef int DVDVideoCompression_t; /**< TBD */
 
 typedef struct {
   DVDBool_t PanscanPermitted;
