@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-//#include <glib.h>
 #include <signal.h>
 #include <sys/shm.h>
 #include <time.h>
@@ -52,7 +51,6 @@ extern void display_exit(void);
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
-int debug;
 int video_scr_nr;
 
 static char *program_name;
@@ -60,9 +58,6 @@ static char *program_name;
 static int ctrl_data_shmid;
 static ctrl_data_t *ctrl_data;
 ctrl_time_t *ctrl_time;
-
-static int data_buf_shmid;
-static char *data_buf_shmaddr;
 
 int msgqid = -1;
 MsgEventQ_t *msgq;
@@ -163,9 +158,6 @@ static int attach_picture_buffer(int shmid)
   picture_q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
 
   shmid = picture_q_head->data_buf_shmid;
-  
-  fprintf(stderr, "vo: picture_buf_shmid: %d\n", shmid);
-  
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("vo: attach_data_buffer(), shmat()");
@@ -174,12 +166,11 @@ static int attach_picture_buffer(int shmid)
     
     //picture_buf_shmid = shmid;
     picture_buf_base = shmaddr;
-  
     
     picture_ctrl_head = (data_buf_head_t *)picture_buf_base;
 
-    data_elems =(picture_data_elem_t *)(picture_buf_base + 
-					sizeof(data_buf_head_t));
+    data_elems = (picture_data_elem_t *)(picture_buf_base + 
+					 sizeof(data_buf_head_t));
 
     picture_ctrl_data = data_elems;
 
@@ -199,7 +190,6 @@ static int attach_picture_buffer(int shmid)
       image_bufs[n].v = picture_buf_base + data_elems[n].picture.v_offset;
       image_bufs[n].info = &data_elems[n];
     }
-
     //TODO ugly hack
 #ifdef HAVE_XV
     reserv_image = &image_bufs[n-1];
@@ -213,12 +203,10 @@ static int attach_picture_buffer(int shmid)
 
 static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
-  
   switch(ev->type) {
   case MsgEventQNotify:
-    if((picture_q_head != NULL) &&
-       (ev->notify.qid == picture_q_head->qid)) {
-      //DPRINTF(1, "vo: got notify\n");
+    if((picture_q_head != NULL) && (ev->notify.qid == picture_q_head->qid)) {
+      ;
     } else {
       return 0;
     }
@@ -265,7 +253,6 @@ static int get_next_picture_buf_id()
   MsgEvent_t ev;
   
   elem = picture_q_head->read_nr;
-  //fprintf(stderr, "vo: waiting for picture qelem: #%d\n", elem);
   
   if(!picture_q_elems[elem].in_use) {
     picture_q_head->reader_requests_notification = 1;
@@ -283,11 +270,7 @@ static int get_next_picture_buf_id()
       }
     }
   }
-  /*
-    fprintf(stderr, "vo: got qelem #%d, data_buf: #%d\n",
-	    elem,
-	    picture_q_elems[elem].data_elem_index);
-  */
+
   return picture_q_elems[elem].data_elem_index;
 }
 
@@ -298,14 +281,9 @@ static void release_picture_buf(int id)
   
   picture_ctrl_data[id].displayed = 1;
   picture_q_elems[picture_q_head->read_nr].in_use = 0;
-  /*
-  fprintf(stderr, "vo: release databuf: #%d,  qelem: #%d\n",
-	  id, picture_q_head->read_nr);
-  */
   if(picture_q_head->writer_requests_notification) {
     picture_q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    //fprintf(stderr, "vo: writer wants notify, sending...\n");
     do {
       if(MsgSendEvent(msgq, picture_q_head->writer, &ev, IPC_NOWAIT) == -1) {
 	MsgEvent_t c_ev;
@@ -414,7 +392,6 @@ static void display_process()
     //#endif
     
 
-    //fprintf(stderr, "display: start displaying buf: %d\n", buf_id);
     PTS_TO_CLOCKTIME(frame_interval, pinfos[buf_id].frame_interval);
 
     if(first) {
@@ -474,7 +451,7 @@ static void display_process()
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
       if(wait_time.tv_sec > 0) {
-	fprintf(stderr, "*vo: waittime > 1 sec: %d.%09ld\n",
+	fprintf(stderr, "*vo: waittime > 1 sec: %ld.%09ld\n",
 		wait_time.tv_sec, wait_time.tv_nsec);
 	
       }
@@ -482,7 +459,6 @@ static void display_process()
     } else {
       if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
 	//TODO fix this time mess
-	//fprintf(stderr, "APA\n");
 	if(wait_time.tv_nsec < -300000000 || wait_time.tv_sec < 0) {
 	  drop = 1;
 	}
@@ -529,7 +505,6 @@ static void display_process()
       drop = 0;
     }
 
-    //    fprintf(stderr, "display: done with buf %d\n", buf_id);
     release_picture_buf(buf_id);
   }
 }
@@ -630,17 +605,15 @@ int main(int argc, char **argv)
       }
       event_handler(msgq, &ev);
     }
-
     fprintf(stderr, "vo: got attachq\n");
 
-
-    
     display_process();
+
   } else {
     fprintf(stderr, "what?\n");
   }
 
-  
+  exit(0);
 }
 
 
