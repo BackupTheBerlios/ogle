@@ -79,7 +79,8 @@ done
 export OGLE_DLEVEL
 
 #fix for buggy KWin
-KDE_3_1_X=`kwin --version 2> /dev/null | grep KDE | grep "3.1."`
+KDE_3_1_X=`kwin --version 2> /dev/null | grep KDE | grep -v "3.1\."|grep "3.1"`
+KDE_3_1_X=${KDE_3_1_X}`kwin --version 2> /dev/null | grep KDE | grep "3.1.1"`
 if [ x"$KDE_3_1_X" != x"" ]; then
   KWIN_0_95=`kwin --version 2> /dev/null | grep KWin | grep "0.95"`
   if [ x"$KWIN_0_95" != x"" ]; then
