@@ -71,7 +71,7 @@ mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
   
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
-      curr_block[x] = (curr_block[x] + ref_block[x] + 1) / 2;
+      curr_block[x] = (curr_block[x] + ref_block[x] + 1U) / 2U;
     ref_block += stride;
     curr_block += stride;
   }
@@ -106,7 +106,7 @@ mlib_VideoInterpAveX_U8_U8(uint8_t *curr_block,
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
       curr_block[x] = (curr_block[x] +
-		       ((ref_block[x] + ref_block[x+1] + 1) / 2) + 1) / 2;
+		       ((ref_block[x] + ref_block[x+1] + 1U) / 2U) + 1U) / 2U;
     ref_block += frame_stride;
     curr_block += frame_stride;
   }
@@ -125,7 +125,7 @@ mlib_VideoInterpAveY_U8_U8(uint8_t *curr_block,
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
       curr_block[x] = (curr_block[x] + 
-		       ((ref_block[x] + ref_block_next[x] + 1) / 2) + 1) / 2;
+		       ((ref_block[x] + ref_block_next[x] + 1U) / 2U) + 1U) / 2U;
     curr_block     += frame_stride;
     ref_block      += frame_stride;
     ref_block_next += frame_stride;
@@ -146,7 +146,7 @@ mlib_VideoInterpAveXY_U8_U8(uint8_t *curr_block,
     for (x = 0; x < width; x++)
       curr_block[x] = (curr_block[x] + 
 		       ((ref_block[x] + ref_block_next[x] +
-			 ref_block[x+1] + ref_block_next[x+1] + 2) / 4) + 1) / 2;
+			 ref_block[x+1] + ref_block_next[x+1] + 2U) / 4U) + 1U) / 2U;
     curr_block     += frame_stride;
     ref_block      += frame_stride;
     ref_block_next += frame_stride;
@@ -164,7 +164,7 @@ mlib_VideoInterpX_U8_U8(uint8_t *curr_block,
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
-      curr_block[x] = (ref_block[x] + ref_block[x+1] + 1) / 2;
+      curr_block[x] = (ref_block[x] + ref_block[x+1] + 1U) / 2U;
     ref_block += frame_stride;
     curr_block += frame_stride;
   }
@@ -182,7 +182,7 @@ mlib_VideoInterpY_U8_U8(uint8_t *curr_block,
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
-      curr_block[x] = (ref_block[x] + ref_block_next[x] + 1) / 2;
+      curr_block[x] = (ref_block[x] + ref_block_next[x] + 1U) / 2U;
     curr_block     += frame_stride;
     ref_block      += frame_stride;
     ref_block_next += frame_stride;
@@ -202,7 +202,7 @@ mlib_VideoInterpXY_U8_U8(uint8_t *curr_block,
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
       curr_block[x] = (ref_block[x] + ref_block_next[x] +
-		       ref_block[x+1] + ref_block_next[x+1] + 2) / 4;
+		       ref_block[x+1] + ref_block_next[x+1] + 2U) / 4U;
     curr_block     += frame_stride;
     ref_block      += frame_stride;
     ref_block_next += frame_stride;
