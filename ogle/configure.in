@@ -275,12 +275,6 @@ else
     ], -L$a52_path/lib -lm)
 fi
 
-dnl AC_CHECK_LIB(ao, ao_drivers, 
-dnl [ A52_LIBS="$A52_LIBS -lao" ],
-dnl [ AC_MSG_WARN([Need libao, install a52dec or specify it's location])
-dnl   AC_MSG_ERROR([It might also be that you have OggVorbis's libao istalled])
-dnl ], -L$a52_path/lib)
-
 AC_ARG_WITH(liba52-includes, 
   [  --with-liba52-includes=path  specify location of liba52 headers ], 
   A52_CFLAGS=-I$with_liba52_includes)
@@ -301,7 +295,7 @@ dnl end liba52
 dnl ---------------------------------------------------------
 
 dnl ---------------------------------------------------------
-dnl included audio out
+dnl our integrated audio library
 dnl ---------------------------------------------------------
 
 dnl check for oss
@@ -310,9 +304,9 @@ AC_ARG_ENABLE([oss],
 if test x"$enable_oss" != x"no"; then
     case "$host" in
     *-linux*|*-openbsd*|*-freebsd*|*-bsdi*)
-        AC_DEFINE([LIBAO_OSS],,[libao OSS support])
+        AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
-            [LIBAO_LIBS="$LIBAO_LIBS -lossaudio"]);;
+            [LIBOGLEAO_LIBS="$LIBAO_LIBS -lossaudio"]);;
     esac
 fi
 
@@ -322,10 +316,10 @@ AC_ARG_ENABLE([sunaudio],
 if test x"$enable_sunaudio" != x"no"; then
     case "$host" in
     *-sun-solaris*|*-netbsd*)
-        AC_DEFINE([LIBAO_SUNAUDIO],,[libao sunaudio support]);;
+        AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support]);;
     esac
 fi
-AC_SUBST([LIBAO_LIBS])
+AC_SUBST([LIBOGLEAO_LIBS])
 
 dnl ---------------------------------------------------------
 dnl end included audio out
@@ -572,7 +566,7 @@ include/Makefile
 common/Makefile 
 ctrl/Makefile 
 ac3/Makefile 
-libao/Makefile 
+libogleao/Makefile 
 mpeg2_video/Makefile 
 vmg/Makefile 
 mpeg2_program/Makefile 

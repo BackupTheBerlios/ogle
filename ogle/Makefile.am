@@ -6,7 +6,7 @@ SUBDIRS= ogle \
 	ctrl \
 	mpeg2_video \
 	mpeg2_program \
-	libao \
+	libogleao \
 	ac3 \
 	vmg \
 	dvd_cli \

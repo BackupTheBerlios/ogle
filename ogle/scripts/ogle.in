@@ -31,7 +31,8 @@ DVDP_UI=$exec_prefix/bin/ogle_gui
 fi
 export DVDP_UI
 #DVDP_AC3=$DVDP_ROOT/ogle_ac3_p
-DVDP_AC3=$DVDP_ROOT/ogle_a52
+#DVDP_AC3=$DVDP_ROOT/ogle_a52
+DVDP_AC3=$DVDP_ROOT/ogle_audio
 export DVDP_AC3
 #DVDP_MPEGAUDIO=$DVDP_ROOT/mpg123_wrap
 #export DVDP_MPEGAUDIO

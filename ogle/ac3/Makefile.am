@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-pkglib_PROGRAMS = ogle_ac3_p ogle_a52
+pkglib_PROGRAMS = ogle_ac3_p ogle_audio
 
 INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@ @XML_CFLAGS@
 
@@ -23,9 +23,20 @@ ogle_ac3_p_SOURCES = ac3dec_wrap.c
 ogle_ac3_p_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 
-ogle_a52_SOURCES = a52_decoder.c parse_config.h parse_config.c
-ogle_a52_LDADD = $(top_builddir)/common/libcommon.a \
+#ogle_a52_SOURCES = a52_decoder.c parse_config.h parse_config.c
+#ogle_a52_LDADD = $(top_builddir)/common/libcommon.a \
+#	$(top_builddir)/ogle/libmsgevents.la \
+#	$(top_builddir)/libao/libao.la \
+#	@A52_LIBS@ \
+#	@XML_LIBS@
+
+ogle_audio_SOURCES = audio_out.h audio_out.c parse_config.h parse_config.c \
+	audio_config.h audio_config.c conversion.h conversion.c \
+	audio_play.h audio_play.c \
+	decode.h decode.c decode_a52.h decode_a52.c
+
+ogle_audio_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
-	$(top_builddir)/libao/libao.la \
+	$(top_builddir)/libogleao/libogleao.la \
 	@A52_LIBS@ \
 	@XML_LIBS@
