@@ -42,16 +42,17 @@ typedef struct {
   clocktime_t rt;
   clocktime_t scr;
   double speed;
-  int speed_frac_n;
-  int speed_frac_d; 
+  //  int speed_frac_n;
+  //  int speed_frac_d; 
 } sync_point_t;
 
+
 typedef struct {
-  clocktime_t realtime_offset;
   offset_valid_t offset_valid;
   int sync_master;
   sync_point_t sync_point;
 } ctrl_time_t;
+
 
 #define SYNC_NONE 0
 #define SYNC_VIDEO 1
@@ -59,11 +60,7 @@ typedef struct {
 
 typedef struct {
   playmode_t mode;
-  int slow;
-  int fast;
   double speed;
-  clocktime_t vt_offset;
-  clocktime_t rt_start;
   int sync_master;
 } ctrl_data_t;
 

@@ -624,32 +624,35 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQSpeed:
     {
       clocktime_t rt;
-      clocktime_t tmptime, tmptime2;
       
       clocktime_get(&rt);
       fprintf(stderr, "ctrl: _MsgEventQSpeed\n");
       fprintf(stderr, "ctrl: speed: %.2f\n", ev->speed.speed);
-      if(ctrl_data->mode != MODE_SPEED) {
-	TIME_S(ctrl_data->vt_offset) = 0;
-	TIME_SS(ctrl_data->vt_offset) = 0;
-	ctrl_data->rt_start = rt;
-	ctrl_data->speed = 1.0;
-      }
-      timesub(&tmptime, &rt, &ctrl_data->rt_start);
-      timemul(&tmptime2, &tmptime, ctrl_data->speed);
-      timesub(&tmptime, &tmptime, &tmptime2);
-      timeadd(&ctrl_data->vt_offset, &ctrl_data->vt_offset, &tmptime);
-      
-      ctrl_data->rt_start = rt;
+
       ctrl_data->speed = ev->speed.speed;
       
       
-      if(ctrl_data->speed == 1.0) {
-	ctrl_data->mode = MODE_SPEED;
-      } else {
-	ctrl_data->mode = MODE_SPEED;
-      }
+
       // send speed event to syncmasters
+      
+      {
+	fprintf(stderr, "ctrl: new speed\n");
+	
+	
+	// TODO get decoders that do sync...
+	//
+	if(search_capabilities(DECODE_AC3_AUDIO, &rcpt, NULL, NULL)) {
+	  
+	  MsgSendEvent(q, rcpt, ev, 0);
+	  
+	}
+
+	if(search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, NULL)) {
+	  
+	  MsgSendEvent(q, rcpt, ev, 0);
+	  
+	}
+      }
     }
     break;
   default:
@@ -1181,27 +1184,28 @@ int create_ctrl_data()
   
   if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
     perror("create_ctrl_data(), shmat()");
-
+    
     if(shmctl(shmid, IPC_RMID, NULL) == -1) {
       perror("ipc_rmid");
     }
-
+    
     return -1;
   }
-
+  
   add_q_shmid(shmid);
   
   ctrl_data = (ctrl_data_t *)shmaddr;
   ctrl_data->mode = MODE_STOP;
   ctrl_data->sync_master = SYNC_NONE;
+  ctrl_data->speed = 1.0;
   ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   
   for(n = 0; n < nr_of_offsets; n++) {
     ctrl_time[n].offset_valid = OFFSET_NOT_VALID;
   }
-
+  
   return shmid;
-
+  
 }
 
 
