@@ -120,6 +120,7 @@ static int color_depth, pixel_stride, mode;
 
 
 static int screenshot = 0;
+static int screenshot_spu = 0;
 
 
 static int dpy_sar_frac_n;  /* Display (i.e. monitor) aspect. */
@@ -525,7 +526,7 @@ Window display_init(yuv_image_t *picture_data,
   XSelectInput(mydisplay, window.win,
 	       StructureNotifyMask | ExposureMask |
 	       KeyPressMask | ButtonPressMask |
-	       PointerMotionMask);
+	       PointerMotionMask | PropertyChangeMask);
 
   create_transparent_cursor(mydisplay, window.win);
   
@@ -857,15 +858,6 @@ void display_adjust_size(yuv_image_t *current_image,
 }  
 
 
-/* Fullscreen needs to be able to hide the wm decorations. */
-#define MWM_HINTS_DECORATIONS   (1L << 1)
-typedef struct {
-  uint32_t flags;
-  uint32_t functions;
-  uint32_t decorations;
-  int32_t  input_mode;
-  uint32_t status;
-} mwmhints_t;
 
 void display_toggle_fullscreen(yuv_image_t *current_image) {
   
@@ -932,6 +924,13 @@ void check_x_events(yuv_image_t *current_image)
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  }
+	}
+	// hack
+	if(keysym == XK_i) {
+	  screenshot = 1;
+	}
+	if(keysym == XK_I) {
+	  screenshot_spu = 1;
 	}
       }
       break;
@@ -1339,6 +1338,11 @@ static void draw_win_x11(window_info *dwin)
     // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
   }
 #endif
+
+  if(screenshot_spu) {
+    screenshot_spu = 0;
+    screenshot_rgb_jpg(dwin->ximage->data, dwin->ximage);
+  }
   
 
 #ifdef HAVE_MLIB
@@ -1375,7 +1379,6 @@ static void draw_win_x11(window_info *dwin)
   if(screenshot) {
     screenshot = 0;
     screenshot_yuv_jpg(dwin->image, dwin->ximage);
-    //screenshot_jpg(dwin->ximage->data, dwin->ximage);
   }
   
   window.video_area.width = scale.image_width;
@@ -1384,8 +1387,9 @@ static void draw_win_x11(window_info *dwin)
 			 window.video_area.width) / 2;
   window.video_area.y = (window.window_area.height -
 			 window.video_area.height) / 2;
-  
+
   /*
+  
   fprintf(stderr, "dwin->win: %d, mygc: %d, dwin->ximage: %d, 0, 0,\n",
 	  dwin->win, mygc, dwin->ximage);
   fprintf(stderr, "x: %d %x,  y: %d %x, w: %d %x, h: %d %x\n",
@@ -1398,6 +1402,7 @@ static void draw_win_x11(window_info *dwin)
 	  window.video_area.height,
 	  window.video_area.height);
   */
+
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 
 		 window.video_area.x,
@@ -1437,6 +1442,11 @@ static void draw_win_xv(window_info *dwin)
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
   xv_image->data = dwin->image->y;
+
+  if(screenshot) {
+    screenshot = 0;
+    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+  }
     
 #ifdef SPU
   if(msgqid != -1) {
@@ -1447,8 +1457,8 @@ static void draw_win_xv(window_info *dwin)
   }
 #endif
 
-  if(screenshot) {
-    screenshot = 0;
+  if(screenshot_spu) {
+    screenshot_spu = 0;
     screenshot_yuv_jpg(dwin->image, dwin->ximage);
   }
   

@@ -94,12 +94,12 @@ METHODDEF(void)
 
 
 
-void screenshot_jpg(unsigned char *data, XImage *ximg) {
+void screenshot_rgb_jpg(unsigned char *data, XImage *ximg) {
   int x,y;
   image_height = ximg->height; /* Number of rows in image */
   image_width  = ximg->width;	/* Number of columns in image */  
   
-  fprintf(stderr, "screenshot_jpg()\n");
+  fprintf(stderr, "screenshot_rgb_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
 				* image_height * image_width * 3);
   
@@ -120,7 +120,7 @@ void screenshot_jpg(unsigned char *data, XImage *ximg) {
 	data [y * image_width * 4 + x*4 +1 ] ;
     }
   }
-  write_JPEG_file ("screenshot.jpg", JCS_RGB, 100);
+  write_JPEG_file ("screenshot_rgb.jpg", JCS_RGB, 100);
 }
 
 

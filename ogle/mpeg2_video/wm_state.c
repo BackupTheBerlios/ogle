@@ -173,7 +173,7 @@ static void save_normal_geometry(Display *dpy, Window win)
   normal_state_geometry.x = dest_x_ret - x;
   normal_state_geometry.y = dest_y_ret - y;
   
-  fprintf(stderr, "x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
+  fprintf(stderr, "normal_state_geometry: x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
 	  x, y,
 	  normal_state_geometry.width,
 	  normal_state_geometry.height,
