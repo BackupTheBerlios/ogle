@@ -327,15 +327,15 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
   default:
     break;
   }
-
+  if(bytes_read != nblocks * 2048)
+    fprintf(stderr, "demux: dvdreadblocksfromfile only got %d, wanted %d\n",
+	    bytes_read, nblocks * 2048);
+  
   return 0;
 }
 
 int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
 {
-  int free_blocks;
-  char *free_blocks_start;
-  char *last_free_byte;
   int next_write_pos;
   static int free_block_offs = 0;
   data_buf_head_t *data_buf_head;
@@ -347,7 +347,7 @@ int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
   int blocks_in_buf;
   int size;
 
-  fprintf(stderr, "demux: fill_buffer: title: %d, domain: %d, off: %d, blocks: %d\n", title, domain, boffset, nblocks);
+  //fprintf(stderr, "demux: fill_buffer: title: %d, domain: %d, off: %d, blocks: %d\n", title, domain, boffset, nblocks);
   
   //  get_next_demux_range(&title, &domain, &boffset, &blocks);
   
@@ -357,24 +357,24 @@ int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
     return -1;
   }
   blocks_in_buf = data_buf_head->buffer_size/2048;
-  fprintf(stderr, "blocks_in_buf: %d\n", blocks_in_buf);
+  //fprintf(stderr, "blocks_in_buf: %d\n", blocks_in_buf);
 
   data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
   data_elem_nr = data_buf_head->write_nr;
   
   first_data_elem_nr = data_elem_nr;
-  fprintf(stderr, "first_data_elem_nr: %d\n", first_data_elem_nr);
+  //fprintf(stderr, "first_data_elem_nr: %d\n", first_data_elem_nr);
 
   while(1) {
     if(data_elems[data_elem_nr].in_use || buf_empty) {
       /* this block is in use, check if we have enough free space */
-
+      
       /* offset in buffer of the used block we found */
       if(buf_empty) {
 	off = blocks_in_buf;
 	free_block_offs = 0;
       } else {
-	off = data_elems[data_elem_nr].off/2048;
+	off = data_elems[data_elem_nr].off / 2048;
       }
       
       if(off < free_block_offs) {
@@ -389,7 +389,7 @@ int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
 	
 	/* nr of blocks from first free block to end of buffer */
 	
-	size = blocks_in_buf-free_block_offs;
+	size = blocks_in_buf - free_block_offs;
 	next_write_pos = free_block_offs;
 	
 	if(size < nblocks) {
@@ -419,41 +419,28 @@ int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
     
     /* this block is not in use, check next one */
     
+    data_elem_nr = 
+      (data_elem_nr+1) % data_buf_head->nr_of_dataelems;
+    
     /* check if we have looped through all data_elems */
     if(!buf_empty) {
       if(data_elem_nr == first_data_elem_nr) {
 	buf_empty = 1;
       }
     }
-    
-    data_elem_nr = 
-      (data_elem_nr+1) % data_buf_head->nr_of_dataelems;
-    
   }
   
   dvd_change_file(title, domain);
   dvd_read_block(&disk_buf[next_write_pos*2048], boffset, nblocks);
-  fprintf(stderr, "new_write_pos: %d\n", next_write_pos);
-  fprintf(stderr, "dvd_read_block: dst: %u, offset: %d, blocks: %d\n",
-	  &disk_buf[next_write_pos*2048], boffset, nblocks);
-
-  fprintf(stderr, "data: %02x %02x %02x %02x %02x %02x %02x %02x\n",
-	  disk_buf[next_write_pos*2048],
-	  disk_buf[next_write_pos*2048+1],
-	  disk_buf[next_write_pos*2048+2],
-	  disk_buf[next_write_pos*2048+3],
-	  disk_buf[next_write_pos*2048+4],
-	  disk_buf[next_write_pos*2048+5],
-	  disk_buf[next_write_pos*2048+6],
-	  disk_buf[next_write_pos*2048+7]);
+  //fprintf(stderr, "next_write_pos: %d\n", next_write_pos);
+  //fprintf(stderr, "dvd_read_block: dst: %u, offset: %d, blocks: %d\n", next_write_pos*2048, boffset, nblocks);
 
   free_block_offs = next_write_pos + nblocks;
-  fprintf(stderr, "free_block_offs: %d\n", free_block_offs);
-  off_from = next_write_pos*2048;
-  off_to = free_block_offs*2048;
+  //fprintf(stderr, "free_block_offs: %d\n", free_block_offs);
+  off_from = next_write_pos * 2048;
+  off_to = free_block_offs * 2048;
   
-  fprintf(stderr, "off_from: %d, off_to: %d\n",
-	  off_from, off_to);
+  //fprintf(stderr, "off_from: %d, off_to: %d\n", off_from, off_to);
   return 0;
 }
 
@@ -609,6 +596,7 @@ void get_next_demux_q(void)
       fill_buffer(q_ev->demuxdvd.titlenum, q_ev->demuxdvd.domain,
 		  q_ev->demuxdvd.block_offset, q_ev->demuxdvd.block_count);
       new_demux_range = 1;
+      demux_cmd = q_ev->demuxdvd.flowcmd;
       break;
     case MsgEventQDemuxDVDRoot:
       dvd_open_root(q_ev->demuxdvdroot.path);
@@ -1312,76 +1300,6 @@ void packet()
 }
 
 
-void pack_2(int end_offs)
-{
-  uint32_t start_code;
-  uint8_t stream_id;
-  uint8_t is_PES = 0;
-  int mpeg_version;
-  
-  SCR_flags = 0;
-
-  mpeg_version = pack_header();
-  switch(mpeg_version) {
-  case MPEG1:
-    next_start_code(); // ??
-    while(nextbits(32) >= 0x000001BC) {
-      packet();
-      next_start_code(); // ??
-    }
-    break;
-  case MPEG2:
-    while(end_offs < offs && (((start_code = nextbits(32))>>8) & 0x00ffffff)
-	  == MPEG2_PES_PACKET_START_CODE_PREFIX) {
-      stream_id = start_code & 0xff;
-      
-      is_PES = 0;
-      if((stream_id >= 0xc0) && (stream_id < 0xe0)) {
-	/* ISO/IEC 11172-3/13818-3 audio stream */
-	is_PES = 1;
-	
-      } else if((stream_id >= 0xe0) && (stream_id < 0xf0)) {
-	/* ISO/IEC 11172-3/13818-3 video stream */
-	is_PES = 1;
-
-      } else {
-	switch(stream_id) {
-	case 0xBC:
-	  /* program stream map */
-	  fprintf(stderr, "Program Stream map\n");
-	case 0xBD:
-	  /* private stream 1 */
-	case 0xBE:
-	  /* padding stream */
-	case 0xBF:
-	  /* private stream 2 */
-	  is_PES = 1;
-	  break;
-	case 0xBA:
-				//fprintf(stderr, "Pack Start Code\n");
-	  is_PES = 0;
-	  break;
-	default:
-	  is_PES = 0;
-	  fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
-	  break;
-	}
-      }
-      if(!is_PES) {
-	break;
-      }
-      
-      PES_packet();
-      SCR_flags = 0;
-
-    }
-    break;
-  }
-
-  packnr++;
-}
-
-
 void pack()
 {
   uint32_t start_code;
@@ -1545,53 +1463,6 @@ void pack()
 
   packnr++;
 
-}
-
-void DVD_program_stream()
-{
-  MsgEvent_t ev;
-  
-  while(1) {
-    
-    /* TODO clean up */
-    if(msgqid != -1) {
-      if(off_to != -1) {
-	if(off_to <= offs-(bits_left/8)) {
-	  //fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
-	  off_to = -1;
-	  get_next_demux_q();
-	  //wait_for_msg(CMD_CTRL_CMD);
-	}
-      }
-      if(off_from != -1) {
-	//fprintf(stderr, "demux: off_from mpeg2\n");
-	offs = off_from;
-	bits_left = 64;
-	off_from = -1;
-	GETBITS(32, "skip1");
-	GETBITS(32, "skip2");
-      }
-      while(MsgCheckEvent(msgq, &ev) != -1) {
-	handle_events(&ev);
-      }
-    }
-    
-    /* while(!enough_space) {
-         request_another data_elem;
-         if(data_elem.offs - last_read < 0) {
-	   wrap around of buffer
-	 }
-	 enough_space =   data_elem.offs - last_read > requierd_space;
-       }
-    */
-       
-    do {
-      if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
-	pack_2(offs + 2048);
-      }
-    } while(offs < off_to);
-  }
-  
 }
 
 void MPEG2_program_stream()
