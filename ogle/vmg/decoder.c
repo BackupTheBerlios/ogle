@@ -401,14 +401,11 @@ static bool eval_system_set(int cond, link_t *return_values)
     case 6: // Set system reg 8 (Highlighted button)
       data = eval_reg_or_data(bits(0, 3, 1), 4); // Not system reg!!
       if(cond) {
-	/* Do we need to check that it's in range 1..36 ? */
+	/* We check that it's in range 1..36 */
+	data &= 0xfc00; // Mask out the correct bits
 	if(data < 0x0400 || data > 0x9000) {
 	  //abort(0); // FixMe
-	  data &= 0xfc00; // one more chanse
-	  if(data < 0x0400 || data > 0x9000) {
-	    //abort(0); // FixMe
-	    data = state->SPRM[8]; // Keep the value
-	  }
+	  data = state->SPRM[8]; // Keep the last value instead
 	}
 	state->SPRM[8] = data;
       }
