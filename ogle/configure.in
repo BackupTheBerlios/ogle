@@ -430,7 +430,7 @@ AP_maGiC_VALUE
 			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound"
 			 BUILD_AUDIO_ALSA=1
 			 DEFAULT_AUDIO_DRIVER="alsa"
-			 DEFAULT_AUDIO_DEVICE="default"
+			 DEFAULT_AUDIO_DEVICE="/dev/dsp"
                        ])
         fi;;
     esac
