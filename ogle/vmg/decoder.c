@@ -407,10 +407,10 @@ static bool eval_system_set(int cond, link_t *return_values)
 	  data &= 0xfc00; // one more chanse
 	  if(data < 0x0400 || data > 0x9000) {
 	    //abort(0); // FixMe
-	    data = state->GPRM[8]; // Keep the value
+	    data = state->SPRM[8]; // Keep the value
 	  }
 	}
-	state->GPRM[8] = data;
+	state->SPRM[8] = data;
       }
       break;
   }
