@@ -1801,6 +1801,32 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
   return DVD_E_Ok;
 }
 
+/** 
+ * Skip seconds forwards or backwards.
+ * The dvd navigator might not be able to jump to the exact number
+ * of seconds, but will do the best it can.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDTimeSkip(DVDNav_t *nav, int32_t seconds)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlTimeSkip;
+  ev.dvdctrl.cmd.timeskip.seconds = seconds;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
 
 /** 
  * Pause playback.

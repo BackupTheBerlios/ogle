@@ -147,6 +147,8 @@ DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title);
 DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time);
 DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time);
 
+DVDResult_t DVDTimeSkip(DVDNav_t *nav, int32_t seconds);
+
 DVDResult_t DVDPauseOn(DVDNav_t *nav);
 DVDResult_t DVDPauseOff(DVDNav_t *nav);
 DVDResult_t DVDStop(DVDNav_t *nav);
