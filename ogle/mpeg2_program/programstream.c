@@ -198,185 +198,6 @@ int bytealigned(void)
 #define GETBITS(a,b) getbits(a)
 #endif
 
-#if READ
-
-static inline
-uint32_t nextbits(unsigned int nr)
-{
-  uint32_t result = (cur_word << (64-bits_left)) >> 32;
-  return result >> (32-nr);
-  //  return (cur_word << (64-bits_left)) >> (64-nr);
-}
-
-#ifdef DEBUG
-uint32_t getbits(unsigned int nr, char *func)
-#else
-static inline uint32_t getbits(unsigned int nr)
-#endif
-{
-  uint32_t result;
-  result = (cur_word << (64-bits_left)) >> 32;
-  result = result >> (32-nr);
-  //  result = cur_word >> (64-nr); //+
-  //  cur_word = cur_word << nr; //+
-  
-  bits_left -= nr;
-  if(bits_left <= 32) {
-    if(offs >= buf_size)
-      read_buf();
-    else {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
-      cur_word = (cur_word << 32) | new_word;
-      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
-      bits_left += 32;
-    }
-  }
-  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
-  DPRINTBITS(6, nr, result);
-  DPRINTF(5, "\n");
-  return result;
-}
-
-
-static inline
-void dropbits(unsigned int nr)
-{
-  //cur_word = cur_word << nr; //+
-  bits_left -= nr;
-  if(bits_left <= 32) {
-    if(offs >= buf_size)
-      read_buf();
-    else {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
-      cur_word = (cur_word << 32) | new_word;
-      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
-      bits_left += 32;
-    }
-  }
-}
-
-
-
-void get_next_packet()
-{
-
-  if(msgqid == -1) {
-    if(mmap_base == NULL) {
-      static struct timespec time_offset = { 0, 0 };
-      setup_mmap(infilename);
-      packet.offset = 0;
-      packet.length = 1000000000;
-
-      ctrl_time = malloc(sizeof(ctrl_time_t));
-      scr_nr = 0;
-      ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-      set_time_base(PTS, scr_nr, time_offset);
-
-    } else {
-      packet.length = 1000000000;
-
-
-    }
-  } else {
-    
-    if(stream_shmid != -1) {
-      // msg
-      while(chk_for_msg() != -1)
-	;
-      
-      // Q
-      get_q();
-    } 
-    
-    while(mmap_base == NULL) {
-      wait_for_msg(CMD_FILE_OPEN);
-    }
-    while(stream_shmid == -1) {
-      wait_for_msg(CMD_DECODE_STREAM_BUFFER);
-    }
-    
-  }
-}  
-
-
-void read_buf()
-{
-  uint8_t *packet_base = &mmap_base[packet.offset];
-  int end_bytes;
-  int i, j;
-  
-  /* How many bytes are there left? (0, 1, 2 or 3). */
-  end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
-  
-  /* Read them, as we have at least 32 bits free they will fit. */
-  i = 0;
-  while( i < end_bytes ) {
-    //cur_word=cur_word|(((uint64_t)packet_base[packet.length-end_bytes+i++])<<(56-bits_left)); //+
-    cur_word=(cur_word << 8) | packet_base[packet.length - end_bytes + i++];
-    bits_left += 8;
-  }
-   
-  /* If we have enough 'free' bits so that we always can align
-     the buff[] pointer to a 4 byte boundary. */
-  if( (64-bits_left) >= 24 ) {
-    int start_bytes;
-    get_next_packet(); // Get new packet struct
-    packet_base = &mmap_base[packet.offset];
-    
-    /* How many bytes to the next 4 byte boundary? (0, 1, 2 or 3). */
-    start_bytes = (4 - ((long)packet_base % 4)) % 4; 
-    
-    /* Do we have that many bytes in the packet? */
-    j = start_bytes < packet.length ? start_bytes : packet.length;
-    
-    /* Read them, as we have at least 24 bits free they will fit. */
-    i = 0;
-    while( j-- ) {
-      //cur_word=cur_word|(((uint64_t)packet_base[i++])<<(56-bits_left)); //+
-      cur_word  = (cur_word << 8) | packet_base[i++];
-      bits_left += 8;
-    }
-     
-    buf = (uint32_t *)&packet_base[start_bytes];
-    buf_size = (packet.length - start_bytes) / 4; // Number of 32 bit words
-    offs = 0;
-    
-    /* If there were fewer bytes than needed to get to the first 4 byte boundary,
-       then we need to make this inte a valid 'empty' packet. */
-    if( start_bytes > packet.length ) {
-      /* This make the computation of end_bytes come 0 and 
-	 forces us to call read_buff() the next time get/dropbits are used. */
-      packet.length = start_bytes;
-      buf_size = 0;
-    }
-    
-    /* Make sure we have enough bits before we return */
-    if(bits_left <= 32) {
-      /* If the buffer is empty get the next one. */
-      if(offs >= buf_size)
-	read_buf();
-      else {
-	uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
-	//cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
-	cur_word = (cur_word << 32) | new_word;
-	bits_left += 32;
-      }
-    }
-  
-  } else {
-    /* The trick!! 
-       We have enough data to return. Infact it's so much data that we 
-       can't be certain that we can read enough of the next packet to 
-       align the buff[ ] pointer to a 4 byte boundary.
-       Fake it so that we still are at the end of the packet but make
-       sure that we don't read the last bytes again. */
-    
-    packet.length -= end_bytes;
-  }
-
-}
-
-#else
 
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
@@ -432,7 +253,7 @@ unsigned int nextbits(unsigned int nr_of_bits)
   DPRINTF(4, "nextbits %08x\n",(result >> (32-nr_of_bits )));
   return result >> (32-nr_of_bits);
 }
-#endif
+
 
 static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
@@ -745,10 +566,6 @@ void push_stream_data(uint8_t stream_id, int len,
 {
   uint8_t *data = &buf[offs-(bits_left/8)];
   uint8_t subtype;
-  static struct {
-    uint32_t type;
-    struct off_len_packet body;
-  } ol_pack = {PACK_TYPE_OFF_LEN};
 
   //  fprintf(stderr, "pack nr: %d, stream_id: %02x (%02x), offs: %d, len: %d",
   //	  packnr, stream_id, data[0], offs-(bits_left/8), len);
@@ -762,9 +579,6 @@ void push_stream_data(uint8_t stream_id, int len,
 
   //  fprintf(stderr, "\n");
   //fprintf(stderr, "stream_id: %02x\n", stream_id);
-
-  ol_pack.body.offset = offs - (bits_left/8);
-  ol_pack.body.length = len;
 
 #ifdef STATS
   stat_n_packets++;
@@ -830,26 +644,6 @@ void push_stream_data(uint8_t stream_id, int len,
     }
     
   }
-  
-  /*
-    if(*data >= 0x20 && *data <= 0x3f) {
-    DPRINTF(1, "subtitle 0x%02x exists\n", *data);
-    }
-    if(*data == subtitle_id ){ 
-    DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-    fwrite(&ol_pack, sizeof(ol_pack), 1, subtitle_file);
-    
-    if(*data >= 0x20 && *data <= 0x3f) {
-    DPRINTF(1, "subtitle 0x%02x exists\n", *data);
-    }
-    if(*data == subtitle_id ){ 
-    DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-    fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
-    
-    #ifdef STATS
-    stat_subpicture_n_packets++;
-    #endif //STATS
-  */
   
   drop_bytes(len);
   
@@ -1482,7 +1276,6 @@ int main(int argc, char **argv)
   int stream_nr;
   char *file;
   int stream_id;
-  int subtype;
   
   program_name = argv[0];
   
@@ -1537,12 +1330,12 @@ int main(int argc, char **argv)
 	  exit(1);
 	}
 	video=1;
-	id_add(stream_id, subtype, STREAM_DECODE, 0, NULL, video_file);
+	id_add(stream_id, 0, STREAM_DECODE, 0, NULL, video_file);
 	
       } else {
 	fprintf(stderr, "Video stream %d disabled\n", stream_nr);
 	
-	id_add(stream_id, subtype, STREAM_DISCARD, 0, NULL, NULL);
+	id_add(stream_id, 0, STREAM_DISCARD, 0, NULL, NULL);
       }
 	
 	  

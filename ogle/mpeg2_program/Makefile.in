@@ -20,11 +20,9 @@ DFLAGS=@CFLAGS@ @DEFS@ @GLIB_CFLAGS@
 LDFLAGS=@LIBS@
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
-all:	programstream play_pes
+all:	programstream
 
 programstream:
 
-play_pes:
-
 clean:
-	rm -f programstream play_pes *.o
+	rm -f programstream *.o
