@@ -794,14 +794,12 @@ void ifoRead_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes, int offset) {
   int i;
   
   fseek(ifo_file, offset, SEEK_SET);
-  if(fread(vts_attributes, VMG_VTS_ATTRIBUTES_SIZE, 1, ifo_file) != 1) {
+  if(fread(vts_attributes, sizeof(vts_attributes_t), 1, ifo_file) != 1) {
     perror("ifoRead VMG_VTS_ATTRIBUTES");
     exit(1);
   }
   B2N_32(vts_attributes->last_byte);
   B2N_32(vts_attributes->vts_cat);
-  //B2N_16(vts_attributes->vtsm_vobs_attributes);
-  //B2N_16(vts_attributes->vtstt_vobs_video_attributes);
   
 #ifndef NDEBUG
   CHECK_ZERO(vts_attributes->zero_1);
@@ -870,7 +868,8 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
     assert(data[i] + VMG_VTS_ATTRIBUTES_MIN_SIZE < vts_atrt->last_byte + 1);
 #endif
   
-  info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATTRIBUTES_SIZE;
+  info_length = vts_atrt->nr_of_vtss * sizeof(vts_attributes_t);
+  fprintf(stderr, "SIZE OF THE STRUCT IS REALLY %d\n", sizeof(vts_attributes_t));
   vts_atrt->vts_attributes = malloc(info_length);
   for(i = 0; i < vts_atrt->nr_of_vtss; i++) {
     int offset = data[i];

@@ -48,8 +48,9 @@ extern int vm_menuCall(int menuid, int block);
 extern int vm_resume(void);
 extern int get_Audio_stream(int audioN);
 extern int get_Spu_stream(int spuN);
-extern int get_Audio_info(int *num_avail, int *current);
-extern int get_Spu_info(int *num_avail, int *current);
+extern int get_Spu_active_stream(void);
+extern void get_Audio_info(int *num_avail, int *current);
+extern void get_Spu_info(int *num_avail, int *current);
 
 
 
@@ -305,9 +306,47 @@ void do_init_cell(void) {
   block = state.blockN;
   assert(cell->first_sector + block <= cell->last_sector);
   
+#if 1
+  /* Tell the demuxer which audio track to demux */ 
+  {
+    MsgEvent_t ev;
+    int sN = get_Audio_stream(state.AST_REG);
+    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
+    fprintf(stderr, "nav: sending audio demuxstream %d\n", sN);
+    
+    ev.type = MsgEventQDemuxStreamChange;
+    ev.demuxstreamchange.stream_id = 0xbd; // AC3
+    ev.demuxstreamchange.subtype = 0x80 | sN;
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+  }
+  fprintf(stderr, "nav: sent\n");
+#endif
+
+#if 1
+  /* Tell the demuxer which spu track to demux */ 
+  {
+    MsgEvent_t ev;
+    int sN = get_Spu_active_stream();
+    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
+    fprintf(stderr, "nav: sending spu demuxstream %d\n", sN);
+    
+    ev.type = MsgEventQDemuxStreamChange;
+    ev.demuxstreamchange.stream_id = 0xbd; // SPU
+    ev.demuxstreamchange.subtype = 0x20 | sN;
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+  }
+  fprintf(stderr, "nav: sent\n");
+#endif
+  
   /* Get the pci/dsi data */
   send_demux_sectors(cell->first_sector + block, 1, 0);
   pending_packets += 2;
+
+
 }
 
 void do_next_cell(void) {
@@ -501,7 +540,21 @@ void do_run(void) {
 	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);
 	  break;
-	  
+	case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
+	  {
+	    MsgEvent_t send_ev;
+	    int sN;
+	    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
+	    sN = get_Audio_stream(state.AST_REG);
+	    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
+	    send_ev.type = MsgEventQDemuxStreamChange;
+	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
+	    send_ev.demuxstreamchange.subtype = 0x80 | sN;
+	    if(send_demux(msgq, &send_ev) == -1) {
+	      fprintf(stderr, "vm: didn't set demuxstream\n");
+	    }
+	  }
+	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {
 	    MsgEvent_t send_ev;
@@ -538,7 +591,32 @@ void do_run(void) {
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
-	  
+	case DVDCtrlGetCurrentSubpicture:
+	  {
+	    MsgEvent_t send_ev;
+	    int nS, cS;
+	    get_Spu_info(&nS, &cS);
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
+	    send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
+	    send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	  }
+	  break;
+	case DVDCtrlIsSubpictureStreamEnabled:
+	  {
+	    MsgEvent_t send_ev;
+	    int streamN = ev.dvdctrl.cmd.subpicturestreamenabled.streamnr;
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
+	    send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
+	    send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
+	      (get_Spu_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	  }
+	  break;
+ 	case DVDCtrlGetSubpictureAttributes:
+	  break;
 	default:
 	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);
@@ -558,6 +636,8 @@ void do_run(void) {
       int len;
       
       assert(pending_packets > 0);
+      
+      //fprintf(stderr, "Got a NAV packet\n");
       
       len = get_q(msgq, &buffer[0]);
       

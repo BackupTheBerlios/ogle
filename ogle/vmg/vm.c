@@ -219,24 +219,30 @@ int reset_vm(void)
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
   memset(state.registers.GPRM, 0, sizeof(state.registers.GPRM));
-  state.PTL_REG = 8;            // Parental Level
+  state.registers.SPRM[0] = ('U'<<8)|'S'; // Player Menu Languange code
+  state.AST_REG = 15;
+  state.SPST_REG = 0; // 62 why?
+  state.AGL_REG = 1;
+  state.TTN_REG = 1;
+  state.VTS_TTN_REG = 1;
+  //state.PGC_REG = 0
+  state.PTT_REG = 1;
+  state.HL_BTNN_REG = 1 << 10;
+
+  state.PTL_REG = 15;           // Parental Level
   state.registers.SPRM[20] = 1; // Player Regional Code
-  state.TTN_REG = 1;            // Title Number
-  state.VTS_TTN_REG = 1;        // VTS Title Number
-  state.PGC_REG = 0;            // Title PGC Number
-  state.registers.SPRM[7] = 1;  // PTT Number for One_Sequential_PGC_Title
+  
   state.pgN = 0;
   state.cellN = 0;
 
   state.domain = FP_DOMAIN;
   state.rsm_vtsN = 0;
-  state.rsm_pgcN = 0;
+  //state.rsm_pgcN = 0;
   state.rsm_cellN = 0;
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
   ifoOpenVMGI(); // Check for error
-  //assert(ifo_file);
   
   return 0;
 }
@@ -430,11 +436,27 @@ int get_Audio_stream(int audioN)
 {
   int streamN = -1;
   
-  /* Is there any contol info for this logical stream */ 
-  if(state.pgc->audio_control[audioN] & (1<<15)) {
-    streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
+  if(state.domain == VTSM_DOMAIN 
+     || state.domain == VMGM_DOMAIN
+     || state.domain == FP_DOMAIN) {
+    audioN = 0;
   }
-  /* Should also check in vtsi/vmgi status that what kind of stream
+  
+  if(audioN < 7) {
+    /* Is there any contol info for this logical stream */ 
+    if(state.pgc->audio_control[audioN] & (1<<15)) {
+      streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
+    }
+  }
+  
+  if(state.domain == VTSM_DOMAIN 
+     || state.domain == VMGM_DOMAIN
+     || state.domain == FP_DOMAIN) {
+    if(streamN == -1)
+      streamN = 0;
+  }
+  
+   /* Should also check in vtsi/vmgi status that what kind of stream
    * it is (ac3/lpcm/dts/sdds...) */
   return streamN;
 }
@@ -444,18 +466,45 @@ int get_Spu_stream(int spuN)
   int streamN = -1;
   int source_aspect = get_video_aspect();
   
-  /* Is there any contol info for this logical stream */ 
-  if(state.pgc->subp_control[spuN] & (1<<31)) {
-    if(source_aspect == 0) /* 4:3 */	     
-      streamN = (state.pgc->subp_control[spuN] >> 24) & 0x1f;  
-    if(source_aspect == 3) /* 16:9 */
-      streamN = (state.pgc->subp_control[spuN] >> 16) & 0x1f;
+  if(state.domain == VTSM_DOMAIN 
+     || state.domain == VMGM_DOMAIN
+     || state.domain == FP_DOMAIN) {
+    spuN = 0;
+  }
+  
+  if(spuN < 32) { /* a valid logical stream */
+    /* Is this logical stream present */ 
+    if(state.pgc->subp_control[spuN] & (1<<31)) {
+      if(source_aspect == 0) /* 4:3 */	     
+	streamN = (state.pgc->subp_control[spuN] >> 24) & 0x1f;  
+      if(source_aspect == 3) /* 16:9 */
+	streamN = (state.pgc->subp_control[spuN] >> 16) & 0x1f;
+    }
+  }
+  
+  /* Paranoia.. if no stream select 0 anyway */
+  if(state.domain == VTSM_DOMAIN 
+     || state.domain == VMGM_DOMAIN
+     || state.domain == FP_DOMAIN) {
+    if(streamN == -1)
+      streamN = 0;
   }
   
   return streamN;
 }
 
-int get_Audio_info(int *num_avail, int *current)
+int get_Spu_active_stream(void)
+{
+  int spuN = state.SPST_REG;
+  
+  if(state.domain == VTS_DOMAIN && !(spuN & 0x40)) { /* Is the spu off? */
+    return -1;
+  } else {
+    return get_Spu_stream(spuN & ~0x40);
+  }
+}
+
+void get_Audio_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
@@ -463,14 +512,14 @@ int get_Audio_info(int *num_avail, int *current)
   } else if(state.domain == VTSM_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vtsm_audio_streams;
-  } else if(state.domain == VMGM_DOMAIN) {
+  } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
     ifoOpenVMGI();
     *num_avail = vmgi.vmgi_mat->nr_of_vmgm_audio_streams;
   }
   *current = state.AST_REG;
 }
 
-int get_Spu_info(int *num_avail, int *current)
+void get_Spu_info(int *num_avail, int *current)
 {
   if(state.domain == VTS_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
@@ -478,7 +527,7 @@ int get_Spu_info(int *num_avail, int *current)
   } else if(state.domain == VTSM_DOMAIN) {
     ifoOpenVTSI(state.vtsN);
     *num_avail = vtsi.vtsi_mat->nr_of_vtsm_subp_streams;
-  } else if(state.domain == VMGM_DOMAIN) {
+  } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
     ifoOpenVMGI();
     *num_avail = vmgi.vmgi_mat->nr_of_vmgm_subp_streams;
   }
