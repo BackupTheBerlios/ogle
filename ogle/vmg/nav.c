@@ -445,7 +445,6 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
 int pending_lbn;
 int block;
 int still_time;
-int still_time_th;
 cell_playback_t *cell;
 
 
@@ -455,8 +454,7 @@ cell_playback_t *cell;
 void do_init_cell(int flush) {
   
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
-  still_time = cell->still_time;
-  still_time = 10;
+  still_time = 10 * cell->still_time;
 
   block = state.blockN;
   assert(cell->first_sector + block <= cell->last_vobu_start_sector);
@@ -572,10 +570,7 @@ void do_run(void) {
 	  while(still_time && MsgCheckEvent(msgq, &ev)) {
 	    struct timespec req = {0, 100000000}; // 0.1s 
 	    nanosleep(&req, NULL);
-	    if(!(--still_time_th)) {
-	      still_time_th = 10;
-	      --still_time;
-	    }
+	    still_time--;
 	  }
 	else // Inf. still time
 	  MsgNextEvent(msgq, &ev);
