@@ -154,6 +154,7 @@ DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav,
 DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country);
 DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level);
 
+DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region);
 /* end control commands */
 
 #endif /* DVDCONTROL_H_INCLUDED */

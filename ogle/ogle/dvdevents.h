@@ -72,6 +72,8 @@ typedef enum {
   DVDCtrlParentalCountrySelect,
   DVDCtrlParentalLevelSelect,
 
+  DVDCtrlPlayerRegionSelect,
+
   DVDCtrlAudioStreamChange,
   DVDCtrlSubpictureStreamChange,
   DVDCtrlSetSubpictureState,
@@ -275,6 +277,12 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  DVDPlayerRegion_t region;
+} DVDCtrlPlayerRegionEvent_t;
+
+
+typedef struct {
+  DVDCtrlEventType_t type;
   DVDAudioStream_t streamnr;
 } DVDCtrlAudioStreamChangeEvent_t;
 
@@ -403,6 +411,8 @@ typedef union {
 
   DVDCtrlCountryEvent_t parentalcountryselect;
   DVDCtrlParentalLevelEvent_t parentallevelselect;
+
+  DVDCtrlPlayerRegionEvent_t playerregionselect;
 
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
   DVDCtrlSubpictureStreamChangeEvent_t subpicturestreamchange;

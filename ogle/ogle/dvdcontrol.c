@@ -1832,6 +1832,34 @@ DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
   return DVD_E_Ok;
 }
 
+
+/**
+ * Selects the region of the player.
+ * @todo more return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param level Specifies the region.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified.
+ */
+DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPlayerRegionSelect;
+  ev.dvdctrl.cmd.playerregionselect.region = region;
+  
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
+
   
 /** @} end of dvdctrl */
 

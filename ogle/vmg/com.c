@@ -122,6 +122,7 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       DVDLangID_t langid;
       DVDCountryID_t country;
       DVDParentalLevel_t level;
+      DVDPlayerRegion_t region;
 
       switch(ev->dvdctrl.cmd.type) {
       case DVDCtrlDefaultMenuLanguageSelect:
@@ -143,6 +144,10 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       case DVDCtrlParentalLevelSelect:
 	level = ev->dvdctrl.cmd.parentallevelselect.level;
 	set_sprm(13, level);
+	break;
+      case DVDCtrlPlayerRegionSelect:
+	region = ev->dvdctrl.cmd.playerregionselect.region;
+	set_sprm(20, region);
 	break;
       default:
 	fprintf(stderr, "*vmg: unhandled dvdctrl event type (%d)\n",

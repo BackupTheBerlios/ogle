@@ -103,6 +103,13 @@ typedef enum {
 } DVDParentalLevel_t;
 
 /**
+ * Player Region
+ * Only one bit can be set
+ */
+typedef uint8_t DVDPlayerRegion_t;
+
+
+/**
  * Language ID (ISO-639 language code)
  */
 typedef uint16_t DVDLangID_t;

@@ -19,6 +19,7 @@ static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
   DVDLangID_t lang;
   DVDCountryID_t country;
   DVDParentalLevel_t plevel;
+  DVDPlayerRegion_t region;
   xmlChar *s;
 
   cur = cur->xmlChildrenNode;
@@ -58,6 +59,18 @@ static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
 	//fprintf(stderr, "ParentalLevel = %s\n", s);
 	plevel = atoi(s);
 	DVDParentalLevelSelect(nav, plevel);    
+	free(s);
+      }
+    } else if(!strcmp("PlayerRegion", cur->name)) {
+      if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	//fprintf(stderr, "PlayerRegion = %s\n", s);
+	region = (uint8_t)atoi(s);
+	if((region >= 1) && (region <= 8)) {
+	  region = 1 << (region-1);
+	  DVDPlayerRegionSelect(nav, region);
+	} else {
+	  fprintf(stderr, "ERROR[dvd_cli]: interpret_nav_defaults(): <PlayerRegion> %u not in range [1,8]\n", region);
+	}
 	free(s);
       }
     }
