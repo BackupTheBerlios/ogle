@@ -213,7 +213,7 @@ static void print_if_version_3(void) {
   
   if(op) {
     fprintf(stderr, "if (");
-    print_reg(bits(2,4,4));
+    print_reg(bits(2,0,8));
     print_cmp_op(op);
     print_reg_or_data(bits(1,0,1), 6);
     fprintf(stderr, ") ");
@@ -228,6 +228,18 @@ static void print_if_version_4(void) {
     print_reg(bits(1,4,4));
     print_cmp_op(op);
     print_reg_or_data(bits(1,0,1), 4);
+    fprintf(stderr, ") ");
+  }
+}
+
+static void print_if_version_5(void) {
+  uint8_t op = bits(1,1,3);
+  
+  if(op) {
+    fprintf(stderr, "if (");
+    print_reg(bits(4,0,8));
+    print_cmp_op(op);
+    print_reg(bits(5,0,8));
     fprintf(stderr, ") ");
   }
 }
@@ -425,6 +437,26 @@ static void print_set_version_2(void) {
   }
 }
 
+static void print_set_version_3(void) {
+  uint8_t set_op = bits(0,4,4);
+  
+  if(set_op) {
+    print_reg(bits(1,4,4));
+    print_set_op(set_op);
+    if(bits(0,3,1)) { // print_reg_or_data
+      int i = bits(2,0,16);
+      
+      fprintf(stderr, "0x%x", i);
+      if(isprint(i & 0xff) && isprint((i>>8) & 0xff))
+	fprintf(stderr, " (\"%c%c\")", (char)((i>>8) & 0xff), (char)(i & 0xff));
+    } else {
+      print_reg(bits(2,0,8));
+    }
+  } else {
+    fprintf(stderr, "NOP");
+  }
+}
+
 void vmPrint_mnemonic(vm_cmd_t *command)  {
   int i, extra_bits;
   
@@ -464,17 +496,23 @@ void vmPrint_mnemonic(vm_cmd_t *command)  {
       print_linksub_instruction();
       break;
     case 5: // Compare -> (Set and LinkSub) instructions
-      print_if_version_4();
+      if(bits(0,3,1))
+	print_if_version_5();
+      else
+	print_if_version_1();
       fprintf(stderr, "{ ");
-      print_set_version_2();
+      print_set_version_3();
       fprintf(stderr, ", ");
       print_linksub_instruction();
       fprintf(stderr, " }");
       break;
     case 6: // Compare -> Set, always LinkSub instructions
-      print_if_version_4();
+      if(bits(0,3,1))
+	print_if_version_5();
+      else
+	print_if_version_1();
       fprintf(stderr, "{ ");
-      print_set_version_2();
+      print_set_version_3();
       fprintf(stderr, " } ");
       print_linksub_instruction();
       break;
