@@ -257,9 +257,6 @@ int vm_menu_call(DVDMenuID_t menuid, int block)
   domain_t old_domain;
   link_t link_values;
   
-  /* Should check if we are allowed/can acces this menu */
-  
-  
   /* FIXME XXX $$$ How much state needs to be restored 
    * when we fail to find a menu? */
   
@@ -270,8 +267,9 @@ int vm_menu_call(DVDMenuID_t menuid, int block)
     saveRSMinfo(0, block);
     /* FALL THROUGH */
   case VTSM_DOMAIN:
-  case VMGM_DOMAIN:
     state.domain = menuid2domain(menuid);
+    /* FALL THROUGH */
+  case VMGM_DOMAIN: /* or should one be able to jump from vmgm to title dom? */
     if(get_PGCIT() != NULL && get_MENU(menuid) != -1) {
       link_values = play_PGC();
       link_values = process_command(link_values);
@@ -488,10 +486,15 @@ subp_attr_t vm_get_subp_attr(int streamN)
   return attr;
 }
 
+user_ops_t vm_get_uops(void)
+{
+  return state.pgc->prohibited_ops;
+}
+
 audio_attr_t vm_get_audio_attr(int streamN)
 {
   audio_attr_t attr;
-  
+
   if(state.domain == VTS_DOMAIN) {
     attr = vtsi->vtsi_mat->vts_audio_attr[streamN];
   } else if(state.domain == VTSM_DOMAIN) {
@@ -813,6 +816,16 @@ static link_t play_PGC_post(void)
   {
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
     fprintf(stderr, "** Fell of the end of the pgc, continuing in NextPGC\n");
+    if(state.domain == FP_DOMAIN) {
+      /* User should select a title them self, i.e. we should probably go 
+	 to the STOP_DOMAIN.  Untill we have that implemented start playing
+	 title track 1 instead since we're sure that that isn't optional. */
+      if(get_TT(1) == -1)
+	assert(0);
+      /* This won't create an infinite loop becase we can't ever get to the
+	 FP_DOMAIN again without executing a command. */
+      play_PGC();
+    }
     assert(state.pgc->next_pgc_nr != 0);
     /* Should end up in the STOP_DOMAIN if next_pgc i 0. */
     return link_next_pgc;
@@ -822,6 +835,8 @@ static link_t play_PGC_post(void)
 
 static link_t process_command(link_t link_values)
 {
+  link_t do_nothing = { PlayThis, state.blockN, 0, 0};
+  
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
@@ -844,13 +859,19 @@ static link_t process_command(link_t link_values)
     case LinkNextC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      state.cellN += 1; // What if cellN becomes > nr_of_cells?
+      // What if cellN becomes > nr_of_cells?
+      if(state.cellN == state.pgc->nr_of_cells)
+	return do_nothing; // it should do nothing
+      state.cellN += 1;
       link_values = play_Cell();
       break;
     case LinkPrevC:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
-      state.cellN -= 1; // What if cellN becomes < 1?
+      // What if cellN becomes < 1?
+      if(state.cellN == 0)
+	return do_nothing; // it should do nothing
+      state.cellN -= 1;
       link_values = play_Cell();
       break;
       
@@ -864,15 +885,27 @@ static link_t process_command(link_t link_values)
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
       // Does pgN always contain the current value?
-      state.pgN += 1; // What if pgN becomes > pgc.nr_of_programs?
-      link_values = play_PG();
+      if(state.pgN == state.pgc->nr_of_programs) {
+	if(get_PGC(state.pgc->prev_pgc_nr))
+	  return do_nothing; // it must do nothing, do not exit...
+	link_values = play_PGC();
+      } else {                                                                
+	state.pgN += 1;
+	link_values = play_PG();
+      }                                                                       
       break;
     case LinkPrevPG:
       if(link_values.data1 != 0)
 	state.HL_BTNN_REG = link_values.data1 << 10;
       // Does pgN always contain the current value?
-      state.pgN -= 1; // What if pgN becomes < 1?
-      link_values = play_PG();
+      if(state.pgN == 1) {
+	if(get_PGC(state.pgc->prev_pgc_nr))
+	  return do_nothing; // it must do nothing, do not exit...
+	link_values = play_PGC();
+      } else {                                                                
+	state.pgN -= 1;
+	link_values = play_PG();
+      }                                                                       
       break;
       
     case LinkTopPGC:
@@ -885,7 +918,7 @@ static link_t process_command(link_t link_values)
 	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->next_pgc_nr != 0);
       if(get_PGC(state.pgc->next_pgc_nr))
-	assert(0);
+	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkPrevPGC:
@@ -893,7 +926,7 @@ static link_t process_command(link_t link_values)
 	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->prev_pgc_nr != 0);
       if(get_PGC(state.pgc->prev_pgc_nr))
-	assert(0);
+	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkGoUpPGC:
@@ -901,7 +934,7 @@ static link_t process_command(link_t link_values)
 	state.HL_BTNN_REG = link_values.data1 << 10;
       assert(state.pgc->goup_pgc_nr != 0);
       if(get_PGC(state.pgc->goup_pgc_nr))
-	assert(0);
+	return do_nothing; // do nothing, do not exit... assert(0);
       link_values = play_PGC();
       break;
     case LinkTailPGC:
@@ -1120,7 +1153,8 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
   
   pgcN = get_ID(vts_ttn); // This might return -1
   assert(pgcN != -1);
-
+  //assert(pgcN == vtsi->vts_ptt_srpt->title[vts_ttn - 1].ptt[0].pgcn); ??
+  
   //state.TTN_REG = ?? Must search tt_srpt for a matching entry...  
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
@@ -1143,6 +1177,8 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
   pgcN = vtsi->vts_ptt_srpt->title[vts_ttn - 1].ptt[part - 1].pgcn;
   pgN = vtsi->vts_ptt_srpt->title[vts_ttn - 1].ptt[part - 1].pgn;
   
+  //assert(pgcN == get_ID(vts_ttn); ??
+  
   //state.TTN_REG = ?? Must search tt_srpt for a matchhing entry...
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
@@ -1157,9 +1193,14 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
 static int get_FP_PGC(void)
 {  
   state.domain = FP_DOMAIN;
-
-  state.pgc = vmgi->first_play_pgc;
   
+  /* 'DVD Authoring & Production' claim that first_play_pgc is optional. */
+  if(vmgi->first_play_pgc) {
+    state.pgc = vmgi->first_play_pgc;
+  } else {
+    if(get_TT(1) == -1)
+      assert(0);
+  }
   return 0;
 }
 
