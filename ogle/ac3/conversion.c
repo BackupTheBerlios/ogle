@@ -68,7 +68,18 @@ int init_sample_conversion(adec_handle_t *h,
   int n;
   int output_frame_size = h->config->dst_format.sample_frame_size;
 
-  if(src_format->sample_format == SampleFormat_AC3Frame) {
+  if(src_format->sample_format == SampleFormat_DTSFrame) {
+    
+    if(h->output_buf_size < nr_samples * output_frame_size) {
+      h->output_buf_size = nr_samples * output_frame_size;
+      h->output_buf = realloc(h->output_buf, h->output_buf_size);
+      if(h->output_buf == NULL) {
+	FATAL("init_sample_conversion2, realloc failed\n");
+	exit(1); // ?
+      }
+    }
+    
+  } else if(src_format->sample_format == SampleFormat_AC3Frame) {
     
     if(h->output_buf_size < 256*6*2*2) {
       h->output_buf_size = 256*6*2*2;
@@ -125,6 +136,9 @@ int init_sample_conversion(adec_handle_t *h,
     break;
   case SampleFormat_AC3Frame:
     conversion_routine = 3;
+    break;
+  case SampleFormat_DTSFrame:
+    conversion_routine = 4;
     break;
   case SampleFormat_Unsigned:
   default:
@@ -292,16 +306,66 @@ static int convert_ac3frame_to_iec61937frame(uint16_t *ac3,
   bsmod = data_in[5] & 0x7;		// bsmod, stream = 0
   frame_size = frmsizecod_tbl[frmsizecod].frm_size[fscod] ;
   
-  data_out[0] = 0x72; data_out[1] = 0xf8;	/* spdif syncword    */
-  data_out[2] = 0x1f; data_out[3] = 0x4e;	/* ..............    */
-  data_out[4] = 0x01;			/* AC3 data          */
-  data_out[5] = bsmod;			/* bsmod, stream = 0 */
-  data_out[6] = (frame_size << 4) & 0xff;   /* frame_size * 16   */
+  data_out[0] = 0x72; data_out[1] = 0xf8;	/* iec61937 Preamble Pa */
+  data_out[2] = 0x1f; data_out[3] = 0x4e;	/*                   Pb */
+  data_out[4] = 0x01;			        /* AC3               Pc */
+  data_out[5] = bsmod;			        /* bsmod, stream = 0    */
+  data_out[6] = (frame_size << 4) & 0xff;       /* frame_size * 16   Pd */
   data_out[7] = ((frame_size ) >> 4) & 0xff;
   swab(data_in, &data_out[8], frame_size * 2 );
   //  fprintf(stderr, "frame_size: %d\n", frame_size);
   frame_bytes = frame_size * 2 + 8;
   memset(&data_out[frame_bytes], 0, 256*6*2*2 - frame_bytes);
+
+  return 0;
+}
+
+
+static int convert_dtsframe_to_iec61937frame(uint16_t *dts,
+					     uint16_t *iec61937,
+					     int nr_samples)
+{
+  int i;
+  
+  uint8_t *data_out = (uint8_t *)iec61937;
+  uint8_t *data_in = (uint8_t *)dts;
+  int frame_bytes;
+  int fsize;
+  int burst_len;  
+  fsize = (data_in[5] & 0x03) << 12 |
+    (data_in[6] << 4) | (data_in[7] >> 4);
+  fsize = fsize + 1;
+  burst_len = fsize * 8;
+
+  data_out[0] = 0x72; data_out[1] = 0xf8;	/* iec 61937     */
+  data_out[2] = 0x1f; data_out[3] = 0x4e;	/*  syncword     */
+  switch(nr_samples) {
+  case 512:
+    data_out[4] = 0x0b;			/* DTS-1 (512-sample bursts) */
+    break;
+  case 1024:
+    data_out[4] = 0x0c;			/* DTS-2 (1024-sample bursts) */
+    break;
+  case 2048:
+    data_out[4] = 0x0d;			/* DTS-3 (2048-sample bursts) */
+    break;
+  default:
+    FATAL("IEC61937-5: %s-sample bursts not supported\n", nr_samples);
+    data_out[4] = 0x00;
+    break;
+  }
+
+  data_out[5] = 0;                      /* ?? */	   
+  data_out[6] = (burst_len) & 0xff;   
+  data_out[7] = (burst_len >> 8) & 0xff;
+  
+  if(fsize+8 > nr_samples*2*2) {
+    ERROR("IEC61937-5: more data than fits\n");
+  }
+  //TODO if fzise is odd, swab doesn't copy the last byte
+  swab(data_in, &data_out[8], fsize);
+  //  fprintf(stderr, "frame_size: %d\n", frame_size);
+  memset(&data_out[fsize+8], 0, nr_samples*2*2 - (fsize+8));
 
   return 0;
 }
@@ -335,6 +399,13 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 				      (uint16_t *)h->output_buf_ptr, 
 				      nr_samples);
     h->output_buf_ptr += 256*6*2*2; // 2ch 16bit 48kHz (256*6 samples)
+    
+    break;
+  case 4:
+    convert_dtsframe_to_iec61937frame(samples,
+				      (uint16_t *)h->output_buf_ptr, 
+				      nr_samples);
+    h->output_buf_ptr += 2*2*nr_samples; // 2ch 16bit 48kHz
     
     break;
   }

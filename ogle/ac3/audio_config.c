@@ -176,7 +176,19 @@ int audio_config(audio_config_t *aconf,
 	aconf->dst_format.ch_array[0] = ChannelType_AC3;
 	aconf->dst_format.ch_array[1] = ChannelType_AC3;
 	aconf->dst_format.sample_format = SampleFormat_IEC61937;
+
+      } else if(config->chtype[0] == ChannelType_DTS) {
+	aconf->dst_format.sample_resolution = 2;
+	aconf->dst_format.nr_channels = 2;
+	aconf->dst_format.ch_array = 
+	  realloc(aconf->dst_format.ch_array, 
+		  sizeof(ChannelType_t) * 2);
+	aconf->dst_format.ch_array[0] = ChannelType_DTS;
+	aconf->dst_format.ch_array[1] = ChannelType_DTS;
+	aconf->dst_format.sample_format = SampleFormat_IEC61937;
+
       } else {
+
 	FATAL("channel type: %d not implemented\n", config->chtype[0]);
       }
     } else {
@@ -301,6 +313,9 @@ int audio_config(audio_config_t *aconf,
 	ao_chmask |= OGLE_AO_CHTYPE_REARCENTER;
       }
       
+      if(ao_chmask == 0) {
+	ao_chmask = OGLE_AO_CHTYPE_NULL;
+      }
       aconf->ainfo->chtypes = ao_chmask;
     }
   }
@@ -347,6 +362,15 @@ int audio_config(audio_config_t *aconf,
       ERROR("wanted encoding %d, got %d\n",
 	    encoding,
 	    aconf->ainfo->encoding);
+      switch(aconf->ainfo->encoding) {
+      case OGLE_AO_ENCODING_IEC61937:
+	aconf->dst_format.sample_format == SampleFormat_IEC61937;
+	break;
+      case OGLE_AO_ENCODING_LINEAR:
+      default:
+	aconf->dst_format.sample_format = SampleFormat_LPCM;
+	break;
+      }
     }
     if(frag_size != -1 && aconf->ainfo->fragment_size != frag_size) {
       NOTE("wanted fragment size %d, got %d\n",

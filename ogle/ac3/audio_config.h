@@ -26,12 +26,14 @@
 #include "audio_types.h"
 
 typedef enum {
+  SampleFormat_None,
   SampleFormat_LPCM,
   SampleFormat_Unsigned,
   SampleFormat_Signed,
   SampleFormat_A52float,
   SampleFormat_MadFixed,
   SampleFormat_AC3Frame,
+  SampleFormat_DTSFrame,
   SampleFormat_IEC61937
 } SampleFormat_t;
 

@@ -37,7 +37,8 @@ ogle_audio_SOURCES = audio_out.c audio_types.h audio_types.c \
 	decode.h decode_private.h decode.c decode.h \
 	decode_a52.c decode_a52.h \
 	decode_lpcm.c decode_lpcm.h \
-	decode_mpeg.c decode_mpeg.h
+	decode_mpeg.c decode_mpeg.h \
+	decode_dts.c decode_dts.h
 
 ogle_audio_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \

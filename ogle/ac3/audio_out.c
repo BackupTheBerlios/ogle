@@ -404,7 +404,30 @@ int get_q()
       } else if((subtype >= 0x88) && (subtype < 0x90)) {
 	//dts
 	new_audio_type = AudioType_DTS;
+	decode_offset = packet_data_offset+4;
+	decode_len = packet_data_len-4;
+
+	pts_offset = (data_buffer+packet_data_offset)[2]<<8 |
+	  (data_buffer+packet_data_offset)[3];
+	//nr_frames = (data_buffer+packet_data_offset)[1];
+#if 0
+	fprintf(stderr, "PTS_DTS_flags: %x\n",
+		PTS_DTS_flags);
 	WARNING("DTS Audio not implemented\n");
+	{
+	  int n, m;
+	  for(n = 0; n < 2016; n+=32) {
+	    fprintf(stderr, "HEADER %03x:", n);
+	    for(m = 0; m < 32; m++) {
+	      fprintf(stderr, ",%02x",(data_buffer+packet_data_offset)[n+m]);
+	    }
+	    fprintf(stderr, "\n");
+	  }
+	}
+
+	fprintf(stderr, "packet data len: 0x%x (%d)\n",
+		packet_data_len, packet_data_len);
+#endif	
       } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	//lpcm
 	static int first = 1;
@@ -446,7 +469,7 @@ int get_q()
 	  pts_offset--;
 	}
 	if(first) {
-	  WARNING("LPCM Audio not completely implemented\n");
+	  DNOTE("LPCM Audio >2 channels not implemented\n");
 	  first = 0;
 	}
       } else {
@@ -457,7 +480,7 @@ int get_q()
       static int first = 1;
       new_audio_type = AudioType_MPEG;
       if(first) {
-	WARNING("MPEG Audio not implemented\n");
+	DNOTE("MPEG Audio\n");
 	first = 0;
       }
       decode_offset = packet_data_offset;
