@@ -55,4 +55,8 @@ DVDP_SPU=$DVDP_ROOT/video_output
 export DVDP_SPU
 DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
 export DVDP_VIDEO_OUT
-$DVDP_CTRL -u gui $*
+if [ -x "$DVDP_ROOT/ogle_gui" ]; then
+  $DVDP_CTRL -u gui $*;
+else
+  $DVDP_CTRL -u cli $*;
+fi;
