@@ -8,7 +8,7 @@ Installation
      There are two package specific configure options.
        --with-libdvdread=path  specify where libdvdread is installed
        --with-libmlib=path     specify where mediaLib is installed
-l    You might need to use these if you have installed libdvdread or 
+     You might need to use these if you have installed libdvdread or 
      mediaLib in a nonstandard location. Most users will not need to
      give any of these options. Look at the output from configure to
      see if it has found the library. Libdvdread is required for correct
