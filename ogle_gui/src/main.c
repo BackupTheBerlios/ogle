@@ -36,12 +36,9 @@
 #include "audio.h"
 #include "subpicture.h"
 
-static char* window_string = NULL;
-
 DVDNav_t *nav;
 
 int msgqid;
-//extern int win;
 
 poptContext ctx;
 struct poptOption options[] = {
@@ -94,7 +91,9 @@ main (int argc, char *argv[])
   }
   
   //gnome_window_icon_set_default_from_file ("");
-    
+  
+  xsniff_init();
+  
   audio_menu_new();
   subpicture_menu_new();
   

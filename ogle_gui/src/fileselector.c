@@ -25,7 +25,6 @@
 #include "fileselector.h"
 
 #include "xsniffer.h" //hack
-extern int win;
 
 extern DVDNav_t *nav;
 
@@ -73,7 +72,6 @@ void file_selector_remove(GtkButton *button, gpointer user_data) {
 void file_selector_change_root(GtkFileSelection *selector,
 			       gpointer user_data) {
   gchar *selected_filename;
-  unsigned long windowid;
   DVDResult_t res;
 
   if(last_visited!=NULL) {
@@ -91,12 +89,4 @@ void file_selector_change_root(GtkFileSelection *selector,
     return;
   }
   
-  // hack
-  res = DVDGetXWindowID(nav, (void *)&windowid);
-  if(res != DVD_E_Ok) {
-    DVDPerror("file_selector_change_root: DVDGetXWindowID", res);
-    return;
-  }
-  win = windowid;
-  xsniff_init();
 }

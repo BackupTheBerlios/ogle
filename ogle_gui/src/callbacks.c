@@ -33,7 +33,6 @@
 #include "fileselector.h"
 
 #include "xsniffer.h" //hack
-extern int win;
 
 extern DVDNav_t *nav;
 
@@ -112,22 +111,12 @@ void
 on_opendvd_activate                  (GtkMenuItem     *menuitem,
 				      gpointer         user_data) 
 {
-  unsigned long windowid;
   DVDResult_t res;
   res = DVDSetDVDRoot(nav, "/dev/dvd");
   if(res != DVD_E_Ok) {
     DVDPerror("callbacks.on_opendvd_activate(): DVDSetDVDRoot", res);
     return;
   }
-  
-  // hack
-  res = DVDGetXWindowID(nav, (void *)&windowid);
-  if(res != DVD_E_Ok) {
-    DVDPerror("file_selector_change_root: DVDGetXWindowID", res);
-    return;
-  }
-  win = windowid;
-  xsniff_init();
 }
 
 void
