@@ -448,7 +448,7 @@ int coded_block_pattern(void)
     //exit_program(-1);
     return -1;
   }
-  DPRINTF(4, "cpb = %u\n", cbp);
+  DPRINTF(4, "cpb = %u\n", mb.cbp);
   
   return 0;;
 }

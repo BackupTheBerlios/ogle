@@ -73,7 +73,22 @@
 #define PRED_TYPE_16x8_MC 3
 
 
+/* Table 6-14 Meaning of picture_structure */
+#define PIC_STRUCT_RESERVED 0
+#define PIC_STRUCT_TOP_FIELD 1
+#define PIC_STRUCT_BOTTOM_FIELD 2
+#define PIC_STRUCT_FRAME_PICTURE 3
 
+
+/* Table 6-12 Meaning of picture_coding_type */
+#define PIC_CODING_TYPE_FORBIDDEN 0
+#define PIC_CODING_TYPE_I 1
+#define PIC_CODING_TYPE_P 2
+#define PIC_CODING_TYPE_B 3
+#define PIC_CODING_TYPE_D 4
+#define PIC_CODING_TYPE_RESERVED1 5
+#define PIC_CODING_TYPE_RESERVED2 6
+#define PIC_CODING_TYPE_RESERVED3 7
 
 
 #ifdef DEBUG

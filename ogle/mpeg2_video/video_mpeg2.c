@@ -627,7 +627,7 @@ void motion_vector(int r, int s)
   
     // Get the predictor
     if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) &&
-       (pic.coding_ext.picture_structure ==  0x3))
+       (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
       prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
     else
       prediction = pic.PMV[r][s][t];
@@ -646,8 +646,8 @@ void motion_vector(int r, int s)
     }
     
     // Update predictors
-    if((t==1) && (mb.mv_format ==  MV_FORMAT_FIELD) &&
-       (pic.coding_ext.picture_structure ==  0x3))
+    if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) &&
+       (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
       pic.PMV[r][s][t] = vector * 2;
     else
       pic.PMV[r][s][t] = vector;
@@ -667,7 +667,7 @@ void motion_vectors(unsigned int s)
 {
   DPRINTF(3, "motion_vectors(%u)\n", s);
 
-  if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+  if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
     if(pic.coding_ext.frame_pred_frame_dct == 0) {
       
       /* Table 6-17 Meaning of frame_motion_type */
@@ -774,15 +774,15 @@ void macroblock_modes(void)
 {
   DPRINTF(3, "macroblock_modes\n");
 
-  if(pic.header.picture_coding_type == 0x01) {
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_I) {
     /* I-picture */
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
 
-  } else if(pic.header.picture_coding_type == 0x02) {
+  } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
     /* P-picture */
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
 
-  } else if(pic.header.picture_coding_type == 0x03) {
+  } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     /* B-picture */
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
@@ -806,13 +806,14 @@ void macroblock_modes(void)
 	  mb.modes.spatial_temporal_weight_code_flag);
 
   if((mb.modes.spatial_temporal_weight_code_flag == 1) &&
-     ( 1 /*spatial_temporal_weight_code_table_index != 0*/)) {
-    mb.modes.spatial_temporal_weight_code = GETBITS(2, "spatial_temporal_weight_code");
+     (1 /*spatial_temporal_weight_code_table_index != 0*/)) {
+    mb.modes.spatial_temporal_weight_code 
+      = GETBITS(2, "spatial_temporal_weight_code");
   }
 
   if(mb.modes.macroblock_motion_forward ||
      mb.modes.macroblock_motion_backward) {
-    if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
       if(pic.coding_ext.frame_pred_frame_dct == 0) {
 	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
       } else {
@@ -825,17 +826,15 @@ void macroblock_modes(void)
   }
 
   /* if(decode_dct_type) */
-  if((pic.coding_ext.picture_structure == 0x03 /*frame*/) &&
+  if((pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) &&
      (pic.coding_ext.frame_pred_frame_dct == 0) &&
      (mb.modes.macroblock_intra || mb.modes.macroblock_pattern)) {
-    
     mb.modes.dct_type = GETBITS(1, "dct_type");
   } else {
-    /* Table 6-19. Value of dct_type if dct_type is not in the bitstream.*/
-    if(pic.coding_ext.frame_pred_frame_dct == 1) {
-      mb.modes.dct_type = 0;
-    }
-    /* else dct_type is unused, either field picture or mb not coded */
+    /* Table 6-19. Value of dct_type if dct_type is not in the bitstream.
+       pic.coding_ext.frame_pred_frame_dct == 1 then mb.modes.dct_type = 0
+       else dct_type is unused, either field picture or mb not coded */
+    mb.modes.dct_type = 0;
   }
 }
 
@@ -882,7 +881,7 @@ void macroblock(void)
 #endif
   
   
-  if(pic.header.picture_coding_type == 0x02) {
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
     /* In a P-picture when a macroblock is skipped */
     if(mb.macroblock_address_increment > 1) {
       reset_PMV();
@@ -898,7 +897,7 @@ void macroblock(void)
     
     switch(pic.header.picture_coding_type) {
     
-    case 0x2:
+    case PIC_CODING_TYPE_P:
       DPRINTF(3,"skipped in P-picture\n");
       /* mlib is broken!!! 
       {
@@ -947,12 +946,12 @@ void macroblock(void)
       }
       break;
       
-    case 0x3:
+    case PIC_CODING_TYPE_B:
       DPRINTF(3,"skipped in B-frame\n");
       {
 	int old_col = seq.mb_column;
 	
-	if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
 	  /* 7.6.6.4  B frame picture */
 	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
 	  //mb.motion_vector_count = 1;
@@ -1014,7 +1013,7 @@ void macroblock(void)
   
   /* All motion vectors for the block has been decoded. Update predictors */
   
-  if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+  if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
     switch(mb.prediction_type) {
     case PRED_TYPE_FRAME_BASED:
       if(mb.modes.macroblock_intra) {
@@ -1110,7 +1109,7 @@ void macroblock(void)
   }
   
 
-  if(pic.header.picture_coding_type == 0x02) {
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
     /* In a P-picture when a non-intra macroblock is decoded
        in which macroblock_motion_forward is zero */
     if(mb.modes.macroblock_intra == 0 && 
@@ -1123,12 +1122,12 @@ void macroblock(void)
 
   /*** 7.6.3.5 Prediction in P-pictures ***/
 
-  if(pic.header.picture_coding_type == 0x2) {
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
     /* P-picture */
     if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
       DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
       DPRINTF(2, "motion_type: %02x\n", mb.modes.frame_motion_type);
-      if(pic.coding_ext.picture_structure == 0x3) {
+      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
 	
 	mb.prediction_type = PRED_TYPE_FRAME_BASED;
 	mb.mv_format = MV_FORMAT_FRAME;

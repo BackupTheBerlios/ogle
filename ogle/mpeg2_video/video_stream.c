@@ -1316,19 +1316,19 @@ void picture_header(void)
   DPRINTF(1, "picture coding type: %01x, ", pic.header.picture_coding_type);
 
   switch(pic.header.picture_coding_type) {
-  case 0x00:
+  case PIC_CODING_TYPE_FORBIDDEN:
     DPRINTF(1, "forbidden\n");
     break;
-  case 0x01:
+  case PIC_CODING_TYPE_I:
     DPRINTF(1, "intra-coded (I)\n");
     break;
-  case 0x02:
+  case PIC_CODING_TYPE_P:
     DPRINTF(1, "predictive-coded (P)\n");
     break;
-  case 0x03:
+  case PIC_CODING_TYPE_B:
     DPRINTF(1, "bidirectionally-predictive-coded (B)\n");
     break;
-  case 0x04:
+  case PIC_CODING_TYPE_D:
     DPRINTF(1, "shall not be used (dc intra-coded (D) in ISO/IEC11172-2)\n");
     break;
   default:
@@ -1344,15 +1344,15 @@ void picture_header(void)
      In MPEG-2 f_code[] values will be read from the bitstream (later) in 
      picture_coding_extension(). */
 
-  if((pic.header.picture_coding_type == 0x02) ||
-     (pic.header.picture_coding_type == 0x03)) {
+  if((pic.header.picture_coding_type == PIC_CODING_TYPE_P) ||
+     (pic.header.picture_coding_type == PIC_CODING_TYPE_B)) {
     pic.header.full_pel_vector[0] = GETBITS(1, "full_pel_forward_vector");
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
   }
   
-  if(pic.header.picture_coding_type == 0x03) {
+  if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     pic.header.full_pel_vector[1] = GETBITS(1, "full_pel_backward_vector");
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
@@ -1528,13 +1528,13 @@ void picture_data(void)
      frame that is going to be replace. (It might not have been 
      displayed yet so it is not nessesary free for reuse.) */
   switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
+  case PIC_CODING_TYPE_I:
+  case PIC_CODING_TYPE_P:
     if(old_ref_buf_id != -1) {
       buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
     }
     break;
-  case 0x3:
+  case PIC_CODING_TYPE_B:
     break;
   }
   
@@ -1568,13 +1568,13 @@ void picture_data(void)
     buf_ctrl_head->picture_infos[buf_id].scr_nr = last_scr_nr;
   } else {
     switch(pic.header.picture_coding_type) {
-    case 0x1:
-    case 0x2:
+    case PIC_CODING_TYPE_I:
+    case PIC_CODING_TYPE_P:
       /* TODO: Is this correct? */
       buf_ctrl_head->picture_infos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr].realtime_offset;
       break;
-    case 0x3:
+    case PIC_CODING_TYPE_B:
       /* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from. */
       calc_pts = last_pts_to_dpy + 90000/(1000000000/buf_ctrl_head->frame_interval);
       buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
@@ -1605,8 +1605,8 @@ void picture_data(void)
      decide if we shall decode it or skipp it.
   */ 
   switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
+  case PIC_CODING_TYPE_I:
+  case PIC_CODING_TYPE_P:
     buf_ctrl_head->picture_infos[buf_id].in_use = 1;
     
     ref_image1 = ref_image2; // Age the reference frame.
@@ -1643,7 +1643,7 @@ void picture_data(void)
     
     prev_ref_buf_id = buf_id;
     break;
-  case 0x3:
+  case PIC_CODING_TYPE_B:
     dst_image = reserved_image;
 
     /* Calculate the time remaining until this picutre shall be viewed. */
@@ -1703,10 +1703,10 @@ void picture_data(void)
 
   // Picture decoded
   switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
+  case PIC_CODING_TYPE_I:
+  case PIC_CODING_TYPE_P:
     break;
-  case 0x3:
+  case PIC_CODING_TYPE_B:
     // B-picture
     if(prev_ref_buf_id == -1) {
       fprintf(stderr, "decode: B-frame before any frame!!! (Error).\n");
@@ -1746,7 +1746,7 @@ void picture_data(void)
       first = 0;
     } else {
       switch(previous_picture_type) { 
-      case 0x1:
+      case PIC_CODING_TYPE_I:
 	time_pic[0] += diff;
 	num_pic[0]++;
 	if(diff > time_max[0]) {
@@ -1756,7 +1756,7 @@ void picture_data(void)
 	  time_min[0] = diff;
 	}
 	break;
-      case 0x2:
+      case PIC_CODING_TYPE_P:
 	time_pic[1] += diff;
 	num_pic[1]++;
 	if(diff > time_max[1]) {
@@ -1766,7 +1766,7 @@ void picture_data(void)
 	  time_min[1] = diff;
 	}
 	break;
-      case 0x3:
+      case PIC_CODING_TYPE_B:
 	time_pic[2] += diff;
 	num_pic[2]++;
 	if(diff > time_max[2]) {
