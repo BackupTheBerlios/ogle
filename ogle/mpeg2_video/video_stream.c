@@ -17,7 +17,7 @@
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
-static int shmem_flag;
+static int shmem_flag = 1;
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
 
@@ -275,21 +275,34 @@ uint32_t nextbits(unsigned int nr)
 
 int main(int argc, char **argv)
 {
+  int c;
+
+  /* Parse command line options */
+  while ((c = getopt(argc, argv, "d:s")) != EOF) {
+    switch (c) {
+      case 'd':
+        debug = atoi(optarg);
+        break;
+      case 's':
+        shmem_flag = 0;
+        break;
+      case '?':
+        printf ("Usage: %s [-d <level] [-s]\n\n"
+                "  -d <level> set debug level (default 0)\n"
+                "  -s         disable shared memory\n", 
+                argv[0]);
+        return 1;
+    }
+  }
+  if(optind < argc) {
+    infile = fopen(argv[optind], "r");
+  } else {
+    infile = stdin;
+  }
 
   ref_image1 = &r1_img;
   ref_image2 = &r2_img;
   dst_image = &dst_img;
-
-  if(argc > 1) {
-    debug = atoi(argv[1]);
-  }
-
-  if(argc > 2) {
-    infile = fopen(argv[2], "r");
-    
-  } else {
-    infile = stdin;
-  }
 
   display_init();
 
@@ -2336,12 +2349,12 @@ void display_init()
    if (mydisplay == NULL)
       fprintf(stderr,"Can not open display\n");
 
-   /* Check for availability of shared memory */
-   if (XShmQueryExtension(mydisplay))
-     shmem_flag = 1;
-   else {
-     shmem_flag = 0;
-     fprintf(stderr, "No shared memory available!\n");
+   if (shmem_flag) {
+     /* Check for availability of shared memory */
+     if (!XShmQueryExtension(mydisplay)) {
+       shmem_flag = 0;
+       fprintf(stderr, "No shared memory available!\n");
+     }
    }
 
    screen = DefaultScreen(mydisplay);
