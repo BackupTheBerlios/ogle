@@ -49,6 +49,7 @@ unsigned int debug = 0;
 int shm_ready = 0;
 static int shmem_flag = 1;
 
+int forced_frame_rate = -1;
 int nr_of_buffers = 3;
 buf_ctrl_head_t *buf_ctrl_head;
 int picture_buffers_shmid;
@@ -385,7 +386,7 @@ int main(int argc, char **argv)
   int c;
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:r:hs")) != EOF) {
+  while ((c = getopt(argc, argv, "d:r:f:hs")) != EOF) {
     switch (c) {
     case 'd':
       debug = atoi(optarg);
@@ -393,12 +394,15 @@ int main(int argc, char **argv)
     case 'r':
       nr_of_buffers = atoi(optarg);
       break;
+    case 'f':
+      forced_frame_rate = atoi(optarg);
+      break;
     case 's':
       shmem_flag = 0;
       break;
     case 'h':
     case '?':
-      printf ("Usage: %s [-d <level] [-s <buffers>] [-s]\n\n"
+      printf ("Usage: %s [-d <level] [-r <buffers>] [-s]\n\n"
 	      "  -d <level>   set debug level (default 0)\n"
 	      "  -r <buffers> set nr of buffers (default 3)\n"
 	      "  -s           disable shared memory\n", 
@@ -1370,6 +1374,14 @@ void dpy_q_put(int id)
   //fprintf(stderr, "decode: dpy_q[%d]=%d\n", dpy_q_put_pos, id);
   dpy_q_put_pos = (dpy_q_put_pos + 1) % (buf_ctrl_head->nr_of_buffers);
   //fprintf(stderr, "decode: sem_post\n");
+
+  if(forced_frame_rate != -1) {
+    if(forced_frame_rate == 0) {
+      buf_ctrl_head->frame_interval = 0;
+    } else {
+      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
+    }
+  }
   if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
     perror("sempost pictures_ready");
   }
@@ -1907,10 +1919,16 @@ void motion_comp()
       DPRINTF(2, "forward_motion_comp\n");
 
       if(pic.header.full_pel_forward_vector) {
+	half_flag_y[0]  = 0;
+	half_flag_y[1]  = 0;
+	half_flag_uv[0] = ((mb.vector[i][0][0]) & 1);
+	half_flag_uv[1] = ((mb.vector[i][0][1]) & 1);
+	/*
  	half_flag_y[0]  = 0;
 	half_flag_y[1]  = 0;
 	half_flag_uv[0] = 0;
 	half_flag_uv[1] = 0;
+	*/
 	int_vec_y[0]  = (mb.vector[i][0][0]) + (signed int)x * 16;
 	int_vec_y[1]  = (mb.vector[i][0][1])*apa + (signed int)y * 16;
 	int_vec_uv[0] = (mb.vector[i][0][0]/2)  + (signed int)x * 8;
@@ -2075,8 +2093,12 @@ void motion_comp()
      if(pic.header.full_pel_forward_vector) {
  	half_flag_y[0]  = 0;
 	half_flag_y[1]  = 0;
+	half_flag_uv[0] = ((mb.vector[i][1][0]) & 1);
+	half_flag_uv[1] = ((mb.vector[i][1][1]) & 1);
+	/*
 	half_flag_uv[0] = 0;
 	half_flag_uv[1] = 0;
+	*/
 	int_vec_y[0]  = (mb.vector[i][1][0]) + (signed int)x * 16;
 	int_vec_y[1]  = (mb.vector[i][1][1])*apa + (signed int)y * 16;
 	int_vec_uv[0] = (mb.vector[i][1][0]/2) + (signed int)x * 8;

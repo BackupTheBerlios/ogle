@@ -1,5 +1,5 @@
 CC=gcc
-DFLAGS= -DDEBUG -g -Wall -O6 `glib-config --cflags` -mcpu=ultrasparc -mvis \
+DFLAGS= -g -Wall -O6 `glib-config --cflags` -mcpu=ultrasparc -mvis \
 	-DHAVE_MLIB -DHAVE_MADVICE -I/opt/SUNWmlib/include
 #LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl -lposix4 
 LDFLAGS= -L/usr/X11R6/lib -lX11 -lXext -lsocket -lnsl -lposix4 

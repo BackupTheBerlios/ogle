@@ -995,7 +995,7 @@ void display_process()
       display(buf_id);
     }
     clock_gettime(CLOCK_REALTIME, &real_time);
-    if(prefered_time.tv_sec == 0) {
+    if((prefered_time.tv_sec == 0) || (frame_interval.tv_nsec == 0)) {
       prefered_time = real_time;
     }
     timesub(&wait_time, &prefered_time, &real_time);
