@@ -576,7 +576,8 @@ void actionAudioStreamChange(void *data)
   int streams_avail;
   DVDAudioStream_t cur_stream;
   DVDAudioStream_t new_stream;
-  
+  DVDAudioAttributes_t au_attr;
+
   struct action_number *user = (struct action_number *)data;
   
   
@@ -595,6 +596,90 @@ void actionAudioStreamChange(void *data)
       res = DVDAudioStreamChange(nav, new_stream);
       if(res != DVD_E_Ok) {
 	DVDPerror("DVDAudioStreamChange: ", res);
+      }
+      
+      res = DVDGetAudioAttributes(nav, new_stream, &au_attr);
+      if(res != DVD_E_Ok) {
+	ERROR("DVDGetAudioAttributes: %s\n", DVDStrerror(res));
+      } else {
+	char *t_str;
+	switch(au_attr.AudioFormat) {
+	case DVD_AUDIO_FORMAT_AC3:
+	  t_str = "AC-3";
+	  break;
+	case DVD_AUDIO_FORMAT_MPEG1:    
+	  t_str = "MPEG-1"; //MPEG-1 (or MPEG-2 without extension stream)
+	  break;
+	case DVD_AUDIO_FORMAT_MPEG1_DRC:
+	  t_str = "MPEG-1 DRC";
+	  break;
+	case DVD_AUDIO_FORMAT_MPEG2:
+	  t_str = "MPEG-2"; // MPEG-2 with extension stream
+	  break;
+	case DVD_AUDIO_FORMAT_MPEG2_DRC:
+	  t_str = "MPEG-2 DRC";
+	  break;
+	case DVD_AUDIO_FORMAT_LPCM:
+	  t_str = "LPCM";
+	  break;
+	case DVD_AUDIO_FORMAT_DTS:
+	  t_str = "DTS";
+	  break;
+	case DVD_AUDIO_FORMAT_SDDS:
+	  t_str = "SDDS";
+	  break;
+	case DVD_AUDIO_FORMAT_Other:
+	default:
+	  t_str = "Other";
+	  break;
+	}
+	DNOTE("Audio Coding Mode: %s", t_str);
+	
+	if(au_attr.AudioFormat == DVD_AUDIO_FORMAT_LPCM) {
+	  DNOTEC(" %d bits %d Hz", 
+		 au_attr.SampleQuantization,
+		 au_attr.SampleFrequency);
+	}
+	DNOTEC(" %dch", au_attr.NumberOfChannels);
+	
+	if(au_attr.AudioType == DVD_AUDIO_TYPE_Language) {
+	  DNOTEC(" %c%c", au_attr.Language >> 8, au_attr.Language & 0xff);
+	}
+	
+	switch(au_attr.LanguageExtension) {
+	case DVD_AUDIO_LANG_EXT_NotSpecified:
+	  t_str = "";
+	  break;
+	case DVD_AUDIO_LANG_EXT_NormalCaptions:
+	  t_str = "Normal Captions";
+	  break;
+	case DVD_AUDIO_LANG_EXT_VisuallyImpaired:
+	  t_str = "Captions for visually impaired";
+	  break;
+	case DVD_AUDIO_LANG_EXT_DirectorsComments1:
+	  t_str = "Director's comments 1";
+	  break;
+	case DVD_AUDIO_LANG_EXT_DirectorsComments2:
+	  t_str = "Director's comments 2";
+	  break;
+	}
+	DNOTEC(" %s", t_str);
+	
+	switch(au_attr.AppMode) {
+	case DVD_AUDIO_APP_MODE_None:
+	  t_str = "";
+	  break;
+	case DVD_AUDIO_APP_MODE_Karaoke:
+	  t_str = "Karaoke Mode";
+	  break;
+	case DVD_AUDIO_APP_MODE_Surround:
+	  t_str = "Surround Mode";
+	  break;
+	case DVD_AUDIO_APP_MODE_Other:
+	  t_str = "Other Mode";
+	  break;
+	}
+	DNOTEC(" %s\n", t_str);
       }
     }
   } else {
@@ -661,7 +746,8 @@ void actionSubtitleStreamChange(void *data)
       DNOTE("get subpattr snr %d\n", new_stream);
       res = DVDGetSubpictureAttributes(nav, new_stream, &sp_attr);
       if(res != DVD_E_Ok) {
-	DVDPerror("DVDGetSubpictureAttributes: ", res);
+	ERROR("DVDGetSubpictureAttributes: %s\n", DVDStrerror(res));
+	//DVDPerror("DVDGetSubpictureAttributes: ", res);
       } else {
 	char *t_str;
 	switch(sp_attr.Type) {
@@ -714,6 +800,9 @@ void actionSubtitleStreamChange(void *data)
 	  case DVD_SUBPICTURE_LANG_EXT_BigCC:
 	    t_str = "Big CC";
 	    break;
+	  case DVD_SUBPICTURE_LANG_EXT_ChildrensCC:
+	    t_str = "Childrens CC";
+	    break;
 	  case DVD_SUBPICTURE_LANG_EXT_Forced:
 	    t_str = "Forced";
 	    break;
@@ -731,7 +820,7 @@ void actionSubtitleStreamChange(void *data)
 	}
 	DNOTEC("%s", "\n");
       }
-    }     
+    }   
   } else {
     DVDPerror("DVDGetCurrentSubpicture: ", res);
   }
