@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-INCLUDES = @GLIB_CFLAGS@ @DVD_CFLAGS@
+INCLUDES = @GLIB_CFLAGS@ @DVDREAD_CFLAGS@
 
 bin_PROGRAMS = programstream
 
@@ -23,4 +23,4 @@ programstream_SOURCES = programstream.c programstream.h
 
 programstream_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
-	@DVD_LIBS@
+	@DVDREAD_LIBS@

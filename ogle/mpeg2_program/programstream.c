@@ -315,7 +315,7 @@ void dvd_close_file(void)
 int dvd_read_block(char *buf, int boffset, int nblocks)
 {
   int bytes_read;
-  bytes_read = DVDReadBlocksFromFile(dvdfile, boffset, nblocks, buf);
+  bytes_read = DVDReadBlocks(dvdfile, boffset, nblocks, buf);
   
   switch(bytes_read) {
   case -1:
