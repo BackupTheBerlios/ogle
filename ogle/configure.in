@@ -54,37 +54,47 @@ AC_ARG_WITH(libdvdread,
     withval=""
   fi
   if test x$withval != x; then
-    AC_CHECK_LIB(dvdread, DVDOpen, [ DVD_LIBS="-L$withval/lib -ldvdread"
-                                     DVD_CFLAGS=-I$withval/include
-                                   ],, -L$withval/lib)
+    AC_CHECK_LIB(dvdread, DVDOpen, [ DVDREAD_LIBS="-L$withval/lib -ldvdread"
+                                     DVDREAD_CFLAGS=-I$withval/include
+                                   ],, -L$withval/lib -R$withval/lib)
   fi)
-if test -z "$DVD_LIBS" ; then
-  AC_CHECK_LIB(dvdread, DVDOpen, DVD_LIBS=-ldvdread)
+if test -z "$DVDREAD_LIBS" ; then
+  AC_CHECK_LIB(dvdread, DVDOpen, DVDREAD_LIBS=-ldvdread)
 fi
-if test -z "$DVD_LIBS" ; then
+if test -z "$DVDREAD_LIBS" ; then
  AC_MSG_ERROR(You need libdvdread)
 fi
 dnl Linux needs this to prototype lseek64 and others
-DVD_CFLAGS="-D_LARGEFILE64_SOURCE $DVD_CFLAGS"
-AC_SUBST(DVD_CFLAGS)
-AC_SUBST(DVD_LIBS)
+DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
+AC_SUBST(DVDREAD_CFLAGS)
+AC_SUBST(DVDREAD_LIBS)
 
 dnl Sun MediaLib
 have_mlib=no
-AC_ARG_ENABLE(mlib,
-  [  --disable-mlib          make a version not using mediaLib],
-  enable_mlib=no, enable_mlib=yes)
-if test x$enable_mlib = xyes; then
-  AC_CHECK_LIB(mlib, main,
-                [ MLIB_CFLAGS="-I/opt/SUNWmlib/include"
-                  MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
+AC_ARG_WITH(mlib,
+  [  --with-libmlib=path     specify where mediaLib is installed],
+  if test x$withval = xyes; then
+    withval="/opt/SUNWmlib"
+  fi
+  if test x$withval != xno; then
+    AC_CHECK_LIB(mlib, main, [ MLIB_LIBS="-L$withval/lib -R$withval/lib -lmlib"
+                               MLIB_CFLAGS=-I$withval/include
+                               have_mlib=yes
+                             ],, -L$withval/lib -R$withval/lib)
+  fi)
+if test -z "$MLIB_LIBS"; then
+  AC_CHECK_LIB(mlib, main, 
+                [ MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
+                  MLIB_CFLAGS=-I/opt/SUNWmlib/include
 		  have_mlib=yes
-                  AC_DEFINE(HAVE_MLIB,1,[Solaris MultiMedia Library installed])
                 ],, -L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib)
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
 AM_CONDITIONAL(MLIB_LIBS, test x$have_mlib = xyes)
+if test x$have_mlib = xyes; then
+  AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
+fi
 
 CFLAGS="$CFLAGS -Wall"
 
