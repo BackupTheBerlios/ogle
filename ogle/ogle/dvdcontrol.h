@@ -31,6 +31,25 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, const int *AnglesAvailable,
 			       const DVDAngle_t *CurrentAngle);
 DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, const DVDVideoAttributes_t *Attr);
 
+DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
+				    int *const StreamsAvailable,
+				    DVDSubpictureStream_t *const CurrentStream,
+				    DVDBool_t *const Enabled);
+DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
+					 DVDSubpictureStream_t StreamNr,
+					 DVDBool_t *const Enabled);
+DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
+				       DVDSubpictureStream_t StreamNr,
+				       const DVDSubpictureAttributes_t *Attr);
+DVDResult_t DVDGetSubpictureLanguage(DVDNav_t *nav,
+				     DVDSubpictureStream_t StreamNr,
+				     const DVDLangID_t *Language);
+DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
+					    const DVDLangID_t *Language,
+					    const DVDSubpictureLangExt_t *SubpictureExtension);
+
+
+
 /* end info commands */
 
 
