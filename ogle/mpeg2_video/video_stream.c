@@ -1084,6 +1084,12 @@ void sequence_extension(void) {
   seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
+  seq.dpy_ext.display_horizontal_size = 0; //reset
+  seq.dpy_ext.display_vertical_size = 0;
+  
+  //frame_centre_horizontal_offset = 0; // reset
+  //frame_centre_vertical_offset = 0;
+
 #ifdef DEBUG
 	   
   DPRINTFI(2, "profile_and_level_indication: ");
@@ -2097,6 +2103,29 @@ void picture_data(void)
     }
     pinfos[buf_id].picture.sar_frac_n = sar_frac_n;
     pinfos[buf_id].picture.sar_frac_d = sar_frac_d;
+
+    //TODO add frame_center__offset compensation and
+    // handle bigger display__size than _size
+    if(seq.dpy_ext.display_horizontal_size > 0 &&
+       seq.dpy_ext.display_horizontal_size <= seq.horizontal_size) {      
+      pinfos[buf_id].picture.display_start_x = 
+	(seq.horizontal_size - seq.dpy_ext.display_horizontal_size) / 2;
+      pinfos[buf_id].picture.display_width =
+	seq.dpy_ext.display_horizontal_size; 
+    } else {
+      pinfos[buf_id].picture.display_start_x = 0;
+      pinfos[buf_id].picture.display_width = 0; 
+    }
+    if(seq.dpy_ext.display_vertical_size > 0 &&
+       seq.dpy_ext.display_vertical_size <= seq.vertical_size) {      
+      pinfos[buf_id].picture.display_start_y = 
+	(seq.vertical_size - seq.dpy_ext.display_vertical_size) / 2;
+      pinfos[buf_id].picture.display_height =
+	seq.dpy_ext.display_vertical_size; 
+    } else {
+      pinfos[buf_id].picture.display_start_y = 0;
+      pinfos[buf_id].picture.display_height = 0; 
+    }
   }
   
 

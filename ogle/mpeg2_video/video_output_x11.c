@@ -145,8 +145,9 @@ static int color_depth, pixel_stride, mode;
 
 static int screenshot = 0;
 static int screenshot_spu = 0;
-
-
+static int view_area_mode = 0;
+static area_t src_view_area;
+static area_t new_view_area;
 
 
 static struct {
@@ -1077,14 +1078,56 @@ static void display_adjust_size(yuv_image_t *current_image,
 	scale_frac_n, scale_frac_d); 
 #endif
   
+  /*
+  area_t src_view_area;
+  switch(view_area_mode) {
+  case user:
+    src_view_area = user_view_area;
+    break;
+  case all:
+    src_view_area = picture_size;
+    break;
+  case pan_scan:
+    src_view_area = picture_display_size;
+    break;
+  }
+  */
+
+  if(view_area_mode == 0) {
+    new_view_area.x = 0;
+    new_view_area.y = 0;
+    new_view_area.width = current_image->info->picture.horizontal_size;
+    new_view_area.height = current_image->info->picture.vertical_size;
+    src_view_area = new_view_area;
+  } else if(view_area_mode == 1) {
+    src_view_area = new_view_area;
+  }
+
+  if(src_view_area.x < 0) {
+    src_view_area.x = 0;
+  }
+  if(src_view_area.y < 0) {
+    src_view_area.y = 0;
+  }
+  if(src_view_area.x + src_view_area.width >
+     current_image->info->picture.horizontal_size) {
+    src_view_area.width =
+      current_image->info->picture.horizontal_size - src_view_area.x;
+  }
+  if(src_view_area.y + src_view_area.height >
+     current_image->info->picture.vertical_size) {
+    src_view_area.height =
+      current_image->info->picture.vertical_size - src_view_area.y;
+  }
+
   /* Keep either the height or the width constant. */ 
   if(scale_frac_n > scale_frac_d) {
-    base_width = (current_image->info->picture.horizontal_size *
+    base_width = (src_view_area.width *
 		  scale_frac_n) / scale_frac_d;
-    base_height = current_image->info->picture.vertical_size;
+    base_height = src_view_area.height;
   } else {
-    base_width = current_image->info->picture.horizontal_size;
-    base_height = (current_image->info->picture.vertical_size *
+    base_width = src_view_area.width;
+    base_height = (src_view_area.height *
 		   scale_frac_d) / scale_frac_n;
   }
   //DNOTE("base %d x %d\n", base_width, base_height);
@@ -1345,6 +1388,12 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.mod_mask = ev.xbutton.state;
 	m_ev.input.input = ev.xbutton.button;
 
+	if(ev.xbutton.button == 2) {
+	  view_area_mode = 2;
+	  new_view_area.x = m_ev.input.x;
+	  new_view_area.y = m_ev.input.y;
+	}
+
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {
 	  case EAGAIN:
@@ -1375,7 +1424,7 @@ void check_x_events(yuv_image_t *current_image)
       break;
     case ButtonRelease:
       // send buttonrelease to whoever wants it
-      if(input_mask & INPUT_MASK_ButtonRelease) {
+      if(1/*input_mask & INPUT_MASK_ButtonRelease*/) {
 	MsgEvent_t m_ev;
 	
 	m_ev.type = MsgEventQInputButtonRelease;
@@ -1390,6 +1439,18 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.mod_mask = ev.xbutton.state;
 	m_ev.input.input = ev.xbutton.button;
 
+	if(ev.xbutton.button == 2) {
+	  new_view_area.width = m_ev.input.x - new_view_area.x;
+	  new_view_area.height = m_ev.input.y - new_view_area.y;
+	  if(new_view_area.width < 1 ||
+	     new_view_area.height < 1) {
+	    view_area_mode = 0;
+	  } else {
+	    view_area_mode = 1;
+	  }
+	}
+	
+      if(input_mask & INPUT_MASK_ButtonRelease) {
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {
 	  case EAGAIN:
@@ -1411,7 +1472,7 @@ void check_x_events(yuv_image_t *current_image)
 	  }
 	}
       }
-      
+      }
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
 	cursor_visible = True;
@@ -1567,6 +1628,14 @@ void display(yuv_image_t *current_image)
     }
   }
   
+  if((new_view_area.x != src_view_area.x ||
+      new_view_area.y != src_view_area.y ||
+      new_view_area.width != src_view_area.width ||
+      new_view_area.height != src_view_area.height) &&
+     view_area_mode != 2) {
+    display_adjust_size(current_image, -1, -1);
+  }
+  
   if(((window.win_state == WINDOW_STATE_NORMAL) && 
       (zoom_mode == ZoomModeFullScreen)) ||
      ((window.win_state == WINDOW_STATE_FULLSCREEN) &&
@@ -1631,7 +1700,7 @@ static void draw_win_x11(window_info *dwin)
   
 #ifdef HAVE_MLIB
   int dest_size = dwin->ximage->bytes_per_line * dwin->ximage->height;
-  int sorce_size = (dwin->image->info->picture.padded_width*(pixel_stride/8) 
+  int source_size = (dwin->image->info->picture.padded_width*(pixel_stride/8) 
 		    * dwin->image->info->picture.padded_height);
   
   mlib_image *mimage_s;
@@ -1641,7 +1710,7 @@ static void draw_win_x11(window_info *dwin)
   // Because mlib_YUV* reads out of bounds we need to make sure that the end
   // of the picture isn't on the pageboundary for in the last page allocated
   // There is also something strange with the mlib_ImageZoom in NEAREST mode.
-  int offs = dest_size - sorce_size - 4096;
+  int offs = dest_size - source_size - 4096;
   if(offs > 0)
     address += offs;
 #endif /* HAVE_MLIB */
@@ -1840,19 +1909,19 @@ static void draw_win_x11(window_info *dwin)
 				      dwin->ximage->data);
     /* Source image */
     mimage_s = mlib_ImageCreateStruct(MLIB_BYTE, 4, 
-				      dwin->image->info->picture.horizontal_size, 
-				      dwin->image->info->picture.vertical_size,
-				      dwin->image->info->picture.padded_width*4, address);
+				      src_view_area.width,
+				      src_view_area.height,
+				      dwin->image->info->picture.padded_width*4, address+4*src_view_area.x+dwin->image->info->picture.padded_width*4*src_view_area.y);
     /* Extra fast 2x Zoom */
-    if((scale.image_width == 2 * dwin->image->info->picture.horizontal_size) &&
-       (scale.image_height == 2 * dwin->image->info->picture.vertical_size)) {
+    if((scale.image_width == 2 * src_view_area.width) &&
+       (scale.image_height == 2 * src_view_area.height)) {
       mlib_ImageZoomIn2X(mimage_d, mimage_s, 
 			 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     } else {
       mlib_ImageZoom 
 	(mimage_d, mimage_s,
-	 (double)scale.image_width/(double)dwin->image->info->picture.horizontal_size, 
-	 (double)scale.image_height/(double)dwin->image->info->picture.vertical_size,
+	 (double)scale.image_width/(double)src_view_area.width, 
+	 (double)scale.image_height/(double)src_view_area.height,
 	 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     }
     mlib_ImageDelete(mimage_s);
@@ -1998,9 +2067,9 @@ static void draw_win_xv(window_info *dwin)
 			      window.video_area.height) / 2;
   if(use_xshm) {
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
-		  0, 0, 
-		  dwin->image->info->picture.horizontal_size,
-		  dwin->image->info->picture.vertical_size,
+		  src_view_area.x, src_view_area.y, 
+		  src_view_area.width,
+		  src_view_area.height,
 		  window.video_area.x,
 		  window.video_area.y,
 		  window.video_area.width,
@@ -2008,9 +2077,9 @@ static void draw_win_xv(window_info *dwin)
 		  True);
   } else {
     XvPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
-	       0, 0, 
-	       dwin->image->info->picture.horizontal_size,
-	       dwin->image->info->picture.vertical_size,
+	       src_view_area.x, src_view_area.y, 
+	       src_view_area.width,
+	       src_view_area.height,
 	       window.video_area.x,
 	       window.video_area.y,
 	       window.video_area.width,
