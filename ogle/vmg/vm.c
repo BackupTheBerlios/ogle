@@ -16,9 +16,10 @@
 #include "ifo_read.h"
 #include "ifo_print.h"
 #include "decoder.h"
+#include "vm.h"
 
-extern int eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
-		     vm_cmd_t *cmd); // nav.c
+extern vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
+			  dvd_state_t *state); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
 extern int msgqid;
 
@@ -29,26 +30,8 @@ if(level < debug) { \
 }
 
 
-typedef enum {
-  FP_DOMAIN = 1,
-  VTS_DOMAIN = 2,
-  VMGM_DOMAIN = 4,
-  VTSM_DOMAIN = 8
-} domain_t;  
 
-/*
-  State: SPRM, GPRM, Domain, pgc, pgN, cellN, ?
-*/
-struct {
-  state_t registers;
-  domain_t domain;
-  int pgcN;
-  int pgN;
-  int cellN;
-  int rsm_pgcN;
-  int rsm_pgN;
-  int rsm_cellN;
-} state;
+dvd_state_t state;
 
 link_t link_values;
 
@@ -137,7 +120,7 @@ int main(int argc, char *argv[])
     int i;
     for(i=0;pgc.pgc_command_tbl &&
 	  i<pgc.pgc_command_tbl->nr_of_pre;i++)
-      ifoPrint_COMMAND(i, pgc.pgc_command_tbl->pre_commands[i]);
+      ifoPrint_COMMAND(i, &pgc.pgc_command_tbl->pre_commands[i]);
   }
   /* Send the palette to the spu. */
   set_spu_palette(pgc.palette);
@@ -208,18 +191,15 @@ int main(int argc, char *argv[])
 	pgc.cell_position_tbl[state.cellN-1].cell_nr,
 	cell.first_sector, cell.last_sector);
     
-    /* This should return any button_cmd that is to be executed */
+    /* This should return any button_cmd that is to be executed,
+     * or a NOP in case no button was pressed */
     {
-      vm_cmd_t cmd;
-      int res = eval_cell(name, &cell, &cmd);
-      if(res) {
-	// Remove me..
-	state.registers.SPRM[8] = 0x400 * res;
-	if(eval(&cmd, 1, &state.registers, &link_values)) {
-	  goto process_jump;
-	} else {
-	  // Error ?? goto tail? goto next PG? or what? just continue?
-	}
+      vm_cmd_t cmd = eval_cell(name, &cell, &state);
+      
+      if(eval(&cmd, 1, &state.registers, &link_values)) {
+	goto process_jump;
+      } else {
+	// Error ?? goto tail? goto next PG? or what? just continue?
       }
     }
     
@@ -228,7 +208,7 @@ int main(int argc, char *argv[])
       int cell_cmd_nr = cell.category & 0xff;
       assert(pgc.pgc_command_tbl != NULL);
       assert(pgc.pgc_command_tbl->nr_of_cell >= cell_cmd_nr);
-      ifoPrint_COMMAND(0, pgc.pgc_command_tbl->cell_commands[cell_cmd_nr-1]);
+      ifoPrint_COMMAND(0, &pgc.pgc_command_tbl->cell_commands[cell_cmd_nr-1]);
       if(eval(&pgc.pgc_command_tbl->cell_commands[cell_cmd_nr - 1], 
 	      1, &state.registers, &link_values)) {
 	goto process_jump;
@@ -251,7 +231,7 @@ int main(int argc, char *argv[])
     int i;
     for(i=0; pgc.pgc_command_tbl &&
 	  i<pgc.pgc_command_tbl->nr_of_post; i++)
-      ifoPrint_COMMAND(i, pgc.pgc_command_tbl->post_commands[i]);
+      ifoPrint_COMMAND(i, &pgc.pgc_command_tbl->post_commands[i]);
   }
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)

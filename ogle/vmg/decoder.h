@@ -2,6 +2,7 @@
 #define __DECODER_H__
 
 #include <inttypes.h>
+#include "ifo.h" // vm_cmd_t
 
 #ifndef bool
 typedef int bool;
@@ -58,10 +59,10 @@ typedef struct {
 typedef struct {
   uint16_t SPRM[24];
   uint16_t GPRM[16];
-} state_t;
+} registers_t;
 
 bool
-eval(uint8_t commands[][8], int num_commands, 
-     state_t *registers, link_t *return_values);
+eval(vm_cmd_t commands[], int num_commands, 
+     registers_t *registers, link_t *return_values);
 
 #endif /* __DECODER_H__ */

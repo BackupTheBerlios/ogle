@@ -163,7 +163,9 @@ typedef struct { // Video Manager Information Management Table
   //how much 'padding' here?
 } __attribute__ ((packed)) vmgi_mat_t;
 
-typedef uint8_t __attribute__ ((packed)) vm_cmd_t[8];
+typedef struct {
+  uint8_t bytes[8];
+} __attribute__ ((packed)) vm_cmd_t;
 #define COMMAND_DATA_SIZE 8
   
 typedef struct { // PGC Command Table

@@ -136,7 +136,7 @@ void read_pci_packet(pci_t *pci, buffer_t *buffer) {
 	assert(pci->hli.btnit[n].left == 0);
 	assert(pci->hli.btnit[n].right == 0);
 	for (k = 0; k < 8; k++)
-	  assert(pci->hli.btnit[n].cmd[k] == 0); //CHECK_ZERO?
+	  assert(pci->hli.btnit[n].cmd.bytes[k] == 0); //CHECK_ZERO?
       }
     }
   }

@@ -30,6 +30,7 @@
  */
 
 #include <inttypes.h>
+#include "ifo.h" // vm_cmd_t
 
 #define BLOCK_SIZE 2048
 typedef struct
@@ -138,7 +139,7 @@ typedef struct {
   unsigned int right : 6;
   unsigned int zero6 : 2;
 #endif
-  uint8_t cmd[8];
+  vm_cmd_t cmd;
 } __attribute__ ((packed)) btni_t;
 
 typedef struct {
@@ -159,7 +160,7 @@ typedef struct {
 
 
 
-typedef struct {
+typedef struct { /* DSI General Information */
   uint32_t nv_pck_scr;
   uint32_t nv_pck_lbn;
   uint32_t vobu_ea;
@@ -172,22 +173,22 @@ typedef struct {
   uint32_t c_eltm;
 } __attribute__ ((packed)) dsi_gi_t;
 
-typedef struct {
+typedef struct { /* Seamless PlayBack Information */ 
   uint8_t unknown[148];
 } __attribute__ ((packed)) sml_pbi_t;
 
-typedef struct {
-  uint8_t unknown[9][6];
+typedef struct { /* AnGLe Information for seamless playback */
+  uint8_t sml_agl_dsta[9][6]; // Address and size of destination ILVU in AGL_X
 } __attribute__ ((packed)) sml_agli_t;
 
-typedef struct {
+typedef struct { /* VOBUnit SeaRch Information */
   uint32_t unknown1;     // Next (nv_pck_lbn+this value -> next vobu lbn)
   uint32_t unknown2[20]; // Forwards, time
   uint32_t unknown3[20]; // Backwars, time
   uint32_t unknown4;     // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
 } __attribute__ ((packed)) vobu_sri_t;
 
-typedef struct {
+typedef struct { /* SYNChronous Information */ 
   uint16_t offset;      //  Highbit == signbit
   uint8_t unknown[142];
 } __attribute__ ((packed)) synci_t;

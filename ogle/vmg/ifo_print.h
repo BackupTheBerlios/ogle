@@ -23,7 +23,7 @@
 #include "ifo.h"
 
 void ifoPrint_time(int level, dvd_time_t *time);
-void ifoPrint_COMMAND(int row, uint8_t *command); // remove
+void ifoPrint_COMMAND(int row, vm_cmd_t *command); // remove
 
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
 void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);

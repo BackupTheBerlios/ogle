@@ -461,7 +461,7 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
     assert(vmg_ptt_srpt->title_info[i].nr_of_angles != 0);
     assert(vmg_ptt_srpt->title_info[i].nr_of_angles < 10);
     assert(vmg_ptt_srpt->title_info[i].nr_of_ptts != 0);
-    assert(vmg_ptt_srpt->title_info[i].nr_of_ptts < 100); // ??
+    assert(vmg_ptt_srpt->title_info[i].nr_of_ptts < 999); // ??
     assert(vmg_ptt_srpt->title_info[i].title_set_nr != 0);
     assert(vmg_ptt_srpt->title_info[i].title_set_nr < 100); // ??
     assert(vmg_ptt_srpt->title_info[i].vts_ttn != 0);

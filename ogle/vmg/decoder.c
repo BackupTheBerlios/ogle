@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "ifo.h" // vm_cmd_t
 #include "decoder.h"
 
 typedef struct
@@ -10,7 +11,7 @@ typedef struct
 } cmd_t;
 
 static cmd_t cmd;
-static state_t *state;
+static registers_t *state;
 
 /* Get count bits of command from byte and bit position. */
 static uint32_t 
@@ -450,8 +451,8 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
 /* Evaluate a set of commands in the given register set (which is
  * modified */
 bool
-eval (uint8_t commands[][8], int num_commands, 
-      state_t *registers, link_t *return_values) {
+eval (vm_cmd_t commands[], int num_commands, 
+      registers_t *registers, link_t *return_values) {
   int i = 0;
   int total = 0;
   int line;
@@ -460,7 +461,7 @@ eval (uint8_t commands[][8], int num_commands,
 
   while(i < num_commands && total < 100000) {
     memset(return_values, 0, sizeof(link_t));
-    line = eval_command(commands[i], return_values);
+    line = eval_command(&commands[i].bytes[0], return_values);
     if (line>0) { // Goto command
       i = line-1;
     } else if (line < 0) { // Link command

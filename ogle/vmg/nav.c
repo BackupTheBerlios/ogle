@@ -27,6 +27,7 @@
 #include "nav.h"
 #include "nav_read.h"
 #include "nav_print.h"
+#include "vm.h"
 
 
 /* these lengths in bytes, exclusive of start code and length */
@@ -114,9 +115,16 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   mq_msg_t msg;
   int is_action = 0;
   
-  if((pci->hli.hl_gi.hli_ss & 0x03) != 0 
+  /* Check if this is alright, i.e. pci->hli.hl_gi.hli_ss == 1 only 
+     for the first menu pic packet? What about looping menus */
+  if(pci->hli.hl_gi.hli_ss == 1) {
+    if(pci->hli.hl_gi.fosl_btnn != 0)
+      *btn_nr = pci->hli.hl_gi.fosl_btnn;
+  }
+  /* Paranoia.. */
+  if((pci->hli.hl_gi.hli_ss & 0x03) != 0
      && *btn_nr > pci->hli.hl_gi.btn_ns) {
-    *btn_nr = 1; 
+    *btn_nr = 1;
   }
   
   /* Check for and read any user input */
@@ -127,8 +135,6 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 
     if(cmd == NULL)
       break;
-    
-
     
     switch(cmd->cmdtype) {
     case CMD_DVDCTRL_CMD:
@@ -197,13 +203,16 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 }
 
 
-int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
+vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
+		   dvd_state_t *state) {
   buffer_t buffer;
   pci_t pci;
   dsi_t dsi;
+  vm_cmd_t cmd;
   int block = 0;
   int res = 0;
-  static uint16_t state_systemreg_hili_button_nr = 1;
+  /* To avoid having to do << 10 and >> 10 all the time we make a local copy */
+  uint16_t sl_button_nr = state->registers.SPRM[8] >> 10;
 
   memset(&pci, 0, sizeof(pci_t));
   memset(&dsi, 0, sizeof(dsi_t));
@@ -233,7 +242,7 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
     }
     
     /* Check for user input, and set highlight */
-    res = process_pci(&pci, &state_systemreg_hili_button_nr);
+    res = process_pci(&pci, &sl_button_nr);
 
     /* Demux/play the content of this vobu */
     /* Assume that the vobus are packed and continue after each other,
@@ -242,13 +251,29 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
     send_demux_sectors(cell->first_sector + block, dsi.dsi_gi.vobu_ea);
     block += dsi.dsi_gi.vobu_ea;
     
-    if(res != 0) {
-      memcpy(cmd, &pci.hli.btnit[state_systemreg_hili_button_nr - 1].cmd, 8);
+    if(res != 0) { /* Exit if we detected a button activation */
       break;
     }
   }
-  if(res != 0)
-    return state_systemreg_hili_button_nr;
+  
+  /* Handle forced activate button here */
+  if(res != 0 && (pci.hli.hl_gi.hli_ss & 0x03) != 0) {
+    if(pci.hli.hl_gi.foac_btnn != 0) {
+      /* Forced action 0x3f is selected, otherwise use the specified button */
+      if(pci.hli.hl_gi.foac_btnn != 0x3f && pci.hli.hl_gi.foac_btnn <= 36)
+	sl_button_nr = pci.hli.hl_gi.foac_btnn;
+      res = 1;
+    }
+  }
+  
+  
+  /* A co XXX */
+  if(res != 0) {
+    /* Save other state too (i.e maybe RSM info) */
+    state->registers.SPRM[8] = sl_button_nr << 10;
+    memcpy(&cmd, &pci.hli.btnit[sl_button_nr - 1].cmd, sizeof(vm_cmd_t));
+    return cmd;
+  }
   
   /* Handle cell pause and still here */
   if(cell->category & 0xff00) {
@@ -259,19 +284,21 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
 	//should be nanosleep
 	sleep(1);
 	/* Check for user input, and set highlight */
-	res = process_pci(&pci, &state_systemreg_hili_button_nr);
+	res = process_pci(&pci, &sl_button_nr);
       }
     } else {
       while(res == 0 && time > 0) {
 	//should be nanosleep
 	sleep(1); --time;
 	/* Check for user input, and set highlight */
-	res = process_pci(&pci, &state_systemreg_hili_button_nr);
+	res = process_pci(&pci, &sl_button_nr);
       }
     }
   }
   
-  memset(cmd, 0, sizeof(vm_cmd_t));
-  return 0;
+  /* Save other state too (i.e maybe RSM info) */
+  state->registers.SPRM[8] = sl_button_nr << 10;
+  memset(&cmd, 0, sizeof(vm_cmd_t)); // mkNOP
+  return cmd;
 }
 

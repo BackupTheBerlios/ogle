@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 
+#include "ifo.h" // vm_cmd_t
 #include "vmcmd.h"
 #include "decoder.h"
 
@@ -18,14 +19,14 @@ extern void dump_command (FILE *out, buffer_t *buffer);
 int 
 main(int argc, char *argv[])
 {
-  uint8_t buf[8];
+  vm_cmd_t cmd;
   buffer_t buffer;
   int i;
   unsigned int res;
-  state_t state;
+  registers_t state;
   link_t return_values;
 
-  memset(&state, 0, sizeof(state_t));
+  memset(&state, 0, sizeof(registers_t));
 
   while(!feof(stdin)) {
     printf("   #   ");
@@ -42,11 +43,11 @@ main(int argc, char *argv[])
     for(i = 0; i < 8; i++) {
       scanf("%x", &res);
       buffer.bytes[i] = res;
-      buf[i] = res;
+      cmd.bytes[i] = res;
     }
     buffer.bit_position = 0;
     
-    eval(&buf, 1, &state, &return_values);
+    eval(&cmd, 1, &state, &return_values);
     
     printf("OMS:  ");
     ifoPrintVMOP (buffer.bytes);
