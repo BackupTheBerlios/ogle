@@ -24,6 +24,7 @@ int attach_ctrl_shm(int shmid);
 
 void print_time_base_offset(uint64_t PTS, int scr_nr);
 int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
+struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
 
 
 char *program_name;
@@ -202,6 +203,8 @@ int get_q()
   int scr_nr;
   int off;
   int len;
+  static int prev_scr_nr = 0;
+  static struct timespec time_offset = { 0, 0 };
   
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
@@ -351,6 +354,26 @@ int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
 }
 
   
+struct timespec get_time_base_offset(uint64_t PTS, int scr_nr)
+{
+  struct timespec curtime;
+  struct timespec ptstime;
+  struct timespec predtime;
+  struct timespec offset;
+
+  ptstime.tv_sec = PTS/90000;
+  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+
+  clock_gettime(CLOCK_REALTIME, &curtime);
+  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  timesub(&offset, &predtime, &curtime);
+
+  //fprintf(stderr, "\nac3: get offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
+
+  return offset;
+}
+
 void print_time_base_offset(uint64_t PTS, int scr_nr)
 {
   struct timespec curtime;
