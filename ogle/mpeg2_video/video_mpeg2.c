@@ -626,11 +626,10 @@ void motion_vector(int r, int s)
       mb.dmvector[t] = get_vlc(table_b11, "dmvector[0] (b11)");
   
     // Get the predictor
+    prediction = pic.PMV[r][s][t];
     if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) &&
        (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
-      prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
-    else
-      prediction = pic.PMV[r][s][t];
+      prediction = prediction >> 1; /* DIV */
     
     { // Compute the resulting motion vector
       int f = 1 << r_size;
@@ -652,10 +651,12 @@ void motion_vector(int r, int s)
     else
       pic.PMV[r][s][t] = vector;
     
+#if MPEG1
     // Scale the vector so that it is always measured in half pels
     if(pic.header.full_pel_vector[s])
       mb.vector[r][s][t] = vector << 1;
     else
+#endif
       mb.vector[r][s][t] = vector;
   }
 }
@@ -960,7 +961,7 @@ void macroblock(void)
 	}
 	else {
 	  fprintf(stderr, "***ni Skipped in B-picture (no-frame)\n");
-	  exit_program(1);
+	  //exit_program(1);
 	}
 	
 	/* Set mb_column so that motion_comp will use the right adress */
@@ -1189,26 +1190,44 @@ void macroblock(void)
 	int d, stride;
 	uint8_t *dst;
 	
-	if (mb.modes.dct_type) {
-	  d = 1;
-	  stride = width * 2;
+	if (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) { 
+	  if (mb.modes.dct_type) {
+	    d = 1;
+	    stride = width * 2;
+	  } else {
+	    d = 8;
+	    stride = width;
+	  }
+	  if(i < 4) {
+	    dst = &dst_image->y[x * 16 + y * 16 * width];
+	    dst = (i & 1) ? dst + 8 : dst;
+	    dst = (i >= 2) ? dst + width * d : dst;
+	  }
+	  else {
+	    stride = width / 2;
+	    if( i == 4 )
+	      dst = &dst_image->u[x * 8 + y * 8 * stride];
+	    else // i == 5
+	      dst = &dst_image->v[x * 8 + y * 8 * stride];
+	  }
 	} else {
-	  d = 8;
-	  stride = width;
+	    if(i < 4) {
+	      stride = width * 2;
+	      dst = &dst_image->y[x * 16 + y * 16 * stride];
+	      dst = (i & 1) ? dst + 8 : dst;
+	      dst = (i >= 2) ? dst + stride * 8 : dst;
+	    }
+	    else {
+	      stride = width;
+	      if( i == 4 )
+		dst = &dst_image->u[x * 8 + y * 8 * stride];
+	      else // i == 5
+		dst = &dst_image->v[x * 8 + y * 8 * stride];
+	    }
+	    if (pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD)
+	      dst += stride/2;
 	}
-	
-	if(i < 4) {
-	  dst = &dst_image->y[x * 16 + y * width * 16];
-	  dst = (i & 1) ? dst + 8 : dst;
-	  dst = (i >= 2) ? dst + width * d : dst;
-	}
-	else {
-	  stride = width / 2;
-	  if( i == 4 )
-	    dst = &dst_image->u[x * 8 + y * width/2 * 8];
-	  else // i == 5
-	    dst = &dst_image->v[x * 8 + y * width/2 * 8];
-	}
+
 	mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
       }
     }

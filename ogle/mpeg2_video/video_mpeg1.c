@@ -488,11 +488,10 @@ void motion_vector(int r, int s)
       mb.dmvector[t] = get_vlc(table_b11, "dmvector[0] (b11)");
   
     // Get the predictor
+    prediction = pic.PMV[r][s][t];
     if((t==1) && (mb.mv_format == MV_FORMAT_FIELD) && 
        (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE))
-      prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
-    else
-      prediction = pic.PMV[r][s][t];
+      prediction = prediction >> 1;         /* DIV */
     
     { // Compute the resulting motion vector
       int f = 1 << r_size;
