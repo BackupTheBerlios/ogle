@@ -25,7 +25,8 @@ AC_PATH_XTRA
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $X_CFLAGS"
 AC_CHECK_HEADER(X11/extensions/XShm.h, 
-		AC_DEFINE([HAVE_XSHM], 1, [X11 supports MIT-XShm]))
+		[AC_DEFINE([HAVE_XSHM], 1, [X11 supports MIT-XShm])],
+		X11/Xlib.h)
 CPPFLAGS=$saved_CPPFLAGS
 AC_CHECK_LIB(Xext, XShmQueryExtension, 
 	     XEXT_LIB=-lXext, 
@@ -119,8 +120,7 @@ AC_CHECK_FUNC(clock_gettime, [ AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]) ],
   AC_CHECK_LIB(rt, clock_gettime, 
     [ AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ])
       LIBS="$LIBS -lrt"
-    ],
-    dnl AC_MSG_WARN(You need clock_gettime)
+    ]
   )
 )
 
