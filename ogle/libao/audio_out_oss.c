@@ -19,6 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* Simple sample rate conversion by Marc Espie */
+/* Modified slightly by Björn Englund */
+
 /* #include "config.h" */
 
 #ifdef LIBAO_OSS
