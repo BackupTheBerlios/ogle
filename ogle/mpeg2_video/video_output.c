@@ -590,21 +590,6 @@ static void display_process()
 }
 
 void display_process_exit(void) {
-  clocktime_t now_time;
-  
-  clocktime_get(&now_time);
-      
-  fprintf(stderr, "display: Total frame rate: %.3f fps "
-	          "(%i frames in %.3f seconds)\n ",
-	  (double)frame_nr/(((double)TIME_S(now_time)+
-			     (double)TIME_SS(now_time)/1000000000.0)-
-			    ((double)TIME_S(first_time)+
-			     (double)TIME_SS(first_time)/1000000000.0)),
-	  frame_nr, (((double)TIME_S(now_time)+
-			     (double)TIME_SS(now_time)/1000000000.0)-
-			    ((double)TIME_S(first_time)+
-			     (double)TIME_SS(first_time)/1000000000.0))
-	  );
   exit(0);
 }
 
@@ -666,7 +651,7 @@ int main(int argc, char **argv)
     
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "vo: register capabilities\n");
-      exit(-1); //TODO clean up and exit
+      exit(1); //TODO clean up and exit
     }
     
     fprintf(stderr, "vo: sent caps\n");
@@ -675,7 +660,7 @@ int main(int argc, char **argv)
     ev.reqcapability.capability = UI_DVD_GUI;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: didn't get dvd_gui cap\n");
-      exit(-1); //TODO clean up and exit
+      exit(1); //TODO clean up and exit
     }
     
     fprintf(stderr, "vo: waiting for attachq\n");
@@ -688,7 +673,7 @@ int main(int argc, char **argv)
 	  break;
 	default:
 	  perror("vo: waiting for q attach");
-	  exit(-1);
+	  exit(1);
 	  break;
 	}
       }
