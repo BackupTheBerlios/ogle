@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
 
 #include "../include/ip_sem.h"
 
@@ -109,3 +110,66 @@ int ip_sem_post(ip_sem_t *q_head, int sem_nr) {
 
 }
 
+
+
+int ip_sem_getvalue(ip_sem_t *q_head, int sem_nr) {
+  int sval;
+  
+#if defined USE_POSIX_SEM
+  if(sem_getvalue(&q_head->bufs[sem_nr], &sval) == -1) {
+    perror("sem_getval");
+    exit(1);
+  }
+  return sval;
+  
+#elif defined USE_SYSV_SEM
+  if((sval = semctl(q_head->semid_bufs, sem_nr, GETVAL, NULL)) == -1) {
+    perror("semctl getval");
+    exit(1);
+  }
+  return sval;
+  
+#else
+#error No semaphore type set
+#endif
+
+}
+
+
+int ip_sem_trywait(ip_sem_t *q_head, int sem_nr) {
+
+#if defined USE_POSIX_SEM
+  if(sem_trywait(&q_head->bufs[sem_nr]) == -1) {
+    switch(errno) {
+    case EAGAIN:
+      return 0;
+    default:
+      perror("sem_trywait()");
+      return -1;
+    }
+  }
+  return 0;
+  
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_FULL;
+    sops.sem_op = -1;
+    sops.sem_flg = IPC_NOWAIT;
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      switch(errno) {
+      case EAGAIN:
+	return 0;
+      default:
+	perror("semop() trywait");
+	return -1;
+      }
+    }
+  }
+  return 0;
+  
+#else
+#error No semaphore type set
+#endif
+
+}

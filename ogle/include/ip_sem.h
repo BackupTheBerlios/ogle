@@ -37,5 +37,8 @@ typedef struct {
 int ip_sem_init(ip_sem_t *q_head, int init_nr[2]);
 int ip_sem_wait(ip_sem_t *q_head, int sem_nr);
 int ip_sem_post(ip_sem_t *q_head, int sem_nr);
+int ip_sem_getvalue(ip_sem_t *q_head, int sem_nr);
+int ip_sem_trywait(ip_sem_t *q_head, int sem_nr);
+
 
 #endif /* IP_SEM_H */

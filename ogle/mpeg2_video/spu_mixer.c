@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-//#include <siginfo.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -225,38 +224,11 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
-  if(!read_offset) {
-    
-#if defined USE_POSIX_SEM
-    if(sem_trywait(&q_head->queue.bufs[BUFS_FULL]) == -1) {
-      switch(errno) {
-      case EAGAIN:
-	return 0;
-      default:
-	perror("spu_mixer: get_q(), sem_wait()");
-	return -1;
-      }
+  if(!read_offset) {    
+    if(ip_sem_trywait(&q_head->queue, BUFS_FULL) == -1) {
+      perror("spu_mixer: get_q(), sem_wait()");
+      return -1;
     }
-#elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = BUFS_FULL;
-    sops.sem_op = -1;
-    sops.sem_flg = IPC_NOWAIT;
-    if(semop(q_head->queue.semid_bufs, &sops, 1) == -1) {
-      switch(errno) {
-      case EAGAIN:
-	return 0;
-      default:
-	perror("spu_mixer: get_q(), semop() trywait");
-	return -1;
-      }
-    }
-  }
-#else
-#error No semaphore type set
-#endif
-    
     fprintf(stderr, "spu_mixer: get element\n");
   }
   data_head = (data_buf_head_t *)data_buf_shmaddr;

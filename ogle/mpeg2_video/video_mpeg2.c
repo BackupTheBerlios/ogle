@@ -228,10 +228,7 @@ void block_intra(unsigned int i)
       int cc;
       
       /* Table 7-1. Definition of cc, colour component index */ 
-      if(i < 4)
-	cc = 0;
-      else
-	cc = (i%2) + 1;
+      cc = (i>>2) + ((i>>2) & i);
       
       qfs = mb.dc_dct_pred[cc] + dct_diff;
       mb.dc_dct_pred[cc] = qfs;

@@ -131,13 +131,13 @@ static
 int block_intra(unsigned int i)
 {
   unsigned int dct_dc_size;
-  int dct_diff;
+  int dct_diff = 0;
   
   unsigned int n;
   
   DPRINTF(3, "pattern_code(%d) set\n", i);
   
-  { // Reset all coefficients to 0.
+  { /* Reset all coefficients to 0. */
     int m;
     for(m=0; m<16; m++)
       memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
@@ -153,50 +153,36 @@ int block_intra(unsigned int i)
   } 
     
   if(dct_dc_size != 0) {
-    int half_range = 1<<(dct_dc_size-1);
     int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+    int half_range = 1 << (dct_dc_size - 1);
     
-    DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
-      
-    if(dct_dc_differential >= half_range) {
+    if(dct_dc_differential >= half_range)
       dct_diff = dct_dc_differential;
-    } else {
-      dct_diff = (dct_dc_differential+1)-(2*half_range);
-    }
-    DPRINTF(4, "%d\n", dct_diff);  
-	
-  } else {
-    dct_diff = 0;
+    else
+      dct_diff = (dct_dc_differential + 1) - (2 * half_range);
   }
       
-  {
-    // qfs is always between 0 and 2^(8+dct_dc_size)-1, i.e unsigned.
+  { // qfs is always between 0 and 2^(8+dct_dc_size)-1, i.e unsigned.
     unsigned int qfs;
     int cc;
       
     /* Table 7-1. Definition of cc, colour component index */ 
-    if(i < 4)
-      cc = 0;
-    else
-      cc = (i%2) + 1;
+    cc = (i>>2) + ((i>>2) & i);
       
     qfs = mb.dc_dct_pred[cc] + dct_diff;
     mb.dc_dct_pred[cc] = qfs;
-    DPRINTF(4, "QFS[0]: %d\n", qfs);
       
     /* inverse quantisation */
     {
-      // mb.intra_dc_mult is 8 in MPEG-1, i.e unsigned.
+      // mb.intra_dc_mult is 8 in MPEG-1
       unsigned int f = 8 * qfs;
-#if 0
-      if(f > 2047) {
-	fprintf(stderr, "Clipp (block_intra first)\n");
+
+      if(f > 2047)
 	f = 2047;
-      }
-#endif
+
       mb.QFS[0] = f;
+      n = 1;
     }
-    n = 1;
   }
   
   
@@ -233,27 +219,23 @@ int block_intra(unsigned int i)
     }
 
 #if DEBUG
-    if(tab->run < 64 /*VLC_END_OF_BLOCK*/) {
+    if(tab->run < 64 /* VLC_END_OF_BLOCK */) {
       DPRINTF(4, "coeff run: %d, level: %d\n", tab->run, tab->level);
     }
 #endif
 
-    //  dropbits(tab->len);
-    
-    if (tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
-      //run = VLC_END_OF_BLOCK;
-      //val = VLC_END_OF_BLOCK;
-      dropbits(2); // Always 2 bits.
+    if (tab->run == 64 /* VLC_END_OF_BLOCK */) {
+      dropbits(2); // tab->len, end of block always = 2 bits
       break;
     } 
     else {
       unsigned int run, val, sgn, i, f;
 	  
-      if(tab->run == 65) { /* escape */
+      if(tab->run == 65 /* VLC_ESCAPE */) {
 	// dropbits(tab->len); // tab->len, escape always = 6 bits	
 	// run = GETBITS(6, "(get_dct escape - run )");
 	// val = GETBITS(8, "(get_dct escape - level )");
-	uint32_t tmp = GETBITS(6+6+8, "(get_dct escape - run & level)" );
+	uint32_t tmp = GETBITS(6 + 6 + 8, "(get_dct escape - run & level)" );
 	val = abs((int8_t)(tmp & 0xff));
 	run = (tmp >> 8) & 0x3f;
 	sgn = tmp & 0x80;
@@ -261,10 +243,12 @@ int block_intra(unsigned int i)
 	if((tmp & 0x7f) == 0) { // ???
 	  val = GETBITS(8, "(get_dct escape - extended level)");
 	  val = sgn ? (0x100 - val) : val;
+#if 0
 	  if(val < 128) {
 	    fprintf(stderr, "invalid extended dct escape MPEG-1\n");
 	    return -1;
 	  }
+#endif
 	}
       }
       else {
@@ -272,7 +256,6 @@ int block_intra(unsigned int i)
 	run = tab->run;
 	val = tab->level; 
 	sgn = 0x1 & GETBITS(tab->len+1, "(get_dct sign )"); //sign bit
-	// val = sgn ? -val : val;
       }
     
       n += run;
@@ -283,19 +266,10 @@ int block_intra(unsigned int i)
 	   * mb.quantiser_scale
 	   * seq.header.intra_inverse_quantiser_matrix[i])/16;
       
-      f = f | 0x1; /* Oddification */
-	
-//#if 0
-      if(f > 2047) {
-	fprintf(stderr, "Clipp (block_intra subseq. +)\n");
-	if(sgn)
-	  f = 2048;
-	else
-	  f = 2047;
-      }
-//#endif
+      if(f > 2047)
+	f = 2047;
       
-      mb.QFS[i] = sgn ? -f : f;
+      mb.QFS[i] = sgn ? (-f | 0x1) : -(-f | 0x1); /* Oddification */
       n++;
     }
   }
@@ -315,18 +289,14 @@ int block_non_intra(unsigned int b)
     
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
-  /* Reset all coefficients to 0 */
-  {
+  { /* Reset all coefficients to 0 */
     int m;
     for(m=0; m<16; m+=4)
       memset( ((uint64_t *)mb.QFS) + m, 0, 4*sizeof(uint64_t) );
   }
   
-  /* 7.2.2.4 Summary */
   while(1) {
-    
     /* Manually inlined and optimized get_dct(..) */
-    //      get_dct_non_intra(&runlevel, "dct_dc_subsequent");
     unsigned int code;
     const DCTtab *tab;
     
@@ -352,44 +322,42 @@ int block_non_intra(unsigned int b)
     else if(code>=16)
       tab = &DCTtab6[code-16];
     else {
-      fprintf(stderr,
-	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff() (non intra)\n",
-	      code);
-      //exit_program(1);
+      fprintf(stderr, "(vlc) invalid huffman code 0x%x in " 
+	      "vlc_get_block_coeff() (non intra)\n", code);
       return -1;
     }
     
 #ifdef DEBUG
-    if(tab->run < 64 /*VLC_END_OF_BLOCK*/) {
+    if(tab->run < 64 /* VLC_END_OF_BLOCK */) {
       DPRINTF(4, "coeff run: %d, level: %d\n", tab->run, tab->level);
     }
 #endif
    
-    if (tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
-      // run = VLC_END_OF_BLOCK;
-      // val = VLC_END_OF_BLOCK;
-      dropbits( 2 ); // tab->len, end of block always = 2bits
+    if(tab->run == 64 /* VLC_END_OF_BLOCK */) {
+      dropbits( 2 ); // tab->len, end of block always = 2 bits
       break;
-    } 
+    }
     else {
       unsigned int run, val, sgn, i, f;
       
-      if (tab->run == 65) { /* escape */
+      if(tab->run == 65 /* VLC_ESCAPE */) {
 	// dropbits(tab->len); // tab->len, escape always = 6 bits	
 	// run = GETBITS(6, "(get_dct escape - run )");
 	// val = GETBITS(8, "(get_dct escape - level )");
-	uint32_t tmp = GETBITS(6+6+8, "(get_dct escape - run & level)" );
+	uint32_t tmp = GETBITS(6 + 6 + 8, "(get_dct escape - run & level)" );
 	val = abs((int8_t)(tmp & 0xff));
 	run = (tmp >> 8) & 0x3f;
 	sgn = tmp & 0x80;
 
-	if ((tmp&0x7f) == 0) { // ???
+	if((tmp & 0x7f) == 0) { // ???
 	  val = GETBITS(8, "(get_dct escape - extended level)");
 	  val = sgn ? (0x100 - val) : val;
+#if 0
 	  if(val < 128) {
 	    fprintf(stderr, "invalid extended dct escape MPEG-1\n");
 	    return -1;
 	  }
+#endif
 	}
       }
       else {
@@ -397,33 +365,22 @@ int block_non_intra(unsigned int b)
 	run = tab->run;
 	val = tab->level; 
 	sgn = 0x1 & GETBITS(tab->len+1, "(get_dct sign )"); //sign bit
-	// val = sgn ? -val : val;
       }
       
       n += run;
       
       /* inverse scan & quantisation */
       i = inverse_scan[0][n];
-      // flytta ut &inverse_scan[pic.coding_ext.alternate_scan] ??
-      
-      f = ( ((val*2)+1)
+      f = ( (2*val + 1)
 	    * mb.quantiser_scale
 	    * seq.header.non_intra_inverse_quantiser_matrix[i])/16;
-
-      f = f | 0x1; /* Oddification */
       
-//#if 0
-      if(f > 2047) {
-	fprintf(stderr, "Clipp (block_non_intra subseq. +)\n");
-	if(sgn)
-	  f = 2048;
-	else
-	  f = 2047;
-      } 
-//#endif
+      if(f > 2047)
+	f = 2047;
       
-      mb.QFS[i] = sgn ? -f : f;
-      n++;      
+      mb.QFS[i] = sgn ? (-f | 0x1) : -(-f | 0x1); /* Oddification */
+      
+      n++;
     }
   }
   DPRINTF(4, "nr of coeffs: %d\n", n);

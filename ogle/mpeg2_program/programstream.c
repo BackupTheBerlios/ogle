@@ -1717,8 +1717,7 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     id_add(stream_id, subtype, STREAM_DISCARD, 0, NULL, NULL);
   }
     
-  return 0;
-  
+  return 0;  
 }
 
 
@@ -1748,14 +1747,11 @@ int attach_buffer(int shmid, int size)
       data_elems[n].in_use = 0;
     }
     
-    
-
   } else {
     return -1;
   }
     
   return 0;
-  
 }
 
 

@@ -499,25 +499,10 @@ int get_q()
   // release prev elem
 
   if(have_buf) {
-    int sval;
-   
-    data_elem->in_use = 0;
     
-#if defined USE_POSIX_SEM
-    if(sem_getvalue(&q_head->queue.bufs[BUFS_FULL], &sval) == -1) {
-      perror("sem_getval");
-      exit(1);
-    }
-#elif defined USE_SYSV_SEM
-    if((sval = semctl(q_head->queue.semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
-      perror("semctl getval");
-      exit(1);
-    }
-#else
-#error No semaphore type set
-#endif
+    data_elem->in_use = 0;
 
-    if(sval < 50) {
+    if(ip_sem_getvalue(&q_head->queue, BUFS_FULL) < 50) {
       for(n = 0; n < delayed_posts+1; n++) {
 	if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
 	  perror("video_decode: get_q(), sem_post()");
@@ -530,25 +515,9 @@ int get_q()
     }
   }
   
-  {
-    int sval;
-#if defined USE_POSIX_SEM
-    if(sem_getvalue(&q_head->queue.bufs[BUFS_FULL], &sval) == -1) {
-      perror("sem_getval");
-      exit(1);
-    }
-#elif defined USE_SYSV_SEM
-    if((sval = semctl(q_head->queue.semid_bufs, BUFS_FULL, GETVAL, NULL)) == -1) {
-      perror("semctl getval");
-      exit(-1);
-    }
-#else
-#error No semaphore type set
-#endif
-
-    if(sval < 50) {
-      fprintf(stderr, "* Q %d\n", sval);
-    }
+  n = ip_sem_getvalue(&q_head->queue, BUFS_FULL);
+  if(n < 50) {
+    fprintf(stderr, "* Q %d\n", n);
   }
 
   if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
