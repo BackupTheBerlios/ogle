@@ -921,9 +921,6 @@ void motion_vectors(unsigned int s)
       switch(mb.modes.frame_motion_type) {
       case 0x0:
 	// Should never happen, value is checked when read in.
-	fprintf(stderr, "*** reserved prediction type\n");
-	exit_program(1);
-	break;
       case 0x1:
 	mb.prediction_type = PRED_TYPE_FIELD_BASED;
 	mb.motion_vector_count = 2;
@@ -954,9 +951,7 @@ void motion_vectors(unsigned int s)
     /* Table 6-18 Meaning of field_motion_type */
     switch(mb.modes.field_motion_type) {
     case 0x0:
-      fprintf(stderr, "*** reserved field prediction type\n");
-      exit_program(1);
-      break;
+      // Should never happen, value is checked when read in.
     case 0x1:
       mb.prediction_type = PRED_TYPE_FIELD_BASED;
       mb.motion_vector_count = 1;
