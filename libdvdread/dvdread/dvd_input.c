@@ -53,7 +53,7 @@ struct dvd_input_s {
 static dvd_input_t css_open(const char *target)
 {
   dvd_input_t dev;
-  
+    
   /* Allocate the handle structure */
   dev = (dvd_input_t) malloc(sizeof(dvd_input_t));
   if(dev == NULL) {
@@ -83,9 +83,10 @@ static char *css_error(dvd_input_t dev)
 /**
  * seek into the device.
  */
-static int css_seek(dvd_input_t dev, int blocks, int flags)
+static int css_seek(dvd_input_t dev, int blocks)
 {
-  return DVDcss_seek(dev->dvdcss, blocks, flags);
+  /* DVDINPUT_NOFLAGS should match the DVDCSS_NOFLAGS value. */
+  return DVDcss_seek(dev->dvdcss, blocks, DVDINPUT_NOFLAGS);
 }
 
 /**
@@ -157,13 +158,13 @@ static dvd_input_t file_open(const char *target)
 static char *file_error(dvd_input_t dev)
 {
   /* use strerror(errno)? */
-  return "unknown error";
+  return (char *)"unknown error";
 }
 
 /**
  * seek into the device.
  */
-static int file_seek(dvd_input_t dev, int blocks, int flags)
+static int file_seek(dvd_input_t dev, int blocks)
 {
   off_t pos;
 

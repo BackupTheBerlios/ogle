@@ -27,10 +27,6 @@
 
 #define DVDINPUT_READ_DECRYPT    (1 << 0)
 
-#define DVDINPUT_SEEK_MPEG       (1 << 0)
-#define DVDINPUT_SEEK_KEY        (1 << 1)
-
-
 typedef struct dvd_input_s *dvd_input_t;
 
 /**
@@ -38,7 +34,7 @@ typedef struct dvd_input_s *dvd_input_t;
  */
 dvd_input_t (*DVDinput_open)  (const char *);
 int         (*DVDinput_close) (dvd_input_t);
-int         (*DVDinput_seek)  (dvd_input_t, int, int);
+int         (*DVDinput_seek)  (dvd_input_t, int);
 int         (*DVDinput_title) (dvd_input_t, int); 
 int         (*DVDinput_read)  (dvd_input_t, void *, int, int);
 char *      (*DVDinput_error) (dvd_input_t);
