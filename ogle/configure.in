@@ -142,6 +142,8 @@ AC_ARG_WITH(dvdread-includes,
   [  --with-dvdread-includes=path specify location of libdvdread headers ], 
   DVDREAD_CFLAGS=-I$with_dvdread_includes)
 
+dnl Linux and Solaris needs this to prototype lseek64 and others
+DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
 AC_SUBST(DVDREAD_CFLAGS)
 AC_SUBST(DVDREAD_LIBS)
 
