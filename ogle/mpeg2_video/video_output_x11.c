@@ -27,16 +27,17 @@
 #include <mlib_video.h>
 #include <mlib_algebra.h>
 #include <mlib_image.h>
-#else
+#else /* ! HAVE_MLIB */
 #ifdef HAVE_MMX
 #include "mmx.h"
-#endif
+#endif /* HAVE_MMX */
 #include "c_mlib.h"
-#endif
+#endif /* ! HAVE_MLIB */
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
+#include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
@@ -47,6 +48,23 @@
 #include "yuv2rgb.h"
 #include "screenshot.h"
 
+#ifdef HAVE_XV
+#include <X11/extensions/Xv.h>
+#include <X11/extensions/Xvlib.h>
+static XvPortID xv_port;
+static XvImage *xv_image;
+static unsigned int xv_version;
+static unsigned int xv_release;
+static unsigned int xv_request_base;
+static unsigned int xv_event_base;
+static unsigned int xv_error_base;
+static unsigned int xv_num_adaptors;
+static unsigned int xv_num_formats;
+static XvAdaptorInfo *xv_adaptor_info;
+static XvImageFormatValues *xv_formats;
+static int xv_id;
+
+#endif /* HAVE_XV */
 
 typedef struct {
   Window win;
@@ -77,14 +95,15 @@ static int run = 0;
 static int screenshot = 0;
 static int scaled_image_width;
 static int scaled_image_height;
+#ifdef HAVE_MLIB
 static int scalemode = MLIB_BILINEAR;
-
+static int scalemode_change = 0;
+#endif /* HAVE_MLIB */
 
 
 void exit_program(int);
 
-void draw_win(debug_win *dwin);
-
+static void draw_win(debug_win *dwin);
 
 void display_init(int padded_width, int padded_height,
 		  int horizontal_size, int vertical_size)
@@ -119,6 +138,10 @@ void display_init(int padded_width, int padded_height,
   hint.height = vertical_size;
   hint.flags = PPosition | PSize;
 
+  /* Scale init. */
+  scaled_image_width = horizontal_size;
+  scaled_image_height = vertical_size;
+  
   /* Make the window */
   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
   color_depth = attribs.depth;
@@ -141,7 +164,7 @@ void display_init(int padded_width, int padded_height,
 
   windows[0].win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 				 hint.x, hint.y, hint.width, hint.height, 
-				 0, color_depth, CopyFromParent, vinfo.visual, 
+				 4, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
   window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
@@ -180,6 +203,76 @@ void display_init(int padded_width, int padded_height,
   mygc = XCreateGC(mydisplay, windows[0].win, 0L, &xgcv);
   statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
    
+#ifdef HAVE_XV
+  /* This section of the code looks for the Xv extension for hardware
+   * yuv->rgb and scaling. If it is not found, or any suitable adapter
+   * is not found, it just falls through to the other code. Otherwise it
+   * returns
+   *
+   * The variable xv_port tells if Xv is used */
+  {
+    int result;
+
+    xv_port = 0; /* We have no port yet. */
+
+    /* Check for the Xvideo extension */
+    result = XvQueryExtension (mydisplay, &xv_version, &xv_release, 
+                               &xv_request_base, &xv_event_base, 
+                               &xv_error_base);
+    if (result == Success) {
+      fprintf (stderr, "Found Xv extension, checking for suitable adaptors\n");
+      /* Check for available adaptors */
+      result = XvQueryAdaptors (mydisplay, DefaultRootWindow (mydisplay), 
+                                &xv_num_adaptors, &xv_adaptor_info);
+      if (result == Success) {
+        int i, j;
+
+        /* Check adaptors */
+        for (i = 0; i < xv_num_adaptors; i++) {
+          if ((xv_adaptor_info[i].type & XvInputMask) &&
+              (xv_adaptor_info[i].type & XvImageMask)) { 
+            xv_port = xv_adaptor_info[i].base_id;
+            fprintf(stderr, 
+                    "Found adaptor \"%s\" checking for suitable formats\n",
+                    xv_adaptor_info[i].name);
+            /* Check image formats of adaptor */
+            xv_formats = XvListImageFormats (mydisplay, xv_port, 
+                                             &xv_num_formats);
+            for (j = 0; j < xv_num_formats; j++) {
+              if (xv_formats[j].id == 0x32315659) { /* where is this from? */
+                fprintf (stderr, "Found image format \"%s\", using it\n", 
+                       xv_formats[j].guid);
+                xv_id = xv_formats[j].id;
+                break;
+              } 
+            }
+            if (j != xv_num_formats) { /* Found matching format */
+              fprintf (stderr, "Using Xvideo port %li for hw scaling\n", xv_port);
+              /* allocate XvImages */
+              xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
+                                            padded_width, padded_height, 
+                                            &shm_info);
+              shm_info.shmid = shmget (IPC_PRIVATE, xv_image->data_size, 
+                                         IPC_CREAT | 0777);
+              shm_info.shmaddr = shmat (shm_info.shmid, 0, 0);
+              shm_info.readOnly = FALSE;
+              xv_image->data = shm_info.shmaddr;
+              XShmAttach (mydisplay, &shm_info);
+              XSync (mydisplay, FALSE);
+              shmctl (shm_info.shmid, IPC_RMID, 0);
+              memset (xv_image->data, 128, xv_image->data_size); /* grayscale */
+
+              return; /* All set up! */
+            } else {
+              xv_port = 0;
+            }
+          }
+        } 
+      } 
+    }
+  }
+#endif /* HAVE_XV */
+
   /* Create shared memory image */
   windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				      ZPixmap, NULL, &shm_info,
@@ -232,10 +325,6 @@ void display_init(int padded_width, int padded_height,
   */
   yuv2rgb_init(pixel_stride, mode);
   
-  /* Scale init. */
-  scaled_image_width = horizontal_size;
-  scaled_image_height = vertical_size;
-  
   return;
   
  shmemerror:
@@ -243,9 +332,7 @@ void display_init(int padded_width, int padded_height,
   exit(1);
 
 }
-
-void display_chage_size(int new_width, int new_height) {
-  XSizeHints hint;
+void display_change_size(int new_width, int new_height) {
   int padded_width = windows[0].image->padded_width;
   int padded_height = windows[0].image->padded_height;
   
@@ -332,7 +419,6 @@ void display_chage_size(int new_width, int new_height) {
 	       | KeyPressMask | ButtonPressMask | ExposureMask);
 }
 
-
 void display_exit(void) 
 {
   // Need to add some test to se if we can detatch/free/destroy things
@@ -365,7 +451,6 @@ void add_grid(unsigned char *data, XImage *ximg)
     }
   }
 }
-
 
 
 void add_2_box_sides(unsigned char *data,
@@ -454,11 +539,13 @@ void display(yuv_image_t *current_image)
 	if(show_window[0])
 	  draw_win(&(windows[0]));
       break;
+#if defined(HAVE_MLIB) || defined(HAVE_XV)
     case ConfigureNotify:
       if(ev.xconfigure.window == windows[0].win) {
-	display_chage_size( ev.xconfigure.width, ev.xconfigure.height );
+	display_change_size( ev.xconfigure.width, ev.xconfigure.height );
       }
       break;    
+#endif /* HAVE_MLIB || HAVE_XV */
     case ButtonPress:
       switch(ev.xbutton.button) {
       case 0x1:
@@ -473,7 +560,6 @@ void display(yuv_image_t *current_image)
       {
 	char buff[2];
 	static int debug_change = 0;
-	static int scalemode_change = 0;
 
 	XLookupString(&(ev.xkey), buff, 2, NULL, NULL);
 	buff[1] = '\0';
@@ -499,34 +585,31 @@ void display(yuv_image_t *current_image)
 	  display_exit();
 	  exit_program(0);
 	  break;
+#ifdef HAVE_MLIB
 	case 's':
 	  scalemode_change = 1;
 	  break;
 	case '1':
 	  if(!debug_change && !scalemode_change) {
-	    display_chage_size( windows[0].image->horizontal_size, 
+	    display_change_size( windows[0].image->horizontal_size, 
 				windows[0].image->vertical_size);
 	  }
 	  break;
 	case '2':
 	  if(!debug_change && !scalemode_change) {
-	    display_chage_size( windows[0].image->horizontal_size * 2, 
+	    display_change_size( windows[0].image->horizontal_size * 2, 
 				windows[0].image->vertical_size * 2);
 	  }
 	  break;
 	case '3':
 	  if(!debug_change && !scalemode_change) {
-	    display_chage_size( windows[0].image->horizontal_size * 3,
+	    display_change_size( windows[0].image->horizontal_size * 3,
 				windows[0].image->vertical_size * 3);
 	  }
 	  break;
 	default:
 	  break;
-	}
-	if(debug_change && buff[0] != 'd') {
-	  debug = atoi(&buff[0]);
-	  debug_change = 0;
-	}
+	} /* end case */
 	if(scalemode_change && buff[0] != 's') {
 	  switch(atoi(&buff[0])) {
 	  case 1:
@@ -544,6 +627,13 @@ void display(yuv_image_t *current_image)
 	  }
 	  scalemode_change = 0;	  
 	}
+#else
+        } /* end case */
+#endif /* HAVE_MLIB */
+	if(debug_change && buff[0] != 'd') {
+	  debug = atoi(&buff[0]);
+	  debug_change = 0;
+	}
       }
       break;
     default:
@@ -554,7 +644,36 @@ void display(yuv_image_t *current_image)
   return;
 }
 
+void draw_win_x11(debug_win *dwin)
+{             
+              
+  yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
+          dwin->image->padded_width,
+          dwin->image->padded_height,
+          dwin->image->padded_width*(pixel_stride/8),
+          dwin->image->padded_width, dwin->image->padded_width/2 );
+            
+  if(dwin->grid) {
+    if(dwin->color_grid) {
+      add_color_grid(dwin);
+    } else {  
+      add_grid(dwin->data, dwin->ximage);
+    }       
+  }       
 
+  if(screenshot) {
+    screenshot=0;
+    //    screenshot_jpg(dwin->data, dwin->ximage);
+  }
+
+  //Display_Image(dwin->win, dwin->ximage, dwin->data, dwin->image);
+  XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
+	       0, 0, 0, 0, 
+               dwin->image->horizontal_size, dwin->image->vertical_size, 1);
+
+  return;
+}
+#ifdef HAVE_MLIB
 void draw_win(debug_win *dwin)
 {
   mlib_image *mimage_s;
@@ -630,5 +749,45 @@ void draw_win(debug_win *dwin)
   XSync(mydisplay, False);
   return;
 }
+#endif /* HAVE_MLIB */
 
+#ifdef HAVE_XV
+void draw_win(debug_win *dwin)
+{
+  unsigned char *dst;
+  int size;
+
+  if (xv_port == 0) { /* NO xv found */
+    draw_win_x11(dwin);
+  } else {
+    dst = xv_image->data;
+    /* Copy Y data */
+    size = dwin->image->padded_width*dwin->image->padded_height;
+    memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
+    /* Copy U data */
+    size = dwin->image->padded_width*dwin->image->padded_height/4;
+    memcpy(dst + xv_image->offsets[1], dwin->image->v, size);
+    /* Copy V data */
+    size = dwin->image->padded_width*dwin->image->padded_height/4;
+    memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
+
+    XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
+                  0, 0, 
+                  dwin->image->horizontal_size, dwin->image->vertical_size,
+                  0, 0, 
+                  scaled_image_width, scaled_image_height,
+                  False);
+    XFlush(mydisplay);
+  }
+}
+#endif /* HAVE_XV */
+
+#if !defined(HAVE_MLIB) && !defined(HAVE_XV)
+
+void draw_win(debug_win *dwin)
+{
+   draw_win_x11(dwin);
+}
+
+#endif /* Neither HAVE_MLIB or HAVE_XV */
 
