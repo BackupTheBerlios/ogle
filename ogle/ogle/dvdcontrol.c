@@ -208,10 +208,13 @@ static const char DVD_E_NoSuchError_STR[] = "No such error code";
 static const char DVD_E_RootNotSet_STR[] = "Root not set";
 static const char DVD_E_FailedToSend_STR[] = "Failed to send request";
 static const char DVD_E_NOMEM_STR[] = "Out of memory";
+static const char DVD_E_Invalid_STR[] = "Invalid Argument";
+
+
 /**
- * Print DVD error messages
+ * Return DVD error strings
  */
-void DVDPerror(const char *str, DVDResult_t ErrCode)
+const char *DVDStrerror(DVDResult_t ErrCode)
 {
   const char *errstr;
   
@@ -234,18 +237,32 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
   case DVD_E_NOMEM:
     errstr = DVD_E_NOMEM_STR;
     break;
+  case DVD_E_Invalid:
+    errstr = DVD_E_Invalid_STR;
+    break;
   default:
     errstr = DVD_E_NoSuchError_STR;
     break;
   }
 
+  return errstr;
+}
+
+
+/**
+ * Print DVD error messages
+ */
+void DVDPerror(const char *str, DVDResult_t ErrCode)
+{
+  const char *errstr;
+
+  errstr = DVDStrerror(ErrCode);
+
   fprintf(stderr, "%s%s %s\n",
 	  (str == NULL ? "" : str),
 	  (str == NULL ? "" : ":"),
 	  errstr);
-
 }
-
 
 /**
  * Get the filedescriptor(s) used by libdvdread, poll/select on them

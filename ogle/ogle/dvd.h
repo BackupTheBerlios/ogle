@@ -30,7 +30,8 @@ typedef enum {
   DVD_E_NotImplemented = 128,  /**< The function is not implemented */
   DVD_E_NOMEM,
   DVD_E_RootNotSet,
-  DVD_E_FailedToSend          /**< Unable to send the request/event */
+  DVD_E_FailedToSend,          /**< Unable to send the request/event */
+  DVD_E_Invalid,               /**< Invalid argument */
 } DVDResult_t;
 
 
@@ -248,6 +249,11 @@ typedef int DVDAudioSampleQuant_t; /**< TBD */
 typedef int DVDChannelNumber_t;    /**< TBD */
 
 
+typedef enum {
+  DVD_AUDIO_TYPE_NotSpecified = 0,
+  DVD_AUDIO_TYPE_Language     = 1,
+} DVDAudioType_t;
+
 typedef struct {
   DVDAudioAppMode_t     AppMode;
   DVDAudioFormat_t      AudioFormat;
@@ -257,6 +263,7 @@ typedef struct {
   DVDAudioSampleFreq_t  SampleFrequency;
   DVDAudioSampleQuant_t SampleQuantization;
   DVDChannelNumber_t    NumberOfChannels;
+  DVDAudioType_t        AudioType;
 } DVDAudioAttributes_t;
 
 typedef enum {

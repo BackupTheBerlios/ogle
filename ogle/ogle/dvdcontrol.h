@@ -32,6 +32,7 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, char* msgq_str);
 
 DVDResult_t DVDCloseNav(DVDNav_t *nav);
 
+const char *DVDStrerror(DVDResult_t ErrCode);
 void DVDPerror(const char *str, DVDResult_t ErrCode);
 
 /* info commands */
