@@ -938,7 +938,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
     }
     
     /* Get a shared memory segment */
-    shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0777);
+    shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0644);
 
     if(shm_info.shmid == -1) {
       FATAL("display_change_size");
@@ -1797,19 +1797,29 @@ static void draw_win_xv(window_info *dwin)
 			      window.video_area.width) / 2;
   window.video_area.y = (int)(window.window_area.height -
 			      window.video_area.height) / 2;
-  
-  XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
-		0, 0, 
-		dwin->image->info->picture.horizontal_size,
-		dwin->image->info->picture.vertical_size,
-		window.video_area.x,
-		window.video_area.y,
-		window.video_area.width,
-		window.video_area.height,
-		True);
-  
+  if(use_xshm) {
+    XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
+		  0, 0, 
+		  dwin->image->info->picture.horizontal_size,
+		  dwin->image->info->picture.vertical_size,
+		  window.video_area.x,
+		  window.video_area.y,
+		  window.video_area.width,
+		  window.video_area.height,
+		  True);
+  } else {
+    XvPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
+	       0, 0, 
+	       dwin->image->info->picture.horizontal_size,
+	       dwin->image->info->picture.vertical_size,
+	       window.video_area.x,
+	       window.video_area.y,
+	       window.video_area.width,
+	       window.video_area.height);
+    XFlush(mydisplay);
+  }
   //XFlush(mydisplay); ??
-  {
+  if(use_xshm) {
     XEvent ev;
     XEvent *e;
     e = &ev;
