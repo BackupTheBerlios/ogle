@@ -19,9 +19,15 @@ debug="0"
 check="0"
 param=""
 
+if [ -z "$OGLE_DLEVEL" ]; then
+    OGLE_DLEVEL=3
+fi
+
 for p in $*; do
     if [ $p = "--debug" ]; then
 	debug="1"
+        OGLE_DLEVEL=5
+	export DVDCSS_VERBOSE=2
     elif [ $p = "--check" ]; then
 	debug="1"
 	check="1"
@@ -29,6 +35,8 @@ for p in $*; do
 	param="$param $p"
     fi
 done
+
+export OGLE_DLEVEL
 
 if [ "$debug" = "1" ]; then
  # information on the build 

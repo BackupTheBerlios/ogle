@@ -5,6 +5,17 @@
 
 /* Ugly hack to get the right identifier in the messages */
 extern char *program_name;
+extern int dlevel;
+#define DEFAULT_DLEVEL 3
+
+#define GET_DLEVEL() \
+  {\
+    char *dlevel_str = getenv("OGLE_DLEVEL"); \
+    if(dlevel_str != NULL) \
+      dlevel = atoi(dlevel_str); \
+    else \
+      dlevel = DEFAULT_DLEVEL; \
+  }
 
 #ifdef DEBUG
 
@@ -25,19 +36,22 @@ int debug_indent_level;
 #if defined(__GNUC__) && ( __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95))
 
 #define FATAL(str, args...) \
-fprintf(stderr, "FATAL[%s]: " str, program_name , ## args)
+if(dlevel > 0) fprintf(stderr, "FATAL[%s]: " str, program_name , ## args)
 
 #define ERROR(str, args...) \
-fprintf(stderr, "ERROR[%s]: " str, program_name , ## args)
+if(dlevel > 1) fprintf(stderr, "ERROR[%s]: " str, program_name , ## args)
 
 #define WARNING(str, args...) \
-fprintf(stderr, "WARNING[%s]: " str, program_name , ## args)
+if(dlevel > 2) fprintf(stderr, "WARNING[%s]: " str, program_name , ## args)
 
 #define NOTE(str, args...) \
-fprintf(stderr, "Note[%s]: " str, program_name , ## args)
+if(dlevel > 3) fprintf(stderr, "Note[%s]: " str, program_name , ## args)
 
 #define DNOTE(str, args...) \
-fprintf(stderr, "Debug[%s]: " str, program_name , ## args)
+if(dlevel > 4) fprintf(stderr, "Debug[%s]: " str, program_name , ## args)
+
+#define DNOTEC(str, args...) \
+if(dlevel > 4) fprintf(stderr, str, ## args)
 
 #ifdef DEBUG
 
@@ -67,19 +81,22 @@ if(debug >= level) \
 /* TODO: these defines are not portable */
 
 #define FATAL(format, ...) \
-fprintf(stderr, "FATAL[%s]: " format, program_name , ##__VA_ARGS__)
+if(dlevel > 0) fprintf(stderr, "FATAL[%s]: " format, program_name , ##__VA_ARGS__)
 
 #define ERROR(format, ...) \
-fprintf(stderr, "ERROR[%s]: " format, program_name , ##__VA_ARGS__)
+if(dlevel > 1) fprintf(stderr, "ERROR[%s]: " format, program_name , ##__VA_ARGS__)
 
 #define WARNING(format, ...) \
-fprintf(stderr, "WARNING[%s]: " format, program_name , ##__VA_ARGS__)
+if(dlevel > 2) fprintf(stderr, "WARNING[%s]: " format, program_name , ##__VA_ARGS__)
 
 #define NOTE(format, ...) \
-fprintf(stderr, "Note[%s]: " format, program_name , ##__VA_ARGS__)
+if(dlevel > 3) fprintf(stderr, "Note[%s]: " format, program_name , ##__VA_ARGS__)
 
 #define DNOTE(format, ...) \
-fprintf(stderr, "Debug[%s]: " format, program_name , ##__VA_ARGS__)
+if(dlevel > 4) fprintf(stderr, "Debug[%s]: " format, program_name , ##__VA_ARGS__)
+
+#define DNOTEC(format, ...) \
+if(dlevel > 4) fprintf(stderr, format, ##__VA_ARGS__)
 
 
 

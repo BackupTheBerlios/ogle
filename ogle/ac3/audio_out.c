@@ -71,6 +71,7 @@ static int flush_to_scrid = -1;
 static int prev_scr_nr = 0;
 
 char *program_name;
+int dlevel;
 
 void usage()
 {
@@ -85,7 +86,8 @@ int main(int argc, char *argv[])
   int c;
   
   program_name = argv[0];
-  
+  GET_DLEVEL();
+
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {

@@ -61,6 +61,7 @@ static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
 MsgEventQ_t *msgq;
 
 char *program_name;
+int dlevel;
 
 void usage(void)
 {
@@ -74,7 +75,8 @@ int main(int argc, char *argv[])
   int c; 
   
   program_name = argv[0];
-  
+  GET_DLEVEL();
+
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {

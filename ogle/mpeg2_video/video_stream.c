@@ -157,7 +157,7 @@ int last_gop_had_repeat_field_progressive_frame = 0;
 
 
 char *program_name;
-
+int dlevel;
 
 
 //prototypes
@@ -276,7 +276,7 @@ int main(int argc, char **argv)
   int output_client = 0;
   
   program_name = argv[0];
-
+  GET_DLEVEL();
   /* Parse command line options */
   while ((c = getopt(argc, argv, "d:r:f:m:hs")) != EOF) {
     switch (c) {
@@ -1002,48 +1002,48 @@ int get_output_buffer(data_q_t *data_q,
   data_q->image_bufs = image_bufs;
     
 #ifdef HAVE_MMX
-    emms();
+  emms();
 #endif
   
   /* this should not be here */
-  fprintf(stderr, "horizontal_size: %d, vertical_size: %d\n",
-	  seq.horizontal_size, seq.vertical_size);
-  fprintf(stderr, "padded_width: %d, padded_height: %d\n",
-	  padded_width, padded_height);
+  DNOTE("horizontal_size: %d, vertical_size: %d\n",
+	seq.horizontal_size, seq.vertical_size);
+  DNOTE("padded_width: %d, padded_height: %d\n",
+	padded_width, padded_height);
   
-  fprintf(stderr, "frame rate: ");
+  DNOTE("%s", "frame rate: ");
   switch(seq.header.frame_rate_code) {
   case 0x0:
     break;
   case 0x1:
-    fprintf(stderr, "24000/1001 (23.976)\n");
+    DNOTEC("%s", "24000/1001 (23.976)\n");
     break;
   case 0x2:
-    fprintf(stderr, "24\n");
+    DNOTEC("%s", "24\n");
     break;
   case 0x3:
-    fprintf(stderr, "25\n");
+    DNOTEC("%s", "25\n");
     break;
   case 0x4:
-    fprintf(stderr, "30000/1001 (29.97)\n");
+    DNOTEC("%s", "30000/1001 (29.97)\n");
     break;
   case 0x5:
-    fprintf(stderr, "30\n");
+    DNOTEC("%s", "30\n");
     break;
   case 0x6:
-    fprintf(stderr, "50\n");
+    DNOTEC("%s", "50\n");
     break;
   case 0x7:
-    fprintf(stderr, "60000/1001 (59.94)\n");
+    DNOTEC("%s", "60000/1001 (59.94)\n");
     break;
   case 0x8:
-    fprintf(stderr, "60\n");
+    DNOTEC("%s", "60\n");
     break;
   default:
-    fprintf(stderr, "%f (computed)\n",
-	    (double)(seq.header.frame_rate_code)*
-	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
-	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
+    DNOTEC("%f (computed)\n",
+	   (double)(seq.header.frame_rate_code)*
+	   ((double)(seq.ext.frame_rate_extension_n)+1.0)/
+	   ((double)(seq.ext.frame_rate_extension_d)+1.0));
     break;
   }
 

@@ -25,7 +25,7 @@
 #include <X11/Xlib.h>
 #include <string.h>
 
-
+#include "debug_print.h"
 /**
  * Does what it sounds like. 
  */
@@ -105,23 +105,22 @@ look_for_good_xscreensaver()
 
          /* Strip trailing newline */
          response[strlen(response)-1] = 0;
-
-         fprintf(stderr,
-                 "Found a running xscreensaver, version \"%s\" (>= 3.34).\n",
-                  response+13);
+	 
+	 DNOTE("Found a running xscreensaver, version \"%s\" (>= 3.34).\n",
+	       response+13);
          return(True);
        }
      else
        {
-         fprintf(stderr, "Found too old version of xscreensaver!\n");
-         fprintf(stderr, "\tGet at least version 3.34!\n");
+         DNOTE("%s", "Found too old version of xscreensaver!\n");
+         DNOTE("%s", "\tGet at least version 3.34!\n");
          return(False);
        }
     }
   else
     {
-      fprintf(stderr, "Got weird data from xscreensaver-command:\"%s\"\n",
-              response);
+      DNOTE("Got weird data from xscreensaver-command:\"%s\"\n",
+	    response);
       return(False);
     }
 }

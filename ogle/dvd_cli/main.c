@@ -30,6 +30,7 @@
 #include <X11/Xlib.h>
 
 #include <ogle/dvdcontrol.h>
+#include "debug_print.h"
 
 #include "xsniffer.h"
 #include "interpret_config.h"
@@ -43,6 +44,8 @@ int msgqid;
 extern int win;
 
 char *program_name;
+int dlevel;
+
 void usage()
 {
   fprintf(stderr, "Usage: %s [-m <msgid>] path\n", 
@@ -57,6 +60,7 @@ int main (int argc, char *argv[])
   int c;
   
   program_name = argv[0];
+  GET_DLEVEL();
 
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {

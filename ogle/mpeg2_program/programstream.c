@@ -146,6 +146,7 @@ int audio       = 0;
 int debug       = 0;
 
 char *program_name;
+int dlevel;
 FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
@@ -250,7 +251,7 @@ int dvd_open_root(char *path)
 {
   
   if((dvdroot = DVDOpen(path)) == NULL) {
-    fprintf(stderr, "*demux: couldn't open dvd\n");
+    FATAL("%s", "Couldn't open dvd\n");
     exit(1);
   }
   
@@ -278,7 +279,7 @@ int dvd_change_file(int titlenum, dvd_read_domain_t domain)
     DVDCloseFile(dvdfile);
   }
   if((dvdfile = DVDOpenFile(dvdroot, titlenum, domain)) == NULL) {
-    fprintf(stderr, "*demux: couldn't open dvdfile\n");
+    FATAL("%s", "Couldn't open dvdfile\n");
     exit(1);
   }
   dvd_file_num = titlenum;
@@ -305,10 +306,10 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
     
     switch(blocks_read) {
     case -1:
-      fprintf(stderr, "*demux: dvdreadblocks failed\n");
+      FATAL("%s", "dvdreadblocks failed\n");
       exit(1);
     case 0:
-      fprintf(stderr, "demux: dvdreadblocks returned 0\n");
+      WARNING("%s", "dvdreadblocks returned 0\n");
       if(tries > 3) {
 	fprintf(stderr, "\n\n" 
 "Ogle can't read any data.\n"
@@ -330,7 +331,7 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
       break;
     }
     if(blocks_read != nblocks) {
-      fprintf(stderr, "demux: dvdreadblocks only got %d, wanted %d\n",
+      WARNING("dvdreadblocks only got %d, wanted %d\n",
 	      blocks_read, nblocks);
     }
     buf += blocks_read * 2048;
@@ -463,7 +464,7 @@ unsigned int nextbits(unsigned int nr_of_bits)
 
 static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
-    fprintf(stderr, "*** demux: incorrect marker_bit in stream\n");
+    WARNING("%s", "Incorrect marker_bit in stream\n");
     //exit(1);
   }
 }
@@ -779,19 +780,19 @@ int pack_header(void)
 
     if(system_clock_reference < prev_scr) {
       scr_discontinuity = 1;
-      fprintf(stderr, "*** Backward scr discontinuity\n");
-      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
-	      ((double)system_clock_reference)/27000000.0);
-      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
-	      ((double)prev_scr)/27000000.0);
+      DNOTE("%s", "Backward scr discontinuity\n");
+      DNOTE("system_clock_reference: [%6f s]\n", 
+	    ((double)system_clock_reference)/27000000.0);
+      DNOTE("prev system_clock_reference: [%6f s]\n", 
+	    ((double)prev_scr)/27000000.0);
       
     } else if((system_clock_reference - prev_scr) > 2700000*7) {
       scr_discontinuity = 1;
-      fprintf(stderr, "*** Forward scr discontinuity\n");
-      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
-	      ((double)system_clock_reference)/27000000.0);
-      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
-	      ((double)prev_scr)/27000000.0);
+      DNOTE("%s", "Forward scr discontinuity\n");
+      DNOTE("system_clock_reference: [%6f s]\n", 
+	    ((double)system_clock_reference)/27000000.0);
+      DNOTE("prev system_clock_reference: [%6f s]\n", 
+	    ((double)prev_scr)/27000000.0);
     }
     prev_scr = system_clock_reference;
     
@@ -830,19 +831,19 @@ int pack_header(void)
     
     if(system_clock_reference < prev_scr) {
       scr_discontinuity = 1;
-      fprintf(stderr, "*** Backward scr discontinuity ******\n");
-      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
-	      ((double)system_clock_reference)/27000000.0);
-      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
-	      ((double)prev_scr)/27000000.0);
+      DNOTE("%s", "*** Backward scr discontinuity ******\n");
+      DNOTE("system_clock_reference: [%6f s]\n", 
+	    ((double)system_clock_reference)/27000000.0);
+      DNOTE("prev system_clock_reference: [%6f s]\n", 
+	    ((double)prev_scr)/27000000.0);
       
     } else if((system_clock_reference - prev_scr) > 2700000) {
       scr_discontinuity = 1;
-      fprintf(stderr, "*** Forward scr discontinuity ******\n");
-      fprintf(stderr, "system_clock_reference: [%6f s]\n", 
-	      ((double)system_clock_reference)/27000000.0);
-      fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
-	      ((double)prev_scr)/27000000.0);
+      DNOTE("%s", "*** Forward scr discontinuity ******\n");
+      DNOTE("system_clock_reference: [%6f s]\n", 
+	    ((double)system_clock_reference)/27000000.0);
+      DNOTE("prev system_clock_reference: [%6f s]\n", 
+	    ((double)prev_scr)/27000000.0);
     }
     prev_scr = system_clock_reference;
     
@@ -1108,7 +1109,7 @@ void PES_packet(void)
     bytes_read = 3;
 
     if(PES_scrambling_control != 0) {
-      fprintf(stderr, "demux: Found a scrambled PES packet! (%d)\n", 
+      WARNING("Found a scrambled PES packet! (%d)\n", 
 	      PES_scrambling_control);
     }
     
@@ -1559,15 +1560,14 @@ void MPEG2_program_stream(void)
     //system_header_set = 0;
   } else {
     synced = 0;
-    fprintf(stderr, "demux: *** Lost Sync\n");
-    fprintf(stderr, "demux: *** at offset: %u bytes\n", offs);
+    WARNING("Lost Sync at offset: %u bytes\n", offs);
   }
 }
 
 
 void segvhandler (int id)
 {
-  fprintf(stderr, "*demux: Segmentation fault\n");
+  FATAL("%s", "Segmentation fault\n");
 
 #ifdef STATS
   printf("\n----------------------------------------------\n");
@@ -1673,7 +1673,7 @@ int main(int argc, char **argv)
   int lost_sync = 1;
   
   program_name = argv[0];
-  
+  GET_DLEVEL();
   init_id_reg(STREAM_DISCARD);
   
   /* Parse command line options */
@@ -1953,7 +1953,7 @@ int main(int argc, char **argv)
     init_id_reg(STREAM_DISCARD);
     // get a handle
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "*demux: couldn't get message q\n");
+      FATAL("%s", "Couldn't get message q\n");
       exit(1);
     }
 #if DEBUG
@@ -2062,7 +2062,7 @@ int main(int argc, char **argv)
     DPRINTF(1, "resyncing");
     if(lost_sync) {
       lost_sync = 0;
-      fprintf(stderr, "demux: Lost sync, resyncing\n");
+      WARNING("%s", "Lost sync, resyncing\n");
     }
   }
 }
@@ -2797,7 +2797,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     ctrl_time[scr_nr].scr_id = scr_id;
     ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
     ctrl_time[scr_nr].sync_master = SYNC_NONE;
-    fprintf(stderr, "demux: changed to scr_nr: %d\n", scr_nr);
+    DNOTE("demux: changed to scr_nr: %d\n", scr_nr);
   }
   
   if(demux_cmd & FlowCtrlFlush) {

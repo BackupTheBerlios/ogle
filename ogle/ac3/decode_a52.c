@@ -344,9 +344,9 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	{
 	  int n;
 	  for(n = 0; n < new_format.nr_channels; n++) {
-	    fprintf(stderr, " %s", channeltype_str(new_format.ch_array[n]));
+	    DNOTEC(" %s", channeltype_str(new_format.ch_array[n]));
 	  }
-	  fprintf(stderr, "\n");
+	  DNOTEC("%s", "\n");
 	}
 	free(new_format.ch_array);
       }

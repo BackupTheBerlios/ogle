@@ -65,6 +65,7 @@ int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
 
 char *program_name;
+int dlevel;
 
 int video_scr_nr;
 
@@ -524,8 +525,8 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 	nudge_xscreensaver();
 	clocktime_get(&prof_time);
 	timesub(&prof_time, &prof_time, &real_time);
-	fprintf(stderr, "ss disable took %ld.%09ld s\n",
-		TIME_S(prof_time), TIME_SS(prof_time));
+	DNOTE("ss disable took %ld.%09ld s\n",
+	      TIME_S(prof_time), TIME_SS(prof_time));
       }
       display_reset_screensaver();
       TIME_S(last_ss_disable) = TIME_S(real_time);
@@ -1059,7 +1060,8 @@ int main(int argc, char **argv)
   int c; 
 
   program_name = argv[0];
-  
+  GET_DLEVEL();
+
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {

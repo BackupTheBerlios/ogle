@@ -65,7 +65,7 @@ void add_q_shmid(int shmid);
 void remove_q_shmid(int shmid);
 void destroy_msgq(void);
 
-void add_to_pidlist(pid_t pid);
+void add_to_pidlist(pid_t pid, char *name);
 int remove_from_pidlist(pid_t pid);
 
 void cleanup_and_exit(void);
@@ -77,10 +77,9 @@ int ctrl_data_shmid;
 ctrl_data_t *ctrl_data;
 
 char *program_name;
+int dlevel;
+
 char msgqid_str[9];
-
-
-
 
 char *input_file;
 
@@ -722,6 +721,8 @@ int main(int argc, char *argv[])
   }
   program_name = &argv[0][c];
 
+  GET_DLEVEL();
+
   memset(&sig, 0, sizeof(struct sigaction));
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
@@ -942,7 +943,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     break;
   }
   if(pid != -1) {
-    add_to_pidlist(pid);
+    add_to_pidlist(pid, decoderstr);
   }
   
 
@@ -952,32 +953,40 @@ int init_decoder(char *msgqid_str, char *decoderstr)
 }
 
 
+typedef struct {
+  pid_t pid;
+  char *name;
+} pidname_t;
 
-pid_t *pidlist = NULL;
+pidname_t *pidlist = NULL;
 int num_pids = 0;
 
-void add_to_pidlist(pid_t pid)
+void add_to_pidlist(pid_t pid, char *name)
 {
   int n;
 
   for(n = 0; n < num_pids; n++) {
-    if(pidlist[n] == -1) {
-      pidlist[n] = pid;
+    if(pidlist[n].pid == -1) {
+      pidlist[n].pid = pid;
+      pidlist[n].name = strdup(name);
       return;
     }
   }
 
   num_pids++;
-  pidlist = realloc(pidlist, num_pids*sizeof(pid_t));
-  pidlist[num_pids-1] = pid;
+  pidlist = realloc(pidlist, num_pids*sizeof(pidname_t));
+  pidlist[num_pids-1].pid = pid;
+  pidlist[num_pids-1].name = strdup(name);
 }
 
 int remove_from_pidlist(pid_t pid)
 {
   int n;
   for(n = 0; n < num_pids; n++) {
-    if(pidlist[n] == pid) {
-      pidlist[n] = -1;
+    if(pidlist[n].pid == pid) {
+      pidlist[n].pid = -1;
+      free(pidlist[n].name);
+      pidlist[n].name = NULL;
       return 1;
     }
   }
@@ -985,6 +994,19 @@ int remove_from_pidlist(pid_t pid)
   return 0;
 }
 
+char *get_pid_name(pid_t pid)
+{
+  int n;
+  if(pid != -1) {
+    for(n = 0; n < num_pids; n++) {
+      if(pid == pidlist[n].pid) {
+	return pidlist[n].name;
+      }
+    }
+  }
+  return NULL;
+}
+  
 
 /**
  * @todo fix how to decide which streams to decode
@@ -1351,9 +1373,9 @@ void int_handler(int sig)
   DNOTE("Caught signal %d, cleaning up\n", sig);
 
   for(n = 0; n < num_pids; n++) {
-    if((pid = pidlist[n]) != -1) {
+    if((pid = pidlist[n].pid) != -1) {
       child_killed = 1;
-      DNOTE("killing child: %ld\n", (long)pid);
+      DNOTE("killing child: %ld %s\n", (long)pid, pidlist[n].name);
       kill(pid, SIGINT);
     }
     if(!child_killed) {
@@ -1389,6 +1411,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   int stat_loc;
   int died = 0;
   pid_t wpid, pid;
+  char *name;
   
 #if defined(SA_SIGINFO)
   if(info->si_signo != SIGCHLD) {
@@ -1401,39 +1424,43 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   //DNOTE("si_code: %d\n", info->si_code);
 
   //DNOTE("si_pid: %ld\n", (long)info->si_pid);
+
+  if((name = get_pid_name(info->si_pid)) == NULL) {
+    name = "?";
+  }
   
   switch(info->si_code) {
   case CLD_STOPPED:
-    DNOTE("child: %ld stopped\n", (long)info->si_pid);
+    DNOTE("child: %ld stopped (%s)\n", (long)info->si_pid, name);
     break;
   case CLD_CONTINUED:
-    DNOTE("child: %ld continued\n", (long)info->si_pid);
+    DNOTE("child: %ld continued (%s)\n", (long)info->si_pid, name);
     break;
   case CLD_KILLED:
-    DNOTE("child: %ld killed\n", (long)info->si_pid);
+    DNOTE("child: %ld killed (%s)\n", (long)info->si_pid, name);
     died = 1;
     break;
   case CLD_DUMPED:
-    DNOTE("child: %ld dumped\n", (long)info->si_pid);
+    DNOTE("child: %ld dumped (%s)\n", (long)info->si_pid, name);
     died = 1;
     break;
   case CLD_TRAPPED:
-    DNOTE("child: %ld trapped\n", (long)info->si_pid);
+    DNOTE("child: %ld trapped (%s)\n", (long)info->si_pid, name);
     died = 1;
     break;
   case CLD_EXITED:
-    DNOTE("child: %ld exited with %d\n",
-	    (long)info->si_pid, info->si_status);
+    DNOTE("child: %ld exited with %d (%s)\n",
+	    (long)info->si_pid, info->si_status, name);
     died = 1;
     break;
 #if defined(SI_NOINFO)  // Solaris only
   case SI_NOINFO:
-    DNOTE("pid %ld, sigchld: no info\n", (long)info->si_pid);
+    DNOTE("pid %ld, sigchld: no info (%s)\n", (long)info->si_pid, name);
     break;
 #endif
   default:
-    DNOTE("pid %ld, unknown sigchld si_code: %d\n",
-	    (long)info->si_pid, info->si_code);
+    DNOTE("pid %ld, unknown sigchld si_code: %d (%s)\n",
+	    (long)info->si_pid, info->si_code, name);
     break;
   }
   wpid = info->si_pid;
@@ -1454,21 +1481,25 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
     break;
   }
   
+  if((name = get_pid_name(pid)) == NULL) {
+    name = "?";
+  }
+
   if(WIFEXITED(stat_loc)) {
     died = 1;
-    DNOTE("pid: %ld exited with status: %d\n",
-	    (long)pid, WEXITSTATUS(stat_loc));
+    DNOTE("pid: %ld exited with status: %d (%s)\n",
+	    (long)pid, WEXITSTATUS(stat_loc), name);
   } else if(WIFSIGNALED(stat_loc)) {
     died = 1;
-    DNOTE("pid: %ld terminated on signal: %d\n",
-	    (long)pid, WTERMSIG(stat_loc));
+    DNOTE("pid: %ld terminated on signal: %d (%s)\n",
+	    (long)pid, WTERMSIG(stat_loc), name);
   } else if(WIFSTOPPED(stat_loc)) {
-    DNOTE("pid: %ld stopped on signal: %d\n",
-	    (long)pid, WSTOPSIG(stat_loc));
+    DNOTE("pid: %ld stopped on signal: %d (%s)\n",
+	    (long)pid, WSTOPSIG(stat_loc), name);
   } else if(WIFCONTINUED(stat_loc)) {
-    DNOTE("pid: %ld continued\n", (long)pid);
+    DNOTE("pid: %ld continued (%s)\n", (long)pid, name);
   } else {
-    DNOTE("pid: %ld\n", (long)pid);
+    DNOTE("pid: %ld (%s)\n", (long)pid, name);
   }
   if(died) {
     int n;
@@ -1476,9 +1507,9 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
       DNOTE("%s", "pid died before registering\n");
     }
     for(n = 0; n < num_pids; n++) {
-      if((pid = pidlist[n]) != -1) {
+      if((pid = pidlist[n].pid) != -1) {
 	child_killed = 1;
-	//DNOTE("killing child: %ld\n", (long)pid);
+	//DNOTE("killing child: %ld %s\n", (long)pid, pidlist[n].name);
 	kill(pid, SIGINT);
       }
     }
@@ -1494,11 +1525,11 @@ void slay_children(void)
 {
   int n;
   pid_t pid;
-  
+
   for(n = 0; n < num_pids; n++) {
-    if((pid = pidlist[n]) != -1) {
+    if((pid = pidlist[n].pid) != -1) {
       child_killed = 2;
-      DNOTE("slaying child: %ld\n", (long)pid);
+      DNOTE("slaying child: %ld %s\n", (long)pid, pidlist[n].name);
       kill(pid, SIGKILL);
     }
   }

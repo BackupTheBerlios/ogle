@@ -79,10 +79,10 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
     DNOTE("%s", "");
     for(n = 1; n <= 0x100; n = n << 1) {
       if(n & chtypemask_wanted) {
-	fprintf(stderr, " '%s'", channeltype_str(n));
+	DNOTEC(" '%s'", channeltype_str(n));
       }
     }
-    fprintf(stderr, "\n");
+    DNOTEC("%s", "\n");
     if(chtypemask_wanted & ChannelTypeMask_Streams) {
       DNOTE("%s", "or for:\n");
     }
@@ -92,7 +92,7 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
     DNOTE(" '%s'",
 	  channeltype_str(chtypemask_wanted & ChannelTypeMask_Streams));
   }
-  fprintf(stderr, "\n");
+  DNOTEC("%s", "\n");
   
   for(n = 0; n < nr_configs; n++) {
     int m;

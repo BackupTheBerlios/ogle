@@ -386,7 +386,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   char *shmaddr;
   q_head_t *q_head;
   
-  fprintf(stderr, "video_dec: shmid: %d\n", shmid);
+  //DNOTE("video_dec: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
@@ -401,7 +401,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 
   q_head = (q_head_t *)stream_shmaddr;
   shmid = q_head->data_buf_shmid;
-  fprintf(stderr, "video_dec: data_buf shmid: %d\n", shmid);
+  //DNOTE("video_dec: data_buf shmid: %d\n", shmid);
 
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
