@@ -457,7 +457,7 @@ void push_stream_data(uint8_t stream_id, int len)
     if(audio) {
       DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
       if(*data == 0x80) {
-	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+	fwrite(&ol_pack, sizeof(ol_pack), 1, audio_file);
 
 #ifdef STATS
 	stat_audio_n_packets++;
@@ -473,7 +473,7 @@ void push_stream_data(uint8_t stream_id, int len)
       }
             if(*data == subtitle_id ){ 
       	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+	fwrite(&ol_pack, sizeof(ol_pack), 1, subtitle_file);
 	
 #ifdef STATS
 	stat_subpicture_n_packets++;
@@ -973,8 +973,10 @@ void loadinputfile(char *infilename)
   
   if(video)
     fwrite(&lf_pack, lf_pack.body.length+8, 1, video_file);
+#if 0
   if(audio)
     fwrite(&lf_pack, lf_pack.body.length+8, 1, audio_file);
+#endif
   if(subtitle)
     fwrite(&lf_pack, lf_pack.body.length+8, 1, subtitle_file); 
 }
