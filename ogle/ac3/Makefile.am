@@ -1,5 +1,5 @@
-# SKROMPF - A video player
-# Copyright (C) 2000 Björn Englund, Håkan Hjort, Martin Norbäck
+# Ogle - A video player
+# Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort, Martin Norbäck
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,5 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 bin_PROGRAMS = ac3dec_wrap
+
 ac3dec_wrap_SOURCES = ac3dec_wrap.c
-ac3dec_wrap_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+ac3dec_wrap_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la

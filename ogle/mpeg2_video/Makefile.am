@@ -1,5 +1,5 @@
-# SKROMPF - A video player
-# Copyright (C) 2000 Björn Englund, Håkan Hjort, Martin Norbäck
+# Ogle - A video player
+# Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort, Martin Norbäck
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -51,6 +51,6 @@ video_output_SOURCES = \
 	spu_mixer.c spu_mixer.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
 
-video_stream_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+video_stream_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
 
-video_output_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+video_output_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
