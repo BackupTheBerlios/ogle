@@ -1,15 +1,21 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include "decoder.h"
-#define BLOCK_SIZE 2048
 
+#define BLOCK_SIZE 2048
 typedef struct
 {
   uint32_t bit_position;
   uint8_t bytes [BLOCK_SIZE];
 } buffer_t;
 
-main ()
+extern void ifoPrintVMOP (uint8_t *opcode);
+extern void vmcmd(uint8_t *bytes);
+extern void dump_command (FILE *out, buffer_t *buffer);
+
+
+int 
+main(int argc, char *argv[])
 {
   uint8_t buf[8];
   buffer_t buffer;
@@ -18,7 +24,7 @@ main ()
   state_t state;
   link_t return_values;
 
-  bzero(&state, sizeof(state_t));
+  memset(&state, 0, sizeof(state_t));
 
   while(!feof(stdin)) {
     printf("   #   ");
@@ -37,16 +43,22 @@ main ()
       buffer.bytes[i] = res;
       buf[i] = res;
     }
-    eval (&buf, 1, &state, &return_values);
+    buffer.bit_position = 0;
+    
+    eval(&buf, 1, &state, &return_values);
+    
     printf("OMS:  ");
     ifoPrintVMOP (buffer.bytes);
     printf("\n");
+    
     printf("n:    ");
     vmcmd(buffer.bytes);
     printf("\n");
+    
     printf("VDMP: ");
-    dump_command(stdout, buffer);
+    dump_command(stdout, &buffer);
     printf("\n\n");
   }
+  exit(0);
 }
 
