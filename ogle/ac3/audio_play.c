@@ -32,6 +32,7 @@ extern ctrl_time_t *ctrl_time;
 int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 {
   static clocktime_t last_sync = { 0, 0 };
+  static int last_sync_set = 0;
   static int samples_written;
   static int old_delay = 0;
   clocktime_t odelay_call_time;
@@ -125,7 +126,8 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	    ((int64_t)delay*(int64_t)CT_FRACTION/srate) %
 	    CT_FRACTION;
 	  
-	  if(TIME_S(delay_time) > 0 || TIME_SS(delay_time) > TIME_SS(buf_time)) {
+	  if((TIME_S(delay_time) > 0) ||
+	     (TIME_SS(delay_time) > TIME_SS(buf_time))) {
 	    timesub(&sleep_time, &delay_time, &buf_time); 
 	  }
 	  
@@ -177,7 +179,12 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 			   ctrl_data->speed);
 	    
 	  }
-	  
+	  if(!last_sync_set) {
+	    last_sync_set = 1;
+	    last_sync = real_time;
+	    samples_written = 0;
+	  }
+
 	  timesub(&delta_sync_time, &real_time, &last_sync);
 	  
 	  
