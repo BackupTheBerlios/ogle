@@ -282,18 +282,18 @@ int DVDBookmarkAdd(DVDBookmark_t *bm,
     return -1;
   }
   
-  if((xmlNewChild(cur, NULL, "navstate", navstate)) == NULL) {
+  if((xmlNewTextChild(cur, NULL, "navstate", navstate)) == NULL) {
     return -1;
   }
   
   if(usercomment) {
-    if((xmlNewChild(cur, NULL, "usercomment", usercomment)) == NULL) {
+    if((xmlNewTextChild(cur, NULL, "usercomment", usercomment)) == NULL) {
       return -1;
     }
   }
 
   if(appname && appinfo) {
-    if((cur = xmlNewChild(cur, NULL, "appinfo", appinfo)) == NULL) {
+    if((cur = xmlNewTextChild(cur, NULL, "appinfo", appinfo)) == NULL) {
       return -1;
     }
     xmlNewProp(cur, "appname", appname);    
