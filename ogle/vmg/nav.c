@@ -175,8 +175,6 @@ int main(int argc, char *argv[])
 
 
 
-
-
 /**
  * Update any info the demuxer needs, and then tell the demuxer
  * what range of sectors to process.
@@ -184,7 +182,7 @@ int main(int argc, char *argv[])
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
   static int video_aspect = -1;
-  static int audio_stream_id = -1;
+  //  static int audio_stream_id = -1;
   static int subp_stream_id = -1;
   MsgEvent_t ev;
   
@@ -215,13 +213,13 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   {
     int sN = vm_get_audio_stream(state.AST_REG);
     if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
-    if(sN != audio_stream_id) {
+    {
       static uint8_t old_id = 0xbd;
       static uint8_t old_subtype = 0x80;
       uint8_t new_id;
       uint8_t new_subtype;
       audio_attr_t attr;
-      audio_stream_id = sN;
+      int audio_stream_id = sN;
       
       new_id = 0;
       new_subtype = 0;
@@ -256,19 +254,19 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	break;
       }
       
-      
-      DNOTE("sending audio demuxstream %d\n", sN);
-      DNOTE("oid: %02x, ost: %02x, nid: %02x, nst: %02x\n",
-	    old_id, old_subtype, new_id, new_subtype);
-      ev.type = MsgEventQDemuxStreamChange2;
-      ev.demuxstreamchange2.old_stream_id = old_id;
-      ev.demuxstreamchange2.old_subtype = old_subtype;
-      ev.demuxstreamchange2.new_stream_id = new_id;
-      ev.demuxstreamchange2.new_subtype = new_subtype;
-      if(send_demux(msgq, &ev) == -1) {
-	ERROR("failed to send audio demuxstream\n");
+      if(old_id != new_id || old_subtype != new_subtype) {
+	DNOTE("sending audio demuxstream %d\n", sN);
+	DNOTE("oid: %02x, ost: %02x, nid: %02x, nst: %02x\n",
+	      old_id, old_subtype, new_id, new_subtype);
+	ev.type = MsgEventQDemuxStreamChange2;
+	ev.demuxstreamchange2.old_stream_id = old_id;
+	ev.demuxstreamchange2.old_subtype = old_subtype;
+	ev.demuxstreamchange2.new_stream_id = new_id;
+	ev.demuxstreamchange2.new_subtype = new_subtype;
+	if(send_demux(msgq, &ev) == -1) {
+	  ERROR("failed to send audio demuxstream\n");
+	}
       }
-      
       old_id = new_id;
       old_subtype = new_subtype;
     }
