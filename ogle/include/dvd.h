@@ -100,6 +100,7 @@ typedef enum {
   DVD_AUDIO_LANG_EXT_DirectorsComments2 = 4  /**< TBD */
 } DVDAudioLangExt_t;
 
+/*
 typedef struct {
   DVDAudioAppMode_t     AppMode;
   DVDAudioFormat_t      AudioFormat;
@@ -125,5 +126,7 @@ typedef struct {
   DVDBool_t Line21Field2InGop;
   ...
 } DVDVideoAttributes_t;
+
+*/
 
 #endif /* DVD_H */
