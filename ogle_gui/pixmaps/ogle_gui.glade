@@ -223,12 +223,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button1</name>
+	  <tooltip>Rewind</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_rewind_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:12 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -259,12 +261,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button2</name>
+	  <tooltip>Reverse</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_reverse_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:44 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -295,12 +299,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button3</name>
+	  <tooltip>Stop</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_stop_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:59 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -331,12 +337,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button4</name>
+	  <tooltip>Play</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_play_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:07 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>3</left_attach>
 	    <right_attach>4</right_attach>
@@ -367,12 +375,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button5</name>
+	  <tooltip>Fast forward</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_fastforward_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:19 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>4</left_attach>
 	    <right_attach>5</right_attach>
@@ -403,12 +413,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button6</name>
+	  <tooltip>Skip backwards</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_skip_backwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:40 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -439,12 +451,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button7</name>
+	  <tooltip>Step reverse</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_step_reverse_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:49 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -475,12 +489,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button8</name>
+	  <tooltip>Pause</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_pause_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:59 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -511,12 +527,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button9</name>
+	  <tooltip>Step forwards</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_step_forwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:14 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>3</left_attach>
 	    <right_attach>4</right_attach>
@@ -547,12 +565,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button10</name>
+	  <tooltip>Skip forwards</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_skip_forwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:25 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>4</left_attach>
 	    <right_attach>5</right_attach>
@@ -598,12 +618,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button11</name>
+	  <tooltip>Play fast</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_fast_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:37 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -634,12 +656,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button12</name>
+	  <tooltip>Play slow</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_slow_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:42 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -685,12 +709,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button13</name>
+	  <tooltip>Go up</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_go_up_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:47 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -721,12 +747,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button14</name>
+	  <tooltip>Move cursor left</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_left_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:54 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -757,12 +785,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button15</name>
+	  <tooltip>Move cursor up</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_up_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:57 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -793,12 +823,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button16</name>
+	  <tooltip>Move cursor down</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_down_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:08 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -829,12 +861,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button18</name>
+	  <tooltip>Move cursor right</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_right_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:19 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -865,12 +899,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button17</name>
+	  <tooltip>Enter</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_cursor_enter_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:07 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -916,12 +952,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button19</name>
+	  <tooltip>Select menu...</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_menus_button_clicked</handler>
 	    <last_modification_time>Sun, 25 Nov 2001 01:03:39 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -952,12 +990,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button20</name>
+	  <tooltip>Audio select</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_audio_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:30 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -988,12 +1028,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button21</name>
+	  <tooltip>Subtitle select</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_subpicture_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:31 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -1024,12 +1066,14 @@
 	<widget>
 	  <class>GtkButton</class>
 	  <name>button22</name>
+	  <tooltip>Angle select</tooltip>
 	  <can_focus>True</can_focus>
 	  <signal>
 	    <name>clicked</name>
 	    <handler>on_angle_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:41 GMT</last_modification_time>
 	  </signal>
+	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -1180,6 +1224,7 @@ Björn Augustsson</label>
 	<last_modification_time>Wed, 28 Nov 2001 20:55:56 GMT</last_modification_time>
       </signal>
       <label>OK</label>
+      <relief>GTK_RELIEF_NORMAL</relief>
       <child>
 	<padding>0</padding>
 	<expand>False</expand>
