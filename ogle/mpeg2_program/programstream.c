@@ -39,12 +39,9 @@ FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
 int   infilefd;
-int   using_pipe_for_input = FALSE;
 void* infileaddr;
 long  infilelen;
 uint32_t offs;
-
-void read_buf(void);
 
 // #define DEBUG
 
@@ -103,11 +100,6 @@ static inline uint32_t getbits(unsigned int nr)
   if(bits_left <= 32) {
     uint32_t new_word = *(uint32_t *)(&buf[offs]);
     offs+=4;
-    
-    if(using_pipe_for_input && (offs >= BUF_SIZE)) {
-      read_buf();
-      offs = 0;
-    }
     cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;
   }
@@ -141,20 +133,6 @@ static inline void drop_bytes(int len)
 
   return;
 }
-
-
-void read_buf()
-{
-  int rv;
-  rv = read(infilefd, buf, BUF_SIZE);
-  if(rv == -1) {
-    perror("read");
-    exit(1);
-  } else if(rv == 0){
-    fprintf(stderr, "**EOF\n");
-  }
-}
-
 
 unsigned int nextbits(unsigned int nr_of_bits)
 {
@@ -832,15 +810,6 @@ int main(int argc, char **argv)
     usage();
     return 1;
   }
-  if(!strcmp(argv[optind], "-")) {
-    infilefd = 0;
-    using_pipe_for_input = TRUE;
-    buf = valloc(BUF_SIZE);
-    if(!buf) {
-      perror("buf");
-      exit(1);
-    }
-  } 
 
   loadinputfile(argv[optind]);
 
