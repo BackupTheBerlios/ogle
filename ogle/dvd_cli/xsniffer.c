@@ -135,7 +135,7 @@ void* xsniff_mouse(void* args) {
 	  DVDMenuCall(nav, DVD_MENU_Part);
 	  break;
 	case 'c':
-	  DVDResume(nav, DVD_MENU_Part);
+	  DVDResume(nav);
 	  break;
 	case '>':
 	  // next;
@@ -155,13 +155,9 @@ void* xsniff_mouse(void* args) {
 	    exit(0);
 	  }
 	  break;
-	case 's':
-
-	  break;
 	default:
 	  break;
 	} /* end case KeyPress */
-#endif    
       }
     }
   }
