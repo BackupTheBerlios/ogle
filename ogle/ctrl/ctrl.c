@@ -154,6 +154,8 @@ int main(int argc, char *argv[])
 
   sprintf(msgqid_str, "%d", msgqid);
 
+  fprintf(stderr, "msgid: %d\n", msgqid);
+
   init_ctrl(msgqid_str);
 
   demux_pid = init_demux(msgqid_str);
