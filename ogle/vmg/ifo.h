@@ -93,7 +93,26 @@ typedef struct {
 } __attribute__ ((packed)) audio_attr_t;
 
 typedef struct {
-  uint8_t user_selectable; //??
+  /*
+   * type: 0 not specified
+   *       1 language
+   *       2 other
+   */
+
+  /*
+   * coding mode: 0 run length
+   *              1 extended
+   *              2 other
+   */
+  
+  /* 
+   * language: indicates language if type == 1
+   */
+  
+  /*
+   * lang extension: if type == 1 contains the lang extension
+   */
+  uint8_t user_selectable; //?? 
   uint8_t zero1;
   char lang_code[2];
   uint8_t zero2; // lang ext?

@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: nav.c,v 1.5 2001/03/29 23:39:01 d95hjort Exp $
+ * $Id: nav.c,v 1.6 2001/03/30 16:52:08 d4bjorn Exp $
  */
 
 #include <stdio.h>
@@ -316,6 +316,7 @@ void send_highlight_button(int x_start, int y_start,
   cmd_t *sendcmd;
   int n;
   
+  sendcmd = (cmd_t *)&msg.mtext;
   msg.mtype = MTYPE_SPU_DECODE;
   sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
   sendcmd->cmd.spu_highlight.x_start = x_start;
