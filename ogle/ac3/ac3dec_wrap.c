@@ -76,6 +76,8 @@ static char *data_buf_shmaddr;
 static int msgqid = -1;
 static MsgEventQ_t *msgq;
 
+static int flush_to_scrnr = -1;
+
 void usage()
 {
   fprintf(stderr, "Usage: %s  [-m <msgid>]\n", 
@@ -149,6 +151,10 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   switch(ev->type) {
   case MsgEventQNotify:
     DPRINTF(1, "ac3wrap: got notify\n");
+    break;
+  case MsgEventQFlushData:
+    DPRINTF(1, "ac3wrap: got flush\n");
+    flush_to_scrnr = ev->flushdata.to_scrnr;
     break;
   case MsgEventQDecodeStreamBuf:
     DPRINTF(1, "ac3wrap: got stream %x, %x buffer \n",
@@ -306,6 +312,10 @@ int get_q()
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
 
+  while(MsgCheckEvent(msgq, &ev) != -1) {
+    handle_events(msgq, &ev);
+  }
+  
   if(!q_elems[elem].in_use) {
     q_head->reader_requests_notification = 1;
     
@@ -328,14 +338,34 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
 
+  if(flush_to_scrnr != -1) {
+    if(flush_to_scrnr != scr_nr) {
 
-  if(ctrl_data->sync_master <= SYNC_AUDIO) {
-    ctrl_data->sync_master = SYNC_AUDIO;
-    
-  //TODO release scr_nr when done
-    if(prev_scr_nr != scr_nr) {
-      ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
+      q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+      
+      change_file(data_elem->filename);
+      // release elem
+      data_elem->in_use = 0;
+      q_elems[elem].in_use = 0;
+      
+      if(q_head->writer_requests_notification) {
+	q_head->writer_requests_notification = 0;
+	ev.type = MsgEventQNotify;
+	if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+	  fprintf(stderr, "ac3wrap: couldn't send notification\n");
+	}
+      }
+
+      return 0;
+    } else {
+      flush_to_scrnr = -1;
     }
+  }
+
+      
+
+  if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
+    ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
     
     if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
       if(PTS_DTS_flags & 0x2) {
@@ -354,7 +384,7 @@ int get_q()
     if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
       TIME_S(time_offset) = 0;
       TIME_SS(time_offset) = 0;
-      
+      fprintf(stderr, "ac3wrap: setting offset\n");
       set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
@@ -362,6 +392,14 @@ int get_q()
     time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
   }
 
+  /** TODO this is just so we don't buffer alot in the pipe **/
+  {
+    clocktime_t apa = {0, 100000000};
+    timesub(&apa, &time_offset, &apa);
+    if(TIME_SS(apa) > 0) {
+      nanosleep(&apa, NULL);
+    }
+  }
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
   change_file(data_elem->filename);
