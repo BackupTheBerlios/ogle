@@ -57,7 +57,7 @@
 0011_0000 ****_0110 ****_**** ****_**** ****_**** 01**_MMMM ****_**** ****_**** -- JumpSS VMGM_DOM (jump to menu in VMG)             (from FP,VTSM)
 0011_0000 ****_0110 ****_**** TTTT_TTTT VVVV_VVVV 10**_MMMM ****_**** ****_**** -- JumpSS VTSM_DOM (jump to menu,title,vts in VTSM)  (from FP,VMGM)
 0011_0000 ****_0110 *PPP_PPPP PPPP_PPPP ****_**** 11**_**** ****_**** ****_**** -- JumpSS VMGM_DOM (jump to pgc in VMG)              (from FP,VTSM)
-0011_0000 ****_1000 ****_**** ****_**** ****_**** 00**_**** ****_**** ****_**** -- CallSS FP_DOM   (jump to FP)                      (from VTS)
+0011_0000 ****_1000 ****_**** ****_**** RRRR_RRRR 00**_**** ****_**** ****_**** -- CallSS FP_DOM   (jump to FP)                      (from VTS)
 0011_0000 ****_1000 ****_**** ****_**** RRRR_RRRR 01**_MMMM ****_**** ****_**** -- CallSS VMGM_DOM (jump to menu in VMG)             (from VTS) 
 0011_0000 ****_1000 ****_**** ****_**** RRRR_RRRR 10**_MMMM ****_**** ****_**** -- CallSS VTSM_DOM (jump to menu in VTSM [this vts]) (from VTS)
 0011_0000 ****_1000 *PPP_PPPP PPPP_PPPP RRRR_RRRR 11**_**** ****_**** ****_**** -- CallSS VMGM_DOM (jump to pgc in VMG)              (from VTS)

@@ -211,6 +211,7 @@ eval_jump_instruction (link_t *return_values) {
       switch(bits(5,0,2)) {
         case 0:
           return_values->command = CallSS_FP;
+          return_values->data1 = bits(4,0,8);
           return 1;
         case 1:
           return_values->command = CallSS_VMGM_MENU;

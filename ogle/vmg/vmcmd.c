@@ -241,7 +241,8 @@ print_jump_instruction () {
     case 8:
       switch(bits(5,0,2)) {
         case 0:
-          printf("CallSS FP");
+          printf("CallSS FP (rsm_cell %" PRIu8 ")",
+              bits(4,0,8));
           break;
         case 1:
           printf("CallSS VMGM (menu %" PRIu8 ", rsm_cell %" PRIu8 ")", 
@@ -336,7 +337,7 @@ vmcmd(uint8_t *bytes)  {
   }
 
   switch(bits(0,0,3)) { /* three first bits */
-    case 0: // Special instructions
+    case 0: // special instructions
       print_if_version_1();
       print_special_instruction();
       break;
