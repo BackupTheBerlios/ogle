@@ -68,6 +68,10 @@ DVD-ROM drive.
       <adjust_level>yes</adjust_level>
       <drc>no</drc>
     </liba52>
+    <sync>
+      <type>odelay</type>
+      <offset>0</offset>
+    </sync>
   </audio>
 
 <driver>
@@ -79,27 +83,37 @@ DVD-ROM drive.
 
 
 <liba52>
-	Contains liba52 specific settings (for ac3 audio)
- <level> 
-	Is used to multiply the samples when downmixing
-        from multichannel sound to stereo and <adjust_level> is set to no.
-	For a full 5.1 track the value should be somewhere around
-	0.6 if you wan't to increase the volume a bit.
-	Be aware that using this setting can result in clipping
-	if to large values are used.
-	This has no effect on stereo tracks.
- <adjust_level>
-	If set to 'yes' this will automatically adjust the
-	<level> so that no clipping will occur.
-	This might result in a too low volume on 5.1 tracks
-	By setting this to 'no' you can use <level> to 
-	increase the volume slightly.
- <drc>
-	This will turn on dynamic range compression if set to 'yes'
-	DRC will lower the volume of loud sound and raise the
-	volume for soft sound.
-
-
+.RS 2
+Contains liba52 specific settings (for ac3 audio)
+<level>
+.RS 4
+Is used to multiply the samples when downmixing from multichannel sound to stereo and <adjust_level> is set to no. For a full 5.1 track the value should be somewhere around 0.6 if you wan't to increase the volume a bit. Be aware that using this setting can result in clipping if to large values are used. This has no effect on stereo tracks.
+.RE
+<adjust_level>
+.RS 4
+If set to 'yes' this will automatically adjust the <level> so that no clipping will occur. This might result in a too low volume on 5.1 tracks. By setting this to 'no' you can use <level> to increase the volume slightly.
+.RE
+<drc>
+.RS 4
+This will turn on dynamic range compression if set to 'yes'. DRC will lower the volume of loud sound and raise the volume for soft sound.
+.RE
+.RE
+<sync>
+.RS 2
+Various options for synchronization between audio and video.
+.br
+<type>
+.RS 4
+Can be one of 'odelay', 'clock'.
+odelay will be more exact if the sound driver supports it, if not it should fall back to clock.
+clock is just measuring time and hoping the soundcards internal clock doesn't drift to much compared to the cpu.
+.RE
+<offset>
+.RS 4
+Is measured in milliseconds and can be from -999 to 999.
+This is used to change the sync forwards/backwards. A positive value will output audio a later time compared to the video, a negative will output audio earlier.
+.RE
+.RE 
   <video>
     <display>
         <name></name>
