@@ -802,7 +802,7 @@ void display_init(int padded_width, int padded_height,
     window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen_nr),
 			       size_hints->x, size_hints->y,
 			       size_hints->width, size_hints->height, 
-			       4, color_depth, CopyFromParent, vinfo.visual, 
+			       0, color_depth, CopyFromParent, vinfo.visual, 
 			       xswamask, &xswa);
     
     XSelectInput(mydisplay, window.win,
