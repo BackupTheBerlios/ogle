@@ -5,10 +5,10 @@ SUBDIRS = intl po macros src doc
 install-data-local:
 	@$(NORMAL_INSTALL)
 	if test -d $(srcdir)/pixmaps; then \
-	  $(mkinstalldirs) $(DESTDIR)@PACKAGE_PIXMAPS_DIR@$(PACKAGE); \
+	  $(mkinstalldirs) $(DESTDIR)$(datadir)/pixmaps/$(PACKAGE); \
 	  for pixmap in $(srcdir)/pixmaps/*; do \
 	    if test -f $$pixmap; then \
-	      $(INSTALL_DATA) $$pixmap $(DESTDIR)@PACKAGE_PIXMAPS_DIR@$(PACKAGE); \
+	      $(INSTALL_DATA) $$pixmap $(DESTDIR)$(datadir)/pixmaps/$(PACKAGE); \
 	    fi \
 	  done \
 	fi
