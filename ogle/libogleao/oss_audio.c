@@ -35,6 +35,12 @@
 #ifndef AFMT_AC3
 #define AFMT_AC3        0x00000400      /* Dolby Digital AC3 */
 #endif
+#ifndef AFMT_S32_LE
+#define AFMT_S32_LE     0x00001000  /* 32/24-bits, in 24bit use the msbs */ 
+#endif
+#ifndef AFMT_S32_BE
+#define AFMT_S32_BE     0x00002000  /* 32/24-bits, in 24bit use the msbs */ 
+#endif
 
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
@@ -69,6 +75,7 @@ int oss_init(ogle_ao_instance_t *_instance,
   oss_instance_t *instance = (oss_instance_t *)_instance;
   int single_sample_size;
   int number_of_channels, sample_format, original_sample_format, sample_speed;
+  int supported_formats;
   uint32_t fragment; 
   uint16_t nr_fragments;
   uint16_t fragment_size;
@@ -108,23 +115,44 @@ int oss_init(ogle_ao_instance_t *_instance,
     }
   }
 
+  // Query supported formats
+
+  if(ioctl(instance->fd, SNDCTL_DSP_GETFMTS, &supported_formats) == -1) {
+    perror("SNDCTL_DSP_GETFMTS");
+    //say that all formats are supported if we can't get the formats
+    supported_formats = -1;
+  }
+
   // Set sample format, number of channels, and sample speed
   // The order here is important according to the manual
 
   switch(audio_info->encoding) {
   case OGLE_AO_ENCODING_LINEAR:
     switch(audio_info->sample_resolution) {
-      case 16:
-	if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
-	  sample_format = AFMT_S16_BE;
-	} else {
-	  sample_format = AFMT_S16_LE;
-	}
-        break;
-      default:
-	audio_info->sample_resolution = -1;
-        return -1;
-        break;
+    case 24:
+      if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
+	sample_format = AFMT_S32_BE;
+      } else {
+	sample_format = AFMT_S32_LE;
+      }
+      audio_info->sample_resolution = 32;
+      if(supported_formats & sample_format) {
+	break;
+      }
+    case 16:
+      if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
+	sample_format = AFMT_S16_BE;
+      } else {
+	sample_format = AFMT_S16_LE;
+      }
+      audio_info->sample_resolution = 16;
+      // don't check if this format is supported, try it anyway
+      // and hope to get a usable format 
+      break;
+    default:
+      audio_info->sample_resolution = -1;
+      return -1;
+      break;
     }
     break;
   case OGLE_AO_ENCODING_IEC61937:
@@ -158,8 +186,21 @@ int oss_init(ogle_ao_instance_t *_instance,
       audio_info->sample_resolution = 16;
       audio_info->byteorder = OGLE_AO_BYTEORDER_LE;
       break;      
+    case AFMT_S32_BE:
+      audio_info->encoding = OGLE_AO_ENCODING_LINEAR;
+      audio_info->sample_resolution = 32;
+      audio_info->byteorder = OGLE_AO_BYTEORDER_BE;
+      break;
+    case AFMT_S32_LE:
+      audio_info->encoding = OGLE_AO_ENCODING_LINEAR;
+      audio_info->sample_resolution = 32;
+      audio_info->byteorder = OGLE_AO_BYTEORDER_LE;
+      break;      
     default:
+      fprintf(stderr, "*** format: %0x\n", sample_format);
       audio_info->encoding = OGLE_AO_ENCODING_NONE;
+      audio_info->sample_resolution = 0;
+      audio_info->byteorder = 0;
       break;
     }
   }
