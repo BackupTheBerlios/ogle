@@ -390,7 +390,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, stop_button, _("Stop"), NULL);
 
-  stop_pixmap = create_pixmap (app, "ogle/stock_stop.xpm", FALSE);
+  stop_pixmap = create_pixmap (app, "ogle_gui/stock_stop.xpm", FALSE);
   gtk_widget_set_name (stop_pixmap, "stop_pixmap");
   gtk_widget_ref (stop_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "stop_pixmap", stop_pixmap,
@@ -409,7 +409,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, pause_button, _("Pause"), NULL);
 
-  pause_pixmap = create_pixmap (app, "ogle/stock_pause.xpm", FALSE);
+  pause_pixmap = create_pixmap (app, "ogle_gui/stock_pause.xpm", FALSE);
   gtk_widget_set_name (pause_pixmap, "pause_pixmap");
   gtk_widget_ref (pause_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "pause_pixmap", pause_pixmap,
@@ -428,7 +428,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, rewind_button, _("Rewind"), NULL);
 
-  rewind_pixmap = create_pixmap (app, "ogle/rewind.xpm", FALSE);
+  rewind_pixmap = create_pixmap (app, "ogle_gui/rewind.xpm", FALSE);
   gtk_widget_set_name (rewind_pixmap, "rewind_pixmap");
   gtk_widget_ref (rewind_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "rewind_pixmap", rewind_pixmap,
@@ -447,7 +447,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, skip_backwards_button, _("Skip backwards"), NULL);
 
-  skip_backwards_pixmap = create_pixmap (app, "ogle/skip_backwards.xpm", FALSE);
+  skip_backwards_pixmap = create_pixmap (app, "ogle_gui/skip_backwards.xpm", FALSE);
   gtk_widget_set_name (skip_backwards_pixmap, "skip_backwards_pixmap");
   gtk_widget_ref (skip_backwards_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "skip_backwards_pixmap", skip_backwards_pixmap,
@@ -466,7 +466,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, reverse_button, _("Reverse"), NULL);
 
-  reverse_pixmap = create_pixmap (app, "ogle/stock_left_arrow.xpm", FALSE);
+  reverse_pixmap = create_pixmap (app, "ogle_gui/stock_left_arrow.xpm", FALSE);
   gtk_widget_set_name (reverse_pixmap, "reverse_pixmap");
   gtk_widget_ref (reverse_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "reverse_pixmap", reverse_pixmap,
@@ -485,7 +485,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, step_reverse_button, _("Step reverse"), NULL);
 
-  step_reverse_pixmap = create_pixmap (app, "ogle/stock_first.xpm", FALSE);
+  step_reverse_pixmap = create_pixmap (app, "ogle_gui/stock_first.xpm", FALSE);
   gtk_widget_set_name (step_reverse_pixmap, "step_reverse_pixmap");
   gtk_widget_ref (step_reverse_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "step_reverse_pixmap", step_reverse_pixmap,
@@ -504,7 +504,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, play_button, _("Play"), NULL);
 
-  play_pixmap = create_pixmap (app, "ogle/stock_right_arrow.xpm", FALSE);
+  play_pixmap = create_pixmap (app, "ogle_gui/stock_right_arrow.xpm", FALSE);
   gtk_widget_set_name (play_pixmap, "play_pixmap");
   gtk_widget_ref (play_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "play_pixmap", play_pixmap,
@@ -523,7 +523,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, step_forwards_button, _("Step forwards"), NULL);
 
-  step_forwards_pixmap = create_pixmap (app, "ogle/stock_last.xpm", FALSE);
+  step_forwards_pixmap = create_pixmap (app, "ogle_gui/stock_last.xpm", FALSE);
   gtk_widget_set_name (step_forwards_pixmap, "step_forwards_pixmap");
   gtk_widget_ref (step_forwards_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "step_forwards_pixmap", step_forwards_pixmap,
@@ -542,7 +542,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, fastforward_button, _("Fast forward"), NULL);
 
-  fastforward_pixmap = create_pixmap (app, "ogle/fastforward.xpm", FALSE);
+  fastforward_pixmap = create_pixmap (app, "ogle_gui/fastforward.xpm", FALSE);
   gtk_widget_set_name (fastforward_pixmap, "fastforward_pixmap");
   gtk_widget_ref (fastforward_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "fastforward_pixmap", fastforward_pixmap,
@@ -561,7 +561,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, skip_forwards_button, _("Skip forwards"), NULL);
 
-  skip_forwards_pixmap = create_pixmap (app, "ogle/skip_forwards.xpm", FALSE);
+  skip_forwards_pixmap = create_pixmap (app, "ogle_gui/skip_forwards.xpm", FALSE);
   gtk_widget_set_name (skip_forwards_pixmap, "skip_forwards_pixmap");
   gtk_widget_ref (skip_forwards_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "skip_forwards_pixmap", skip_forwards_pixmap,
@@ -588,7 +588,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, fast_button, _("Play fast"), NULL);
 
-  fast_pixmap = create_pixmap (app, "ogle/stock_timer.xpm", FALSE);
+  fast_pixmap = create_pixmap (app, "ogle_gui/stock_timer.xpm", FALSE);
   gtk_widget_set_name (fast_pixmap, "fast_pixmap");
   gtk_widget_ref (fast_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "fast_pixmap", fast_pixmap,
@@ -607,7 +607,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, slow_button, _("Play slow"), NULL);
 
-  slow_pixmap = create_pixmap (app, "ogle/stock_timer_stopped.xpm", FALSE);
+  slow_pixmap = create_pixmap (app, "ogle_gui/stock_timer_stopped.xpm", FALSE);
   gtk_widget_set_name (slow_pixmap, "slow_pixmap");
   gtk_widget_ref (slow_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "slow_pixmap", slow_pixmap,
@@ -634,7 +634,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_up_button, _("Move cursor up"), NULL);
 
-  cursor_up_pixmap = create_pixmap (app, "ogle/stock_up_arrow.xpm", FALSE);
+  cursor_up_pixmap = create_pixmap (app, "ogle_gui/stock_up_arrow.xpm", FALSE);
   gtk_widget_set_name (cursor_up_pixmap, "cursor_up_pixmap");
   gtk_widget_ref (cursor_up_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_up_pixmap", cursor_up_pixmap,
@@ -653,7 +653,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_left_button, _("Move cursor left"), NULL);
 
-  cursor_left_pixmap = create_pixmap (app, "ogle/stock_left_arrow.xpm", FALSE);
+  cursor_left_pixmap = create_pixmap (app, "ogle_gui/stock_left_arrow.xpm", FALSE);
   gtk_widget_set_name (cursor_left_pixmap, "cursor_left_pixmap");
   gtk_widget_ref (cursor_left_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_left_pixmap", cursor_left_pixmap,
@@ -672,7 +672,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_right_button, _("Move cursor right"), NULL);
 
-  cursor_right_pixmap = create_pixmap (app, "ogle/stock_right_arrow.xpm", FALSE);
+  cursor_right_pixmap = create_pixmap (app, "ogle_gui/stock_right_arrow.xpm", FALSE);
   gtk_widget_set_name (cursor_right_pixmap, "cursor_right_pixmap");
   gtk_widget_ref (cursor_right_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_right_pixmap", cursor_right_pixmap,
@@ -691,7 +691,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_go_up_button, _("Go up"), NULL);
 
-  cursor_go_up_pixmap = create_pixmap (app, "ogle/go_up.xpm", FALSE);
+  cursor_go_up_pixmap = create_pixmap (app, "ogle_gui/go_up.xpm", FALSE);
   gtk_widget_set_name (cursor_go_up_pixmap, "cursor_go_up_pixmap");
   gtk_widget_ref (cursor_go_up_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_go_up_pixmap", cursor_go_up_pixmap,
@@ -710,7 +710,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_down_button, _("Move cursor down"), NULL);
 
-  cursor_down_pixmap = create_pixmap (app, "ogle/stock_down_arrow.xpm", FALSE);
+  cursor_down_pixmap = create_pixmap (app, "ogle_gui/stock_down_arrow.xpm", FALSE);
   gtk_widget_set_name (cursor_down_pixmap, "cursor_down_pixmap");
   gtk_widget_ref (cursor_down_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_down_pixmap", cursor_down_pixmap,
@@ -729,7 +729,7 @@ create_app (void)
                     (GtkAttachOptions) (GTK_FILL), 0, 0);
   gtk_tooltips_set_tip (tooltips, cursor_enter_button, _("Enter"), NULL);
 
-  cursor_enter_pixmap = create_pixmap (app, "ogle/enter.xpm", FALSE);
+  cursor_enter_pixmap = create_pixmap (app, "ogle_gui/enter.xpm", FALSE);
   gtk_widget_set_name (cursor_enter_pixmap, "cursor_enter_pixmap");
   gtk_widget_ref (cursor_enter_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "cursor_enter_pixmap", cursor_enter_pixmap,
@@ -756,7 +756,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, menus_button, _("Select menu..."), NULL);
 
-  menus_pixmap = create_pixmap (app, "ogle/menus.xpm", FALSE);
+  menus_pixmap = create_pixmap (app, "ogle_gui/menus.xpm", FALSE);
   gtk_widget_set_name (menus_pixmap, "menus_pixmap");
   gtk_widget_ref (menus_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "menus_pixmap", menus_pixmap,
@@ -775,7 +775,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, audio_button, _("Audio select"), NULL);
 
-  audio_pixmap = create_pixmap (app, "ogle/stock_volume.xpm", FALSE);
+  audio_pixmap = create_pixmap (app, "ogle_gui/stock_volume.xpm", FALSE);
   gtk_widget_set_name (audio_pixmap, "audio_pixmap");
   gtk_widget_ref (audio_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "audio_pixmap", audio_pixmap,
@@ -794,7 +794,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, subpicture_button, _("Subpicture select"), NULL);
 
-  subpicture_pixmap = create_pixmap (app, "ogle/subpicture.xpm", FALSE);
+  subpicture_pixmap = create_pixmap (app, "ogle_gui/subpicture.xpm", FALSE);
   gtk_widget_set_name (subpicture_pixmap, "subpicture_pixmap");
   gtk_widget_ref (subpicture_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "subpicture_pixmap", subpicture_pixmap,
@@ -813,7 +813,7 @@ create_app (void)
                     (GtkAttachOptions) (0), 0, 0);
   gtk_tooltips_set_tip (tooltips, angle_button, _("Angle select"), NULL);
 
-  angle_pixmap = create_pixmap (app, "ogle/angle.xpm", FALSE);
+  angle_pixmap = create_pixmap (app, "ogle_gui/angle.xpm", FALSE);
   gtk_widget_set_name (angle_pixmap, "angle_pixmap");
   gtk_widget_ref (angle_pixmap);
   gtk_object_set_data_full (GTK_OBJECT (app), "angle_pixmap", angle_pixmap,
