@@ -526,7 +526,7 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   }  
 }  
 
-void ifoPrint_PGC_COMMAND_TBL(uint8_t *command) {
+void ifoPrint_COMMAND(uint8_t *command) {
   int i;
   for(i=0;i<8;i++) {
     PUT(5, "%02x ", command[i]);
@@ -544,20 +544,21 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_post;i++) {
-      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->pre_commands[i]);
+      ifoPrint_COMMAND(cmd_tbl->pre_commands[i]);
     }
+  }
   PUT(5, "Number of Post commands: %i\n", cmd_tbl->nr_of_post);
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_post;i++) {
-      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->post_commands[i]);
+      ifoPrint_COMMAND(cmd_tbl->post_commands[i]);
     }
   }
   PUT(5, "Number of Cell commands: %i\n", cmd_tbl->nr_of_cell);
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_cell;i++) {
-      ifoPrint_PGC_COMMAND_TBL(cmd_tbl->cell_commands[i]);
+      ifoPrint_COMMAND(cmd_tbl->cell_commands[i]);
     }
   }
 }
