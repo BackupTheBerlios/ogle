@@ -240,6 +240,13 @@ dnl ---------------------------------------------------------
 dnl liba52
 dnl ---------------------------------------------------------
 
+
+
+
+dnl update to test for 0.7.2 / 0.7.3 (MM_ACCEL or a52_free) 
+
+
+
 a52_path=""
 AC_ARG_WITH(liba52, 
   [  --with-liba52=path      specify the install prefix to liba52 (a52dec) ], 
@@ -304,6 +311,8 @@ AC_ARG_ENABLE([oss],
 if test x"$enable_oss" != x"no"; then
     case "$host" in
     *-linux*|*-openbsd*|*-freebsd*|*-bsdi*)
+
+dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
             [LIBOGLEAO_LIBS="$LIBAO_LIBS -lossaudio"]);;
@@ -316,9 +325,26 @@ AC_ARG_ENABLE([sunaudio],
 if test x"$enable_sunaudio" != x"no"; then
     case "$host" in
     *-sun-solaris*|*-netbsd*)
+
+dnl check for headers.. only define LIBOGLEAO_OSS if headers are found.
         AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support]);;
     esac
 fi
+
+dnl check for ALSA
+AC_ARG_ENABLE([alsa],
+    [  --disable-alsa     make a version not using alsa])
+if test x"$enable_alsa" != x"no"; then
+    case "$host" in
+    *-linux*)
+
+dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
+        AC_DEFINE([LIBOGLEAO_ALSA],,[libogleao ALSA audio support])
+        AC_CHECK_LIB([asound],[snd_cards],
+            [LIBOGLEAO_LIBS="$LIBAO_LIBS -lasound"]);;
+    esac
+fi
+
 AC_SUBST([LIBOGLEAO_LIBS])
 
 dnl ---------------------------------------------------------
