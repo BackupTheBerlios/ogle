@@ -186,7 +186,7 @@ i?86)
 		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
 		USE_MMX=yes
 		if test x"$GCC" = x"yes"; then
-		  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops -malign-double"
+		  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
 		fi
 		;;
 	*)
