@@ -391,11 +391,11 @@ int main(int argc, char **argv)
 #else
   fread(&buf[0], READ_SIZE, 1, infile);
   {
-    uint32_t new_word1 = GUINT32_FROM_BE(buf[offs++]);
+    uint32_t new_word1 = FROM_BE_32(buf[offs++]);
     uint32_t new_word2;
     if(offs >= READ_SIZE/4)
       read_buf();
-    new_word2 = GUINT32_FROM_BE(buf[offs++]);
+    new_word2 = FROM_BE_32(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = ((uint64_t)(new_word1) << 32) | new_word2;

@@ -27,7 +27,6 @@
 #include <sys/shm.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <glib.h> // for byte swapping only
 #include <sys/msg.h>
 #include <errno.h>
 
@@ -35,6 +34,7 @@
 
 #include <dvdread/dvd_reader.h>
 
+#include "endian.h"
 #include "programstream.h"
 #include "common.h"
 #include "queue.h"
@@ -221,7 +221,7 @@ static inline uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = GUINT32_FROM_BE(*(uint32_t *)(&disk_buf[offs]));
+    uint32_t new_word = FROM_BE_32(*(uint32_t *)(&disk_buf[offs]));
     offs+=4;
     cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;

@@ -21,8 +21,7 @@
 
 #include <inttypes.h>
 
-#include <glib.h> // Only for GUINT32_FROM_BE(...)
-
+#include "endian.h"
 #include "video_types.h"
 
 
@@ -109,7 +108,7 @@ uint32_t getbits(unsigned int nr)
     if(offs >= buf_size) {
       read_buf();
    } else {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+      uint32_t new_word = FROM_BE_32(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
       bits_left += 32;
@@ -131,7 +130,7 @@ void dropbits(unsigned int nr)
     if(offs >= buf_size)
       read_buf();
     else {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+      uint32_t new_word = FROM_BE_32(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
       bits_left += 32;
@@ -170,7 +169,7 @@ uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = GUINT_FROM_BE(buf[offs++]);
+    uint32_t new_word = FROM_BE_32(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = (cur_word << 32) | new_word;
@@ -188,7 +187,7 @@ void dropbits(unsigned int nr)
 {
   bits_left -= nr;
   if(bits_left <= 32) {
-    uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+    uint32_t new_word = FROM_BE_32(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = (cur_word << 32) | new_word;

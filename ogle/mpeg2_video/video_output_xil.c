@@ -38,8 +38,6 @@
 #include <sys/ipc.h>
 #include <sys/types.h>
 
-#include <glib.h>
-
 #include "common.h"
 #include "video_types.h"
 #include "yuv2rgb.h"

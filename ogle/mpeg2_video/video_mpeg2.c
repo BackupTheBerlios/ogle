@@ -372,7 +372,7 @@ void block_intra(unsigned int i)
     */
     if(left <= 24) {
       if(offset < buf_size) {
-	uint32_t new_word = GUINT32_FROM_BE(buf[offset++]);
+	uint32_t new_word = FROM_BE_32(buf[offset++]);
 	cur_word = (cur_word << 32) | new_word;
 	left += 32;
       }
@@ -530,7 +530,7 @@ void block_non_intra(unsigned int b)
     */
     if(left <= 24) {
       if(offset < buf_size) {
-	uint32_t new_word = GUINT32_FROM_BE(buf[offset++]);
+	uint32_t new_word = FROM_BE_32(buf[offset++]);
 	lcur_word = (lcur_word << 32) | new_word;
 	left += 32;
       }

@@ -15,16 +15,13 @@ AM_PROG_LIBTOOL
 dnl Checks for libraries.
 
 dnl Checks for header files.
-dnl (!! Do remove this !!)
-GLIB_CFLAGS=`glib-config --cflags`
-AC_SUBST(GLIB_CFLAGS)
 
+AC_CHECK_HEADERS(byteswap.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
-
 
 dnl Find X Window System
 AC_PATH_XTRA

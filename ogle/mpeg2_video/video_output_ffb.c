@@ -41,8 +41,6 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-#include <glib.h>
-
 #include <sys/mman.h>
 #include "common.h"
 #include "video_types.h"

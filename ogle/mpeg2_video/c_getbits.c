@@ -255,7 +255,7 @@ void read_buf()
       if(offs >= buf_size)
 	read_buf();
       else {
-	uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+	uint32_t new_word = FROM_BE_32(buf[offs++]);
 	//cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
 	cur_word = (cur_word << 32) | new_word;
 	bits_left += 32;
