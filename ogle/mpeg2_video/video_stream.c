@@ -342,21 +342,21 @@ int main(int argc, char **argv)
     */
     DNOTE("%s", "## req cap\n");
     while(!input_stream) {
-      MsgNextEvent(msgq, &ev);
-      switch(ev.type) {
-      case MsgEventQGntCapability:
-	if(ev.gntcapability.capability & VIDEO_OUTPUT) {
-	  output_client = ev.gntcapability.capclient;
-	} else {
-	  DNOTE("%s", "got notified about capabilities not requested\n");
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	switch(ev.type) {
+	case MsgEventQGntCapability:
+	  if(ev.gntcapability.capability & VIDEO_OUTPUT) {
+	    output_client = ev.gntcapability.capclient;
+	  } else {
+	    DNOTE("%s", "got notified about capabilities not requested\n");
+	  }
+	  break;
+	default:
+	  handle_events(msgq, &ev);
+	  break;
 	}
-	break;
-      default:
-	handle_events(msgq, &ev);
-	break;
       }
     }
-
     DNOTE("%s", "got cap and stream\n");
 
     
@@ -884,18 +884,18 @@ int get_output_buffer(data_q_t *data_q,
   }
   
   while(1) {
-    MsgNextEvent(msgq, &ev);
-    if(ev.type == MsgEventQGntBuf) {
-      DPRINTF(1, "video_decoder: got buffer id %d, size %d\n",
-	      ev.gntbuf.shmid,
-	      ev.gntbuf.size);
-      data_shmid = ev.gntbuf.shmid;
-      break;
-    } else {
-      handle_events(msgq, &ev);
+    if(MsgNextEvent(msgq, &ev) != -1) {
+      if(ev.type == MsgEventQGntBuf) {
+	DPRINTF(1, "video_decoder: got buffer id %d, size %d\n",
+		ev.gntbuf.shmid,
+		ev.gntbuf.size);
+	data_shmid = ev.gntbuf.shmid;
+	break;
+      } else {
+	handle_events(msgq, &ev);
+      }
     }
   }
-  
 
   if(data_shmid >= 0) {
     if((data_shmaddr = shmat(data_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
@@ -966,15 +966,16 @@ int get_output_buffer(data_q_t *data_q,
     /* wait for answer */
     
     while(1) {
-      MsgNextEvent(msgq, &ev);
-      if(ev.type == MsgEventQGntPicBuf) {
-	q_shmid = ev.gntpicbuf.q_shmid;
-	break;
-      } else {
-	handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	if(ev.type == MsgEventQGntPicBuf) {
+	  q_shmid = ev.gntpicbuf.q_shmid;
+	  break;
+	} else {
+	  handle_events(msgq, &ev);
+	}
       }
     }
-    
+
     if(q_shmid >= 0) {
       if((q_shmaddr = shmat(q_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
 	perror("**video_decode: attach_picq_buffer(), shmat()");
@@ -1637,8 +1638,9 @@ int get_picture_buf(data_q_t *data_q)
 	}
       }
       //fprintf(stderr, "video_decode: waiting for notification1\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
       /*
       for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
 	fprintf(stderr, "vs: [%d] is_ref: @%d, disp: @%d\n", 
@@ -1669,8 +1671,9 @@ void dpy_q_put(int id, data_q_t *data_q)
     
     while(data_q->q_elems[elem].in_use) {
       //fprintf(stderr, "video_decode: waiting for notification2\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
     }
   }
 

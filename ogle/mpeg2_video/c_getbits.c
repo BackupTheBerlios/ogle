@@ -492,8 +492,9 @@ int get_q()
     
     while(!q_elems[elem].in_use) {
       //fprintf(stderr, "video_decode: waiting for notification1\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
     }
   }
 
