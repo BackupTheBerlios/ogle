@@ -652,7 +652,7 @@ mlib_VideoInterpX_U8_U8_MxN(
 #else
    int x,y;
    const int step = 8;
-   const int jump = frame_stride - n;
+   const int jump = frame_stride - m;
 
    pxor_r2r(mm0,mm0);             // load 0 into mm0
 
@@ -756,7 +756,7 @@ mlib_VideoInterpAveXY_U8_U8_MxN(
 #else
    int x,y;
    const int step = 8;
-   const int jump = frame_stride - n;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
 
    pxor_r2r(mm0,mm0);             // load 0 into mm0
