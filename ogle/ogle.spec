@@ -11,7 +11,7 @@ Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 Requires: libdvdread >= 0.9.2, libdvdcss >= 0.0.3, libjpeg, libxml2 >= 2.4.5
 BuildRequires: libdvdread-devel >= 0.9.2, libdvdcss-devel >= 0.0.3, libjpeg-devel, a52dec-devel, libxml2-devel >= 2.4.5
-ExclusiveArch: i686 i586
+ExclusiveArch: i686 i586 ppc
 
 %description
 Ogle is a DVD player. It's features are: Supports DVD menus and navigation,
@@ -41,7 +41,11 @@ make
 
 %install
 test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
-%makeinstall
+# hack for library dependencies
+LIBRARY_PATH=%{buildroot}/usr/lib/ogle
+export LIBRARY_PATH
+#%makeinstall
+make DESTDIR=%{buildroot} install
 
 %clean
 test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
