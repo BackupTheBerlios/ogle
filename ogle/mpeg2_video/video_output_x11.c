@@ -330,7 +330,9 @@ Window display_init(yuv_image_t *picture_data,
 	      XSetErrorHandler(prev_xerrhandler);
 
 	      if(use_xshm) {
+#if 0		
 		shmctl(shm_info.shmid, IPC_RMID, 0); // only works on Linux..
+#endif
 		CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
 	      }
 	      use_xv = 1;
