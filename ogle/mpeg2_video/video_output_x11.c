@@ -40,6 +40,8 @@
 #include <X11/keysym.h>
 #include <X11/extensions/XShm.h>
 #include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
@@ -73,6 +75,17 @@ static int xv_id;
 //ugly hack
 #ifdef HAVE_XV
 extern yuv_image_t *reserv_image;
+#endif
+
+//#define SUN_DGA
+
+#ifdef SUN_DGA
+#include <sys/mman.h>
+
+uint32_t *yuyv_fb;
+uint8_t *rgb_fb;
+
+int fb_fd;
 #endif
 
 extern int XShmGetEventBase(Display *dpy);
@@ -527,8 +540,41 @@ Window display_init(yuv_image_t *picture_data,
   /* Wait for map. */
   do {
     XNextEvent(mydisplay, &xev);
-  }
-  while (xev.type != MapNotify || xev.xmap.event != window.win);
+    switch(xev.type) {
+    case ConfigureNotify:
+      // remove all configure notify in queue
+      while(XCheckTypedEvent(mydisplay, ConfigureNotify, &xev) == True); 
+      
+      if(xev.xconfigure.window == window.win) {
+	Window dummy_win;
+	window.window_area.width = xev.xconfigure.width;
+	window.window_area.height = xev.xconfigure.height;
+
+	/*
+	display_adjust_size(current_image, 
+			    xev.xconfigure.width, 
+			    xev.xconfigure.height);
+	*/
+	window.video_area.width = scale.image_width;
+	window.video_area.height = scale.image_height;
+	window.video_area.x = (window.window_area.width - 
+			       window.video_area.width) / 2;
+	window.video_area.y = (window.window_area.height -
+			       window.video_area.height) / 2;
+
+	XTranslateCoordinates(mydisplay, window.win,
+			      DefaultRootWindow(mydisplay), 
+			      0,
+			      0,
+			      &window.window_area.x,
+			      &window.window_area.y,
+			      &dummy_win);
+      }
+      break;
+    default:
+      break;
+    }
+  } while (xev.type != MapNotify || xev.xmap.event != window.win);
   
   XSync(mydisplay, False);
   
@@ -547,6 +593,23 @@ Window display_init(yuv_image_t *picture_data,
     display_init_xshm();
   }
   
+#ifdef SUN_DGA
+  
+  fb_fd = open("/dev/fb", O_RDWR);
+  yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
+	    MAP_SHARED, fb_fd, 0x0701a000);
+  if(yuyv_fb == MAP_FAILED) {
+    perror("mmap");
+    exit(-1);
+  }
+
+  rgb_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
+	    MAP_SHARED, fb_fd, 0x05004000);
+  if(rgb_fb == MAP_FAILED) {
+    perror("mmap");
+    exit(-1);
+  }
+#endif
   /* Let the user know what mode we are running in. */
   snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
@@ -975,6 +1038,7 @@ void check_x_events(yuv_image_t *current_image)
       while(XCheckTypedEvent(mydisplay, ConfigureNotify, &ev) == True); 
       
       if(ev.xconfigure.window == window.win) {
+	Window dummy_win;
 	window.window_area.width = ev.xconfigure.width;
 	window.window_area.height = ev.xconfigure.height;
 	
@@ -988,6 +1052,15 @@ void check_x_events(yuv_image_t *current_image)
 			       window.video_area.width) / 2;
 	window.video_area.y = (window.window_area.height -
 			       window.video_area.height) / 2;
+
+	XTranslateCoordinates(mydisplay, window.win,
+			      DefaultRootWindow(mydisplay), 
+			      0,
+			      0,
+			      &window.window_area.x,
+			      &window.window_area.y,
+			      &dummy_win);
+
 	
 	// top border
 	if(window.video_area.y > 0) {
@@ -1113,7 +1186,142 @@ static void draw_win_x11(window_info *dwin)
   if(offs > 0)
     address += offs;
 #endif /* HAVE_MLIB */
+
+#ifdef SUN_DGA
+  {
+    int width;
+    int height;
+    int stride;
+    int n, m;
+    unsigned char *y;
+    unsigned char *u;
+    unsigned char *v;
+    unsigned int pixel_data;
+    area_t fb_area;
+    area_t src_area;
   
+    window.video_area.width = dwin->image->info->picture.horizontal_size;
+    window.video_area.height = dwin->image->info->picture.vertical_size;
+    window.video_area.x = (int)(window.window_area.width - 
+				window.video_area.width) / 2;
+    window.video_area.y = (int)(window.window_area.height -
+				window.video_area.height) / 2;
+  
+    
+    stride = dwin->image->info->picture.padded_width;
+    height = dwin->image->info->picture.padded_height;
+    y = dwin->image->y;
+    u = dwin->image->u;
+    v = dwin->image->v;
+    
+    /*
+    fprintf(stderr, "win.x: %d, win.y: %d, win.w: %u, win.h: %u\n",
+	    window.window_area.x,
+	    window.window_area.y,
+	    window.window_area.width,
+	    window.window_area.height);
+
+    fprintf(stderr, "vid.x: %d, vid.y: %d, vid.w: %u, vid.h: %u\n",
+	    window.video_area.x,
+	    window.video_area.y,
+	    window.video_area.width,
+	    window.video_area.height);
+    */
+
+    fb_area.x = window.window_area.x+window.video_area.x;
+    src_area.x = 0;
+    if(fb_area.x < window.window_area.x) {
+      src_area.x = window.window_area.x - fb_area.x;
+      fb_area.x = window.window_area.x;
+    }
+    
+    fb_area.y = window.window_area.y+window.video_area.y;
+    src_area.y = 0;
+    if(fb_area.y < window.window_area.y) {
+      src_area.y = window.window_area.y - fb_area.y;
+      fb_area.y = window.window_area.y;
+    }
+
+    fb_area.width = window.video_area.width;
+    if(fb_area.x + fb_area.width >
+       window.window_area.x+window.window_area.width) {
+      fb_area.width = (window.window_area.x + window.window_area.width) -
+	fb_area.x;
+    }
+    src_area.width = fb_area.width;
+
+    fb_area.height = window.video_area.height;
+    if(fb_area.y + fb_area.height >
+       window.window_area.y+window.window_area.height) {
+      fb_area.height = (window.window_area.y + window.window_area.height) -
+	fb_area.y;
+    }
+    src_area.height = fb_area.height;
+
+    /*    
+    fprintf(stderr, "===: fb.x: %d fb.y: %d fb.w: %u fb.h: %u\n",
+	    fb_area.x, fb_area.y, fb_area.width, fb_area.height);
+
+    fprintf(stderr, "===: src.x: %d src.y: %d src.w: %u src.h: %u\n",
+	    src_area.x, src_area.y, src_area.width, src_area.height);
+    */
+
+    for(m = 0; m < src_area.height; m++) {
+      
+      y = dwin->image->y+(src_area.y+m)*stride;
+      
+      u = dwin->image->u+(src_area.y+m)/2*stride/2;
+      v = dwin->image->v+(src_area.y+m)/2*stride/2;
+      /*
+      for(n = 0; n < src_area.width/2; n++) {
+	pixel_data =
+	  (y[(src_area.x+n)*2]<<24) |
+	  (u[src_area.x/2+n]<<16) |
+	  (y[(src_area.x+n)*2+1]<<8) | 
+	  (v[src_area.x/2+n]);
+	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n)] = pixel_data;
+      }
+      */
+      for(n = 0; n < src_area.width/2; n+=4) {
+	int p0,p1,p2,p3;
+	p0 =
+	  (y[(src_area.x+n)*2]<<24) |
+	  (u[src_area.x/2+n]<<16) |
+	  (y[(src_area.x+n)*2+1]<<8) | 
+	  (v[src_area.x/2+n]);
+	p1 =
+	  (y[(src_area.x+n+1)*2]<<24) |
+	  (u[src_area.x/2+n+1]<<16) |
+	  (y[(src_area.x+n+1)*2+1]<<8) | 
+	  (v[src_area.x/2+n+1]);
+	p2 =
+	  (y[(src_area.x+n+2)*2]<<24) |
+	  (u[src_area.x/2+n+2]<<16) |
+	  (y[(src_area.x+n+2)*2+1]<<8) | 
+	  (v[src_area.x/2+n+2]);
+	p3 =
+	  (y[(src_area.x+n+3)*2]<<24) |
+	  (u[src_area.x/2+n+3]<<16) |
+	  (y[(src_area.x+n+3)*2+1]<<8) | 
+	  (v[src_area.x/2+n+3]);
+	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n)] = p0;
+	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+1)] = p1;
+	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+2)] = p2;
+	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+3)] = p3;
+      }
+    }
+#ifdef SPU
+    if(msgqid != -1) {
+      mix_subpicture_rgb(&rgb_fb[fb_area.y*8192+fb_area.x*4], 2048,
+			 fb_area.height, 
+			 4); 
+      // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
+    }
+  }
+#endif
+  
+  return;
+#endif
   /* We must some how guarantee that the ximage isn't used by X11.
      Rigth now it's (almost) done by the XSync call at the bottom... */
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
