@@ -159,7 +159,7 @@ static int nr_caps = 0;
 int register_capabilities(MsgEventClient_t client, int caps, cap_state_t state)
 {
   if(nr_caps >= 20) {
-    WARNING("more than 20 capabilities registered\n");
+    WARNING("more than 20 capabilities registered\n", 0);
   }
   nr_caps++;
   caps_array = realloc(caps_array, sizeof(caps_t)*nr_caps);
@@ -388,7 +388,7 @@ int request_capability(MsgEventQ_t *q, int cap,
     
     return 1;
   } else {
-    ERROR("didn't find capability\n");
+    ERROR("didn't find capability\n", 0);
     return 0;
   }
 }
@@ -495,7 +495,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 					       ev->reqstreambuf.subtype);
 	  
 	  if((capability & VIDEO_OUTPUT) || (capability & DECODE_DVD_SPU)) {
-	    DNOTE("registered VO or SPU started\n");
+	    DNOTE("registered VO or SPU started\n", 0);
 	  }
 	  if(capability == DECODE_DVD_SPU) {
 	    register_capabilities(0,
@@ -603,7 +603,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       //
       if(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, NULL)) {
 	
-	DNOTE("registered VO|SPU started\n");
+	DNOTE("registered VO|SPU started\n", 0);
 	register_capabilities(0,
 			      VIDEO_OUTPUT | DECODE_DVD_SPU,
 			      CAP_started);
@@ -625,7 +625,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	}
 	handle_events(q, &r_ev);
       }
-      DNOTE("got capability video_out\n");
+      DNOTE("got capability video_out\n", 0);
       
       // we now have a decoder running ready to decode the stream
       
@@ -833,7 +833,7 @@ int main(int argc, char *argv[])
     } else if(!strcmp("gui", ui)) {
       request_capability(&q, UI_DVD_GUI, &ui_client, NULL);
     } else {
-      FATAL("no ui specified\n");
+      FATAL("no ui specified\n", 0);
       cleanup_and_exit();
     }
   }
@@ -878,7 +878,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   int n;
   
   if(decode_path == NULL) {
-    ERROR("init_decoder(): decoder not set\n");
+    ERROR("init_decoder(): decoder not set\n", 0);
     return -1;
   }
   
@@ -886,7 +886,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     decode_name = decode_path;
   }
   if(decode_name > &decode_path[strlen(decode_path)]) {
-    ERROR("init_decoder(): illegal file name?\n");
+    ERROR("init_decoder(): illegal file name?\n", 0);
     return -1;
   }
   
@@ -1330,7 +1330,7 @@ void cleanup_and_exit(void)
 {
   remove_q_shm();
   destroy_msgq();
-  NOTE("exiting\n");
+  NOTE("exiting\n", 0);
   exit(0);
 }
 
@@ -1357,7 +1357,7 @@ void int_handler(int sig)
       kill(pid, SIGINT);
     }
     if(!child_killed) {
-      DNOTE("All children dead\n");
+      DNOTE("All children dead\n", 0);
       child_killed = 1;
     }
   }
@@ -1473,7 +1473,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   if(died) {
     int n;
     if(!remove_from_pidlist(pid)) {
-      DNOTE("pid died before registering\n");
+      DNOTE("pid died before registering\n", 0);
     }
     for(n = 0; n < num_pids; n++) {
       if((pid = pidlist[n]) != -1) {
@@ -1483,7 +1483,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
       }
     }
     if(!child_killed) {
-      DNOTE("all children dead\n");
+      DNOTE("all children dead\n", 0);
       child_killed = 2;
     }
   }
@@ -1503,7 +1503,7 @@ void slay_children(void)
     }
   }
   if(!child_killed) {
-    DNOTE("No children left in pidlist\n");
+    DNOTE("No children left in pidlist\n", 0);
     child_killed = 2;
   }
 }
