@@ -34,7 +34,7 @@ EXTRA_DIST = \
 
 bin_PROGRAMS = video_stream video_output
 
-INCLUDES = @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
 
 video_stream_SOURCES = \
 	video_stream.c video_stream.h \

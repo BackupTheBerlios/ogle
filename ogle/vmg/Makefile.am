@@ -17,7 +17,7 @@
 
 bin_PROGRAMS = vmg vmg_dump nav dump ifo_dump
 
-INCLUDES = @DVDREAD_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @DVDREAD_CFLAGS@
 
 vmg_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

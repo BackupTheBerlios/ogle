@@ -16,5 +16,10 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 bin_PROGRAMS = ui
+
+INCLUDES = @TOP_INCLUDES@
+
 ui_SOURCES = ui.c
-ui_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+
+ui_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la

@@ -199,8 +199,9 @@ AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
 dnl Yes this is ugly, but since I'm a developer I can do this... 
-INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include'
-CFLAGS="$INCLUDES $CFLAGS"
+TOP_INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include'
+AC_SUBST(TOP_INCLUDES)
+dnl CFLAGS="$INCLUDES $CFLAGS"
 
 
 AC_OUTPUT(Makefile 

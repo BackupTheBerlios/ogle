@@ -17,7 +17,7 @@
 
 bin_PROGRAMS = ogle_cli
 
-INCLUDES = @X_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@
 
 ogle_cli_SOURCES = main.c xsniffer.c
 

@@ -17,6 +17,8 @@
 
 bin_PROGRAMS = ac3dec_wrap
 
+INCLUDES = @TOP_INCLUDES@
+
 ac3dec_wrap_SOURCES = ac3dec_wrap.c
 ac3dec_wrap_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

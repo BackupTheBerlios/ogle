@@ -16,5 +16,9 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 bin_PROGRAMS = spu_wrap
+
+INCLUDES = @TOP_INCLUDES@
+
 spu_wrap_SOURCES = spu_wrap.c
-spu_wrap_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a 
+spu_wrap_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/common/libdvdcontrol.a 

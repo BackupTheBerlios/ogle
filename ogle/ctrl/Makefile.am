@@ -17,6 +17,8 @@
 
 bin_PROGRAMS = ctrl
 
+INCLUDES = @TOP_INCLUDES@
+
 ctrl_SOURCES = ctrl.c
 ctrl_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

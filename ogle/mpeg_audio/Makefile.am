@@ -17,6 +17,8 @@
 
 bin_PROGRAMS = mpg123_wrap
 
+INCLUDES = @TOP_INCLUDES@
+
 mpg123_wrap_SOURCES = mpg123_wrap.c
 mpg123_wrap_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

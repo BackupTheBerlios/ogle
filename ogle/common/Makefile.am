@@ -17,4 +17,6 @@
 
 noinst_LIBRARIES = libcommon.a  
 
+INCLUDES = @TOP_INCLUDES@
+
 libcommon_a_SOURCES = sync.c timemath.c
