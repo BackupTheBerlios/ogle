@@ -32,11 +32,14 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
 
 #define WORDS_BIGENDIAN
 #ifdef WORDS_BIGENDIAN
-#define B2N_16(x) (x)
-#define B2N_32(x) (x)
+#define B2N_16(x) (void)(x)
+#define B2N_32(x) (void)(x)
+#define B2N_64(x) (void)(x)
 #else
+#include <sys/bswap.h> //??? 
 #define B2N_16(x) bswap_16(x)
 #define B2N_32(x) bswap_32(x)
+#define B2N_64(x) bswap_64(x) // Hummm...
 #endif
 
 void ifoPrint(char *filename);
@@ -52,7 +55,7 @@ char *program_name;
 
 void usage()
 {
-  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-v <vob>] [-i <ifo>]\n", 
+  fprintf(stderr, "Usage: %s  [-d <debug_level>]\n", 
           program_name);
 }
 
@@ -196,7 +199,7 @@ void ifoPrint(char *filename) {
     PUT(1, "\nPGCI Unit table\n");
     PUT(1,   "--------------------\n");
     if(vtsi_mat.vts_pgcit != 0) {
-      ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit, 0);
+      ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit * DVD_BLOCK_LEN);
       ifoPrint_PGCIT(&vts_pgcit);
     } else
       PUT(5, "No PGCI Unit table present\n");
@@ -823,8 +826,9 @@ void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
 
 
 
+
+
 int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
-  uint8_t *data;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
@@ -832,25 +836,34 @@ int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
     return -1;
   }
   
-  data = malloc( DVD_BLOCK_LEN );
-  if(!data)
-    return -1;
-  
-  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
+  if(fread(vmgi_mat, sizeof(vmgi_mat), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
-    free(data);
     return -1;
   }
+  B2N_32(vmgi_mat->vmg_last_sector);
+  B2N_32(vmgi_mat->vmgi_last_sector);
+  B2N_32(vmgi_mat->vmg_category);
+  B2N_16(vmgi_mat->vmg_nr_of_volumes);
+  B2N_16(vmgi_mat->vmg_this_volume_nr);
+  B2N_16(vmgi_mat->vmg_nr_of_title_sets);
+  B2N_64(vmgi_mat->vmg_pos_code);
+  B2N_32(vmgi_mat->vmgi_last_byte);
+  B2N_32(vmgi_mat->first_play_pgc);
+  B2N_32(vmgi_mat->vmgm_vobs);
+  B2N_32(vmgi_mat->vmg_ptt_srpt);
+  B2N_32(vmgi_mat->vmgm_pgci_ut);
+  B2N_32(vmgi_mat->vmg_ptl_mait);
+  B2N_32(vmgi_mat->vmg_vts_atrt);
+  B2N_32(vmgi_mat->vmg_txtdt_mg);
+  B2N_32(vmgi_mat->vmgm_c_adt);
+  B2N_32(vmgi_mat->vmgm_vobu_admap);
+  B2N_16(vmgi_mat->vmgm_video_attributes);
   
-  memcpy(vmgi_mat, data, sizeof(vmgi_mat));
-  free(data);
-  
-  return strncmp("DVDVIDEO-VMG",vmgi_mat->vmg_identifier, 12);
+  return strncmp("DVDVIDEO-VMG", vmgi_mat->vmg_identifier, 12);
 }
 
 int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
-  uint8_t *data;
   
   ifo_file = fopen(filename,"r");
   if(!ifo_file) {
@@ -858,21 +871,29 @@ int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
     return -1;
   }
   
-  data = malloc( DVD_BLOCK_LEN );
-  if(!data)
-    return -1;
-  
-  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
+  if(fread(vtsi_mat, sizeof(vtsi_mat), 1, ifo_file) != 1) {
     fclose(ifo_file);
     ifo_file = NULL;
-    free(data);
     return -1;
   }
+  B2N_32(vtsi_mat->vts_last_sector);
+  B2N_32(vtsi_mat->vtsi_last_sector);
+  B2N_32(vtsi_mat->vts_category);
+  B2N_32(vtsi_mat->vtsi_last_byte);
+  B2N_32(vtsi_mat->vtsm_vobs);
+  B2N_32(vtsi_mat->vtstt_vobs);
+  B2N_32(vtsi_mat->vts_ptt_srpt);
+  B2N_32(vtsi_mat->vts_pgcit);
+  B2N_32(vtsi_mat->vtsm_pgci_ut);
+  B2N_32(vtsi_mat->vts_tmapt);
+  B2N_32(vtsi_mat->vtsm_c_adt);
+  B2N_32(vtsi_mat->vtsm_vobu_admap);
+  B2N_32(vtsi_mat->vts_c_adt);
+  B2N_32(vtsi_mat->vts_vobu_admap);
+  B2N_16(vtsi_mat->vtsm_video_attributes);
+  B2N_16(vtsi_mat->vts_video_attributes);
   
-  memcpy(vtsi_mat, data, sizeof(vtsi_mat));
-  free(data);
-  
-  return strncmp("DVDVIDEO-VMG",vtsi_mat->vts_identifier, 12);
+  return strncmp("DVDVIDEO-VMG", vtsi_mat->vts_identifier, 12);
 }
 
 
@@ -1028,52 +1049,67 @@ void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
     perror("VMG_PTT_SRPT");
     exit(1);
   }
+  B2N_16(vmg_ptt_srpt->nr_of_srpts);
+  B2N_32(vmg_ptt_srpt->last_byte);
+  
   info_length = vmg_ptt_srpt->last_byte + 1 - VMG_PTT_SRPT_SIZE;
   vmg_ptt_srpt->title_info = malloc(info_length); 
   assert(info_length >= vmg_ptt_srpt->nr_of_srpts * sizeof(title_info_t));
   if(fread(vmg_ptt_srpt->title_info, info_length, 1, ifo_file) != 1) {
     perror("VMG_PTT_SRPT");
     exit(1);
-  }  
+  }
+  B2N_16(vmg_ptt_srpt->title_info->nr_of_ptts);
+  B2N_16(vmg_ptt_srpt->title_info->parental_id);
+  B2N_32(vmg_ptt_srpt->title_info->title_set_sector);
+  
 }
 
 void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
   int info_length, i, j;
-  uint8_t *data;
+  uint32_t *data;
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vts_ptt_srpt, VTS_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
     perror("VTS_PTT_SRPT");
     exit(1);
   }
+  B2N_16(vts_ptt_srpt->nr_of_srpts);
+  B2N_32(vts_ptt_srpt->last_byte);
+  
   info_length = vts_ptt_srpt->last_byte + 1 - VTS_PTT_SRPT_SIZE;
   data = malloc(info_length); 
   if(fread(data, info_length, 1, ifo_file) != 1) {
     perror("VTS_PTT_SRPT");
     exit(1);
   }
+  for(i=0;i<vts_ptt_srpt->nr_of_srpts;i++)
+    B2N_32(data[i]);
+  
   PUT(5, " nr_of_srpts %i last byte %i\n", 
       vts_ptt_srpt->nr_of_srpts, 
       vts_ptt_srpt->last_byte);
   vts_ptt_srpt->title_info = malloc(vts_ptt_srpt->nr_of_srpts * sizeof(ttu_t));
   for(i=0;i<vts_ptt_srpt->nr_of_srpts;i++) {
     int n;
-    if(i != vts_ptt_srpt->nr_of_srpts - 1)
-      n = (((uint32_t*)data)[i+1] - ((uint32_t*)data)[i])/4;
+    if(i == vts_ptt_srpt->nr_of_srpts - 1)
+      n = (vts_ptt_srpt->last_byte + 1 - data[i])/4;
     else
-      n = (vts_ptt_srpt->last_byte + 1 - ((uint32_t*)data)[i])/4;
-    PUT(5, "n = %i\n", n);
+      n = (data[i+1] - data[i])/4;
     vts_ptt_srpt->title_info[i].ptt_info = malloc(n * sizeof(ptt_info_t));
     for(j=0;j<n;j++) {
       vts_ptt_srpt->title_info[i].ptt_info[j].pgcn 
-	= *(uint16_t*)(data + ((uint32_t*)data)[i]+4*j - VTS_PTT_SRPT_SIZE);
+	= *(uint16_t*)(((char *)data) + data[i] + 4*j - VTS_PTT_SRPT_SIZE);
       vts_ptt_srpt->title_info[i].ptt_info[j].pgn 
-	= *(uint16_t*)(data + ((uint32_t*)data)[i]+4*j+2 - VTS_PTT_SRPT_SIZE);
+	= *(uint16_t*)(((char *)data) + data[i] + 4*j + 2 - VTS_PTT_SRPT_SIZE);
+      B2N_16(vts_ptt_srpt->title_info[i].ptt_info[j].pgcn);
+      B2N_16(vts_ptt_srpt->title_info[i].ptt_info[j].pgn);
       PUT(5, "VTS_PTT_SRPT - Title %3i part %3i: PGC: %3i PG: %3i\n",
 	  i+1, j+1, 
 	  vts_ptt_srpt->title_info[i].ptt_info[j].pgcn,
 	  vts_ptt_srpt->title_info[i].ptt_info[j].pgn );
     }
   }
+  free(data);
 }
 
 void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
@@ -1083,13 +1119,15 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
     perror("VMG_PTL_MAIT");
     exit(1);
   }
+  B2N_16(ptl_mait->nr_of_countries);
+  B2N_16(ptl_mait->nr_of_vtss);
+  B2N_32(ptl_mait->last_byte);
   
   /* Change this to read and 'translate' the tables too. */
   
-  //info_length = ptl_mait->nr_of_countries * VMG_PTL_MAIT_COUNTRY_SIZE;
   info_length = ptl_mait->last_byte + 1 -  VMG_PTL_MAIT_SIZE;
+  assert(ptl_mait->nr_of_countries * VMG_PTL_MAIT_COUNTRY_SIZE <= info_length);
   ptl_mait->countries = malloc(info_length); 
-  assert(info_length <= ptl_mait->last_byte + 1);
   if(fread(ptl_mait->countries, info_length, 1, ifo_file) != 1) {
     perror("VMG_PTL_MAIT info");
     exit(1);
@@ -1097,49 +1135,64 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
 }
 
 void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
-  int info_length;
+  int i, info_length;
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(c_adt, C_ADT_SIZE, 1, ifo_file) != 1) {
     perror("VMGM_C_ADT");
     exit(1);
   }
+  B2N_16(c_adt->nr_of_vobs);
+  B2N_32(c_adt->last_byte);
   
   info_length = c_adt->last_byte + 1 - C_ADT_SIZE;
+  assert(info_length % sizeof(c_adt_t) == 0);
   c_adt->cell_adr_table = malloc(info_length); 
   if(fread(c_adt->cell_adr_table, info_length, 1, ifo_file) != 1) {
     perror("VMGM_C_ADT info");
     exit(1);
   }
-  assert((c_adt->last_byte + 1 - C_ADT_SIZE) % sizeof(c_adt_t) == 0);
+  for(i=0;i<c_adt->nr_of_vobs;i++) {
+    B2N_16(c_adt->cell_adr_table[i].vob_id);
+    B2N_32(c_adt->cell_adr_table[i].start_sector);
+    B2N_32(c_adt->cell_adr_table[i].last_sector);
+  }
 }
 
 
 
 void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector) {
-  int info_length;
+  int i, info_length;
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
   if(fread(vobu_admap, VOBU_ADMAP_SIZE, 1, ifo_file) != 1) {
     perror("VMGM_VOBU_ADMAP");
     exit(1);
   }
+  B2N_32(vobu_admap->last_byte);
   
   info_length = vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE;
+  assert(info_length % sizeof(int32_t) == 0);
   vobu_admap->vobu_start_sectors = malloc(info_length); 
   if(fread(vobu_admap->vobu_start_sectors, info_length, 1, ifo_file) != 1) {
     perror("VMGM_VOBU_ADMAP info");
     exit(1);
   }
+  for(i=0;i<info_length/sizeof(int32_t);i++) {
+    B2N_32(vobu_admap->vobu_start_sectors[i]);
+  }
 }
 
-void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset) {
+
+void ifoRead_PGCIT(pgcit_t *pgcit, int offset) {
   int i, info_length;
   uint8_t *data, *ptr;
   
-  fseek(ifo_file, offset + sector * DVD_BLOCK_LEN, SEEK_SET);
+  fseek(ifo_file, offset, SEEK_SET);
   if(fread(pgcit, PGCIT_SIZE, 1, ifo_file) != 1) {
     perror("PGCIT");
     exit(1);
   }
+  B2N_16(pgcit->nr_of_pgci_srp);
+  B2N_32(pgcit->last_byte);
   
   info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
   data = malloc(info_length);
@@ -1147,18 +1200,18 @@ void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset) {
     perror("PGCIT info");
     exit(1);
   }
-  
-  pgcit->pgci_srp 
-    = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
+
+  pgcit->pgci_srp = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
   ptr = data;
   for(i=0;i<pgcit->nr_of_pgci_srp;i++) {
     memcpy(&pgcit->pgci_srp[i], ptr, MENU_PGCI_LU_SIZE);
     ptr += MENU_PGCI_LU_SIZE;
+    B2N_32(pgcit->pgci_srp[i].pgc_category);
+    B2N_32(pgcit->pgci_srp[i].start_byte_of_pgc);
     
     pgcit->pgci_srp[i].pgc = malloc(sizeof(pgc_t));
     ifoRead_PGC(pgcit->pgci_srp[i].pgc, 
-		sector * DVD_BLOCK_LEN + offset
-		+ pgcit->pgci_srp[i].start_byte_of_pgc);
+		offset + pgcit->pgci_srp[i].start_byte_of_pgc);
   }
   free(data);
 }
@@ -1172,6 +1225,9 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
     perror("MENU_PGCI_UT");
     exit(1);
   }
+  B2N_16(pgci_ut->nr_of_lang_units);
+  B2N_16(pgci_ut->last_byte);
+  
   info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
@@ -1185,12 +1241,14 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   for(i=0;i<pgci_ut->nr_of_lang_units;i++) {
     memcpy(&pgci_ut->menu_lu[i], ptr, MENU_PGCI_LU_SIZE);
     ptr += MENU_PGCI_LU_SIZE;
+    B2N_16(pgci_ut->menu_lu[i].lang_code);
+    B2N_32(pgci_ut->menu_lu[i].lang_start_byte);
     
     /* vmgm_pgci_ut->menu_lu[i].exists doesn't seem to indicate 
        the presens of the PGCIT but rather some thing else.
        Maybe only defined in v1.1? */
-    /* If the bita are enumerated abcd efgh then:
-       VTS_x_yy.IFO	VIDEO_TS.IFO
+    /* If the bits are enumerated abcd efgh then:
+            VTS_x_yy.IFO	VIDEO_TS.IFO
        a == 0x83 "Root"		0x82 "Title (VTS menu)"
        b == 0x84 "Sub-Picture"
        c == 0x85 "Audio"
@@ -1198,8 +1256,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
        e == 0x87 "PTT (Part of Title?)"
     */
     pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
-    ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit,
-		  sector,
+    ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit, sector * DVD_BLOCK_LEN +
 		  pgci_ut->menu_lu[i].lang_start_byte);
   }
   free(data);
@@ -1212,12 +1269,19 @@ void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
     perror("VMG_VTS_ATRIBUTES");
     exit(1);
   }
+  // This needs to be a bit more complex and handle the case were there are
+  // fewer than 26 vtstt_subp_attributes. 
   //assert(vts_atributes->last_byte <= VMG_VTS_ATRIBUTES_SIZE);
+  
+  B2N_32(vts_atributes->last_byte);
+  B2N_32(vts_atributes->vts_cat);
+  B2N_16(vts_atributes->vtsm_vobs_attributes);
+  B2N_16(vts_atributes->vtstt_vobs_video_attributes);
 }
 
 void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   int i, info_length;
-  uint8_t *data;
+  uint32_t *data;
   uint32_t *ptr;
   
   fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
@@ -1225,8 +1289,10 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
     perror("VMG_VTS_ATRT");
     exit(1);
   }
+  B2N_16(vts_atrt->nr_of_vtss);
+  B2N_32(vts_atrt->last_byte);
   
-  info_length = vts_atrt->nr_of_vtss * 4; /* Fix? */
+  info_length = vts_atrt->nr_of_vtss * sizeof(uint32_t); /* Fix? */
   data = malloc(info_length);
   if(fread(data, info_length, 1, ifo_file) != 1) {
     perror("VMGM_VTS_ATRT info");
@@ -1235,9 +1301,9 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
   
   info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATRIBUTES_SIZE;
   vts_atrt->vts_atributes = malloc(info_length);
-  ptr = (uint32_t *)data;
   for(i=0;i<vts_atrt->nr_of_vtss;i++) {
-    int offset = *ptr++;
+    int offset = data[i];
+    B2N_32(offset);
     assert(offset < vts_atrt->last_byte + 1);
     ifoRead_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i], 
 			  sector * DVD_BLOCK_LEN + offset);

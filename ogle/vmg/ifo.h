@@ -324,7 +324,7 @@ void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector);
 void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
 void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector);
 void ifoRead_PGC(pgc_t *pgc, int offset);
-void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset);
+void ifoRead_PGCIT(pgcit_t *pgcit, int offset);
 void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut, int sector);
 void ifoRead_C_ADT(c_adt_t *c_adt, int sector);
 void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector);
