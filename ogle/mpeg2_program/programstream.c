@@ -750,6 +750,7 @@ void loadinputfile(char *infilename)
   
   //Sending "load-this-file" packet to listeners
   
+  lf_pack.type        = PACK_TYPE_LOAD_FILE;
   lf_pack.body.length = strlen(infilename);
   strcpy((char *)&(lf_pack.body.filename), infilename);
   
