@@ -2440,7 +2440,7 @@ void sequence_display_extension(void)
       DPRINTF(2, "(forbidden)\n");
       break;
     case 0x1:
-      DPRINTF(2, "ITU-R 709\n");
+      DPRINTF(2, "ITU-R BT.709\n");
       break;
     case 0x2:
       DPRINTF(2, "Unspecified Video\n");
@@ -2449,10 +2449,10 @@ void sequence_display_extension(void)
       DPRINTF(2, "reserved\n");
       break;
     case 0x4:
-      DPRINTF(2, "ITU-R 624-4 System M\n");
+      DPRINTF(2, "ITU-R BT.470-2 System M\n");
       break;
     case 0x5:
-      DPRINTF(2, "ITU-R 624-4 System B,G\n");
+      DPRINTF(2, "ITU-R BT.470-2 System B,G\n");
       break;
     case 0x6:
       DPRINTF(2, "SMPTE 170M\n");
@@ -2474,7 +2474,7 @@ void sequence_display_extension(void)
       DPRINTF(2, "(forbidden)\n");
       break;
     case 0x1:
-      DPRINTF(2, "ITU-R 709\n");
+      DPRINTF(2, "ITU-R BT.709\n");
       break;
     case 0x2:
       DPRINTF(2, "Unspecified Video\n");
@@ -2483,10 +2483,10 @@ void sequence_display_extension(void)
       DPRINTF(2, "reserved\n");
       break;
     case 0x4:
-      DPRINTF(2, "ITU-R 624-4 System M\n");
+      DPRINTF(2, "ITU-R BT.470-2 System M\n");
       break;
     case 0x5:
-      DPRINTF(2, "ITU-R 624-4 System B,G\n");
+      DPRINTF(2, "ITU-R BT.470-2 System B,G\n");
       break;
     case 0x6:
       DPRINTF(2, "SMPTE 170M\n");
@@ -2511,7 +2511,7 @@ void sequence_display_extension(void)
       DPRINTF(2, "(forbidden)\n");
       break;
     case 0x1:
-      DPRINTF(2, "ITU-R 709\n");
+      DPRINTF(2, "ITU-R BT.709\n");
       break;
     case 0x2:
       DPRINTF(2, "Unspecified Video\n");
@@ -2523,7 +2523,7 @@ void sequence_display_extension(void)
       DPRINTF(2, "FCC\n");
       break;
     case 0x5:
-      DPRINTF(2, "ITU-R 624-4 System B,G\n");
+      DPRINTF(2, "ITU-R BT.470-2 System B,G\n");
       break;
     case 0x6:
       DPRINTF(2, "SMPTE 170M\n");
