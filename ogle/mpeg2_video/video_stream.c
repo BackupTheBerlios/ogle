@@ -21,6 +21,8 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#include "../include/common.h"
+
 int dctstat[128];
 int total_pos = 0;
 int total_calls = 0;
@@ -544,26 +546,27 @@ void setup_mmap(char *filename) {
 void get_next_package()
 {
   uint32_t package_type;
-  uint32_t comand_buf[ ?? ]; // ??? 
+  struct off_len_packet ol_packet;
   
   fread(&package_type, 4, 1, infile);
   
-  if(package_type == 
+  if(package_type == PACK_TYPE_OFF_LEN) {
+    fread(&ol_packet, 8, 1, infile);
   
-  while() {
-    // fread(...)
+    packet.offset = ol_packet.offset;
+    packet.length = ol_packet.length;
+
+    return;
+  }
+  else if( package_type == PACK_TYPE_LOAD_FILE ) {
+    uint32_t length;
+    char filename[200];
     
-    if( comand_buf[0] = PACK_TYPE_OFF_LEN ) {
-      struct off_len_packet *new_packet = (struct off_len_packet *)comand_buf;
-      packet.offset = new_packet->offset;
-      packet.length = new_packet->length;
-      return;
-    } 
-    else if( comand_buf[0] = PACK_TYPE_LOAD_FILE ) {
-      struct load_file_packet *new_packet 
-        = (struct load_file_packet *)comand_buf;
-      setup_mmap( new_packet->filename );
-    }
+    fread(&length, 4, 1, infile);
+    fread(&filename, length, 1, infile);
+    filename[length+1] = 0;
+
+    setup_mmap( filename );
   }  
 }  
 
