@@ -163,7 +163,7 @@ typedef struct { // Video Manager Information Management Table
   //how much 'padding' here?
 } __attribute__ ((packed)) vmgi_mat_t;
 
-typedef uint8_t __attribute__ ((packed)) command_data_t[8];
+typedef uint8_t __attribute__ ((packed)) vm_cmd_t[8];
 #define COMMAND_DATA_SIZE 8
   
 typedef struct { // PGC Command Table
@@ -171,9 +171,9 @@ typedef struct { // PGC Command Table
   uint16_t nr_of_post;
   uint16_t nr_of_cell;
   uint16_t zero_1;
-  command_data_t *pre_commands;
-  command_data_t *post_commands;
-  command_data_t *cell_commands;
+  vm_cmd_t *pre_commands;
+  vm_cmd_t *post_commands;
+  vm_cmd_t *cell_commands;
 } __attribute__ ((packed)) pgc_command_tbl_t;
 #define PGC_COMMAND_TBL_SIZE 8
 

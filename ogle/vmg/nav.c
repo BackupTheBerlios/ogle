@@ -23,7 +23,7 @@
 
 #include "msgtypes.h"
 
-#include "ifo.h" // command_data_t
+#include "ifo.h" // vm_cmd_t
 #include "nav.h"
 #include "nav_read.h"
 #include "nav_print.h"
@@ -113,9 +113,14 @@ void send_highlight(int x_start, int y_start, int x_end, int y_end,
 static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   msg_t msg;
   int is_action = 0;
-   
+  
+  if((pci->hli.hl_gi.hli_ss & 0x03) != 0 
+     && *btn_nr > pci->hli.hl_gi.btn_ns) {
+    *btn_nr = 1; 
+  }
+  
   /* Check for and read any user input */
-  /* Must not consume events after a 'enter/click' event. */
+  /* Must not consume events after a 'enter/click' event. (?) */
   while(!is_action) {
     cmd_t *cmd = chk_for_msg(&msg);
     /* Exit when no more input. */
@@ -158,10 +163,11 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
     }
     
     /* Must check if the current selected button has auto_action_mode !!! */
-    switch(pci->hli.btnit[*btn_nr -1].auto_action_mode) {
+    switch(pci->hli.btnit[*btn_nr - 1].auto_action_mode) {
     case 0:
       break;
     case 1:
+      fprintf(stderr, "!!!auto_action_mode!!!\n");
       is_action = 1;
       break;
     case 2:
@@ -177,10 +183,6 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
      send the information to the spu decoder. */
   if(pci->hli.hl_gi.hli_ss & 0x03) {
     btni_t *button;
-    print_pci_packet(stdout, pci);
-    
-    fprintf(stdout, "Menu detected\n");
-    /* send stuff about subpicture and buttons to spu mixer */
     button = &pci->hli.btnit[*btn_nr - 1];
     send_highlight(button->x_start, button->y_start, 
 		   button->x_end, button->y_end, 
@@ -192,7 +194,7 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 }
 
 
-int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
+int eval_cell(char *vob_name, cell_playback_tbl_t *cell, vm_cmd_t *cmd) {
   buffer_t buffer;
   pci_t pci;
   dsi_t dsi;
@@ -222,6 +224,11 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
     buffer.bit_position = 8; // First byte is SUBSTREAM_ID
     read_dsi_packet(&dsi, &buffer);
     
+    if(pci->hli.hl_gi.hli_ss & 0x03) {
+      fprintf(stdout, "Menu detected\n");
+      print_pci_packet(stdout, pci);
+    }
+    
     /* Check for user input, and set highlight */
     res = process_pci(&pci, &state_systemreg_hili_button_nr);
 
@@ -233,23 +240,14 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
     block += dsi.dsi_gi.vobu_ea;
     
     if(res != 0) {
-      memcpy(cmd, &pci.hli.btnit[state_systemreg_hili_button_nr-1].cmd, 8);
+      memcpy(cmd, &pci.hli.btnit[state_systemreg_hili_button_nr - 1].cmd, 8);
       break;
     }
   }
-  if(res)
+  if(res != 0)
     return state_systemreg_hili_button_nr;
-  else /* Check for user input */
-    if((res = process_pci(&pci, &state_systemreg_hili_button_nr)) != 0) {
-      memcpy(cmd, &pci.hli.btnit[state_systemreg_hili_button_nr-1].cmd, 8);
-      
-      //set state_systemreg_hili_button_nr;
-    }
-  
   
   /* Handle cell pause and still here */
-  
-  /* Still time or some thing */
   if(cell->category & 0xff00) {
     int time = (cell->category>>8) & 0xff;
     if(time == 0xff) {
@@ -270,7 +268,7 @@ int eval_cell(char *vob_name, cell_playback_tbl_t *cell, command_data_t *cmd) {
     }
   }
   
-  memset(cmd, 0, sizeof(cmd_t));
+  memset(cmd, 0, sizeof(vm_cmd_t));
   return 0;
 }
 

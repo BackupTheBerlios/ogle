@@ -18,7 +18,7 @@
 #include "decoder.h"
 
 extern int eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
-		     command_data_t *cmd); // nav.c
+		     vm_cmd_t *cmd); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
 extern int msgqid;
 
@@ -210,7 +210,7 @@ int main(int argc, char *argv[])
     
     /* This should return any button_cmd that is to be executed */
     {
-      command_data_t cmd;
+      vm_cmd_t cmd;
       int res = eval_cell(name, &cell, &cmd);
       if(res) {
 	// Remove me..
@@ -222,11 +222,13 @@ int main(int argc, char *argv[])
 	}
       }
     }
+    
     /* Deal with a Cell cmd, if any */
     if((cell.category & 0xff) != 0) {
       int cell_cmd_nr = cell.category & 0xff;
       assert(pgc.pgc_command_tbl != NULL);
       assert(pgc.pgc_command_tbl->nr_of_cell >= cell_cmd_nr);
+      ifoPrint_COMMAND(0, pgc.pgc_command_tbl->cell_commands[cell_cmd_nr-1]);
       if(eval(&pgc.pgc_command_tbl->cell_commands[cell_cmd_nr - 1], 
 	      1, &state.registers, &link_values)) {
 	goto process_jump;
