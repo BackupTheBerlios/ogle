@@ -1036,6 +1036,10 @@ void PES_packet()
     PES_header_data_length    = GETBITS(8, "PES_header_data_length");
     
     bytes_read = 3;
+
+    if(PES_scrambling_control != 0) {
+      fprintf(stderr, "demux: Encountered a scrambled PES packet!\n");
+    }
     
     if(PTS_DTS_flags == 0x2) {
       GETBITS(4, "0010");

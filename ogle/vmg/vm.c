@@ -264,7 +264,7 @@ int vm_menu_call(DVDMenuID_t menuid, int block)
   case VTSM_DOMAIN:
   case VMGM_DOMAIN:
     state.domain = menuid2domain(menuid);
-    if(get_MENU(menuid) != -1) {
+    if(get_PGCIT() != NULL && get_MENU(menuid) != -1) {
       link_values = play_PGC();
       
       if(link_values.command != PlayThis) {
@@ -927,9 +927,15 @@ static link_t process_command(link_t link_values)
       link_values = play_PGC();
       break;
     case JumpSS_VTSM:
-      assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
-      state.domain = VTSM_DOMAIN;
-      ifoOpenNewVTSI(dvd, link_values.data1); //state.vtsN = link_values.data1;
+      if(link_values.data1 !=0) {
+	assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
+	state.domain = VTSM_DOMAIN;
+	ifoOpenNewVTSI(dvd, link_values.data1); 
+	//state.vtsN = link_values.data1;
+      } else {
+	// This happens on a region 2 'The Fifth Element' 
+	assert(state.domain == VTSM_DOMAIN);
+      }
       // I don't know what title is supposed to be used for.
       // To set state.TTN_REG ? or ? alien or aliens had this != 1, I think.
       //assert(link_values.data2 == 1);

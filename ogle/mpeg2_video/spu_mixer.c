@@ -877,6 +877,16 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
     /* last two bits are colorid, the rest are run length */
     length = vlc >> 2;
     
+    if(length == 0) { // new line
+      //   if (y >= height)
+      // return;
+      /* Fill current line with background color */
+      length = spu_info->width-x;
+    }
+    if(length+x > spu_info->width) {
+      fprintf(stderr, "tried to write past line-end\n");
+      length = spu_info->width-x;
+    }
     colorid = vlc & 3;
     pixel_data = ((spu_info->contrast[colorid] << 4) 
 		  | (spu_info->color[colorid] & 0x0f));
@@ -891,7 +901,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
     } else {
       if(y+spu_info->y_start >= highlight.y_start &&
 	 y+spu_info->y_start <= highlight.y_end &&
-	 x >= highlight.x_start && x <= highlight.x_end) {
+	 x+spu_info->x_start >= highlight.x_start &&
+	 x+spu_info->x_start <= highlight.x_end) {
 	if(picformat == 0) {
 	  color = palette_rgb[highlight.color[colorid]];
 	} else {
@@ -908,16 +919,6 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       }
     }
     invcontrast = 256-contrast;
-    if(length==0) { // new line
-      //   if (y >= height)
-      // return;
-      /* Fill current line with background color */
-      length = spu_info->width-x;
-    }
-    if(length+x > spu_info->width) {
-      fprintf(stderr, "tried to write past line-end\n");
-      length = spu_info->width-x;
-    }
     
     /* mix spu and picture data */
     
