@@ -573,10 +573,10 @@ int vm_get_subp_active_stream(void)
   
   /* We should instead send the on/off status to the spudecoder / mixer */
   /* If we are in the title domain see if the spu mixing is on */
-  if(state.domain == VTS_DOMAIN && !(state.SPST_REG & 0x40)) { 
-    return -1;
+  if(state.domain == VTS_DOMAIN && !(state.SPST_REG & 0x40)) {
+    return streamN | (state.SPST_REG & 0x40);
   } else {
-    return streamN;
+    return streamN | (state.SPST_REG & 0x40);
   }
 }
 
@@ -665,18 +665,29 @@ int vm_get_ptts_for_title(int titleN)
  return ptts;
 }
 
-subp_attr_t vm_get_subp_attr(int streamN)
+int vm_get_subp_attr(int streamN, subp_attr_t *attr)
 {
-  subp_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
-    attr = vtsi->vtsi_mat->vts_subp_attr[streamN];
+    if((streamN >= 0) && (streamN < vtsi->vtsi_mat->nr_of_vts_subp_streams)) {
+      *attr = vtsi->vtsi_mat->vts_subp_attr[streamN];
+    } else {
+      return 0;
+    }
   } else if(state.domain == VTSM_DOMAIN) {
-    attr = vtsi->vtsi_mat->vtsm_subp_attr;
+    if(vtsi->vtsi_mat->nr_of_vtsm_subp_streams > 0) {
+      *attr = vtsi->vtsi_mat->vtsm_subp_attr;
+    } else {
+      return 0;
+    }
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    attr = vmgi->vmgi_mat->vmgm_subp_attr;
+    if(vmgi->vmgi_mat->nr_of_vmgm_subp_streams > 0) {
+      *attr = vmgi->vmgi_mat->vmgm_subp_attr;
+    } else {
+      return 0;
+    }
   }
-  return attr;
+  return 1;
 }
 
 user_ops_t vm_get_uops(void)
@@ -684,18 +695,29 @@ user_ops_t vm_get_uops(void)
   return state.pgc->prohibited_ops;
 }
 
-audio_attr_t vm_get_audio_attr(int streamN)
+int vm_get_audio_attr(int streamN, audio_attr_t *attr)
 {
-  audio_attr_t attr;
-
+  
   if(state.domain == VTS_DOMAIN) {
-    attr = vtsi->vtsi_mat->vts_audio_attr[streamN];
+    if((streamN >= 0) && (streamN < vtsi->vtsi_mat->nr_of_vts_audio_streams)) {
+      *attr = vtsi->vtsi_mat->vts_audio_attr[streamN];
+    } else {
+      return 0;
+    }
   } else if(state.domain == VTSM_DOMAIN) {
-    attr = vtsi->vtsi_mat->vtsm_audio_attr;
+    if(vtsi->vtsi_mat->nr_of_vtsm_audio_streams > 0) {
+      *attr = vtsi->vtsi_mat->vtsm_audio_attr;
+    } else {
+      return 0;
+    }
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    attr = vmgi->vmgi_mat->vmgm_audio_attr;
+    if(vmgi->vmgi_mat->nr_of_vmgm_audio_streams > 0) {
+      *attr = vmgi->vmgi_mat->vmgm_audio_attr;
+    } else {
+      return 0;
+    }
   }
-  return attr;
+  return 1;
 }
 
 video_attr_t vm_get_video_attr(void)

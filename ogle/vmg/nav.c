@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
   
   program_name = argv[0];
   GET_DLEVEL();
-
+  
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
@@ -121,11 +121,7 @@ int main(int argc, char *argv[])
   {
     MsgEvent_t ev;
     
-#ifdef SOCKIPC
     if((msgq = MsgOpen(msgq_type, msgqid, strlen(msgqid))) == NULL) {
-#else
-    if((msgq = MsgOpen(msgqid)) == NULL) {
-#endif
       FATAL("%s", "couldn't get message q\n");
       exit(1);
     }
@@ -272,7 +268,11 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       new_id = 0;
       new_subtype = 0;
       
-      attr = vm_get_audio_attr(sN);
+      if(!vm_get_audio_attr(sN, &attr)) {
+	ERROR("Audio stream out of range: %d\n", sN);
+	new_id = 0xbd; //private stream 1
+	new_subtype = 0x80 + audio_stream_id; // AC-3
+      } else {
       
       switch(attr.audio_format) {
       case 0:
@@ -301,7 +301,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	NOTE("%s", "please send a bug report, unknown Audio format!");
 	break;
       }
-      
+      }
       if(old_id != new_id || old_subtype != new_subtype) {
 	DNOTE("sending audio demuxstream %d\n", sN);
 	DNOTE("oid: %02x, ost: %02x, nid: %02x, nst: %02x\n",
@@ -322,7 +322,17 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 
   /* Tell the demuxer which subpicture stream to demux */ 
   {
+    static int prev_spu_on = -1;
+    uint32_t spu_on;
     int sN = vm_get_subp_active_stream();
+    
+    if(sN != -1) {
+      spu_on = sN & 0x40;
+      sN = sN & ~0x40;
+    } else {
+      spu_on = 0;
+    }
+
     if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
     if(sN != subp_stream_id) {
       subp_stream_id = sN;
@@ -336,6 +346,19 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
 	ERROR("%s", "failed to send Subpicture demuxstream\n");
       }
     }
+    if(spu_on != prev_spu_on) {
+      prev_spu_on = spu_on;
+
+      //send spu state to spumixer
+      //fprintf(stderr, "nav: spu_on: %02x\n", spu_on);
+      ev.type = MsgEventQSPUState;;
+      ev.spustate.state = spu_on;
+
+      if(send_spu(msgq, &ev) == -1) {
+        ERROR("%s", "faild sending highlight info\n");
+      }
+    }
+    
   }
 
   /* Tell the demuxer what file and which sectors to demux. */
@@ -673,7 +696,16 @@ int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
   }
   return res;
 }
+ 
+ 
+void set_dvderror(MsgEvent_t *ev, int32_t serial, DVDResult_t err)
+{
+  ev->dvdctrl.cmd.type = DVDCtrlRetVal;
+  ev->dvdctrl.cmd.retval.serial = serial;
+  ev->dvdctrl.cmd.retval.val = err;
+}
 
+#define DVD_SERIAL(ev) ((ev)->dvdctrl.cmd.any.serial)
 
 /* Do user input processing. Like audio change, 
  * subpicture change and answer attribute query requests.
@@ -821,7 +853,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       state.SPST_REG |= 0x40; // Turn it on
     else
       state.SPST_REG &= ~0x40; // Turn it off
-    NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
+    //NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
     break;
   case DVDCtrlGetCurrentDomain:
     {
@@ -965,39 +997,72 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
       send_ev.dvdctrl.cmd.audioattributes.streamnr = streamN;
       {
+	DVDAudioAttributes_t *a_attr =
+	  &send_ev.dvdctrl.cmd.audioattributes.attr;
 	DVDAudioFormat_t af = DVD_AUDIO_FORMAT_Other;
-	audio_attr_t attr = vm_get_audio_attr(streamN);
-	memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
-	       sizeof(DVDAudioAttributes_t)); //TBD
-	switch(attr.audio_format) {
-	case 0:
-	  af = DVD_AUDIO_FORMAT_AC3;
-	  break;
-	case 2:
-	  af = DVD_AUDIO_FORMAT_MPEG1;
-	  break;
-	case 3:
-	  af = DVD_AUDIO_FORMAT_MPEG2;
-	  break;
-	case 4:
-	  af = DVD_AUDIO_FORMAT_LPCM;
-	  break;
-	case 6:
-	  af = DVD_AUDIO_FORMAT_DTS;
-	  break;
-	default:
-	  NOTE("please send a bug report, unknown Audio format %d!", 
-	       attr.audio_format);
-	  break;
+	audio_attr_t attr;
+
+	if(vm_get_audio_attr(streamN, &attr)) {
+	  
+	  memset(a_attr, 0, sizeof(DVDAudioAttributes_t));
+	  switch(attr.audio_format) {
+	  case 0:
+	    af = DVD_AUDIO_FORMAT_AC3;
+	    break;
+	  case 2:
+	    if(attr.quantization == 1) {
+	      af = DVD_AUDIO_FORMAT_MPEG1_DRC;
+	    } else {
+	      af = DVD_AUDIO_FORMAT_MPEG1;
+	    }
+	    break;
+	  case 3:
+	    if(attr.quantization == 1) {
+	      af = DVD_AUDIO_FORMAT_MPEG2_DRC;
+	    } else {
+	      af = DVD_AUDIO_FORMAT_MPEG2;
+	    }
+	    break;
+	  case 4:
+	    af = DVD_AUDIO_FORMAT_LPCM;
+	    switch(attr.quantization) {
+	    case 0:
+	      a_attr->SampleQuantization = 16;
+	      break;
+	    case 1:
+	      a_attr->SampleQuantization = 20;
+	      break;
+	    case 2:
+	      a_attr->SampleQuantization = 24;
+	      break;
+	    }
+	    break;
+	  case 6:
+	    af = DVD_AUDIO_FORMAT_DTS;
+	    break;
+	  default:
+	    WARNING("please send a bug report, unknown Audio format %d!", 
+		    attr.audio_format);
+	    break;
+	  }
+	  a_attr->AudioFormat = af;
+	  a_attr->AppMode = attr.application_mode;
+	  a_attr->LanguageExtension = attr.lang_extension;
+	  a_attr->Language = attr.lang_code;
+	  a_attr->HasMultichannelInfo = attr.multichannel_extension;
+	  switch(attr.sample_frequency) {
+	  case 0:
+	    a_attr->SampleFrequency = 48000;
+	    break;
+	  case 1:
+	    a_attr->SampleFrequency = 96000;
+	    break;
+	  }
+	  a_attr->NumberOfChannels = attr.channels + 1;
+	  a_attr->AudioType = attr.lang_type;
+	} else {
+	  set_dvderror(&send_ev, DVD_SERIAL(&ev), DVD_E_Invalid);
 	}
-	send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
-	  = af;
-	send_ev.dvdctrl.cmd.audioattributes.attr.AppMode 
-	  = attr.application_mode;
-	send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
-	  = attr.lang_extension;
-	send_ev.dvdctrl.cmd.audioattributes.attr.Language 
-	  = attr.lang_code;
       }
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
     }
@@ -1039,12 +1104,16 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       s_attr = &send_ev.dvdctrl.cmd.subpictureattributes.attr;
 
       {
-	subp_attr_t attr = vm_get_subp_attr(streamN);
-	memset(s_attr, 0, sizeof(DVDSubpictureAttributes_t));
-	s_attr->Type  = attr.type;
-	s_attr->CodingMode  = attr.code_mode;
-	s_attr->Language  = attr.lang_code;
-	s_attr->LanguageExtension  = attr.lang_extension;
+	subp_attr_t attr;
+	if(vm_get_subp_attr(streamN, &attr)) {
+	  memset(s_attr, 0, sizeof(DVDSubpictureAttributes_t));
+	  s_attr->Type  = attr.type;
+	  s_attr->CodingMode  = attr.code_mode;
+	  s_attr->Language  = attr.lang_code;
+	  s_attr->LanguageExtension  = attr.lang_extension;
+	} else {
+	  set_dvderror(&send_ev, DVD_SERIAL(&ev), DVD_E_Invalid);
+	}
       }
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }	  
