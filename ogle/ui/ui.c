@@ -153,6 +153,8 @@ int input() {
     sendcmd->cmdtype = CMD_CTRL_CMD;
 
     fgets(cmdstr, CMDSTR_LEN, infile);
+    cmdstr[strlen(cmdstr)-1] = '\0';
+    
     fprintf(stderr, "****input() got line\n");
     
     
