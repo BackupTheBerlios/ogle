@@ -125,6 +125,10 @@ static void timeadd(struct timespec *d,
 }  
 
 
+/* Erhum test... */
+struct timespec first_time;
+int frame_nr = 0;
+
 void int_handler()
 {
   display_exit();
@@ -139,7 +143,6 @@ void display_process()
   struct sigaction sig;
   int buf_id;
   int drop = 0;
-  int frame_nr = 0;
   int avg_nr = 23;
   int first = 1;
   frame_interval.tv_sec = 0;
@@ -162,6 +165,8 @@ void display_process()
 		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
 		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size);
       display(&(buf_ctrl_head->picture_infos[buf_id].picture));
+      /* Erhum test... */
+      clock_gettime(CLOCK_REALTIME, &first_time);      
     }
     clock_gettime(CLOCK_REALTIME, &real_time);
     if((prefered_time.tv_sec == 0) || (frame_interval.tv_nsec == 1)) {
@@ -266,4 +271,23 @@ void display_process()
     //    fprintf(stderr, "display: done with buf %d\n", buf_id);
     release_picture_buf(buf_id);
   }
+}
+
+void display_process_exit(void) {
+  struct timespec now_time;
+  
+  clock_gettime(CLOCK_REALTIME, &now_time);
+      
+  fprintf(stderr, "display: Total frame rate: %.3f fps "
+	          "(%i frames in %.3f seconds)\n ",
+	  (double)frame_nr/(((double)now_time.tv_sec+
+			     (double)(now_time.tv_nsec)/1000000000.0)-
+			    ((double)first_time.tv_sec+
+			     (double)(first_time.tv_nsec)/1000000000.0)),
+	  frame_nr, (((double)now_time.tv_sec+
+			     (double)(now_time.tv_nsec)/1000000000.0)-
+			    ((double)first_time.tv_sec+
+			     (double)(first_time.tv_nsec)/1000000000.0))
+	  );
+  exit(0);
 }
