@@ -2,7 +2,7 @@
 
 SUBDIRS = intl po src
 
-extra_DIST = ogle_gui.glade
+EXTRA_DIST = ogle_gui.glade
 
 install-data-local:
 	@$(NORMAL_INSTALL)
