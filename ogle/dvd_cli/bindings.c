@@ -331,6 +331,62 @@ void actionBookmarkRestore(void *data)
   DVDBookmarkClose(bm);
 }
 
+struct action_number{
+  int valid;
+  int32_t nr;
+};
+
+static struct action_number user_nr = { 0, 0 };
+
+void actionDigit(void *data)
+{
+  if(!user_nr.valid) {
+    user_nr.valid = 1;
+    user_nr.nr = 0;
+  }
+
+  user_nr.nr = user_nr.nr * 10 + *(uint8_t *)data;
+}
+
+static int32_t default_skip_seconds = 10;
+static int32_t skip_seconds = 10;
+
+void actionSkipForward(void *data)
+{
+  struct action_number *user = (struct action_number *)data;
+  if(user != NULL) {
+    if(user->valid) {
+      if((user->nr == 0) || (user->nr < 0)) {
+	skip_seconds = default_skip_seconds;
+      } else {
+	skip_seconds = user->nr;
+      }
+      user->valid = 0;
+    }     
+  } 
+
+  DVDTimeSkip(nav, skip_seconds);
+}
+
+void actionSkipBackward(void *data)
+{
+  struct action_number *user = (struct action_number *)data;
+  if(user != NULL) {
+    if(user->valid) {
+      if((user->nr == 0) || (user->nr < 0)) {
+	skip_seconds = default_skip_seconds;
+      } else {
+	skip_seconds = user->nr;
+      }
+      user->valid = 0;
+    }     
+  } 
+
+  DVDTimeSkip(nav, -skip_seconds);
+}
+
+
+
 typedef struct {
   PointerEventType event_type;
   unsigned int button;
@@ -354,39 +410,54 @@ static unsigned int nr_ks_maps = 0;
 
 static ks_map_t *ks_maps;
 
+static const uint8_t digits[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
+
 typedef struct {
   char *str;
   void (*fun)(void *);
+  void *ptr;
 } action_mapping_t;
 
 static action_mapping_t actions[] = {
-  { "Play", actionPlay },
-  { "PauseToggle", actionPauseToggle },
-  { "Stop", NULL },
-  { "FastForward", actionFastForward },
-  { "SlowForward", actionSlowForward },
-  { "Faster", actionFaster },
-  { "Slower", actionSlower },
-  { "NextPG", actionNextPG },
-  { "PrevPG", actionPrevPG },
-  { "UpperButton", actionUpperButtonSelect },
-  { "LowerButton", actionLowerButtonSelect },
-  { "LeftButton", actionLeftButtonSelect },
-  { "RightButton", actionRightButtonSelect},
-  { "ButtonActivate", actionButtonActivate },
-  { "TitleMenu", actionMenuCallTitle },
-  { "RootMenu", actionMenuCallRoot },
-  { "AudioMenu", actionMenuCallAudio },
-  { "AngleMenu", actionMenuCallAngle },
-  { "PTTMenu", actionMenuCallPTT },
-  { "SubtitleMenu", actionMenuCallSubpicture },
-  { "Resume", actionResume },
-  { "FullScreenToggle", actionFullScreenToggle },
-  { "SubtitleToggle", actionSubpictureToggle },
-  { "Quit", actionQuit },
-  { "BookmarkAdd", actionBookmarkAdd },
-  { "BookmarkRemove", actionBookmarkRemove },
-  { "BookmarkRestore", actionBookmarkRestore },
+  { "Play", actionPlay, NULL },
+  { "PauseToggle", actionPauseToggle, NULL },
+  { "Stop", NULL, NULL },
+  { "FastForward", actionFastForward, NULL },
+  { "SlowForward", actionSlowForward, NULL },
+  { "Faster", actionFaster, NULL },
+  { "Slower", actionSlower, NULL },
+  { "NextPG", actionNextPG, NULL },
+  { "PrevPG", actionPrevPG, NULL },
+  { "UpperButton", actionUpperButtonSelect, NULL },
+  { "LowerButton", actionLowerButtonSelect, NULL },
+  { "LeftButton", actionLeftButtonSelect, NULL },
+  { "RightButton", actionRightButtonSelect, NULL},
+  { "ButtonActivate", actionButtonActivate, NULL },
+  { "TitleMenu", actionMenuCallTitle, NULL },
+  { "RootMenu", actionMenuCallRoot, NULL },
+  { "AudioMenu", actionMenuCallAudio, NULL },
+  { "AngleMenu", actionMenuCallAngle, NULL },
+  { "PTTMenu", actionMenuCallPTT, NULL },
+  { "SubtitleMenu", actionMenuCallSubpicture, NULL },
+  { "Resume", actionResume, NULL },
+  { "FullScreenToggle", actionFullScreenToggle, NULL },
+  { "SubtitleToggle", actionSubpictureToggle, NULL },
+  { "Quit", actionQuit, NULL },
+  { "BookmarkAdd", actionBookmarkAdd, NULL },
+  { "BookmarkRemove", actionBookmarkRemove, NULL },
+  { "BookmarkRestore", actionBookmarkRestore, NULL },
+  { "DigitZero", actionDigit, (void *)&digits[0] },
+  { "DigitOne",  actionDigit, (void *)&digits[1] },
+  { "DigitTwo",  actionDigit, (void *)&digits[2] },
+  { "DigitThree",actionDigit, (void *)&digits[3] },
+  { "DigitFour", actionDigit, (void *)&digits[4] },
+  { "DigitFive", actionDigit, (void *)&digits[5] },
+  { "DigitSix",  actionDigit, (void *)&digits[6] },
+  { "DigitSeven",actionDigit, (void *)&digits[7] },
+  { "DigitEight",actionDigit, (void *)&digits[8] },
+  { "DigitNine", actionDigit, (void *)&digits[9] },
+  { "SkipForward", actionSkipForward, &user_nr },
+  { "SkipBackward", actionSkipBackward, &user_nr },
   { NULL, NULL }
 };
 
@@ -416,7 +487,7 @@ void do_keysym_action(KeySym keysym)
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
       if(ks_maps[n].fun != NULL) {
-	ks_maps[n].fun(NULL);
+	ks_maps[n].fun(ks_maps[n].arg);
       }
       return;
     }
@@ -433,18 +504,20 @@ void remove_keysym_binding(KeySym keysym)
     if(ks_maps[n].keysym == keysym) {
       ks_maps[n].keysym = NoSymbol;
       ks_maps[n].fun = NULL;
+      ks_maps[n].arg = NULL;
       return;
     }
   }
 }
 
-void add_keysym_binding(KeySym keysym, void(*fun)(void *))
+void add_keysym_binding(KeySym keysym, void(*fun)(void *), void *arg)
 {
   int n;
   
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
       ks_maps[n].fun = fun;
+      ks_maps[n].arg = arg;
       return;
     }
   }
@@ -456,6 +529,7 @@ void add_keysym_binding(KeySym keysym, void(*fun)(void *))
   
   ks_maps[ks_maps_index].keysym = keysym;
   ks_maps[ks_maps_index].fun = fun;
+  ks_maps[ks_maps_index].arg = arg;
   
   ks_maps_index++;
   
@@ -485,7 +559,7 @@ void add_keybinding(char *key, char *action)
   for(n = 0; actions[n].str != NULL; n++) {
     if(!strcmp(actions[n].str, action)) {
       if(actions[n].fun != NULL) {
-	add_keysym_binding(keysym, actions[n].fun);
+	add_keysym_binding(keysym, actions[n].fun, actions[n].ptr);
       }
       return;
     }
