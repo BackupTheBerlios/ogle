@@ -275,6 +275,8 @@ int eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
   
+  ifoPrint_COMMAND(0, cmd);
+  
   if(eval(cmd, 1, &state.registers, &link_values)) {
     if(link_values.command != PlayThis) {
       /* At the end of this PGC or we encountered a command. */
@@ -1114,18 +1116,15 @@ static int get_ID(int id)
   assert(pgcit != NULL);
   
   /* Get menu/title */
-  i = 0;
-  while(i < pgcit->nr_of_pgci_srp && 
-	((pgcit->pgci_srp[i].pgc_category >> 24) & 0x7f) != id)
-    i++;
-  if(i == pgcit->nr_of_pgci_srp) {
-    printf("** No such menu\n");
-    return -1; // error
+  for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
+    if(((pgcit->pgci_srp[i].pgc_category >> 24) & 0x7f) == id) {
+      assert(((pgcit->pgci_srp[i].pgc_category >> 24) & 0x80) == 0x80);
+      pgcN = i + 1;
+      return pgcN;
+    }
   }
-  assert(((pgcit->pgci_srp[i].pgc_category >> 24) & 0x80) == 0x80); 
-  pgcN = i + 1;
-  
-  return pgcN;
+  printf("** No such menu\n");
+  return -1; // error
 }
 
 
@@ -1137,7 +1136,7 @@ static int get_PGC(int pgcN)
   pgcit = get_PGCIT();
   
   assert(pgcit != NULL);
-  if(0 < pgcN && pgcN > pgcit->nr_of_pgci_srp)
+  if(pgcN < 0 || pgcN > pgcit->nr_of_pgci_srp)
     return -1; // error
   
   //state.pgcN = pgcN;
@@ -1158,6 +1157,7 @@ static int get_PGCN()
   while(pgcN <= pgcit->nr_of_pgci_srp) {
     if(pgcit->pgci_srp[pgcN - 1].pgc == state.pgc)
       return pgcN;
+    pgcN++;
   }
   
   return -1; // error

@@ -268,7 +268,7 @@ static void process_pci(pci_t *pci, uint16_t *btn_nr) {
 
 
 
-int pending_packets, discard_packets;
+int pending_lbn;
 int block;
 int still_time;
 cell_playback_t *cell;
@@ -276,8 +276,6 @@ cell_playback_t *cell;
 
 
 void do_init_cell(void) {
-  
-  discard_packets += pending_packets;
   
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
   still_time = cell->still_time;
@@ -344,8 +342,7 @@ void do_init_cell(void) {
   
   /* Get the pci/dsi data */
   send_demux_sectors(cell->first_sector + block, 1, 0);
-  pending_packets += 2;
-
+  pending_lbn = cell->first_sector + block;
 
 }
 
@@ -368,10 +365,9 @@ void do_run(void) {
   memset(&dsi, 0, sizeof(dsi_t));
   
   start_vm();
-  pending_packets = 0;
-  discard_packets = 0;
   block = 0;
   do_init_cell();
+  dsi.dsi_gi.nv_pck_lbn = -1;
   
   
   while(1) {
@@ -383,8 +379,8 @@ void do_run(void) {
     
     // For now.. later use the time instead..
     
-    /* If pending packets == 0 then we must have read a pci and a dsi packet */
-    if(pending_packets == 0
+    /* Have we read the last dsi packet we asked for? Then request the next. */
+    if(pending_lbn == dsi.dsi_gi.nv_pck_lbn
        && cell->first_sector + block <= cell->last_sector) {
       int flush_video;
       
@@ -416,7 +412,7 @@ void do_run(void) {
        * next nav pack. */
       if(cell->first_sector + block <= cell->last_sector) {
 	send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
-	pending_packets += 2;
+	pending_lbn = cell->first_sector + block;
       } else {
 	; // end of cell!
 	
@@ -437,6 +433,7 @@ void do_run(void) {
 	  state.HL_BTNN_REG = sl_button_nr << 10;
 	  if(eval_cmd(&pci.hli.btnit[sl_button_nr - 1].cmd)) {
 	    do_init_cell();
+	    dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
 	}
 #endif   	
@@ -445,8 +442,9 @@ void do_run(void) {
 
     
     { // Wait for data/input or time out of still
-      if(pending_packets != 0) {
-	assert(pending_packets > 0);
+      if(cell->first_sector + block <= cell->last_sector) {
+	assert(pending_lbn != dsi.dsi_gi.nv_pck_lbn 
+	       || pending_lbn != pci.pci_gi.nv_pck_lbn);
 	got_data = wait_q(msgq, &ev); // Wait for a data packet or a message
       } else { 
 	/* Handle cell pause and still time here */
@@ -459,8 +457,10 @@ void do_run(void) {
 	  MsgNextEvent(msgq, &ev);
 	
 	if(!still_time) // No more still time
-	  if(MsgCheckEvent(msgq, &ev)) // and no more messages
+	  if(MsgCheckEvent(msgq, &ev)) { // and no more messages
 	    do_next_cell();  // ???? XXXX ???? or demux more?
+	    dsi.dsi_gi.nv_pck_lbn = -1;
+	  }
       }
     }
     /* If we are here we either have a message or an available data packet */ 
@@ -502,7 +502,7 @@ void do_run(void) {
 	  
 	  // A button has already been activated, discard this event??
 	  
-	  if(/*have_pci &&*/ discard_packets == 0) {
+	  if(/*have_pci && !jump_in_progress*/ 1) {
 	    /* Update selected/activated button, send highlight info to spu */
 	    /* Returns true if a button is activated */
 	    if(process_button(&ev.dvdctrl.cmd, &pci, &state.HL_BTNN_REG)) {
@@ -512,15 +512,12 @@ void do_run(void) {
 	  break;
 	  
 	case DVDCtrlMenuCall:
-	  if(discard_packets == 0) {
-	    res = vm_menuCall(ev.dvdctrl.cmd.menucall.menuid, block);
-	  }
+	  fprintf(stderr, "Menu %i\n", ev.dvdctrl.cmd.menucall.menuid);
+	  res = vm_menuCall(ev.dvdctrl.cmd.menucall.menuid, block);
 	  break;
 	  
 	case DVDCtrlResume:
-	  if(discard_packets == 0) {
-	    res = vm_resume();
-	  }
+	  res = vm_resume();
 	  break;
 	  
 	case DVDCtrlGoUp:
@@ -550,6 +547,21 @@ void do_run(void) {
 	    send_ev.type = MsgEventQDemuxStreamChange;
 	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
 	    send_ev.demuxstreamchange.subtype = 0x80 | sN;
+	    if(send_demux(msgq, &send_ev) == -1) {
+	      fprintf(stderr, "vm: didn't set demuxstream\n");
+	    }
+	  }
+	  break;
+	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
+	  {
+	    MsgEvent_t send_ev;
+	    int sN;
+	    state.SPST_REG = ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+	    sN = get_Spu_stream(state.SPST_REG);
+	    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no spu_
+	    send_ev.type = MsgEventQDemuxStreamChange;
+	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
+	    send_ev.demuxstreamchange.subtype = 0x20 | sN;
 	    if(send_demux(msgq, &send_ev) == -1) {
 	      fprintf(stderr, "vm: didn't set demuxstream\n");
 	    }
@@ -585,7 +597,7 @@ void do_run(void) {
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
 	    send_ev.dvdctrl.cmd.audioattributes.streamnr 
-	      = ev.dvdctrl.cmd.audiostreamenabled.streamnr;
+	      = ev.dvdctrl.cmd.audioattributes.streamnr;
 	    memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
 		   sizeof(DVDAudioAttributes_t)); //TBD
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
@@ -615,7 +627,17 @@ void do_run(void) {
 	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
 	  }
 	  break;
- 	case DVDCtrlGetSubpictureAttributes:
+ 	case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
+	  {
+	    MsgEvent_t send_ev;
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureAttributes;
+	    send_ev.dvdctrl.cmd.subpictureattributes.streamnr 
+	      = ev.dvdctrl.cmd.subpictureattributes.streamnr;
+	    memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
+		   sizeof(DVDSubpictureAttributes_t)); //TBD
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	  }	  
 	  break;
 	default:
 	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
@@ -629,31 +651,29 @@ void do_run(void) {
       
       if(res != 0) {/* a jump has occured */
 	do_init_cell();
+	dsi.dsi_gi.nv_pck_lbn = -1;
       }
       
     } else { // We got a data to read.
       char buffer[2048];
       int len;
       
-      assert(pending_packets > 0);
+      assert(pending_lbn != dsi.dsi_gi.nv_pck_lbn);
       
       //fprintf(stderr, "Got a NAV packet\n");
       
       len = get_q(msgq, &buffer[0]);
       
-      if(discard_packets > 0) {
-	pending_packets--;
-	discard_packets--;
-	
-      } else if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
-	assert(pending_packets == 2);
-	pending_packets--;
+      if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
 	/* XXX inte läsa till pci utan något annat minne? */
 	read_pci_packet(&pci, &buffer[1], len);
-	
+	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
+	  fprintf(stdout, "Droped packet\n");
+	  continue;
+	}
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
 	  fprintf(stdout, "Menu detected\n");
-	  //print_pci_packet(stdout, &pci);
+	  print_pci_packet(stdout, &pci);
 	}
 	
 	/* !!! Evaluate and Instantiate the new pci packets !!! */
@@ -663,10 +683,10 @@ void do_run(void) {
 	  state.HL_BTNN_REG = sl_button_nr << 10;
 	}
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
-	assert(pending_packets == 1);
-	pending_packets--;
 	/* XXX inte läsa till dsi utan något annat minne? */
 	read_dsi_packet(&dsi, &buffer[1], len);
+	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn)
+	  fprintf(stdout, "Droped packet\n");
 	//print_dsi_packet(stderr, &dsi);
 	  
       } else {
