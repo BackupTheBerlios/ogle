@@ -36,6 +36,7 @@ int get_channel_configs(channel_config_t **conf);
 
 double get_a52_level(void);
 int get_a52_drc(void);
+int get_a52_stereo_mode(void);
 
 char *get_sync_type(void);
 int get_sync_resample(void);

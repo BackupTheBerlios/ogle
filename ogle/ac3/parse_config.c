@@ -43,6 +43,7 @@ static int nr_ch_conf = 0;
 /* liba52 specific config */
 static double a52_level = 1;
 static int a52_drc = 0;
+static int a52_stereo_mode = 2;
 
 static char *audio_driver = NULL;
 
@@ -177,6 +178,8 @@ static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
 	    ct = ChannelType_MPEG;
 	  } else if(!strcmp("LPCM", s)) {
 	    ct = ChannelType_LPCM;
+	  } else if(!strcmp("Mono", s)) {
+	    ct = ChannelType_Mono;
 	  } else {
 	    ct = ChannelType_Unspecified;
 	    WARNING("'%s' is not a valid <chtype>\n", s); 
@@ -188,12 +191,11 @@ static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
 				   sizeof(ChannelType_t) * conf->nr_ch);
 	    conf->chtype[conf->nr_ch-1] = ct;
 	  }
+	  free(s);
+	  s = NULL;
 	} else {
 	  WARNING("%s", "<chtype> is empty\n"); 
 	}
-      }
-      if(s) {
-	free(s);
       }
       first = 0;
     }
@@ -247,6 +249,11 @@ int get_a52_drc(void)
   return a52_drc;
 }
 
+int get_a52_stereo_mode(void)
+{
+  return a52_stereo_mode;
+}
+
 static void parse_liba52(xmlDocPtr doc, xmlNodePtr cur)
 {
   xmlChar *s = NULL;
@@ -268,9 +275,20 @@ static void parse_liba52(xmlDocPtr doc, xmlNodePtr cur)
 	    a52_drc = 0;
 	  }
 	}
+      } else if(!strcmp("stereo_mode", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(!strcmp("main", s)) {
+	    a52_stereo_mode = 0;
+	  } else if(!strcmp("front", s)) {
+	    a52_stereo_mode = 1;
+	  } else { // "dolby"
+	    a52_stereo_mode = 2;
+	  }
+	}
       }
       if(s) {
 	free(s);
+	s = NULL;
       }
     }
     cur = cur->next;
