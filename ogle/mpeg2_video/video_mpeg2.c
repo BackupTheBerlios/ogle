@@ -1189,7 +1189,8 @@ void macroblock(void)
 	if(mb.cbp & (1<<(5-i))) {
 	  DPRINTF(4, "cbpindex: %d set\n", i);
 	  block_non_intra(i);
-	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+	  mlib_VideoIDCT_IEEE_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+	  //	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
 	  motion_comp_add_coeff(i);
 	}
       }

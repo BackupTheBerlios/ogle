@@ -516,7 +516,7 @@ int get_q()
     int sval;
     sem_getvalue(&q_head->bufs_full, &sval);
     
-    if(sval < 200) {
+    if(sval < 50) {
       fprintf(stderr, "* Q %d\n", sval);
     }
   }
