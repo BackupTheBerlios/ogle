@@ -1,2 +1,4 @@
+.deps
 Makefile
+Makefile.in
 mpg123_wrap

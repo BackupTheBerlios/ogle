@@ -1,2 +1,4 @@
+.deps
 Makefile
+Makefile.in
 ac3dec_wrap

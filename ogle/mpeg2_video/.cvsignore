@@ -1,2 +1,6 @@
+.deps
 Makefile
+Makefile.in
 video_stream
+video_output
+*.s
