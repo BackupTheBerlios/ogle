@@ -6,7 +6,7 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This program is distributed in the hope that it will be useful, 
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
@@ -229,8 +229,9 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
 }
 
 /** 
- * Check if mouse coords are over any highlighted area 
- * Returns the button number if the the coordinate is enclosed in the area.
+ * Check if mouse coords are over any highlighted area.
+ * 
+ * @return The button number if the the coordinate is enclosed in the area.
  * Zero otherwise.
  */
 
