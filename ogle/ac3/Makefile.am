@@ -15,10 +15,14 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS = ac3dec_wrap
+bin_PROGRAMS = ac3dec_wrap a52_decoder
 
-INCLUDES = @TOP_INCLUDES@
+INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@
 
 ac3dec_wrap_SOURCES = ac3dec_wrap.c
 ac3dec_wrap_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
+
+a52_decoder_SOURCES = a52_decoder.c
+a52_decoder_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la @A52_LIBS@
