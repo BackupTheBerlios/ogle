@@ -1243,9 +1243,13 @@ int create_msgq(MsgEventQ_t *q)
       char sock_dir[108];
       struct sockaddr_un server_addr;
       int server_sd;
+      char *tmpdir;
       
+      if(!(tmpdir = getenv("TMPDIR"))) {
+	tmpdir = P_tmpdir;
+      }
       snprintf(sock_dir, sizeof(sock_dir),
-	       "%s.%d", "/tmp/ogle", getpid());
+	       "%s/%s.%d", tmpdir, "ogle", getpid());
       
       if(mkdir(sock_dir, 0700) == -1) {
 	perror("ctrl: mkdir");
