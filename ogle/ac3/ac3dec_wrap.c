@@ -65,7 +65,7 @@ static char *data_buf_shmaddr;
 static int msgqid = -1;
 static MsgEventQ_t *msgq;
 
-static int flush_to_scrnr = -1;
+static int flush_to_scrid = -1;
 
 static int prev_scr_nr = 0;
 
@@ -146,7 +146,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQFlushData:
     DPRINTF(1, "ac3wrap: got flush\n");
-    flush_to_scrnr = ev->flushdata.to_scrnr;
+    flush_to_scrid = ev->flushdata.to_scrid;
     break;
   case MsgEventQDecodeStreamBuf:
     DPRINTF(1, "ac3wrap: got stream %x, %x buffer \n",
@@ -285,8 +285,8 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
 
-  if(flush_to_scrnr != -1) {
-    if(flush_to_scrnr != scr_nr) {
+  if(flush_to_scrid != -1) {
+    if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {
 
       q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
       
@@ -304,7 +304,7 @@ int get_q()
 
       return 0;
     } else {
-      flush_to_scrnr = -1;
+      flush_to_scrid = -1;
     }
   }
  
