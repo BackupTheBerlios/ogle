@@ -1552,13 +1552,15 @@ void ifoFree_PGCI_UT(ifo_handle_t *ifofile) {
   if(!ifofile)
     return;
   
-  for(i = 0; i < ifofile->pgci_ut->nr_of_lus; i++) {
-    ifoFree_PGCIT_internal(ifofile->pgci_ut->lu[i].pgcit);
-    free(ifofile->pgci_ut->lu[i].pgcit);
+  if(ifofile->pgci_ut) {
+    for(i = 0; i < ifofile->pgci_ut->nr_of_lus; i++) {
+      ifoFree_PGCIT_internal(ifofile->pgci_ut->lu[i].pgcit);
+      free(ifofile->pgci_ut->lu[i].pgcit);
+    }
+    free(ifofile->pgci_ut->lu);
+    free(ifofile->pgci_ut);
+    ifofile->pgci_ut = 0;
   }
-  free(ifofile->pgci_ut->lu);
-  free(ifofile->pgci_ut);
-  ifofile->pgci_ut = 0;
 }
 
 static int ifoRead_VTS_ATTRIBUTES(ifo_handle_t *ifofile, 
