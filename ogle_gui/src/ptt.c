@@ -66,7 +66,7 @@ void ptt_menu_update(void) {
 
   res = DVDGetTitles(nav, &num_titles);
   if(res != DVD_E_Ok) {
-    DVDPerror("ptt_menu_update: DVDGettPTTsForTitle(1)", res);
+    DVDPerror("ptt_menu_update: DVDGetTitles(1)", res);
     return;
   } 
   for (i=1; i <= num_titles; i++) {
@@ -76,9 +76,9 @@ void ptt_menu_update(void) {
     GtkWidget *submenu_item;
     char* label;
 
-    res = DVDGetPTTsForTitle(nav, i, &num_ptts);
+    res = DVDGetNumberOfPTTs(nav, i, &num_ptts);
     if(res != DVD_E_Ok) {
-      DVDPerror("ptt_menu_update: DVDGettPTTsForTitle(1)", res);
+      DVDPerror("ptt_menu_update: DVDGetNumberOfPTTs(1)", res);
       return;
     } 
 
