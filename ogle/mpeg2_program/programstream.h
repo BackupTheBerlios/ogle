@@ -1,4 +1,5 @@
-#include <inttypes.h>
+#include "../include/common.h"
+
 
 //#define LITTLE_ENDIAN
 #define BIG_ENDIAN 
@@ -27,22 +28,4 @@
 #define MPEG2_PRIVATE_STREAM_1 0xBD
 #define MPEG2_PADDING_STREAM 0xBE
 #define MPEG2_PRIVATE_STREAM_2 0xBF
-
-enum {
-      PACK_TYPE_OFF_LEN, 
-      PACK_TYPE_LOAD_FILE
-     };
-
-
-struct off_len_packet {
-	               uint32_t cmd;
-                       uint32_t off;
-                       uint32_t len;
-                      };
-
-struct load_file_packet {
-                         uint32_t  cmd;
-                         uint32_t len;
-                         char     payload[200];   // HACK ALERT!
-                        };
 

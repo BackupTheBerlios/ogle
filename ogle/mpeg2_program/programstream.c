@@ -723,6 +723,10 @@ void segvhandler (void)
   // main if you suspect this.
   if (offs > infilelen) {
     DPRINTF(1, "Reached end of mmapped file.\n");
+    // TODO
+    //
+    // loadinputfile( next_file );
+    // goto while(1)-loop in main.;
   } else {
     fprintf(stderr, "Segmentation fault. Idiot.\n");
   }
@@ -730,9 +734,53 @@ void segvhandler (void)
   exit(0);
 }
 
+void loadinputfile(char *infilename)
+{
+  struct stat statbuf;
+  int rv;
+  struct load_file_packet packet;
+  
+  infilefd = open(infilename, O_RDONLY);
+  if(infilefd == -1) {
+    perror(infilename);
+    exit(1);
+  }
+  rv = fstat(infilefd, &statbuf);
+  if (rv == -1) {
+    perror("fstat");
+    exit(1);
+  }
+  buf = (uint8_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
+  if(buf == MAP_FAILED) {
+    perror("mmap");
+    exit(1);
+  }
+  infilelen = statbuf.st_size;
+  rv = madvise(buf, infilelen, MADV_SEQUENTIAL);
+  if(rv == -1) {
+    perror("madvise");
+    exit(1);
+  }
+  DPRINTF(1, "All mmap systems ok!\n");
+  
+  //Sending "load-this-file" packet to listeners
+  
+  packet.cmd = PACK_TYPE_LOAD_FILE;
+  packet.len = strlen(infilename);
+  strcpy((char *)&(packet.filename), infilename);
+  
+  if(video)
+    fwrite(&packet, packet.len+8, 1, video_file);
+  if(audio)
+    fwrite(&packet, packet.len+8, 1, audio_file);
+  if(subtitle)
+    fwrite(&packet, packet.len+8, 1, subtitle_file); 
+}
+
+
 int main(int argc, char **argv)
 {
-  int c; 
+  int c, rv; 
   struct sigaction sig;
   program_name = argv[0];
 
@@ -792,62 +840,20 @@ int main(int argc, char **argv)
       perror("buf");
       exit(1);
     }
-  } else {
-    struct stat statbuf;
-    int rv;
-    struct load_file_packet packet;
-    
-    infilefd = open(argv[optind], O_RDONLY);
-    if(infilefd == -1) {
-      perror(argv[optind]);
-      exit(1);
-    }
-    rv = fstat(infilefd, &statbuf);
-    if (rv == -1) {
-      perror("fstat");
-      exit(1);
-    }
-    buf = (uint8_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
-    if(buf == MAP_FAILED) {
-      perror("mmap");
-      fprintf(stderr,"Using fopen\n");
-      using_pipe_for_input = TRUE;
-      DPRINTF(1, "using_pipe_for_input = TRUE");
-    } else {
-      infilelen = statbuf.st_size;
-      rv = madvise(buf, statbuf.st_size, MADV_SEQUENTIAL);
-      if(rv == -1) {
-	perror("madvise");
-	exit(1);
-      }
-      DPRINTF(1, "All mmap system ok!\n");
+  } 
 
-      //Sending "load-this-file" packet to listeners
+  loadinputfile(argv[optind]);
 
-      packet.cmd = PACK_TYPE_LOAD_FILE;
-      packet.len = strlen(argv[optind]);
-      strcpy((char *)&(packet.payload), argv[optind]);
-      
-      if(video)
-	fwrite(&packet, packet.len+8, 1, video_file);
-      if(audio)
-	fwrite(&packet, packet.len+8, 1, audio_file);
-      if(subtitle)
-	fwrite(&packet, packet.len+8, 1, subtitle_file);
-      
-      // Setup signal handler for SEGV, to detect that we ran 
-      // out of file without a test.
- 
-     sig.sa_handler = segvhandler;
-      rv = sigaction(SIGSEGV, &sig, NULL);
-      if(rv == -1) {
-	perror("sighandler");
-	exit(1);
-      }
-      DPRINTF(1, "Signal handler installed!\n");
-    }
+  // Setup signal handler for SEGV, to detect that we ran 
+  // out of file without a test.
+  
+  sig.sa_handler = segvhandler;
+  rv = sigaction(SIGSEGV, &sig, NULL);
+  if(rv == -1) {
+    perror("sighandler");
+    exit(1);
   }
-  //  printf("infile: %s\n",argv[optind]);
+  DPRINTF(1, "Signal handler installed!\n");
   
   if(subtitle ^ !!subtitle_id) {  // both arguments needed.
     if(!subtitle) {
