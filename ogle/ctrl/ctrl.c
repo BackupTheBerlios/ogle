@@ -366,7 +366,7 @@ int request_capability(MsgEventQ_t *q, int cap,
     if(child_killed) {
       cleanup();
     }
-    if(MsgNextEvent(q, &r_ev) == -1) {
+    if(MsgNextEventInterruptible(q, &r_ev) == -1) {
       switch(errno) {
       case EINTR:
 	continue;
@@ -515,7 +515,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	  if(child_killed) {
 	    cleanup();
 	  }
-	  if(MsgNextEvent(q, &r_ev) == -1) {
+	  if(MsgNextEventInterruptible(q, &r_ev) == -1) {
 	    switch(errno) {
 	    case EINTR:
 	      continue;
@@ -615,7 +615,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	if(child_killed) {
 	  cleanup();
 	}
-	if(MsgNextEvent(q, &r_ev) == -1) {
+	if(MsgNextEventInterruptible(q, &r_ev) == -1) {
 	  switch(errno) {
 	  case EINTR:
 	    continue;
@@ -855,7 +855,7 @@ int main(int argc, char *argv[])
     if(child_killed) {
       cleanup();
     }
-    if(MsgNextEvent(&q, &ev) == -1) {
+    if(MsgNextEventInterruptible(&q, &ev) == -1) {
       switch(errno) {
       case EINTR:
 	continue;

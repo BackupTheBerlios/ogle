@@ -150,7 +150,7 @@ void wait_for_q_attach(void)
   //DNOTE("waiting for attachq\n");
   
   while(ev.type != MsgEventQAttachQ) {
-    if(MsgNextEvent(msgq, &ev) == -1) {
+    if(MsgNextEventInterruptible(msgq, &ev) == -1) {
       switch(errno) {
       case EINTR:
 	continue;
@@ -585,7 +585,7 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
       MsgEvent_t ev;
       
       // check any events that arrives 
-      if(MsgNextEvent(msgq, &ev) == -1) {
+      if(MsgNextEventInterruptible(msgq, &ev) == -1) {
 	switch(errno) {
 	case EINTR:
 	  end_of_wait = 1;
@@ -647,7 +647,7 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
       timer.it_value.tv_usec = 100000; //0.1 sec
       setitimer(ITIMER_REAL, &timer, NULL);
       //DNOTE("waiting for notification\n");
-      if(MsgNextEvent(msgq, &ev) == -1) {
+      if(MsgNextEventInterruptible(msgq, &ev) == -1) {
 	switch(errno) {
 	case EINTR:
 	  continue;
@@ -1135,7 +1135,7 @@ int main(int argc, char **argv)
     //DNOTE("waiting for attachq\n");
     
     while(ev.type != MsgEventQAttachQ) {
-      if(MsgNextEvent(msgq, &ev) == -1) {
+      if(MsgNextEventInterruptible(msgq, &ev) == -1) {
 	switch(errno) {
 	case EINTR:
 	  continue;
