@@ -800,7 +800,7 @@ void init_out_q(int nr_of_bufs)
 			nr_of_bufs * sizeof(int));
 
   /* Get shared memory and identifiers. */
-  buf_ctrl_shmid = shmget(IPC_PRIVATE, buf_ctrl_size, IPC_CREAT | 0666);
+  buf_ctrl_shmid = shmget(IPC_PRIVATE, buf_ctrl_size, IPC_CREAT | 0600);
   if( buf_ctrl_shmid == -1) {
     perror("shmget buf_ctrl");
     exit_program(1);
@@ -861,7 +861,7 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
 
   // Get shared memory and identifiers
   picture_buffers_shmid
-    = shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0666);
+    = shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0600);
   if (picture_buffers_shmid == -1) {
     perror("shmget picture_buffers");
     exit_program(1);
@@ -1648,9 +1648,11 @@ void picture_data(void)
       pinfos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr].realtime_offset;
       pinfos[buf_id].scr_nr = last_scr_nr;
+      /*
       fprintf(stderr, "#%ld.%09ld\n",
 	      pinfos[buf_id].pts_time.tv_sec,
 	      pinfos[buf_id].pts_time.tv_nsec);
+      */
     } else {
       /* Predict if we don't already have a pts for the frame. */
       uint64_t calc_pts;
@@ -1758,10 +1760,11 @@ void picture_data(void)
       if(((err_time.tv_nsec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
 	fprintf(stderr, "!");
 	  
+	/*
 	fprintf(stderr, "errpts %ld.%+010ld\n\n",
 		err_time.tv_sec,
 		err_time.tv_nsec);
-	  
+	*/
 	  
 	/* mark the frame to be dropped */
 	drop_frame = 1;

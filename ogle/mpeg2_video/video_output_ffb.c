@@ -106,7 +106,6 @@ static int scalemode_change = 0;
 #endif /* HAVE_MLIB */
 
 
-void exit_program(int);
 
 static void draw_win(debug_win *dwin);
 
@@ -341,7 +340,6 @@ void display_init(int padded_width, int padded_height,
   return;
   
  shmemerror:
-  // exit_program();
   exit(1);
 
 }
@@ -597,7 +595,6 @@ void display(yuv_image_t *current_image)
 	  break;
 	case 'q':
 	  display_exit();
-	  exit_program(0);
 	  break;
 	case 's':
 	  scalemode_change = 1;

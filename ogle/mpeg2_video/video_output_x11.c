@@ -100,7 +100,6 @@ static int scalemode_change = 0;
 #endif /* HAVE_MLIB */
 
 
-void exit_program(int);
 
 static void draw_win(debug_win *dwin);
 
@@ -327,7 +326,6 @@ void display_init(int padded_width, int padded_height,
   return;
   
  shmemerror:
-  // exit_program();
   exit(1);
 
 }
@@ -362,9 +360,8 @@ void display_change_size(int new_width, int new_height) {
     fprintf(stderr, "Shared memory: Couldn't detache segment\n");
     exit(-10);
   }
-  shmctl(shm_info.shmid, IPC_RMID, 0);
-  if(shm_info.shmid == -1) {
-    fprintf(stderr, "Shared memory: Couldn't rm segment\n");
+  if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
+    perror("shmctl ipc_rmid");
     exit(-10);
   }
   XSync(mydisplay, True);
@@ -583,7 +580,6 @@ void display(yuv_image_t *current_image)
 	  break;
 	case 'q':
 	  display_exit();
-	  exit_program(0);
 	  break;
 	case 's':
 	  scalemode_change = 1;

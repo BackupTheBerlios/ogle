@@ -20,6 +20,8 @@
 #include <stdlib.h>
 
 #include <glib.h>
+#include <signal.h>
+
 #include "../include/common.h"
 #include "video_types.h"
 
@@ -27,8 +29,8 @@ extern buf_ctrl_head_t *buf_ctrl_head;
 extern void display(yuv_image_t *current_image);
 extern void display_init(int padded_width, int padded_height,
 			 int horizontal_size, int vertical_size);
-extern void exit_program(int);
 
+extern void display_exit(void);
 
 int get_next_picture_buf_id()
 {
@@ -123,13 +125,18 @@ static void timeadd(struct timespec *d,
 }  
 
 
-
+void int_handler()
+{
+  display_exit();
+  exit(0);
+}
 
 void display_process()
 {
   struct timespec real_time, prefered_time, wait_time, frame_interval;
   struct timespec real_time2, diff, avg_time, oavg_time;
   struct timespec calc_rt, err_time;
+  struct sigaction sig;
   int buf_id;
   int drop = 0;
   int frame_nr = 0;
@@ -140,6 +147,9 @@ void display_process()
   //frame_interval.tv_nsec = 33366700; // 29.97 fps
   frame_interval.tv_nsec = 41666666; //24 fps
   prefered_time.tv_sec = 0;
+
+  sig.sa_handler = int_handler;
+  sigaction(SIGINT, &sig, NULL);
 
   while(1) {
     buf_id = get_next_picture_buf_id();
