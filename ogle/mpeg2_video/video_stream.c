@@ -1615,7 +1615,7 @@ void dpy_q_put(int id)
   
 }
 
-#define FPS_FRAMES 480
+#define FPS_FRAMES 120
 /* 6.2.3.6 Picture data */
 void picture_data(void)
 {
@@ -1646,7 +1646,8 @@ void picture_data(void)
     timesub(&elapsed, &ct_end, &ct_beg);
     ct_beg = ct_end;
     
-    fps = TIME_S(elapsed)*100 + TIME_SS(elapsed)/(CT_FRACTION/100); // 100x fps
+    fps = ((FPS_FRAMES*10000) 
+	   / (TIME_S(elapsed)*100 + TIME_SS(elapsed)/(CT_FRACTION/100)));
     fprintf(stderr, "decode fps: %d.%02d\n", fps / 100, fps % 100);
   }
   
@@ -2606,14 +2607,6 @@ void exit_program(int exitcode)
   
 #ifdef TIMESTAT
   timestat_print();
-#endif
-
-  fprintf(stderr, "\nCompiled with:\n");
-#ifdef DCFLAGS
-  fprintf(stderr, "\tCFLAGS = %s\n", DCFLAGS);
-#endif
-#ifdef DLDFLAGS
-  fprintf(stderr, "\tLDFLAGS = %s\n", DLDFLAGS);
 #endif
 
   exit(exitcode);

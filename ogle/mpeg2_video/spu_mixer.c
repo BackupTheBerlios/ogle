@@ -352,6 +352,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   data_elem_t *data_elem;
   int elem;
   
+  uint8_t *data_buffer;
   uint8_t PTS_DTS_flags;
   uint64_t PTS;
   uint64_t DTS;
@@ -378,11 +379,12 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
     fprintf(stderr, "spu_mixer: get element\n");
   }
   data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
-  change_file(data_elem->filename);
+  //change_file(data_elem->filename);
 
   off = data_elem->off;
   len = data_elem->len;
@@ -418,7 +420,8 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
     cpy_len = readlen;
   }
   //fprintf(stderr, "spu_mixer: cpy_len: %d\n", cpy_len);
-  memcpy(dst, mmap_base+off+read_offset, cpy_len);
+  //memcpy(dst, mmap_base+off+read_offset, cpy_len);
+  memcpy(dst, data_buffer+off+read_offset, cpy_len);
   
   if(cpy_len+read_offset == len) {
     read_offset = 0;

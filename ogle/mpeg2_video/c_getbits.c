@@ -76,6 +76,7 @@ uint32_t *buf;
 uint32_t buf_size;
 struct off_len_packet packet;
 uint8_t *mmap_base = NULL;
+uint8_t *data_buffer = NULL;
 
 #else // Normal i/o
 uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
@@ -192,7 +193,8 @@ void get_next_packet()
 
 void read_buf()
 {
-  uint8_t *packet_base = &mmap_base[packet.offset];
+  //  uint8_t *packet_base = &mmap_base[packet.offset];
+  uint8_t *packet_base = &data_buffer[packet.offset];
   int end_bytes;
   int i, j;
   
@@ -212,7 +214,8 @@ void read_buf()
   if( (64-bits_left) >= 24 ) {
     int start_bytes;
     get_next_packet(); // Get new packet struct
-    packet_base = &mmap_base[packet.offset];
+    // packet_base = &mmap_base[packet.offset];
+    packet_base = &data_buffer[packet.offset];
     
     /* How many bytes to the next 4 byte boundary? (0, 1, 2 or 3). */
     start_bytes = (4 - ((long)packet_base % 4)) % 4; 
@@ -403,6 +406,7 @@ int get_q()
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
+  data_buf_head_t *data_head;
   data_elem_t *data_elems;
   data_elem_t *data_elem;
   int elem;
@@ -478,7 +482,8 @@ int get_q()
   have_buf++;
 
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
-
+  data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
   data_elem = &data_elems[q_elems[elem].data_elem_index];
   
   PTS_DTS_flags = data_elem->PTS_DTS_flags;
@@ -491,11 +496,12 @@ int get_q()
   }
   
   
-  change_file(data_elem->filename);
+  //change_file(data_elem->filename);
   
   off = data_elem->off;
   len = data_elem->len;
   
+#if 0
   switch(data_elem->flowcmd) {
   case FlowCtrlCompleteVideoUnit:
     if(mmap_base != dummy_buf) {
@@ -512,6 +518,24 @@ int get_q()
     } 
     break;
   }
+#endif
+ switch(data_elem->flowcmd) {
+  case FlowCtrlCompleteVideoUnit:
+    if(data_buffer != dummy_buf) {
+      tmp_base = data_buffer;
+      data_buffer = dummy_buf;
+      off = 0;
+      len = 8;
+    }
+    break;
+  case FlowCtrlNone:
+  default:
+    if(data_buffer == dummy_buf) {
+      data_buffer = tmp_base;
+    } 
+    break;
+  }
+  
   packet.offset = off;
   packet.length = len;
   /*
