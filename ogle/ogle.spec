@@ -9,8 +9,8 @@ Copyright: GPL
 Group: Applications/Multimedia
 Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-Requires: libdvdread >= 0.9.2, libdvdcss >= 0.0.3, libjpeg, libxml2 >= 2.4.5
-BuildRequires: libdvdread-devel >= 0.9.2, libdvdcss-devel >= 0.0.3, libjpeg-devel, a52dec-devel, libxml2-devel >= 2.4.5
+Requires: libdvdread >= 0.9.2, libdvdcss >= 0.0.3, libjpeg, libxml2
+BuildRequires: libdvdread-devel >= 0.9.2, libdvdcss-devel >= 0.0.3, libjpeg-devel, a52dec-devel, libxml2-devel
 ExclusiveArch: i686 i586 ppc
 
 %description
