@@ -20,7 +20,7 @@ AC_CHECK_GENERATE_INTTYPES([include])
 
 
 dnl Checks for header files.
-AC_CHECK_HEADERS([byteswap.h sys/bswap.h sys/endian.h stropts.h])
+AC_CHECK_HEADERS([byteswap.h sys/bswap.h sys/endian.h sys/param.h stropts.h])
 
 dnl Find X Window System
 AC_PATH_XTRA
