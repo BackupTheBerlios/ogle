@@ -64,7 +64,7 @@ fi
 if test -z "$DVD_LIBS" ; then
  AC_MSG_ERROR(You need libdvdread)
 fi
-dnl Linux and Solaris needs this to prototype lseek64 and others
+dnl Linux needs this to prototype lseek64 and others
 DVD_CFLAGS="-D_LARGEFILE64_SOURCE $DVD_CFLAGS"
 AC_SUBST(DVD_CFLAGS)
 AC_SUBST(DVD_LIBS)
