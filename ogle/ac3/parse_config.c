@@ -25,8 +25,6 @@
 
 #include "debug_print.h"
 
-extern char *program_name;
-
 
 /* Put all of these in a struct that is returned instead */
 static char *audio_device;

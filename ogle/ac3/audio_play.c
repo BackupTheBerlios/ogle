@@ -23,7 +23,6 @@
 #include "audio_play.h"
 #include "decode_private.h" // FIXME
 
-extern char *program_name;
 extern ctrl_data_t *ctrl_data;
 extern ctrl_time_t *ctrl_time;
 
