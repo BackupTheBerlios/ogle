@@ -33,7 +33,7 @@
 #include "audio_config.h"
 #include "conversion.h"
 #include "audio_play.h"
-
+#include "audio_types.h"
 #include "debug_print.h"
 
 typedef struct {
