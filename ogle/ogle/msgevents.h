@@ -99,7 +99,12 @@ typedef enum {
   MsgEventQInputButtonRelease,
   MsgEventQInputPointerMotion,
   MsgEventQInputKeyPress,
-  MsgEventQInputKeyRelease
+  MsgEventQInputKeyRelease,
+  MsgEventQDestroyBuf,
+  MsgEventQAppendQ,
+  MsgEventQDetachQ,
+  MsgEventQQDetached,
+  MsgEventQDestroyQ
 } MsgEventType_t;
 
 
@@ -120,6 +125,7 @@ typedef struct {
   int y;
   int x_root;
   int y_root;
+  unsigned long time; /* milliseconds */
   unsigned long mod_mask; /* X modifiers (keys/buttons)*/
   unsigned long input;
 } MsgQInputEvent_t;
@@ -225,6 +231,13 @@ typedef struct {
   MsgEventQ_t *q;
   MsgEventClient_t client;
   int shmid;
+} MsgQDestroyBufEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int shmid;
   int size;
 } MsgQGntBufEvent_t;
 
@@ -322,6 +335,13 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  int q_shmid;
+} MsgQDetachQEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
   MsgQPlayCtrlCmd_t cmd;
   int from;
   int to;
@@ -414,10 +434,12 @@ typedef union {
   MsgQDecodeStreamBufEvent_t decodestreambuf;
   MsgQReqBufEvent_t reqbuf;
   MsgQGntBufEvent_t gntbuf;
+  MsgQDestroyBufEvent_t destroybuf;
   MsgQCtrlDataEvent_t ctrldata;
   MsgQReqPicBufEvent_t reqpicbuf;
   MsgQGntPicBufEvent_t gntpicbuf;
   MsgQAttachQEvent_t attachq;
+  MsgQDetachQEvent_t detachq;
   MsgQSPUPaletteEvent_t spupalette;
   MsgQSPUHighlightEvent_t spuhighlight;
   MsgQSpeedEvent_t speed;
