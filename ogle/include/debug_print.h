@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+/* Ugly hack to get the right identifier in the messages */
+extern char *program_name;
+
 #ifdef DEBUG
 
 unsigned int debug;
@@ -22,19 +25,19 @@ int debug_indent_level;
 #if defined(__GNUC__) && ( __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95))
 
 #define FATAL(str, args...) \
-fprintf(stderr, "FATAL[%s]: " str, program_name, ## args)
+fprintf(stderr, "FATAL[%s]: " str, program_name , ## args)
 
 #define ERROR(str, args...) \
-fprintf(stderr, "ERROR[%s]: " str, program_name, ## args)
+fprintf(stderr, "ERROR[%s]: " str, program_name , ## args)
 
-#define WARNING(str, ...) \
-fprintf(stderr, "WARNING[%s]: " str, program_name, ## args)
+#define WARNING(str, args...) \
+fprintf(stderr, "WARNING[%s]: " str, program_name , ## args)
 
 #define NOTE(str, args...) \
-fprintf(stderr, "Note[%s]: " str, program_name, ## args)
+fprintf(stderr, "Note[%s]: " str, program_name , ## args)
 
 #define DNOTE(str, args...) \
-fprintf(stderr, "Debug[%s]: " str, program_name, ## args)
+fprintf(stderr, "Debug[%s]: " str, program_name , ## args)
 
 #ifdef DEBUG
 
