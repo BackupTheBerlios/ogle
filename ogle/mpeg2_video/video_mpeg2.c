@@ -1172,27 +1172,46 @@ void mpeg2_slice(void)
 	/* In a P-picture when a macroblock is skipped */
 	reset_PMV();
 	reset_vectors();
-	/* mlib is broken!!! 
-	{
-	   int x = (seq.mb_column-macroblock_address_increment);
-	   int y = seq.mb_row;
-	   int offs_y = x * 16 + y * 16 * seq.mb_width * 16;
-	   int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
-	   mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
-				   &fwd_ref_image->y[offs_y], 
-				   macroblock_address_increment*16, 
-				   16, (seq.mb_width * 16));
-	   mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
-				   &fwd_ref_image->u[offs_uv],
-				   macroblock_address_increment*8,
-				   8, (seq.mb_width * 16)/2);
-	   mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
-				   &fwd_ref_image->v[offs_uv],
-				   macroblock_address_increment*8,
-				   8, (seq.mb_width * 16)/2);
-        }
-	*/
 	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+	/* mlib is broken!!! 
+	   {
+	     int x = (seq.mb_column-macroblock_address_increment);
+	     int y = seq.mb_row;
+	     int offs_y = x * 16 + y * 16 * seq.mb_width * 16;
+	     int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
+	     mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
+				     &fwd_ref_image->y[offs_y], 
+				     macroblock_address_increment*16, 
+				     16, (seq.mb_width * 16));
+	     mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
+				     &fwd_ref_image->u[offs_uv],
+				     macroblock_address_increment*8,
+				     8, (seq.mb_width * 16)/2);
+	     mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
+				     &fwd_ref_image->v[offs_uv],
+				     macroblock_address_increment*8,
+				     8, (seq.mb_width * 16)/2);
+          }
+	*/
+#if HAVE_ALTIVEC
+	  unsigned int x, y;
+	  const int x = seq.mb_column - macroblock_address_increment;
+	  const int y = seq.mb_row;
+	  const int offs_y = x * 16 + y * 16 * seq.mb_width * 16;
+	  const int offs_uv = x * 8 + y *  8 * seq.mb_width *  8;
+	  mlib_VideoCopyRef_U8_U8_16x16_multiple(&dst_image->y[offs_y],
+						 &fwd_ref_image->y[offs_y],
+						 seq.mb_width * 16,
+						 macroblock_address_increment);
+	  mlib_VideoCopyRef_U8_U8_8x8_multiple(&dst_image->u[offs_uv],
+					       &fwd_ref_image->u[offs_uv],
+					       seq.mb_width * 8,
+					       macroblock_address_increment);
+	  mlib_VideoCopyRef_U8_U8_8x8_multiple(&dst_image->v[offs_uv],
+					       &fwd_ref_image->v[offs_uv],
+					       seq.mb_width * 8,
+					       macroblock_address_increment);
+#else
 	  unsigned int x, y;
 	  /* 7.6.6.2 P frame picture */
 	  x = (seq.mb_column-macroblock_address_increment)*16;
@@ -1212,6 +1231,7 @@ void mpeg2_slice(void)
 		   &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
 		   macroblock_address_increment*8);
 	  }
+#endif
 	} else {
 	  // Optimize this case too?  Maybe move all this to video_motion
 	  unsigned int old_col = seq.mb_column;
