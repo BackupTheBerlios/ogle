@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
     get_TT(link_values.data1);
     goto play_PGC;
   case JumpVTS_TT:
-    assert(state.domain == VTSM_DOMAIN); //??
+    assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
     state.domain = VTS_DOMAIN;
     get_VTS_TT(state.vtsN, link_values.data1);
     goto play_PGC;
