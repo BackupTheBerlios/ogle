@@ -491,7 +491,7 @@ adec_handle_t *init_a52(void)
     return NULL;
   }
   
-  memset(&handle->handle, 0, sizeof(struct adec_handle_s));
+  memset(&handle->handle, 0, sizeof(adec_a52_handle_t));
   // not set: drain  
   handle->handle.decode = (audio_decode_t) decode_a52;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_a52;

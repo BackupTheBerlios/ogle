@@ -248,7 +248,7 @@ adec_handle_t *init_mpeg(void)
     return NULL;
   }
   
-  memset(&handle->handle, 0, sizeof(struct adec_handle_s));
+  memset(&handle->handle, 0, sizeof(adec_mpeg_handle_t));
   // not set: drain
   handle->handle.decode = (audio_decode_t) decode_mpeg;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_mpeg;

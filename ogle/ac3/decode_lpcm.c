@@ -266,7 +266,7 @@ adec_handle_t *init_lpcm(void)
     return NULL;
   }
   
-  memset(&handle->handle, 0, sizeof(struct adec_handle_s));
+  memset(&handle->handle, 0, sizeof(adec_lpcm_handle_t));
   // not set: drain
   handle->handle.decode = (audio_decode_t) decode_lpcm;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_lpcm;
@@ -278,9 +278,9 @@ adec_handle_t *init_lpcm(void)
   handle->PTS = 0;
   handle->pts_valid = 0;
   handle->scr_nr = 0;
-  handle->sample_rate = 0;
-  //  handle->decoded_format = NULL;
-
+  // Should really be an invalid value to force the init code in decode_lpcm
+  // run the first time (calles audio_config & init_sample_conversion).
+  handle->lpcm_info = 0xff;
   
   return (adec_handle_t *)handle;
 }
