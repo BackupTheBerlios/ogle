@@ -11,7 +11,6 @@
 #include "debug_print.h"
 #include "vm.h"
 
-extern char *program_name;
 
 static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
 {
