@@ -95,7 +95,7 @@ static inline int16_t convert (int32_t i)
 }
 
 
-static int convert_float_to_s16(float * _f, int16_t *s16, int nr_samples,
+static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
 				int nr_channels, int *channels)
 {
   int i;
@@ -121,8 +121,8 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
   fprintf(stderr, "samples: %d, output_buf_ptr: %d\n",
 	  samples, h->output_buf_ptr);
   */
-  convert_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
-		       nr_samples, 2, NULL);
+  convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
+			   nr_samples, 2, NULL);
   h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
   return 0;
 }
