@@ -1,28 +1,45 @@
 #!/bin/sh
 
+DVDP_CMD=$0
 
-mknod /tmp/ac3 p
-chgrp dvd /tmp/ac3
-chmod 666 /tmp/ac3
+create_pipe() {
+    if [ ! -p "$NODE" ]; then
+	if [ -e "$NODE" ]; then
+	    rm -f "$NODE";
+	fi
+    fi
+    mknod "$NODE" p;
+    chgrp dvd "$NODE";
+    chmod 666 "$NODE";
+}
 
-mknod /tmp/audio p
-chgrp dvd /tmp/audio
-chmod 666 /tmp/audio
+NODE=/tmp/ac3
+create_pipe();
+NODE=/tmp/audio
+create_pipe();
+NODE=/tmp/vmg
+create_pipe();
+NODE=/tmp/spu
+create_pipe();
+NODE=/tmp/cmd
+create_pipe();
 
-mknod /tmp/vmg p
-chgrp dvd /tmp/vmg
-chmod 666 /tmp/vmg
+if [ -h "$DVDP_CMD" ]; then
+    if [ -x "`which readlink`" ]; then
+	while [ -h "$DVDP_CMD" ]; do
+	    DVDP_CMD=`readlink "$DVDP_CMD"`;
+	done;
+    else
+	echo "Warning didn't find 'readlink'";
+	while [ -h "$DVDP_CMD" ]; do
+	    # Don't use symlinks that contain '->' as part of the name!!
+	    DVDP_CMD=`ls -l "$DVDP_CMD" | sed -e 's/.*-> //1'`;
+	done;
+    fi;
+fi;
 
-mknod /tmp/spu p
-chgrp dvd /tmp/spu
-chmod 666 /tmp/spu
-
-mknod /tmp/cmd p
-chgrp dvd /tmp/cmd
-chmod 666 /tmp/cmd
-
-
-DVDP_ROOT=/users/dtek/d94/d4bjorn/src/dvd
+cd `dirname "$DVDP_CMD"`
+DVDP_ROOT=`pwd`
 export DVDP_ROOT
 DVDP_CTRL=$DVDP_ROOT/ctrl/ctrl
 export DVDP_CTRL
