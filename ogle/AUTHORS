@@ -32,3 +32,4 @@ Charles M. Hannum, AltiVec patches and other speed improvements
 Mario Sergio Fujikawa Ferreira, FreeBSD fixes
 Marc Espie, Simple sample rate conversion 48->44.1 kHz in libao, OpenBSD fixes
 David Price, speaker configuration patch to allow different speaker setups.
+Arjen Hommersom, exporting allowed User Opreations flags to dvdcontrol.
