@@ -318,4 +318,5 @@ vmg/Makefile
 mpeg_audio/Makefile 
 mpeg2_program/Makefile 
 scripts/Makefile
+scripts/ogle
 dvd_cli/Makefile)

@@ -38,7 +38,7 @@ EXTRA_DIST = \
 	c_mlib.c c_mlib.h \
 	ffb_asm.s ffb_asm.h
 
-bin_PROGRAMS = video_stream video_output
+pkglib_PROGRAMS = video_stream video_output
 
 INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
 

@@ -15,7 +15,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS = nav ifo_dump
+pkglib_PROGRAMS = nav
+bin_PROGRAMS = ifo_dump
 noinst_PROGRAMS = vmg vmg_dump dump
 
 INCLUDES = @TOP_INCLUDES@

@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS = ac3dec_wrap a52_decoder
+pkglib_PROGRAMS = ac3dec_wrap a52_decoder
 
 INCLUDES = @TOP_INCLUDES@ @A52_CFLAGS@
 
