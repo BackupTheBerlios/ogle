@@ -250,7 +250,7 @@ void display_process()
 void display_process_exit(void) {
   clocktime_t now_time;
   
-  clock_gettime(CLOCK_REALTIME, &now_time);
+  clocktime_get(&now_time);
       
   fprintf(stderr, "display: Total frame rate: %.3f fps "
 	          "(%i frames in %.3f seconds)\n ",

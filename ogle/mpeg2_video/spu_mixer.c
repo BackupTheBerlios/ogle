@@ -13,11 +13,20 @@
 #include <errno.h>
 #include <assert.h>
 
+#if defined USE_SYSV_SEM
+#include <sys/sem.h>
+#elif defined USE_POSIX_SEM
+#include <semaphore.h>
+#endif
+
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
 #include "../include/timemath.h"
 
+#ifndef SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
 
 typedef struct {
   int spu_size;
@@ -182,6 +191,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   
   if(!read_offset) {
     
+#if defined USE_POSIX_SEM
     if(sem_trywait(&q_head->bufs_full) == -1) {
       switch(errno) {
       case EAGAIN:
@@ -191,6 +201,26 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
 	return -1;
       }
     }
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_FULL;
+    sops.sem_op = -1;
+    sops.sem_flg = IPC_NOWAIT;
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      switch(errno) {
+      case EAGAIN:
+	return 0;
+      default:
+	perror("spu_mixer: get_q(), semop() trywait");
+	return -1;
+      }
+    }
+  }
+#else
+#error No semaphore type set
+#endif
+    
     fprintf(stderr, "spu_mixer: get element\n");
   }
   data_head = (data_buf_head_t *)data_buf_shmaddr;
@@ -248,10 +278,25 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   data_elem->in_use = 0;
 
+#if defined USE_POSIX_SEM
   if(sem_post(&q_head->bufs_empty) == -1) {
     perror("spu: get_q(), sem_post()");
     return -1;
   }
+#elif defined USE_SYSV_SEM
+  {
+    struct sembuf sops;
+    sops.sem_num = BUFS_EMPTY;
+    sops.sem_op = 1;
+    sops.sem_flg = 0;
+    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
+      perror("video_decode: get_q(), semop() post");
+      return -1;
+    }
+  }
+#else
+#error No semaphore type set
+#endif
 
   return cpy_len;
 }
