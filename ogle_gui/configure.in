@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(configure.in)
-AM_INIT_AUTOMAKE(ogle_gui, 0.8.2)
+AM_INIT_AUTOMAKE(ogle_gui, 0.8.2-cvs)
 AM_CONFIG_HEADER(config.h)
 
 dnl Check that ogle is installed in the prefix, this is needed
@@ -26,6 +26,7 @@ AC_PROG_CC
 AC_ISC_POSIX
 AM_PROG_CC_STDC
 AC_HEADER_STDC
+AC_CHECK_HEADERS(sys/param.h)
 
 AM_PROG_LIBTOOL
 
@@ -101,8 +102,17 @@ AC_SUBST(DVDLIBS)
 AC_ARG_WITH(dvd-includes, 
   [  --with-dvd-includes=DIR Specify location of DVD headers ], 
   DVD_INCLUDEDIR=-I$with_dvd_includes)
+
+dnl if test x"$DVD_INCLUDEDIR" = x"-I/usr/local/include"; then
+dnl  DVD_INCLUDEDIR=""
+dnl fi
+if test x"$DVD_INCLUDEDIR" = x"-I/usr/include"; then
+  DVD_INCLUDEDIR=""
+fi
+
 saved_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $DVD_INCLUDEDIR"
+dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+CPPFLAGS="-w $CPPFLAGS $DVD_INCLUDEDIR"
 AC_CHECK_HEADER(ogle/dvd.h, ,
   [ AC_MSG_ERROR([
 * Need "ogle/dvd.h", it's part of Ogle(-devel).
