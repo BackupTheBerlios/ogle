@@ -24,7 +24,7 @@
 #include "debug_print.h"
 #include "conversion.h"
 #include "decode_private.h" // Fixme
-
+#include "ogle_endian.h"
 /*
  * needs to know input and output format
  *
@@ -40,7 +40,6 @@ typedef struct {
 } conversion_t;
 
 static ChannelType_t ch_transform[10];
-static int src_ch;
 static int dst_ch;
 static int conversion_routine = 0;
 
@@ -67,7 +66,10 @@ int init_sample_conversion(adec_handle_t *h,
   // between each play
   int m;
   int n;
+  audio_format_t *dst_format = &h->config->dst_format;
   int output_frame_size = h->config->dst_format.sample_frame_size;
+  
+  h->config->src_format = *src_format;
 
   if(src_format->sample_format == SampleFormat_DTSFrame) {
     
@@ -104,15 +106,15 @@ int init_sample_conversion(adec_handle_t *h,
     //fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
     h->output_buf_ptr = h->output_buf;
     
-    dst_ch = h->config->dst_format.nr_channels;
-    src_ch = src_format->nr_channels;
+    dst_ch = dst_format->nr_channels;
+
     if(dst_ch > 10) {
       FATAL("%s", "*** more than 10 channels\n");
       exit(1);
     }
-    for(n = 0; n < h->config->dst_format.nr_channels; n++) {
+    for(n = 0; n < dst_format->nr_channels; n++) {
       for(m = 0; m < src_format->nr_channels; m++) {
-	if(h->config->dst_format.ch_array[n] == src_format->ch_array[m]) {
+	if(dst_format->ch_array[n] == src_format->ch_array[m]) {
 	  ch_transform[n] = m;
 	  break;
 	}
@@ -140,6 +142,9 @@ int init_sample_conversion(adec_handle_t *h,
     break;
   case SampleFormat_DTSFrame:
     conversion_routine = 4;
+    break;
+  case SampleFormat_LPCM:
+    conversion_routine = 5;
     break;
   case SampleFormat_Unsigned:
   default:
@@ -369,6 +374,107 @@ static int convert_dtsframe_to_iec61937frame(uint16_t *dts,
   return 0;
 }
 
+
+static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
+				 int nr_samples,
+				 audio_format_t *src_format,
+				 audio_format_t *dst_format)
+{
+  int i,n,ct;
+  int src_ch = src_format->nr_channels;
+
+  if(src_format->nr_channels != 2) {
+    FATAL("REPORT BUG: convert from %d lpcm channels not implemented\n",
+	  src_format->nr_channels);
+    exit(1);
+  } else if (dst_format->nr_channels != 2) {
+    FATAL("REPORT BUG: convert to %d lpcm channels not implemented\n",
+	  dst_format->nr_channels);
+    exit(1);
+  }    
+
+  switch(src_format->sample_resolution) {
+  case 16:
+    switch(dst_format->sample_resolution) {
+    case 16:
+      for (i = 0; i < nr_samples; i++) {
+	for(n = 0; n < dst_ch; n++) {
+	  if((ct = ch_transform[n]) != -1) {
+	    ((int16_t *)output)[dst_ch*i+n] = 
+	      FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct]);
+	  } else {
+	    ((int16_t *)output)[dst_ch*i+n] = 0;
+	  }
+	}
+      }
+      break;
+    case 32:
+      for (i = 0; i < nr_samples; i++) {
+	for(n = 0; n < dst_ch; n++) {
+	  if((ct = ch_transform[n]) != -1) {
+	    ((int32_t *)output)[dst_ch*i+n] = 
+	      FROM_BE_16(((int16_t *)lpcm)[i*src_ch+ct])<<16;
+	  } else {
+	    ((int32_t *)output)[dst_ch*i+n] = 0;
+	  }
+	}
+      }
+      break;
+    default:
+      FATAL("REPORT BUG: convert from 16 to %d bits lpcm not implemented\n",
+	    dst_format->sample_resolution);
+      break;
+    }
+    break;
+  case 24:
+    switch(dst_format->sample_resolution) {
+      int s;
+    case 16:
+      for (i = 0, s = 0; i < nr_samples; s+=1) {
+	int j;
+	for(j = 0; j < 2; j++, i++,s++) {
+	  for(n = 0; n < dst_ch; n++) {
+	    if((ct = ch_transform[n]) != -1) {
+	      ((int16_t *)output)[dst_ch*i+n] = 
+		FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]);
+	    } else {
+	      ((int16_t *)output)[dst_ch*i+n] = 0;
+	    }
+	  }
+	}
+      }
+      break;
+    case 32:
+      for (i = 0, s = 0; i < nr_samples; s+=1) {
+	int j;
+	for(j = 0; j < 2; j++, i++,s++) {
+	  for(n = 0; n < dst_ch; n++) {
+	    if((ct = ch_transform[n]) != -1) {
+	      ((int32_t *)output)[dst_ch*i+n] = 
+		FROM_BE_16(((int16_t *)lpcm)[s*src_ch+ct]) << 16;
+	    } else {
+	      ((int32_t *)output)[dst_ch*i+n] = 0;
+	    }
+	  }
+	}
+      }
+      break;
+    default:
+      FATAL("REPORT BUG: convert from 24 to %d bits lpcm not implemented\n",
+	    dst_format->sample_resolution);
+      break;
+    }
+    break;
+  default:
+    FATAL("REPORT BUG: convert %d bits lpcm not implemented\n",
+	  src_format->sample_resolution);
+    break;
+  }
+
+  return nr_samples*dst_format->sample_frame_size;
+}
+
+
 int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 {
   //convert from samples to output_buf_ptr
@@ -376,6 +482,9 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
   fprintf(stderr, "samples: %d, output_buf_ptr: %d\n",
 	  samples, h->output_buf_ptr);
   */
+  audio_format_t *src_format = &h->config->src_format;
+  audio_format_t *dst_format = &h->config->dst_format;
+
   switch(conversion_routine) {
   case 0:
     convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
@@ -404,8 +513,12 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
     convert_dtsframe_to_iec61937frame(samples,
 				      (uint16_t *)h->output_buf_ptr, 
 				      nr_samples);
-    h->output_buf_ptr += 2*2*nr_samples; // 2ch 16bit 48kHz
-    
+    h->output_buf_ptr += 2*2*nr_samples; // 2ch 16bit 48kHz    
+    break;
+  case 5:
+    h->output_buf_ptr += convert_LPCM_to_sXXne(samples, h->output_buf_ptr,
+					       nr_samples,
+					       src_format, dst_format);
     break;
   }
    return 0;

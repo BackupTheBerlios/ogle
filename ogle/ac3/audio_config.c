@@ -168,7 +168,7 @@ int audio_config(audio_config_t *aconf,
   if(config) {
     if((config->nr_ch > 0) && (config->chtype[0] & ChannelTypeMask_Streams)) {
       if(config->chtype[0] == ChannelType_AC3) {
-	aconf->dst_format.sample_resolution = 2;
+	aconf->dst_format.sample_resolution = 0; //not used
 	aconf->dst_format.nr_channels = 2;
 	aconf->dst_format.ch_array = 
 	  realloc(aconf->dst_format.ch_array, 
@@ -192,22 +192,22 @@ int audio_config(audio_config_t *aconf,
 	FATAL("channel type: %d not implemented\n", config->chtype[0]);
       }
     } else {
-      aconf->dst_format.sample_format = SampleFormat_LPCM;
+      aconf->dst_format.sample_format = SampleFormat_Signed;
       output_channels = config->nr_ch;
       if(aconf->dst_format.nr_channels != output_channels) {
 	aconf->dst_format.ch_array = 
 	  realloc(aconf->dst_format.ch_array, 
 		  sizeof(ChannelType_t) * output_channels);
       }
-      aconf->dst_format.sample_resolution = 2;
+      aconf->dst_format.sample_resolution = sample_resolution;
       aconf->dst_format.nr_channels = output_channels;
       for(n = 0; n < output_channels; n++) {
 	aconf->dst_format.ch_array[n] = config->chtype[n];
       }
     }
   } else {
-    aconf->dst_format.sample_format = SampleFormat_LPCM;
-    aconf->dst_format.sample_resolution = 2;
+    aconf->dst_format.sample_format = SampleFormat_Signed;
+    aconf->dst_format.sample_resolution = sample_resolution;
     aconf->dst_format.nr_channels = 0;
     if(aconf->dst_format.ch_array) {
       free(aconf->dst_format.ch_array);
@@ -369,7 +369,6 @@ int audio_config(audio_config_t *aconf,
 	      realloc(aconf->dst_format.ch_array, 
 		      sizeof(ChannelType_t) * output_channels);
 	  }
-	  aconf->dst_format.sample_resolution = 2;
 	  aconf->dst_format.nr_channels = output_channels;
 	  for(n = 0; n < output_channels; n++) {
 	    if(n < config->nr_ch) {
@@ -390,8 +389,8 @@ int audio_config(audio_config_t *aconf,
 	aconf->dst_format.sample_format = SampleFormat_IEC61937;
 	break;
       case OGLE_AO_ENCODING_LINEAR:
-      default:
-	aconf->dst_format.sample_format = SampleFormat_LPCM;
+      default:	
+	aconf->dst_format.sample_format = SampleFormat_Signed;
 	break;
       }
     }
@@ -455,6 +454,7 @@ int audio_config(audio_config_t *aconf,
 	aconf->dst_format.ch_array[n] = ct;
       }
     }
+    aconf->dst_format.sample_resolution = aconf->ainfo->sample_resolution;
   }
 
   if(config) {

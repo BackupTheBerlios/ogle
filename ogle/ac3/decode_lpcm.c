@@ -115,11 +115,13 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
       break;
     case 1:
       new_quantization_word_length = 20;
-      new_sample_size = 4; // ? 20bit contained in 32bit ?
+      new_sample_size = 3; // ? 20bit contained in ? bytes
       break;
     case 2:
       new_quantization_word_length = 24;
-      new_sample_size = 4; // ? 24bit in 32bit ?
+      new_sample_size = 3; // 3 bytes per sample but strange interleave 
+      // format at least for 24bits/96kHz:
+      // 12 bytes: AL2,AL1,AR2,AR1,BL2,BL1,BR2,BR1, AL0,AR0,BL0,BR0
       break;
     default:
       new_sample_size = 0;
@@ -127,6 +129,9 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
 	    new_quantization_word_length);
       break;
     }
+    DNOTE("LPCM: resolution: %d bits, samplerate: %d Hz, channels: %d\n",
+	  new_quantization_word_length, new_sample_rate, new_ch);
+
     new_sample_frame_size = new_ch * new_sample_size; 
 
     handle->sample_rate = new_sample_rate;
@@ -134,6 +139,8 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     handle->quantization_word_length = new_quantization_word_length;
     handle->sample_frame_size = new_sample_frame_size;
     chtypemask = lpcm_ch_to_channels(new_ch);
+    chtypemask |= ChannelType_LPCM;
+
     audio_config(handle->handle.config, chtypemask,
 		 handle->sample_rate,
 		 handle->quantization_word_length);
@@ -155,8 +162,9 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     new_format.sample_size = new_sample_size;
     new_format.sample_frame_size = new_sample_frame_size;
     new_format.sample_byte_order = 0; // big endian
-    new_format.sample_format = SampleFormat_Signed;
+    new_format.sample_format = SampleFormat_LPCM;
 
+    // TODO is 80*7 the max possible number of samples
     init_sample_conversion((adec_handle_t *)handle, &new_format, 80*7);
     
     free(new_format.ch_array);
@@ -177,14 +185,13 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
   
   convert_samples_start((adec_handle_t *)handle);
   
-  
   convert_samples((adec_handle_t *)handle, indata_ptr,
 		  bytes_left/handle->sample_frame_size);
-  
   
   //output, look over how the pts/scr is handle for sync here 
   play_samples((adec_handle_t *)handle, handle->scr_nr, 
 	       handle->PTS, handle->pts_valid);
+
   handle->pts_valid = 0;
   
   

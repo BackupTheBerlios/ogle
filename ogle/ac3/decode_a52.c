@@ -289,7 +289,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	  case SampleFormat_IEC61937:
 	    handle->output_format = SampleFormat_AC3Frame;
 	    break;
-	  case SampleFormat_LPCM:
+	  case SampleFormat_Signed:
 	    handle->output_format = SampleFormat_A52float;
 	    break;
 	  default:
