@@ -28,9 +28,8 @@
 
 #include "yuv2rgb.h"
 
-
-static long long MMX_0 = 0L;
-static unsigned long  MMX_10w[]         = {0x00100010, 0x00100010};
+#ifdef HAVE_MMX
+//static unsigned long  MMX_10w[]         = {0x00100010, 0x00100010};
 static unsigned long  MMX_80w[]         = {0x00800080, 0x00800080};
 
 static unsigned long  MMX_00FFw[]       = {0x00ff00ff, 0x00ff00ff};
@@ -46,6 +45,24 @@ static unsigned short MMX_redmask[]     = {0xf800, 0xf800, 0xf800, 0xf800};
 
 static unsigned short MMX_grnmask[]     = {0x07e0, 0x07e0, 0x07e0, 0x07e0};
 // static unsigned short MMX_blumask[]  = {0x001f, 0x001f, 0x001f, 0x001f};
+
+// get rif of 'defined but unused' warnings
+// gcc doesn't recognise that they _are_ used inside __asm__
+// make dummy use of them
+void __yuv2rgb_mmx_preventwarnings_dontusethis(void)
+{
+  printf("%p %p %p %p %p %p %p %p %p\n",MMX_80w,
+	 MMX_00FFw,
+	 MMX_Ublucoeff,
+	 MMX_Vredcoeff,
+	 MMX_Ugrncoeff,
+	 MMX_Vgrncoeff,
+	 MMX_Ycoeff,
+	 MMX_redmask,
+	 MMX_grnmask);
+};
+#endif
+
 
 void  YUV2RGB420_MMX_16(uint8_t *out,
                         const uint8_t* lum, const uint8_t* cb,const uint8_t*cr,

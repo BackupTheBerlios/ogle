@@ -33,14 +33,14 @@ mlib_Init(void)
   DNOTE("Using MMX accelerated media functions\n");
   return;
 }
-
+/*
 static inline uint8_t
 clip_to_u8 (int16_t value)
 {
   //return value < 0 ? 0 : (value > 255 ? 255 : value);
   return ((uint16_t)value) > 256 ? value < 0 ? 0 : 255 : value;
 }
-
+*/
 static inline void
 mmx_average_2_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2)
 {

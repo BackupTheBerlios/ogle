@@ -17,7 +17,8 @@
  */
 
 #include <stdio.h>
-
+#include <unistd.h> // swab
+#include <string.h> // memset
 #include <mad.h>
 
 #include "debug_print.h"

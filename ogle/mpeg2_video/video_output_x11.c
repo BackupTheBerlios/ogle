@@ -1950,7 +1950,7 @@ static void draw_win_x11(window_info *dwin)
 static void draw_win_xv(window_info *dwin)
 {
 #ifdef HAVE_XV
-  int sar_frac_n, sar_frac_d;   
+  int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */   
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
   xv_image->data = dwin->image->y;

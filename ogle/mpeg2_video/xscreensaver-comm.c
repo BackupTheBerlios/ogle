@@ -71,6 +71,7 @@ look_for_good_xscreensaver()
       exit(EXIT_FAILURE);  /* no flush */
     default:
       /* We're the parent, carry on. */
+      break;
     }
 
   /* Don't care about status, parse output instead. */
