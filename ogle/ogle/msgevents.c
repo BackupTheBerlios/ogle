@@ -92,7 +92,100 @@ void PrintMsgEventType(MsgEventType_t type)
 }
 #endif
 
-//MsgEventQ_t *MsgOpen(MsgEventQType_t type, )
+#ifdef SOCKIPC
+MsgEventQ_t *MsgOpen(MsgEventQType_t type, char *name, int namelen)
+{
+  MsgEventQ_t *ret = NULL;
+  msg_t msg;
+  MsgQInitReqEvent_t initreq;
+  MsgQInitGntEvent_t initgnt;
+  
+  msg.mtype = CLIENT_RESOURCE_MANAGER; // the recipient of this message
+  initreq.type = MsgEventQInitReq;   // we want a handle
+  memcpy(msg.event_data, &initreq, sizeof(MsgQInitReqEvent_t));
+  
+  switch(type) {
+  case MsgEventQType_msgq:
+    {
+      int msqid = atoi(name);
+      
+      if(msgsnd(msqid, (void *)&msg, sizeof(MsgQInitReqEvent_t), 0) == -1) {
+	perror("MsgOpen, snd");
+	return NULL;
+	
+      } else {
+	if(msgrcv(msqid, (void *)&msg, sizeof(MsgEvent_t),
+		  CLIENT_UNINITIALIZED, 0) == -1) {
+	  perror("MsgOpen, rcv");
+	  return NULL;
+	} else {
+	  ret = (MsgEventQ_t *)malloc(sizeof(MsgEventQ_t));
+	  
+	  ret->msg.type = MsgEventQType_msgq;
+	  ret->msq.msqid = msqid;       // which msq to wait for messages on
+	  memcpy(&initgnt, msg.event_data, sizeof(MsgQInitGntEvent_t));
+	  ret->msg.mtype = initgnt.newclientid; // mtype to wait for
+	  
+	}
+      }
+    }
+    break;
+  case MsgEventQType_socket:
+    {
+      int sd;
+      struct sockaddr_un unix_addr = { 0 };
+      
+      if((sd = socket(PF_UNIX, SOCK_DGRAM, 0)) == -1) {
+	perror("socket");
+	return NULL;
+      }
+
+      unix_addr.sun_family = AF_UNIX;
+      
+      if(strlen(name) >= sizeof(unix_addr.sun_path)) {
+	return NULL;
+      }      
+      strcpy(unix_addr.sun_path, name);
+      
+      if(connect(sd, (struct sockaddr *)&unix_addr, sizeof(unix_addr)) == -1) {
+	perror("connect");
+	return NULL;
+      }
+      
+
+
+
+      if(msgsnd(msqid, (void *)&msg, sizeof(MsgQInitReqEvent_t), 0) == -1) {
+	perror("MsgOpen, snd");
+	return NULL;
+	
+      } else {
+	if(msgrcv(msqid, (void *)&msg, sizeof(MsgEvent_t),
+		  CLIENT_UNINITIALIZED, 0) == -1) {
+	  perror("MsgOpen, rcv");
+	  return NULL;
+	} else {
+	  ret = (MsgEventQ_t *)malloc(sizeof(MsgEventQ_t));
+	  
+	  ret->msg.type = MsgEventQType_msgq;
+	  ret->msq.msqid = msqid;       // which msq to wait for messages on
+	  memcpy(&initgnt, msg.event_data, sizeof(MsgQInitGntEvent_t));
+	  ret->msg.mtype = initgnt.newclientid; // mtype to wait for
+	  
+	}
+      }
+      
+      
+    }
+    break;
+  case MsgEventQType_pipe:
+    break;
+  }
+  
+  return ret;
+  
+}
+#else
 MsgEventQ_t *MsgOpen(int msqid)
 {
   MsgEventQ_t *ret = NULL;
@@ -100,21 +193,18 @@ MsgEventQ_t *MsgOpen(int msqid)
   MsgQInitReqEvent_t initreq;
   MsgQInitGntEvent_t initgnt;
   
-  /* TODO: if we are using one message queue per process, create
-   *  one here.
-   */
-  
   msg.mtype = CLIENT_RESOURCE_MANAGER; // the recipient of this message
   initreq.type = MsgEventQInitReq;   // we want a handle
   memcpy(msg.event_data, &initreq, sizeof(MsgQInitReqEvent_t));
   
+
   if(msgsnd(msqid, (void *)&msg, sizeof(MsgQInitReqEvent_t), 0) == -1) {
     perror("MsgOpen, snd");
     return NULL;
     
   } else {
     if(msgrcv(msqid, (void *)&msg, sizeof(MsgEvent_t),
-	      CLIENT_UNINITIALIZED, 0) == -1) {
+             CLIENT_UNINITIALIZED, 0) == -1) {
       perror("MsgOpen, rcv");
       return NULL;
     } else {
@@ -126,10 +216,13 @@ MsgEventQ_t *MsgOpen(int msqid)
     
     }
   }
-
+  
   return ret;
   
 }
+#endif
+
+
 
 /**
  * Close the message connection.

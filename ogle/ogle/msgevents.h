@@ -40,9 +40,9 @@ typedef int MsgEventQ_t;
 
 #else /* One global message queue */
 
+#ifndef SOCKIPC
 typedef long int MsgEventClient_t;
 
-#if 1
 typedef struct {
   int msqid;
   long int mtype;
@@ -51,35 +51,52 @@ typedef struct {
 #else
 
 /* more general version */
+
+typedef union {
+  struct {
+    long int mtype;
+  } msgq;
+  
+  struct {
+    long int type;
+    int d;
+  } socket;
+
+  struct {
+    long int type;
+    int d;
+  } pipe;
+
+} MsgEventClient_t;
+
 typedef enum {
   MsgEventQType_msgq,
   MsgEventQType_socket;
   MsgEventQType_pipe;
 } MsgEventQType_t;
 
-typedef struct {
+typedef union {
  
-  union {
-    struct {
-      MsgEventQType_t type;
-    } any;
-
-    struct {
-      MsgEventQType_t type;
-      msqid;
-      long int mtype;
-    } msgq;
-    
-    struct {
-      MsgEventQType_t type;
-      int d;
-    } socket;
-    
-    struct {
-      MsgEventQType_t type;
-      int d;
-    } pipe;
-  };
+  struct {
+    MsgEventQType_t type;
+  } any;
+  
+  struct {
+    MsgEventQType_t type;
+    msqid;
+    long int mtype;
+  } msgq;
+  
+  struct {
+    MsgEventQType_t type;
+    int d;
+  } socket;
+  
+  struct {
+    MsgEventQType_t type;
+    int d;
+  } pipe;
+  
 } MsgEventQ_t;
 
 #endif
