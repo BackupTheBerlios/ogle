@@ -65,6 +65,7 @@ if [ "$debug" = "1" ]; then
 	 PROCFILE="/proc/sys/dev/cdrom/info"
 	 if [ ! -r "$PROCFILE" ]; then
 	     echo "File not found: $PROCFILE"
+	     echo "No CD or DVD devices on this system or cdrom module not loaded?"
 	 else
 	     DEVLIST=`cat $PROCFILE | grep 'drive name:' | cut -d':' -f 2-`
 	     
@@ -119,7 +120,13 @@ if [ "$debug" = "1" ]; then
 		 scsi_dev="`echo $dev | grep sr`"
 		 if [ -n "$scsi_dev" ]; then
 		     scsi_nr="`echo $dev | cut -d'r' -f 2`"
-		     echo -n " /dev/scd$scsi_nr"
+		     if [ -b "/dev/sr$scsi_nr" ]; then
+			 echo -n " /dev/sr$scsi_nr"
+		     elif [ -b "/dev/scd$scsi_nr" ]; then
+			 echo -n " /dev/scd$scsi_nr"
+		     else
+			 echo -n " **block device is missing: /dev/sr$scsi_nr**"
+		     fi
 		 else
 		     echo -n " /dev/$dev"
 		 fi
@@ -132,6 +139,7 @@ if [ "$debug" = "1" ]; then
              #ide device information
 	     hdparm_path="/sbin /usr/sbin"
 	     hdparm_found=0
+	     hpath_empty=0
 	     hdparm_version=`hdparm -V 2> /dev/null`
 	     if [ "$?" != "0" ]; then
 		 for hpath in $hdparm_path; do
@@ -142,12 +150,21 @@ if [ "$debug" = "1" ]; then
 		 done
 	     else
 		 hdparm_found=1
+		 hpath_empty=1
+		 echo "$hdparm_version"
 	     fi
+
+	     if [ "$hpath_empty" = "1" ]; then
+		 hcmd="hdparm"
+	     else
+		 hcmd="$hpath/hdparm"
+	     fi
+
 	     if [ "$hdparm_found" = "1" ]; then
 		 for dev in $DVD_DEV; do
 		     ide_dev="`echo $dev | grep hd`"
 		     if [ -n "$ide_dev" ]; then
-			 dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
+			 dmainfo="`$hcmd /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
 			 dmainfo="`echo $dmainfo`"
 			 if [ ! -r /dev/$dev ]; then
 			     echo "WARNING: Cannot read /dev/$dev, need to be root to do that?"
@@ -161,11 +178,11 @@ if [ "$debug" = "1" ]; then
 			     echo "WARNING: DMA is OFF for /dev/$dev"
 			     echo ""
 			 fi
-			 $hpath/hdparm /dev/$dev 2>/dev/null
+			 $hcmd /dev/$dev 2>/dev/null
 		     fi
 		 done
 		 for dev in $ide_scsi_cd_dev; do
-		     dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
+		     dmainfo="`$hcmd /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
 		     dmainfo="`echo $dmainfo`"
 		     if [ ! -r /dev/$dev ]; then
 			 echo "WARNING: Cannot read /dev/$dev, need to be root to do that?"
@@ -179,7 +196,7 @@ if [ "$debug" = "1" ]; then
 			 echo "WARNING: DMA is OFF for /dev/$dev"
 			 echo ""
 		     fi
-		     $hpath/hdparm /dev/$dev 2>/dev/null
+		     $hcmd /dev/$dev 2>/dev/null
 		 done
 	     else
 		 echo "WARNING: hdparm not found"
