@@ -234,8 +234,10 @@ int DVDBookmarkGetNr(DVDBookmark_t *bm)
  * with numbers from 0 and up until -1 is returned.
  * @param navstate This is where a pointer to the navstate data
  * will be returned. You need to free() this when you are done with it.
+ * If this is NULL the navstate won't be returned.
  * @param usercomment This is where a pointer to the usercomment data
  * will be returned. You need to free() this when you are done with it.
+ * If this is NULL the usercommment won't be returned.
  * @param appname If you supply the name of your application here, you will
  * get application specific data back in appinfo if there is a matching
  * entry for your appname.
@@ -243,6 +245,7 @@ int DVDBookmarkGetNr(DVDBookmark_t *bm)
  * the call fails in which case it will be undefined.
  * @param appinfo This is where a pointer to the appinfo data
  * will be returned. You need to free() this when you are done with it.
+ * If this is NULL the appinfo won't be returned.
  */
 int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
 		   char **navstate, char **usercomment,
@@ -384,6 +387,76 @@ int DVDBookmarkAdd(DVDBookmark_t *bm,
     xmlNewProp(cur, "appname", appname);    
   }
   
+  return 0;						      
+}
+
+
+/**
+ * Set the appinfo in a bookmark.
+ *
+ * @param bm Handle from DVDBookmarkOpen.
+ * @param appname The name of your application here, you will
+ * be able to supply application specific data in appinfo.
+ * The appname "common" is used for standardized appinfo that all
+ * players can read/use.
+ * @param appinfo The appinfo data. If appinfo
+ * If there already is appinfo for the corresponding appname
+ * it will be replaced.
+ * All char * should point to a nullterminated string.
+ *
+ * @return 0 on success, -1 on failure.
+ */
+int DVDBookmarkSetAppInfo(DVDBookmark_t *bm,
+			  int nr,
+			  const char *appname, const char *appinfo)
+{
+  xmlNodePtr cur;
+  xmlNodePtr cur_bm;
+  
+  if(!bm || !appname) {
+    return -1;
+  }
+
+  if((cur = xmlDocGetRootElement(bm->doc)) == NULL) {
+    return -1;
+  }
+
+  cur_bm = get_bookmark(bm->doc, cur, nr);
+  
+  cur = cur_bm;
+  if(cur == NULL) {
+    return -1;
+  }
+  
+  
+  //if there is an appinfo with the same appname already remove it
+  cur = cur->xmlChildrenNode;
+  while(cur != NULL) {
+    xmlNodePtr next = cur->next;
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"appinfo"))) {
+      xmlChar *prop;
+      if((prop = xmlGetProp(cur, "appname")) != NULL) {
+	if(!xmlStrcmp(prop, (const xmlChar *)appname)) {
+	  xmlFree(prop);
+	  xmlUnlinkNode(cur);
+	  xmlFreeNode(cur);
+	} else {
+	  xmlFree(prop);
+	}
+      }
+    }
+    cur = next;
+  }
+
+  cur = cur_bm;
+  
+  if(appinfo && (appinfo[0] != '\0')) {
+    if((cur = xmlNewTextChild(cur, NULL, "appinfo", appinfo)) == NULL) {
+      return -1;
+    }
+    xmlNewProp(cur, "appname", appname);    
+  }
+
   return 0;						      
 }
 
