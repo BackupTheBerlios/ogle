@@ -32,7 +32,7 @@ int audio       = 0;
 int video       = 0;
 int subtitle    = 0;
 int subtitle_id = 0;
-int debug       = 2;
+int debug       = 0;
 
 char *program_name;
 FILE *video_file;
@@ -736,7 +736,7 @@ void MPEG2_program_stream()
     pack();
   } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
   if(GETBITS(32, "MPEG2_PS_PROGRAM_END_CODE") == MPEG2_PS_PROGRAM_END_CODE) {
-    DPRINTF(2, "MPEG Program End\n");
+    DPRINTF(1, "MPEG Program End\n");
   } else {
     fprintf(stderr, "*** Lost Sync\n");
     fprintf(stderr, "*** after: %u bytes\n", bytes_read);
@@ -773,7 +773,7 @@ void segvhandler (void)
   // If we got here we ran off the end of a mmapped file.
   // Or it's some other bug. Remove the sigaction call in 
   // main if you suspect this.
-  DPRINTF(1 "SEGV! Cool! (Reached end of mmapped file.)\n");
+  DPRINTF(1, "SEGV! Cool! (Reached end of mmapped file.)\n");
   exit(0);
 }
 
@@ -898,7 +898,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "Found Program Stream\n");
       MPEG2_program_stream();
     }
-    GETBITS(8, "resync");//    resync();
+    GETBITS(8, "resync");
   }
 }
 
