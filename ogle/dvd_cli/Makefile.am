@@ -25,6 +25,6 @@ ogle_cli_SOURCES = main.c \
 	bindings.c bindings.h \
 	interpret_config.c interpret_config.h
 
-ogle_cli_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ \
-	@XML_LIBS@ \
-	$(top_builddir)/ogle/libdvdcontrol.la
+ogle_cli_LDADD = $(top_builddir)/ogle/libdvdcontrol.la \
+	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ \
+	@XML_LIBS@
