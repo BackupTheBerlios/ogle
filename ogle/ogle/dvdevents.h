@@ -72,8 +72,6 @@ typedef enum {
   DVDCtrlParentalCountrySelect,
   DVDCtrlParentalLevelSelect,
 
-  DVDCtrlPlayerRegionSelect,
-
   DVDCtrlAudioStreamChange,
   DVDCtrlSubpictureStreamChange,
   DVDCtrlSetSubpictureState,
@@ -101,7 +99,9 @@ typedef enum {
   DVDCtrlSubpictureAttributes,
 
   DVDCtrlGetCurrentAngle,
-  DVDCtrlCurrentAngle
+  DVDCtrlCurrentAngle,
+
+  DVDCtrlPlayerRegionSelect
 
 } DVDCtrlEventType_t;
 
