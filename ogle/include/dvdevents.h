@@ -48,53 +48,61 @@ typedef enum {
   DVDCtrlEventAudioStreamChange
 } DVDCtrlEventType_t;
 
+/*
 typedef struct {
-  DVDCtrlEventType_t type;
 } DVDCtrlLeftButtonSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
 } DVDCtrlRightButtonSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
 } DVDCtrlUpperButtonSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
 } DVDCtrlLowerButtonSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
 } DVDCtrlButtonActivateEvent_t;
 
+
 typedef struct {
-  DVDCtrlEventType_t type;
   int nr;
 } DVDCtrlButtonSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
   int nr;
 } DVDCtrlButtonSelectAndActivateEvent_t;
+*/
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int nr;
+} DVDCtrlButtonEvent_t;
+
+/*
+typedef struct {
   int x;
   int y;
 } DVDCtrlMouseSelectEvent_t;
 
 typedef struct {
-  DVDCtrlEventType_t type;
   int x;
   int y;
 } DVDCtrlMouseActivateEvent_t;
+*/
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int x;
+  int y;
+} DVDCtrlMouseEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
   DVDMenuID_t menuid;
 } DVDCtrlMenuCallEvent_t;
 
+/*
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlResumeEvent_t;
@@ -102,7 +110,9 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlGoUpEvent_t;
+*/
 
+/*
 typedef struct {
   DVDCtrlEventType_t type;
   double speed;
@@ -112,7 +122,14 @@ typedef struct {
   DVDCtrlEventType_t type;
   double speed;
 } DVDCtrlBackwardScanEvent_t;
+*/
 
+typedef struct {
+  DVDCtrlEventType_t type;
+  double speed;
+} DVDCtrlScanEvent_t;
+
+/*
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlNextPGSearchEvent_t;
@@ -124,6 +141,7 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlTopPGSearchEvent_t;
+*/
 
 typedef struct {
   DVDCtrlEventType_t type;
@@ -152,6 +170,7 @@ typedef struct {
   DVDTimecode_t time;
 } DVDCtrlTimePlayEvent_t;
 
+/*
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlPauseOnEvent_t;
@@ -163,7 +182,7 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlStopEvent_t;
-
+*/
 
 typedef struct {
   DVDCtrlEventType_t type;
@@ -172,6 +191,7 @@ typedef struct {
 
 typedef union {
   DVDCtrlEventType_t type;
+  /*
   DVDCtrlLeftButtonSelectEvent_t leftbuttonselect;
   DVDCtrlLeftButtonSelectEvent_t rightbuttonselect;
   DVDCtrlLeftButtonSelectEvent_t upperbuttonselect;
@@ -179,25 +199,49 @@ typedef union {
   DVDCtrlButtonActivateEvent_t buttonactivate;
   DVDCtrlButtonSelectEvent_t buttonselect;
   DVDCtrlButtonSelectAndActivateEvent_t buttonselectandactivate;
+  */
+
+  DVDCtrlButtonEvent_t button;
+
+  /*
   DVDCtrlMouseSelectEvent_t mouseselect;
   DVDCtrlMouseActivateEvent_t mouseactivate;
+  */
+
+  DVDCtrlMouseEvent_t mouse;
+
   DVDCtrlMenuCallEvent_t menucall;
+
+  /*
   DVDCtrlResumeEvent_t resume;
   DVDCtrlGoUpEvent_t goup;
+  */
+
+  /*
   DVDCtrlForwardScanEvent_t forwardscan;
   DVDCtrlBackwardScanEvent_t backwardscan;
+  */
+
+  DVDCtrlScanEvent_t scan;
+
+  /*
   DVDCtrlNextPGSearchEvent_t nextpgsearch;
   DVDCtrlPrevPGSearchEvent_t prevpgsearch;
   DVDCtrlTopPGSearchEvent_t toppgsearch;
+  */
+
   DVDCtrlPTTSearchEvent_t pttsearch;
   DVDCtrlPTTPlayEvent_t pttplay;
   DVDCtrlTitlePlayEvent_t titleplay;
   DVDCtrlTimeSearchEvent_t timesearch;
   DVDCtrlTimePlayEvent_t timeplay;
+
+  /*
   DVDCtrlPauseOnEvent_t pauseon;
   DVDCtrlPauseOffEvent_t pauseoff;
   DVDCtrlStopEvent_t stop;
-  
+  */
+
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
 } DVDCtrlEvent_t;
 

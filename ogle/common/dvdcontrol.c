@@ -183,7 +183,7 @@ DVDResult_t DVDButtonSelect(int Button)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlButtonSelect;
-  ev.dvdctrl.cmd.buttonselect.nr = Button;
+  ev.dvdctrl.cmd.button.nr = Button;
   
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -195,7 +195,7 @@ DVDResult_t DVDButtonSelectAndActivate(int Button)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlButtonSelectAndActivate;
-  ev.dvdctrl.cmd.buttonselectandactivate.nr = Button;
+  ev.dvdctrl.cmd.button.nr = Button;
   
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -207,8 +207,8 @@ DVDResult_t DVDMouseSelect(int x, int y)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlMouseSelect;
-  ev.dvdctrl.cmd.mouseselect.x = x;
-  ev.dvdctrl.cmd.mouseselect.y = y;
+  ev.dvdctrl.cmd.mouse.x = x;
+  ev.dvdctrl.cmd.mouse.y = y;
   
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -220,8 +220,8 @@ DVDResult_t DVDMouseActivate(int x, int y)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlMouseActivate;
-  ev.dvdctrl.cmd.mouseactivate.x = x;
-  ev.dvdctrl.cmd.mouseactivate.y = y;
+  ev.dvdctrl.cmd.mouse.x = x;
+  ev.dvdctrl.cmd.mouse.y = y;
 
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -268,7 +268,7 @@ DVDResult_t DVDForwardScan(double Speed)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlForwardScan;
-  ev.dvdctrl.cmd.forwardscan.speed = Speed;
+  ev.dvdctrl.cmd.scan.speed = Speed;
 
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -281,7 +281,7 @@ DVDResult_t DVDBackwardScan(double Speed)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlBackwardScan;
-  ev.dvdctrl.cmd.backwardscan.speed = Speed;
+  ev.dvdctrl.cmd.scan.speed = Speed;
 
   MsgSendEvent(msgq, nav_client, &ev);
   
