@@ -46,7 +46,7 @@
 static ao_instance_t * output;
 static sample_t * samples;
 static int disable_dynrng = 0;
-static void a52_decode_data(uint8_t *start, uint8_t *end);
+static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end);
 
 
 
@@ -278,6 +278,7 @@ int get_q()
   int len;
   static clocktime_t time_offset = { 0, 0 };
   static clocktime_t last_rt = { -1, 0 };
+  static clocktime_t in_outputbuf = { 0, 0 };
   MsgEvent_t ev;
   
   q_head = (q_head_t *)stream_shmaddr;
@@ -358,13 +359,13 @@ int get_q()
 	  } else {
 	    tmptime = real_time;
 	  }
-	  /*  
+	  
 	  {
 	    clocktime_t corr = { 0, 100000000 };
-	    timeadd(&tmptime, &tmptime, &corr);
+	    timeadd(&tmptime, &tmptime, &in_outputbuf);
 	    
 	  }
-	  */
+	  
       	  set_sync_point(&ctrl_time[scr_nr],
 			 &tmptime,
 			 &scr_time,
@@ -451,7 +452,10 @@ int get_q()
   }
 #else
   if(ctrl_data->speed == 1.0) {
-    a52_decode_data(data_buffer+off, data_buffer+off+len);  
+    in_outputbuf = a52_decode_data(data_buffer+off, data_buffer+off+len);  
+  } else {
+    TIME_S(in_outputbuf) = 0;
+    TIME_SS(in_outputbuf) = 0;
   }
 #endif
   // release elem
@@ -471,13 +475,14 @@ int get_q()
 
 
 
-static void a52_decode_data(uint8_t *start, uint8_t *end) {
+static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
   static a52_state_t state;
   
   static uint8_t buf[3840];
   static uint8_t *bufptr = buf;
   static uint8_t *bufpos = buf + 7;
-  
+  clocktime_t buf_time = {0, 0};
+  int blocks = 0;
   /*
    * sample_rate and flags are static because this routine could
    * exit between the a52_syncinfo() and the ao_setup(), and we want
@@ -527,6 +532,7 @@ static void a52_decode_data(uint8_t *start, uint8_t *end) {
 	    goto error;
 	  if(ao_play(output, flags, samples))
 	    goto error;
+	  blocks++;
 	}
 	bufptr = buf;
 	bufpos = buf + 7;
@@ -539,4 +545,10 @@ static void a52_decode_data(uint8_t *start, uint8_t *end) {
       }
     }
   }
+
+
+  TIME_S(buf_time) = (256*blocks*CT_FRACTION/sample_rate) / CT_FRACTION;
+  TIME_SS(buf_time) = (256*blocks*CT_FRACTION/sample_rate) % CT_FRACTION;
+
+  return buf_time;
 }
