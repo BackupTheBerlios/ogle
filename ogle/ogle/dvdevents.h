@@ -48,6 +48,7 @@ typedef enum {
   DVDCtrlStop,
 
   DVDCtrlAudioStreamChange,
+  DVDCtrlSubpictureStreamChange,
 
 
   /* infocmds */
@@ -235,13 +236,14 @@ typedef struct {
 typedef struct {
   DVDCtrlEventType_t type;
   DVDSubpictureStream_t streamnr;
+  DVDBool_t display;
 } DVDCtrlSubpictureStreamChangeEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
   int nrofstreams;
   DVDSubpictureStream_t currentstream;
-  DVDBool_t enabled;
+  DVDBool_t display;
 } DVDCtrlCurrentSubpictureEvent_t;
 
 typedef struct {
@@ -314,6 +316,7 @@ typedef union {
   */
 
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
+  DVDCtrlSubpictureStreamChangeEvent_t subpicturestreamchange;
 
   /* infocmd */
 

@@ -362,7 +362,7 @@ DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
 				    DVDSubpictureStream_t *const CurrentStream,
-				    DVDBool_t *const Enabled)
+				    DVDBool_t *const Display)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -374,7 +374,7 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
        (ev.dvdctrl.cmd.type == DVDCtrlCurrentSubpicture)) {
       *StreamsAvailable = ev.dvdctrl.cmd.currentsubpicture.nrofstreams;
       *CurrentStream = ev.dvdctrl.cmd.currentsubpicture.currentstream;
-      *Enabled = ev.dvdctrl.cmd.currentsubpicture.enabled;
+      *Display = ev.dvdctrl.cmd.currentsubpicture.display;
       return DVD_E_Ok;
     }
   } 
