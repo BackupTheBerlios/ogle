@@ -4,8 +4,7 @@
 oglerc \- ogle configuration file
 .SH DESCRIPTION
 The oglerc file is a configuration file for ogle.
-There is one system-wide file in ${prefix}/share/oglerc and an
-optional user file $HOME/.oglerc which overrides system settings.
+There is one system-wide file in @CONFIG_FILE@ (${prefix}/share/ogle/oglerc) and an optional user file $HOME/.oglerc which overrides system settings.
 .br
 The file is written in XML, with a DTD in an external file.
 .br
