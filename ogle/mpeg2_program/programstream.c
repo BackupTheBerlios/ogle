@@ -43,7 +43,7 @@ uint32_t offs;
 
 void read_buf(void);
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef DEBUG
 #define DPRINTF(level, text...) \
@@ -95,12 +95,13 @@ int bytealigned(void)
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
-//static inline   
-uint32_t getbits(unsigned int nr)
+static inline uint32_t getbits(unsigned int nr)
 #endif
 {
   uint32_t result;
   
+  // To get some profiling data...
+  if(offs > 100000000) exit(0);
 
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
@@ -126,15 +127,25 @@ uint32_t getbits(unsigned int nr)
 }
 
 
-void drop_bytes(int len)
-{
-  int n;
-  for(n = 0; n < len; n++) {
-    GETBITS(8, "drop");
-  }
-  //  offs+=len;
-  return;
+static inline void drop_bytes(int len)
+{  
+  uint rest;
+  uint todo;
 
+  // This is always byte-aligned. Trust us.
+
+  len  -= bits_left/8;
+  rest  = len % 4;
+  offs += (len - rest);
+  todo  = bits_left+rest*8;
+
+  while(todo > 32) {
+    GETBITS(32, "skip");
+    todo -= 32;
+  }
+  GETBITS(todo, "skip");
+
+  return;
 }
 
 
@@ -158,7 +169,7 @@ unsigned int nextbits(unsigned int nr_of_bits)
   return result >> (32-nr_of_bits);
 }
 
-void marker_bit(void)                                                           {
+static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
     fprintf(stderr, "*** incorrect marker_bit in stream\n");
     exit(-1);
