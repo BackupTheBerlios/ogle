@@ -240,8 +240,9 @@ int main(int argc, char *argv[])
     }
     
     while(ev.type != MsgEventQDecodeStreamBuf) {
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
     }
 
   } else {
@@ -388,8 +389,9 @@ int get_q()
     
     while(!q_elems[elem].in_use) {
       DPRINTF(1, "a52: waiting for notification1\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
     }
   }
 
