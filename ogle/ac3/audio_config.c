@@ -328,15 +328,16 @@ int audio_config(audio_config_t *aconf,
 
     FATAL("%s", "ogle_ao_init: ");
     if(aconf->ainfo->sample_rate == -1) {
-      FATAL("sample_rate %d failed", sample_rate);
+      FATALC("sample_rate %d failed", sample_rate);
     } else if(aconf->ainfo->sample_resolution == -1 ||
 	      aconf->ainfo->encoding == -1 ||
 	      aconf->ainfo->byteorder == -1) {
-      FATAL("encoding %d, resolution %d, byte order %d failed\n",
+      FATALC("encoding %d, resolution %d, byte order %d failed",
 	    encoding, sample_resolution, OGLE_AO_BYTEORDER_NE);
     } else if(aconf->ainfo->channels == -1) {
-      FATAL("channels %d failed\n", aconf->dst_format.nr_channels);
+      FATALC("channels %d failed", aconf->dst_format.nr_channels);
     } 
+    FATALC("%s", "\n");
   } else {
     if(aconf->ainfo->sample_rate != sample_rate) {
       ERROR("wanted sample rate %d, got %d\n",
