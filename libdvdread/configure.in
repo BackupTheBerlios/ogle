@@ -116,10 +116,6 @@ AC_SUBST(DL_LIBS)
 AC_SUBST(CSS_LIBS)
 AC_SUBST(CSS_CFLAGS)
 
-dnl 
-dnl Check for inttype.h, if not present on the system generate one in ".".
-dnl
-AC_CHECK_GENERATE_INTTYPES(.)
 
 dnl
 dnl Checks for header files.

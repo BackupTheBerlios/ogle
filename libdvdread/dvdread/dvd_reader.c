@@ -124,6 +124,17 @@ void SetUDFCacheHandle(dvd_reader_t *device, void *cache)
   dev->udfcache = cache;
 }
 
+#ifdef WIN32 /* replacement gettimeofday implementation */
+#include <sys/timeb.h>
+static int gettimeofday( struct timeval *tv, void *tz )
+{
+  struct timeb t;
+  ftime( &t );
+  tv->tv_sec = t.time;
+  tv->tv_usec = t.millitm * 1000;
+  return 0;
+}
+#endif
 
 
 /* Loop over all titles and call dvdcss_title to crack the keys. */
@@ -303,12 +314,23 @@ dvd_reader_t *DVDOpen( const char *path )
     if( path == NULL )
       return 0;
 
-    ret = stat( path, &fileinfo );
-    if( ret < 0 ) {
-	/* If we can't stat the file, give up */
-	fprintf( stderr, "libdvdread: Can't stat %s\n", path );
-	perror("");
-	return 0;
+#ifdef WIN32
+    /* Stat doesn't work on devices under mingwin/cygwin. */
+    if( path[0] && path[1] == ':' && path[2] == '\0' )
+    {
+        /* Don't try to stat the file */
+        fileinfo.st_mode = S_IFBLK;
+    }
+    else
+#endif
+    {
+        ret = stat( path, &fileinfo );
+        if( ret < 0 ) {
+	    /* If we can't stat the file, give up */
+	    fprintf( stderr, "libdvdread: Can't stat %s\n", path );
+	    perror("");
+	    return 0;
+	}
     }
 
     /* Try to open libdvdcss or fall back to standard functions */
@@ -342,6 +364,7 @@ dvd_reader_t *DVDOpen( const char *path )
 	/* XXX: We should scream real loud here. */
 	if( !(path_copy = strdup( path ) ) ) return 0;
 
+#ifndef WIN32 /* don't have fchdir, and getcwd( NULL, ... ) is strange */
 	/* Resolve any symlinks and get the absolut dir name. */
 	{
 	    char *new_path;
@@ -358,6 +381,7 @@ dvd_reader_t *DVDOpen( const char *path )
 		}
 	    }
 	}
+#endif
 	
 	/**
 	 * If we're being asked to open a directory, check if that directory

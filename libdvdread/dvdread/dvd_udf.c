@@ -34,10 +34,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if defined(HAVE_SYS_IOCTL_H)
-#include <sys/ioctl.h>
-#endif
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>

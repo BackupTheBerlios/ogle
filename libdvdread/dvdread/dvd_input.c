@@ -141,10 +141,14 @@ static int css_close(dvd_input_t dev)
   return 0;
 }
 
-
-
-
-
+/* Need to use O_BINARY for WIN32 */
+#ifndef O_BINARY
+#ifdef _O_BINARY
+#define O_BINARY _O_BINARY
+#else
+#define O_BINARY 0
+#endif
+#endif
 
 /**
  * initialize and open a DVD device or file.
@@ -161,7 +165,7 @@ static dvd_input_t file_open(const char *target)
   }
   
   /* Open the device */
-  dev->fd = open(target, O_RDONLY);
+  dev->fd = open(target, O_RDONLY | O_BINARY);
   if(dev->fd < 0) {
     perror("libdvdread: Could not open input");
     free(dev);
