@@ -417,6 +417,7 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
     cmd.bits[i] = bytes[i];
     cmd.examined[i] = 0;
   }
+  memset(return_values, 0, sizeof(link_t));
 
   switch(bits(0, 0, 3)) { /* three first bits */
     case 0: // Special instructions
@@ -484,10 +485,10 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
       break;
     }
   if(extra_bits) {
-    printf ("[WARNING, unknown bits:");
+    fprintf(stderr, "[WARNING, unknown bits:");
     for(i = 0; i < 8; i++)
-      printf(" %02x", cmd.bits [i] & ~cmd.examined [i]);
-    printf("]\n");
+      fprintf(stderr, " %02x", cmd.bits [i] & ~cmd.examined [i]);
+    fprintf(stderr, "]\n");
   }
 
   return res;
@@ -502,14 +503,37 @@ bool eval(vm_cmd_t commands[], int num_commands,
   
   state = registers; // TODO FIXME
 
+  // DEBUG
+  if(1) {
+    int i;
+    fprintf(stderr, "   #   ");
+    for(i = 0; i < 24; i++)
+    fprintf(stderr, " %2d |", i);
+    fprintf(stderr, "\nSRPMS: ");
+    for(i = 0; i < 24; i++)
+      fprintf(stderr, "%04x|", state->SPRM[i]);
+    fprintf(stderr, "\nGRPMS: ");
+    for(i = 0; i < 16; i++)
+      fprintf(stderr, "%04x|", state->GPRM[i]);
+    fprintf(stderr, "\n");
+  }
+  if(0) {
+    int i;
+    for(i = 0; i < num_commands; i++)
+      vmPrint_CMD(i, &commands[i]);
+    fprintf(stderr, "--------------------------------------------\n");
+  } // end DEBUG
+
   while(i < num_commands && total < 100000) {
     int line;
     
-    memset(return_values, 0, sizeof(link_t));
+    if(1) vmPrint_CMD(i, &commands[i]);
     line = eval_command(&commands[i].bytes[0], return_values);
     
-    if (line < 0) // Link command
+    if (line < 0) { // Link command
+      fprintf(stderr, "eval: Doing Link/Jump/Call\n"); 
       return 1;
+    }
     
     if (line > 0) // Goto command
       i = line - 1;
