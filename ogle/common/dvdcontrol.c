@@ -184,7 +184,7 @@ DVDResult_t DVDAudioStreamChange(DVDAudioStream_t StreamNr)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDAudioStreamChange;
-  ev.menucall.streamnr = StreamNr;
+  ev.audiostreamchange.streamnr = StreamNr;
   
   MsgSendEvent(msgq, nav_client, &ev);
   

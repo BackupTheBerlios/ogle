@@ -297,6 +297,7 @@ typedef union {
   MsgQUserInputEvent_t userinput;
   MsgQSpeedEvent_t speed;
   MsgQDVDMenuCallEvent_t menucall;
+  MsgQDVDAudioStreamChangeEvent_t audiostreamchange;
 } MsgEvent_t;
 
 typedef struct {
