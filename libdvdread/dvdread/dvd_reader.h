@@ -181,15 +181,18 @@ ssize_t DVDReadBytes( dvd_file_t *, void *, size_t );
 ssize_t DVDFileSize( dvd_file_t * );
 
 /**
- * Get a unique 128 bit disc ID. This is the MD5 sum of all the ifo
- * files in title order.
+ * Get a unique 128 bit disc ID.
+ * This is the MD5 sum of VIDEO_TS.IFO and the VTS_0?_0.IFO files
+ * in title order (those that exist).
+ * If you need a 'text' representation of the id, print it as a
+ * hexadecimal number, using lowercase letters, discid[0] first. 
+ * I.e. the same format as the command-line 'md5sum' program uses.
  *
  * @param dvd A read handle to get the disc ID from
  * @param discid The buffer to put the disc ID into. The buffer must
  *               have room for 128 bits (16 chars).
  * @return 0 on success, -1 on error.
  */
-
 int DVDDiscID( dvd_reader_t *, unsigned char * );
 
 /**
@@ -210,7 +213,6 @@ int DVDDiscID( dvd_reader_t *, unsigned char * );
  * @param volsetid_size At most volsetid_size bytes will be copied to volsetid.
  * @return 0 on success, -1 on error.
  */
-
 int DVDUDFVolumeInfo( dvd_reader_t *, char *, unsigned int,
 		      char *, unsigned int );
 
@@ -235,7 +237,6 @@ int DVDUDFVolumeInfo( dvd_reader_t *, char *, unsigned int,
  * @param volsetid_size At most volsetid_size bytes will be copied to volsetid.
  * @return 0 on success, -1 on error.
  */
-
 int DVDISOVolumeInfo( dvd_reader_t *, char *, unsigned int,
 		      char *, unsigned int );
 
@@ -251,7 +252,6 @@ int DVDISOVolumeInfo( dvd_reader_t *, char *, unsigned int,
  *
  * @return The level of caching.
  */
-
 int DVDUDFCacheLevel( dvd_reader_t *, int );
 
 #ifdef __cplusplus

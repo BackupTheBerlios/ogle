@@ -972,36 +972,45 @@ ssize_t DVDFileSize( dvd_file_t *dvd_file )
 
 int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 {
-  struct md5_ctx ctx;
-  int title;
+    struct md5_ctx ctx;
+    int title;
 
-  md5_init_ctx( &ctx );
-  /* Go through all ifo:s in order and md5sum them
-   * Can there be "gaps" in the title numbers? */
-  for( title = 0; title < 10; title++ ) {
-    dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
-    if( dvd_file != NULL ) {
-      ssize_t bytes_read;
-      size_t file_size = dvd_file->filesize * DVD_VIDEO_LB_LEN;
-      char *buffer = malloc( file_size );
-
-      bytes_read = DVDReadBytes( dvd_file, buffer, file_size );
-      if( bytes_read != file_size ) {
-        fprintf( stderr, "DVDDiscId: read returned %d bytes, wanted %d\n",
-                 bytes_read, file_size );
-        DVDCloseFile( dvd_file );
-        return -1;
-      }
-      
-      md5_process_bytes( buffer, file_size,  &ctx );
-
-      DVDCloseFile( dvd_file );
-      free( buffer );
+    /* Check arguments. */
+    if( dvd == NULL || discid == NULL )
+      return NULL;
+    
+    /* Go through the first 10 IFO:s, in order, 
+     * and md5sum them, i.e  VIDEO_TS.IFO and VTS_0?_0.IFO */
+    md5_init_ctx( &ctx );
+    for( title = 0; title < 10; title++ ) {
+	dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
+	if( dvd_file != NULL ) {
+	    ssize_t bytes_read;
+	    size_t file_size = dvd_file->filesize * DVD_VIDEO_LB_LEN;
+	    char *buffer = malloc( file_size );
+	    
+	    if( buffer == NULL ) {
+		fprintf( stderr, "libdvdread: DVDDiscId, failed to "
+			 "allocate memory for file read!\n" );
+		return -1;
+	    }
+	    bytes_read = DVDReadBytes( dvd_file, buffer, file_size );
+	    if( bytes_read != file_size ) {
+		fprintf( stderr, "libdvdread: DVDDiscId read returned %d bytes"
+			 ", wanted %d\n", bytes_read, file_size );
+		DVDCloseFile( dvd_file );
+		return -1;
+	    }
+	    
+	    md5_process_bytes( buffer, file_size,  &ctx );
+	    
+	    DVDCloseFile( dvd_file );
+	    free( buffer );
+	}
     }
-  }
-  md5_finish_ctx( &ctx, discid );
-
-  return 0;
+    md5_finish_ctx( &ctx, discid );
+    
+    return 0;
 }
 
 
