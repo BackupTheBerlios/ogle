@@ -38,7 +38,8 @@ int image_height;	/* Number of rows in image */
 int image_width;	/* Number of columns in image */
 
 GLOBAL(void)
-     write_JPEG_file (char * filename, J_COLOR_SPACE type, int quality)
+     write_JPEG_file (char * filename, J_COLOR_SPACE type, int quality,
+		      uint16_t x_density, uint16_t y_density)
 {
   struct jpeg_compress_struct cinfo;
   struct jpeg_error_mgr jerr;
@@ -63,6 +64,10 @@ GLOBAL(void)
   cinfo.in_color_space = type;          /* colorspace of input image */
 
   jpeg_set_defaults(&cinfo);
+
+  cinfo.density_unit = 0;
+  cinfo.X_density = x_density;
+  cinfo.Y_density = y_density;
 
   jpeg_set_quality(&cinfo, quality, TRUE /* limit to baseline-JPEG values */);
 
@@ -104,7 +109,8 @@ METHODDEF(void)
 
 
 void screenshot_rgb_jpg(unsigned char *data,
-			unsigned int width, unsigned int height) {
+			unsigned int width, unsigned int height,
+			int sar_frac_n, int sar_frac_d) {
   int x,y;
   char *file = new_file(); //support for progressive screenshots
 
@@ -133,12 +139,13 @@ void screenshot_rgb_jpg(unsigned char *data,
 	data [y * image_width * 4 + x*4 +1 ] ;
     }
   }
-  write_JPEG_file (file, JCS_RGB, 100);
+  write_JPEG_file (file, JCS_RGB, 100, sar_frac_n, sar_frac_d);
 }
 
 
 
-void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
+void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
+			int sar_frac_n, int sar_frac_d) {
   int x,y;
   char *file = new_file(); //support for progressive screenshots
   
@@ -182,7 +189,7 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
       jpg_buffer[(y+1) * image_width * 3 + (x+1)*3 +2 ] = (*pv++);
     }
   }
-  write_JPEG_file ( file, JCS_YCbCr, 100);
+  write_JPEG_file ( file, JCS_YCbCr, 100, sar_frac_n, sar_frac_d);
 }
 
 static char *new_file(void) {

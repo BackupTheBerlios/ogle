@@ -1411,6 +1411,7 @@ static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
 
 static void draw_win_x11(window_info *dwin)
 {
+  int sar_frac_n, sar_frac_d; 
   char *address = dwin->ximage->data;
   
 #ifdef HAVE_MLIB
@@ -1429,6 +1430,24 @@ static void draw_win_x11(window_info *dwin)
   if(offs > 0)
     address += offs;
 #endif /* HAVE_MLIB */
+
+
+
+
+  if(screenshot || screenshot_spu) {
+    if(aspect_mode == AspectModeSrcVM) {
+      sar_frac_n // hack
+	= aspect_new_frac_d * dwin->image->info->picture.horizontal_size;
+      sar_frac_d // hack
+	= aspect_new_frac_n * dwin->image->info->picture.vertical_size;
+    }
+    /* Use the stream aspect */ 
+    else /* if(aspect_mode == AspectModeSrcMPEG) also default */ {
+      sar_frac_n = dwin->image->info->picture.sar_frac_n;
+      sar_frac_d = dwin->image->info->picture.sar_frac_d;
+    }
+  }
+
 
   /*** sun ffb2 ***/
   if(use_ffb2_yuv2rgb) {
@@ -1587,9 +1606,11 @@ static void draw_win_x11(window_info *dwin)
   
   if(screenshot_spu) {
     screenshot_spu = 0;
+
     screenshot_rgb_jpg(address,
 		       dwin->image->info->picture.padded_width,
-		       dwin->image->info->picture.padded_height);
+		       dwin->image->info->picture.padded_height,
+		       sar_frac_n, sar_frac_d);
   }
   
 
@@ -1626,7 +1647,8 @@ static void draw_win_x11(window_info *dwin)
   
   if(screenshot) {
     screenshot = 0;
-    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+    
+    screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
   
   window.video_area.width = scale.image_width;
@@ -1686,14 +1708,29 @@ static void draw_win_x11(window_info *dwin)
 static void draw_win_xv(window_info *dwin)
 {
 #ifdef HAVE_XV
-  
+  int sar_frac_n, sar_frac_d;   
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
   xv_image->data = dwin->image->y;
 
+  if(screenshot || screenshot_spu) { 
+    if(aspect_mode == AspectModeSrcVM) {
+      sar_frac_n // hack
+	= aspect_new_frac_d * dwin->image->info->picture.horizontal_size;
+      sar_frac_d // hack
+	= aspect_new_frac_n * dwin->image->info->picture.vertical_size;
+    }
+    /* Use the stream aspect */ 
+    else /* if(aspect_mode == AspectModeSrcMPEG) also default */ {
+      sar_frac_n = dwin->image->info->picture.sar_frac_n;
+      sar_frac_d = dwin->image->info->picture.sar_frac_d;
+    }
+  }
+  
   if(screenshot) {
     screenshot = 0;
-    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+    
+    screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
     
 #ifdef SPU
@@ -1707,7 +1744,8 @@ static void draw_win_xv(window_info *dwin)
 
   if(screenshot_spu) {
     screenshot_spu = 0;
-    screenshot_yuv_jpg(dwin->image, dwin->ximage);
+    
+    screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
   
   window.video_area.width = scale.image_width;

@@ -20,7 +20,9 @@
  */
 
 void screenshot_rgb_jpg(unsigned char *data,
-			unsigned int width, unsigned int height);
-void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg);
+			unsigned int width, unsigned int height,
+			int sar_frac_n, int sar_frac_d);
+void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
+			int sar_frac_n, int sar_frac_d);
 
 #endif /* SCREENSHOT_H_INCLUDED */
