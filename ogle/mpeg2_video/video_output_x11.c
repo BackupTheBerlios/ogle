@@ -776,14 +776,14 @@ void display_init(yuv_image_t *picture_data,
 				   MAP_SHARED, fb_fd, 0x0701a000);
     if(yuyv_fb == MAP_FAILED) {
       perror("mmap");
-      exit(-1);
+      exit(1);
     }
     
     rgb_fb = (uint8_t *)mmap(NULL, 4*2048*1024, PROT_READ | PROT_WRITE,
 				  MAP_SHARED, fb_fd, 0x05004000);
     if(rgb_fb == MAP_FAILED) {
       perror("mmap");
-      exit(-1);
+      exit(1);
     }
   }
   /*** end sun ffb2+ ***/

@@ -362,7 +362,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       fprintf(stderr, "spu_mixer: couldn't send notification\n");
-      exit(-1);
+      exit(1);
     }
   }
   
@@ -681,12 +681,12 @@ static void decode_dcsq(spu_t *spu_info)
 	  u3 = GETBYTES(2, "wipe x_end 2?");
 	} else {
 	  fprintf(stderr, "unknown cmd 07 type\n");
-	  exit(-1);
+	  exit(1);
 	}
 	  
 	if((u1 != 0) || (u2 != 0x0fff) || (u3 != 0xffff)) {
 	  fprintf(stderr, "unknown bits in cmd 7 used\n");
-	  exit(-1);
+	  exit(1);
 	}
       }
       break;

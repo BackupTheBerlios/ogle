@@ -320,7 +320,7 @@ int main(int argc, char **argv)
     MsgEvent_t ev;
     if((msgq = MsgOpen(msgqid)) == NULL) {
       fprintf(stderr, "video_decoder: couldn't get message q\n");
-      exit(-1);
+      exit(1);
     }
     
     ev.type = MsgEventQRegister;
@@ -2244,21 +2244,21 @@ void picture_display_extension()
 void picture_spatial_scalable_extension()
 {
   fprintf(stderr, "***ni picture_spatial_scalable_extension()\n");
-  exit(-1);
+  exit(1);
 }
 
 
 void picture_temporal_scalable_extension()
 {
   fprintf(stderr, "***ni picture_temporal_scalable_extension()\n");
-  exit(-1);
+  exit(1);
 }
 
 
 void sequence_scalable_extension()
 {
   fprintf(stderr, "***ni sequence_scalable_extension()\n");
-  exit(-1);
+  exit(1);
 }
 
 

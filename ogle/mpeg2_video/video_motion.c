@@ -127,11 +127,11 @@ void motion_comp()
   
   if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
     fprintf(stderr, "**** DP remove this when implemented\n");
-    //exit(-1);
+    //exit(1);
   }
   if(mb.prediction_type == PRED_TYPE_16x8_MC) {
     fprintf(stderr, "**** 16x8 MC remove this? check if working first.\n");
-    //exit(-1);
+    //exit(1);
   }
 
   

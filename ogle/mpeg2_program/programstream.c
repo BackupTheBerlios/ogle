@@ -444,7 +444,7 @@ unsigned int nextbits(unsigned int nr_of_bits)
 static inline void marker_bit(void)                                                           {
   if(!GETBITS(1, "markerbit")) {
     fprintf(stderr, "*** demux: incorrect marker_bit in stream\n");
-    //exit(-1);
+    //exit(1);
   }
 }
  
@@ -1606,33 +1606,33 @@ int main(int argc, char **argv)
 	switch(getsubopt(&options, stream_opts, &opt_value)) {
 	case OPT_STREAM_NR:
 	  if(opt_value == NULL) {
-	    exit(-1);
+	    exit(1);
 	  }
 	  
 	  stream_nr = atoi(opt_value);
 	  break;
 	case OPT_FILE:
 	  if(opt_value == NULL) {
-	    exit(-1);
+	    exit(1);
 	  }
 	  
 	  file = opt_value;
 	  break;
 	default:
 	  fprintf(stderr, "Unknown suboption\n");
-	  exit(-1);
+	  exit(1);
 	  break;
 	}
       }
       
       if((stream_nr == -1)) {
 	fprintf(stderr, "Missing suboptions\n");
-	exit(-1);
+	exit(1);
       } 
       
       if((stream_nr < 0) && (stream_nr > 0xf)) {
 	fprintf(stderr, "Invalid stream nr\n");
-	exit(-1);
+	exit(1);
       }
       
       stream_id = (0xe0 | stream_nr);
@@ -1672,33 +1672,33 @@ int main(int argc, char **argv)
 	switch(getsubopt(&options, stream_opts, &opt_value)) {
 	case OPT_STREAM_NR:
 	  if(opt_value == NULL) {
-	    exit(-1);
+	    exit(1);
 	  }
 	  
 	  stream_nr = atoi(opt_value);
 	  break;
 	case OPT_FILE:
 	  if(opt_value == NULL) {
-	    exit(-1);
+	    exit(1);
 	  }
 	  
 	  file = opt_value;
 	  break;
 	default:
 	  fprintf(stderr, "Unknown suboption: %s\n", options);
-	  exit(-1);
+	  exit(1);
 	  break;
 	}
       }
       
       if((stream_nr == -1)) {
 	fprintf(stderr, "Missing suboptions\n");
-	exit(-1);
+	exit(1);
       } 
       
       if((stream_nr < 0) && (stream_nr > 0x1f)) {
 	fprintf(stderr, "Invalid stream nr\n");
-	exit(-1);
+	exit(1);
       }
       
       stream_id = (0x20 | stream_nr);
@@ -1751,7 +1751,7 @@ int main(int argc, char **argv)
     // get a handle
     if((msgq = MsgOpen(msgqid)) == NULL) {
       fprintf(stderr, "demux: couldn't get message q\n");
-      exit(-1);
+      exit(1);
     }
     fprintf(stderr, "demux: msgq opened, clientnr: %ld\n",
 	    msgq->mtype);
