@@ -5,6 +5,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <string.h>
 
@@ -219,8 +220,10 @@ int interpret_config(void)
     strcat(rcpath, "/");
     strcat(rcpath, rcfile);
     
-    if((r+= interpret_oglerc(rcpath)) == -1) {
-      WARNING("interpret_config(): Couldn't read '%s'\n", rcpath);
+    if(!access(rcpath, R_OK)) {
+      if((r+= interpret_oglerc(rcpath)) == -1) {
+        WARNING("interpret_config(): Couldn't read '%s'\n", rcpath);
+      }
     }
     
     free(rcpath);
