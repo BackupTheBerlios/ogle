@@ -36,6 +36,7 @@ static MsgEventQ_t *msgq;
 
 MsgEventClient_t demux_client;
 MsgEventClient_t spu_client;
+MsgEventClient_t nav_client;
 
 
 void usage()
@@ -161,6 +162,36 @@ int request_spu()
       if((ev.gntcapability.capability & (DECODE_DVD_SPU))
 	 == (DECODE_DVD_SPU)) {
 	spu_client = ev.gntcapability.capclient;
+      } else {
+	fprintf(stderr, "ui: capabilities not requested\n");
+      }
+      break;
+    default:
+      fprintf(stderr, "ui: event not wanted %d, from %ld\n",
+	      ev.type, ev.any.client);
+      break;
+    }
+  }
+  return 0;
+}
+
+
+int request_nav()
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQReqCapability;
+  ev.reqcapability.capability = DECODE_DVD_NAV;
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    fprintf(stderr, "ui: didn't get cap\n");
+  }
+  
+  while(!nav_client) {
+    MsgNextEvent(msgq, &ev);
+    switch(ev.type) {
+    case MsgEventQGntCapability:
+      if((ev.gntcapability.capability & (DECODE_DVD_NAV))
+	 == (DECODE_DVD_NAV)) {
+	nav_client = ev.gntcapability.capclient;
       } else {
 	fprintf(stderr, "ui: capabilities not requested\n");
       }
@@ -304,38 +335,38 @@ int input() {
       sendev.changefile.filename[PATH_MAX] = '\0';
       
     } else if(strcmp(tok, "btn") == 0) {
-      /*
-      msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-      sendcmd->cmdtype = CMD_DVDCTRL_CMD;
-      
+      sendev.type = MsgEventQUserInput;
+      if(!nav_client) {
+	request_nav();
+      }
+      rcpt = nav_client;
       tok = strtok(NULL, " ");
       if(strcmp(tok, "up") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_UP_BUTTON;
+	sendev.userinput.cmd = InputCmdButtonUp;
       } else if(strcmp(tok, "down") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_DOWN_BUTTON;	
+	sendev.userinput.cmd = InputCmdButtonDown;
       } else if(strcmp(tok, "left") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_LEFT_BUTTON;	
+	sendev.userinput.cmd = InputCmdButtonLeft;
       } else if(strcmp(tok, "right") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_RIGHT_BUTTON;	
+	sendev.userinput.cmd = InputCmdButtonRight;
       } else if(strcmp(tok, "activate") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_ACTIVATE_BUTTON;	
+	sendev.userinput.cmd = InputCmdButtonActivate;
       }
-      */
     } else if(strcmp(tok, "btnnr") == 0) {
-      /*
-      msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-      sendcmd->cmdtype = CMD_DVDCTRL_CMD;
-      
+      sendev.type = MsgEventQUserInput;
+      if(!nav_client) {
+	request_nav();
+      }
+      rcpt = nav_client;
       tok = strtok(NULL, " ");
       if(strcmp(tok, "activate") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR;
+	sendev.userinput.cmd = InputCmdButtonActivateNr;
       } else if(strcmp(tok, "select") == 0) {
-	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_BUTTON_NR;	
+	sendev.userinput.cmd = InputCmdButtonSelectNr;
       }
       tok = strtok(NULL, " ");
-      sendcmd->cmd.dvdctrl_cmd.button_nr = strtol(tok, NULL, 0);	
-      
-      */
+      sendev.userinput.button_nr = strtol(tok, NULL, 0);	
+
     } else if(strcmp(tok, "speed") == 0) {
       rcpt = CLIENT_RESOURCE_MANAGER;
       sendev.type = MsgEventQSpeed;
