@@ -12,7 +12,7 @@ an image file or as copy on you harddrive.
 Keyboard commands for navigation in both player modes, if you have 
 input foucus in the video window.
 
-See the oglerc file for keybindings.
+See the oglerc man page or file for keybindings.
 
 .br
 Screen shoots are saved in the Ogles current working directory as 

@@ -9,6 +9,29 @@ optional user file $HOME/.oglerc which overrides system settings.
 The file is written in XML, with a DTD in an external file.
 .br
 Look in the system-wide oglerc for available settings.
+.br
+Some of the default key bindings include the following:
+.br
+  ',', slower, in slow-motion sound will be muted
+  'p', play, normal playback speed
+  '.', faster, in fast-forward sound will be muted
+  ' ' (space), pause / unpause
+  '>', skips to the next chapter
+  '<', skips to the previous chapter
+  'c', resume (if you have jumped to a menu from the movie)
+  'f' 'F', toggle between fullscreen and window mode
+  'q' 'Q', exit the player
+  't', jumps to the Title menu
+  'r', jumps to the Root menu
+  'a', jumps to the Audio menu
+  'A', jumps to the Angle menu
+  'P', jumps to the PTT (Chapter) menu
+  'S', jumps to the Subpicture menu
+Non configurable keys:
+  'i', saves a screen shoot (as screenshoot.jpg in pwd)
+  'I', saves a screen shoot with the subpicture overlay intact
+
+In addition to the above the arrow buttons and mouse can be used to move around in the DVD menues. Return, the keypad enter and ledt mouse button may be used to activate a DVD button.
 .SH FILES
 $HOME/.oglerc
 .br
