@@ -1,6 +1,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <signal.h>
+#include <siginfo.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,7 +32,7 @@ int audio       = 0;
 int video       = 0;
 int subtitle    = 0;
 int subtitle_id = 0;
-int debug       = 0;
+int debug       = 2;
 
 char *program_name;
 FILE *video_file;
@@ -101,7 +103,7 @@ static inline uint32_t getbits(unsigned int nr)
   uint32_t result;
   
   // To get some profiling data...
-  if(offs > 100000000) exit(0);
+  // if(offs > 100000000) exit(0);
 
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
@@ -741,8 +743,6 @@ void MPEG2_program_stream()
   }
 }
   
-  
-
 #if 0
 int get_bytes(unsigned int len, unsigned char **data) 
 {
@@ -768,14 +768,19 @@ int get_bytes(unsigned int len, unsigned char **data)
 }
 #endif
 
-
-
-
-
+void segvhandler (void)
+{
+  // If we got here we ran off the end of a mmapped file.
+  // Or it's some other bug. Remove the sigaction call in 
+  // main if you suspect this.
+  DPRINTF(1 "SEGV! Cool! (Reached end of mmapped file.)\n");
+  exit(0);
+}
 
 int main(int argc, char **argv)
 {
   int c; 
+  struct sigaction sig;
   program_name = argv[0];
 
   /* Parse command line options */
@@ -837,7 +842,7 @@ int main(int argc, char **argv)
   } else {
     struct stat statbuf;
     int rv;
-
+    
     infilefd = open(argv[optind], O_RDONLY);
     if(infilefd == -1) {
       perror(argv[optind]);
@@ -861,10 +866,20 @@ int main(int argc, char **argv)
 	exit(1);
       }
       DPRINTF(1, "All mmap system ok!\n");
+
+      // Setup signal handler for SEGV, to detect that we ran 
+      // out of file, without a test.
+      sig.sa_handler = segvhandler;
+      rv = sigaction(SIGSEGV, &sig, NULL);
+      if(rv == -1) {
+	perror("sighandler");
+	exit(1);
+      }
+      DPRINTF(1, "Signal handler installed!\n");
     }
   }
   //  printf("infile: %s\n",argv[optind]);
-
+  
   if(subtitle ^ !!subtitle_id) {  // both arguments needed.
     if(!subtitle) {
       fprintf(stderr, "No subtitle filename given.\n");
