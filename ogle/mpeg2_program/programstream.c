@@ -1069,14 +1069,14 @@ void pack()
   if(msgqid != -1) {
     if(off_to != -1) {
       if(off_to <= offs-(bits_left/8)) {
-	fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
+	//fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
 	off_to = -1;
 	get_next_demux_q();
 	//wait_for_msg(CMD_CTRL_CMD);
       }
     }
     if(off_from != -1) {
-      fprintf(stderr, "demux: off_from pack\n");
+      //fprintf(stderr, "demux: off_from pack\n");
       offs = off_from;
       bits_left = 64;
       off_from = -1;
@@ -1095,14 +1095,14 @@ void pack()
     if(msgqid != -1) {
       if(off_to != -1) {
 	if(off_to <= offs-(bits_left/8)) {
-	  fprintf(stderr, "demux: off_to %d offs %d mpeg1\n", off_to, offs);
+	  //fprintf(stderr, "demux: off_to %d offs %d mpeg1\n", off_to, offs);
 	  off_to = -1;
 	  get_next_demux_q();
 	  //wait_for_msg(CMD_CTRL_CMD);
 	}
       }
       if(off_from != -1) {
-	fprintf(stderr, "demux: off_from mpeg1\n");
+	//fprintf(stderr, "demux: off_from mpeg1\n");
 	offs = off_from;
 	bits_left = 64;
 	off_from = -1;
@@ -1120,14 +1120,14 @@ void pack()
       if(msgqid != -1) {
 	if(off_to != -1) {
 	  if(off_to <= offs-(bits_left/8)) {
-	    fprintf(stderr, "demux: off_to %d offs %d packet\n", off_to, offs);
+	    //fprintf(stderr, "demux: off_to %d offs %d packet\n", off_to, offs);
 	    off_to = -1;
 	    get_next_demux_q();
 	    //wait_for_msg(CMD_CTRL_CMD);
 	  }
 	}
 	if(off_from != -1) {
-	  fprintf(stderr, "demux: off_from packet\n");
+	  //fprintf(stderr, "demux: off_from packet\n");
 	  offs = off_from;
 	  bits_left = 64;
 	  off_from = -1;
@@ -1188,14 +1188,14 @@ void pack()
       if(msgqid != -1) {
 	if(off_to != -1) {
 	  if(off_to <= offs-(bits_left/8)) {
-	    fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
+	    //fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
 	    off_to = -1;
 	    get_next_demux_q();
 	    //wait_for_msg(CMD_CTRL_CMD);
 	  }
 	}
 	if(off_from != -1) {
-	  fprintf(stderr, "demux: off_from mpeg2\n");
+	  //fprintf(stderr, "demux: off_from mpeg2\n");
 	  offs = off_from;
 	  bits_left = 64;
 	  off_from = -1;

@@ -199,7 +199,7 @@ int chk_for_msg(void)
     perror("msgrcv");
     return -1;
   } else {
-    fprintf(stderr, "ctrl: got msg\n");
+    //fprintf(stderr, "ctrl: got msg\n");
     eval_msg(cmd);
   }
   
@@ -219,7 +219,7 @@ int wait_for_msg(cmdtype_t cmdtype)
       perror("msgrcv");
       return -1;
     } else {
-      fprintf(stderr, "ctrl: got msg\n");
+      //fprintf(stderr, "ctrl: got msg\n");
       eval_msg(cmd);
     }
     if(cmdtype == CMD_ALL) {
