@@ -343,8 +343,8 @@ DVDResult_t DVDPTTPlay(DVDTitle_t Title, DVDPTT_t PTT)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPTTPlay;
-  ev.dvdctrl.cmd.pttsearch.title = Title;
-  ev.dvdctrl.cmd.pttsearch.ptt = PTT;
+  ev.dvdctrl.cmd.pttplay.title = Title;
+  ev.dvdctrl.cmd.pttplay.ptt = PTT;
 
   MsgSendEvent(msgq, nav_client, &ev);
   
@@ -383,8 +383,8 @@ DVDResult_t DVDTimePlay(DVDTitle_t Title, DVDTimecode_t time)
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
-  ev.dvdctrl.cmd.timesearch.title = Title;
-  ev.dvdctrl.cmd.timesearch.time = time;
+  ev.dvdctrl.cmd.timeplay.title = Title;
+  ev.dvdctrl.cmd.timeplay.time = time;
 
   MsgSendEvent(msgq, nav_client, &ev);
   
