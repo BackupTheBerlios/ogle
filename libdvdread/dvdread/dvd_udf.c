@@ -40,9 +40,36 @@
 #include "dvd_reader.h"
 #include "dvd_udf.h"
 
-extern int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
-			     size_t block_count, unsigned char *data, 
-			     int encrypted );
+/* Private but located in/shared with dvd_reader.c */
+extern int DVDReadBlocksUDFRaw( dvd_reader_t *device, uint32_t lb_number,
+				size_t block_count, unsigned char *data, 
+				int encrypted );
+
+/* It's required to either fail or deliver all the blocks asked for. */
+static int DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
+			 size_t block_count, unsigned char *data, 
+			 int encrypted )
+{
+  int ret;
+  size_t count = block_count;
+  
+  while(count > 0) {
+    
+    ret = DVDReadBlocksUDFRaw(device, lb_number, count, data, encrypted);
+        
+    if(ret <= 0) {
+      /* One of the reads failed or nothing more to read, too bad.
+       * We won't even bother returning the reads that went ok. */
+      return ret;
+    }
+    
+    count -= (size_t)ret;
+    lb_number += (uint32_t)ret;
+  }
+
+  return block_count;
+}
+
 
 #ifndef NULL
 #define NULL ((void *)0)
