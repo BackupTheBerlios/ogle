@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Ogle 0.8.2\n"
-"POT-Creation-Date: 2001-12-31 13:43+0100\n"
+"POT-Creation-Date: 2002-06-25 20:22+0200\n"
 "PO-Revision-Date: 2001-11-29 22:20+0100\n"
 "Last-Translator: Martin Norbäck <d95mback@dtek.chalmers.se>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -13,7 +13,6 @@ msgstr ""
 "Content-Type: text/plain; charset=iso-8859-1\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#. The name of the angle choice in the angle popup menu
 #: src/angle.c:81
 #, c-format
 msgid "Angle %d"
@@ -27,8 +26,6 @@ msgstr "Annat"
 msgid "Unknown format"
 msgstr "Okänt format"
 
-#. Language name followed by audio format in parenthesis
-#. for use in the audio choice menu
 #: src/audio.c:126
 #, c-format
 msgid "%s (%s)"
@@ -38,9 +35,6 @@ msgstr "%s (%s)"
 msgid "None"
 msgstr "Inget"
 
-#. Translators:
-#. See the Swedish translation for the correct iso-8859-1
-#. representations of these, and use them if possible
 #: src/callbacks.c:221
 msgid ""
 "Authors:\n"
@@ -705,7 +699,6 @@ msgstr ""
 msgid "Hebrew"
 msgstr "Hebreiska"
 
-#. Withdrawn in 1989. Still used!!!
 #: src/language.c:193
 msgid "Herero"
 msgstr "Herero"
@@ -774,7 +767,6 @@ msgstr ""
 msgid "Indonesian"
 msgstr "Indonesiska"
 
-#. Withdrawn in 1989. Still used?
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "Interlingua"
@@ -823,7 +815,6 @@ msgstr "Japanska"
 msgid "Javanese"
 msgstr "Javanesiska"
 
-#. Withdrawn 2001-07-27
 #: src/language.c:225
 msgid "Judeo-Arabic"
 msgstr ""
@@ -1232,41 +1223,37 @@ msgstr "Nordsamiska"
 msgid "Norwegian"
 msgstr "Norska"
 
-#: src/language.c:327
-msgid "Norwegian Bokmål"
+#: src/language.c:328
+msgid "Norwegian Bokmal"
 msgstr "Norska, Bokmål"
 
-#: src/language.c:328
+#: src/language.c:329
 msgid "Norwegian Nynorsk"
 msgstr "Nynorska"
 
-#: src/language.c:329
+#: src/language.c:330
 msgid "Nubian languages"
 msgstr ""
 
-#: src/language.c:330
+#: src/language.c:331
 msgid "Nyamwezi"
 msgstr ""
 
-#: src/language.c:331
+#: src/language.c:332
 msgid "Nyanja; Chichewa"
 msgstr "Nyanja"
 
-#: src/language.c:332
+#: src/language.c:333
 msgid "Nyankole"
 msgstr ""
 
-#: src/language.c:333
+#: src/language.c:334
 msgid "Nyoro"
 msgstr ""
 
-#: src/language.c:334
+#: src/language.c:335
 msgid "Nzima"
 msgstr ""
-
-#: src/language.c:335
-msgid "Occitan (post 1500); Provençal"
-msgstr "Occitanska"
 
 #: src/language.c:336
 msgid "Ojibwa"
@@ -1356,499 +1343,495 @@ msgstr "Portugisiska"
 msgid "Prakrit languages"
 msgstr ""
 
-#: src/language.c:358
-msgid "Provençal; Occitan (post 1500) "
-msgstr ""
-
 #: src/language.c:359
-msgid "Provençal, Old (to 1500)"
+msgid "Provencal; Occitan (post 1500) "
+msgstr "Occitanska"
+
+#: src/language.c:361
+msgid "Provencal, Old (to 1500)"
 msgstr ""
 
-#: src/language.c:360
+#: src/language.c:362
 msgid "Pushto"
 msgstr "Pashto"
 
-#: src/language.c:361
+#: src/language.c:363
 msgid "Quechua"
 msgstr "Quechua"
 
-#: src/language.c:362
+#: src/language.c:364
 msgid "Raeto-Romance"
 msgstr "Rätoromanska"
 
-#: src/language.c:363
+#: src/language.c:365
 msgid "Rajasthani"
 msgstr ""
 
-#: src/language.c:364
+#: src/language.c:366
 msgid "Rapanui"
 msgstr ""
 
-#: src/language.c:365
+#: src/language.c:367
 msgid "Rarotongan"
 msgstr ""
 
-#. { N_("Reserved for local use"), "qaa-qtz", "qaa-qtz", ""},
-#: src/language.c:367
+#: src/language.c:369
 msgid "Romance (Other)"
 msgstr ""
 
-#: src/language.c:368
+#: src/language.c:370
 msgid "Romanian"
 msgstr "Rumänska"
 
-#: src/language.c:369
+#: src/language.c:371
 msgid "Romany"
 msgstr ""
 
-#: src/language.c:370
+#: src/language.c:372
 msgid "Rundi"
 msgstr "Rundi"
 
-#: src/language.c:371
+#: src/language.c:373
 msgid "Russian"
 msgstr "Ryska"
 
-#: src/language.c:372
+#: src/language.c:374
 msgid "Salishan languages"
 msgstr ""
 
-#: src/language.c:373
+#: src/language.c:375
 msgid "Samaritan Aramaic"
 msgstr ""
 
-#: src/language.c:374
+#: src/language.c:376
 msgid "Sami languages (Other)"
 msgstr ""
 
-#: src/language.c:375
+#: src/language.c:377
 msgid "Samoan"
 msgstr "Samoanska"
 
-#: src/language.c:376
+#: src/language.c:378
 msgid "Sandawe"
 msgstr ""
 
-#: src/language.c:377
+#: src/language.c:379
 msgid "Sango"
 msgstr "Sango"
 
-#: src/language.c:378
+#: src/language.c:380
 msgid "Sanskrit"
 msgstr "Sanskrit"
 
-#: src/language.c:379
+#: src/language.c:381
 msgid "Santali"
 msgstr ""
 
-#: src/language.c:380
+#: src/language.c:382
 msgid "Sardinian"
 msgstr "Sardiska"
 
-#: src/language.c:381
+#: src/language.c:383
 msgid "Sasak"
 msgstr ""
 
-#: src/language.c:382
+#: src/language.c:384
 msgid "Saxon, Low; German, Low;  Low Saxon; Low German"
 msgstr ""
 
-#: src/language.c:383
+#: src/language.c:385
 msgid "Scots"
 msgstr ""
 
-#: src/language.c:384
+#: src/language.c:386
 msgid "Selkup"
 msgstr ""
 
-#: src/language.c:385
+#: src/language.c:387
 msgid "Semitic (Other)"
 msgstr ""
 
-#: src/language.c:386
+#: src/language.c:388
 msgid "Serbian"
 msgstr "Serbiska"
 
-#: src/language.c:387
+#: src/language.c:389
 msgid "Serbo-Croatian"
 msgstr "Serbokroatiska"
 
-#. Withdrawn 2000-02-18. Still used?
-#: src/language.c:388
+#: src/language.c:390
 msgid "Serer"
 msgstr ""
 
-#: src/language.c:389
+#: src/language.c:391
 msgid "Shan"
 msgstr ""
 
-#: src/language.c:390
+#: src/language.c:392
 msgid "Shona"
 msgstr "Shona"
 
-#: src/language.c:391
+#: src/language.c:393
 msgid "Sidamo"
 msgstr ""
 
-#: src/language.c:392
+#: src/language.c:394
 msgid "Sign languages"
 msgstr ""
 
-#: src/language.c:393
+#: src/language.c:395
 msgid "Siksika"
 msgstr ""
 
-#: src/language.c:394
+#: src/language.c:396
 msgid "Sindhi"
 msgstr "Sindhi"
 
-#: src/language.c:395
+#: src/language.c:397
 msgid "Sinhalese"
 msgstr "Singalesiska"
 
-#: src/language.c:396
+#: src/language.c:398
 msgid "Sino-Tibetan (Other)"
 msgstr ""
 
-#: src/language.c:397
+#: src/language.c:399
 msgid "Siouan languages"
 msgstr ""
 
-#: src/language.c:398
+#: src/language.c:400
 msgid "Slave (Athapascan)"
 msgstr ""
 
-#: src/language.c:399
+#: src/language.c:401
 msgid "Slavic (Other)"
 msgstr ""
 
-#: src/language.c:400
+#: src/language.c:402
 msgid "Slovak"
 msgstr "Slovakiska"
 
-#: src/language.c:401
+#: src/language.c:403
 msgid "Slovenian"
 msgstr "Slovenska"
 
-#: src/language.c:402
+#: src/language.c:404
 msgid "Sogdian"
 msgstr ""
 
-#: src/language.c:403
+#: src/language.c:405
 msgid "Somali"
 msgstr "Somaliska"
 
-#: src/language.c:404
+#: src/language.c:406
 msgid "Songhai"
 msgstr ""
 
-#: src/language.c:405
+#: src/language.c:407
 msgid "Soninke"
 msgstr ""
 
-#: src/language.c:406
+#: src/language.c:408
 msgid "Sorbian languages"
 msgstr ""
 
-#: src/language.c:407
+#: src/language.c:409
 msgid "Sotho, Northern"
 msgstr "Sotho, nord"
 
-#: src/language.c:408
+#: src/language.c:410
 msgid "Sotho, Southern"
 msgstr "Sotho, syd"
 
-#: src/language.c:409
+#: src/language.c:411
 msgid "South American Indian (Other)"
 msgstr ""
 
-#: src/language.c:410
+#: src/language.c:412
 msgid "Spanish"
 msgstr "Spanska"
 
-#: src/language.c:411
+#: src/language.c:413
 msgid "Sukuma"
 msgstr ""
 
-#: src/language.c:412
+#: src/language.c:414
 msgid "Sumerian"
 msgstr ""
 
-#: src/language.c:413
+#: src/language.c:415
 msgid "Sundanese"
 msgstr "Sundanesiska"
 
-#: src/language.c:414
+#: src/language.c:416
 msgid "Susu"
 msgstr ""
 
-#: src/language.c:415
+#: src/language.c:417
 msgid "Swahili"
 msgstr "Swahili"
 
-#: src/language.c:416
+#: src/language.c:418
 msgid "Swati"
 msgstr "Siswati"
 
-#: src/language.c:417
+#: src/language.c:419
 msgid "Swedish"
 msgstr "Svenska"
 
-#: src/language.c:418
+#: src/language.c:420
 msgid "Syriac"
 msgstr ""
 
-#: src/language.c:419
+#: src/language.c:421
 msgid "Tagalog"
 msgstr "Tagalog"
 
-#: src/language.c:420
+#: src/language.c:422
 msgid "Tahitian"
 msgstr "Tahitiska"
 
-#: src/language.c:421
+#: src/language.c:423
 msgid "Tai (Other)"
 msgstr ""
 
-#: src/language.c:422
+#: src/language.c:424
 msgid "Tajik"
 msgstr "Tadjikiska"
 
-#: src/language.c:423
+#: src/language.c:425
 msgid "Tamashek"
 msgstr ""
 
-#: src/language.c:424
+#: src/language.c:426
 msgid "Tamil"
 msgstr "Tamil"
 
-#: src/language.c:425
+#: src/language.c:427
 msgid "Tatar"
 msgstr "Tatariska"
 
-#: src/language.c:426
+#: src/language.c:428
 msgid "Telugu"
 msgstr "Telugo"
 
-#: src/language.c:427
+#: src/language.c:429
 msgid "Tereno"
 msgstr ""
 
-#: src/language.c:428
+#: src/language.c:430
 msgid "Tetum"
 msgstr ""
 
-#: src/language.c:429
+#: src/language.c:431
 msgid "Thai"
 msgstr "Thailändska"
 
-#: src/language.c:430
+#: src/language.c:432
 msgid "Tibetan"
 msgstr "Tibetanska"
 
-#: src/language.c:431
+#: src/language.c:433
 msgid "Tigre"
 msgstr ""
 
-#: src/language.c:432
+#: src/language.c:434
 msgid "Tigrinya"
 msgstr "Tigrinya"
 
-#: src/language.c:433
+#: src/language.c:435
 msgid "Timne"
 msgstr ""
 
-#: src/language.c:434
+#: src/language.c:436
 msgid "Tiv"
 msgstr ""
 
-#: src/language.c:435
+#: src/language.c:437
 msgid "Tlingit"
 msgstr ""
 
-#: src/language.c:436
+#: src/language.c:438
 msgid "Tok Pisin"
 msgstr ""
 
-#: src/language.c:437
+#: src/language.c:439
 msgid "Tokelau"
 msgstr ""
 
-#: src/language.c:438
+#: src/language.c:440
 msgid "Tonga (Nyasa)"
 msgstr "Tonga"
 
-#: src/language.c:439
+#: src/language.c:441
 msgid "Tonga (Tonga Islands)"
 msgstr "Tonga"
 
-#: src/language.c:440
+#: src/language.c:442
 msgid "Tsimshian"
 msgstr ""
 
-#: src/language.c:441
+#: src/language.c:443
 msgid "Tsonga"
 msgstr "Tsonga"
 
-#: src/language.c:442
+#: src/language.c:444
 msgid "Tswana"
 msgstr "Tswana"
 
-#: src/language.c:443
+#: src/language.c:445
 msgid "Tumbuka"
 msgstr ""
 
-#: src/language.c:444
+#: src/language.c:446
 msgid "Turkish"
 msgstr "Turkiska"
 
-#: src/language.c:445
+#: src/language.c:447
 msgid "Turkish, Ottoman (1500-1928)"
 msgstr ""
 
-#: src/language.c:446
+#: src/language.c:448
 msgid "Turkmen"
 msgstr "Turkmeni"
 
-#: src/language.c:447
+#: src/language.c:449
 msgid "Tuvalu"
 msgstr ""
 
-#: src/language.c:448
+#: src/language.c:450
 msgid "Tuvinian"
 msgstr ""
 
-#: src/language.c:449
+#: src/language.c:451
 msgid "Twi"
 msgstr "Twi"
 
-#: src/language.c:450
+#: src/language.c:452
 msgid "Ugaritic"
 msgstr ""
 
-#: src/language.c:451
+#: src/language.c:453
 msgid "Uighur"
 msgstr "Uigriska"
 
-#: src/language.c:452
+#: src/language.c:454
 msgid "Ukrainian"
 msgstr "Ukrainska "
 
-#: src/language.c:453
+#: src/language.c:455
 msgid "Umbundu"
 msgstr ""
 
-#: src/language.c:454
+#: src/language.c:456
 msgid "Undetermined"
 msgstr ""
 
-#: src/language.c:455
+#: src/language.c:457
 msgid "Urdu"
 msgstr "Urdu"
 
-#: src/language.c:456
+#: src/language.c:458
 msgid "Uzbek"
 msgstr "Uzbekiska"
 
-#: src/language.c:457
+#: src/language.c:459
 msgid "Vai"
 msgstr ""
 
-#: src/language.c:458
+#: src/language.c:460
 msgid "Venda"
 msgstr ""
 
-#: src/language.c:459
+#: src/language.c:461
 msgid "Vietnamese"
 msgstr "Vietnamesiska"
 
-#: src/language.c:460
-msgid "Volapük"
+#: src/language.c:463
+msgid "Volapuk"
 msgstr "Volapük"
 
-#: src/language.c:461
+#: src/language.c:464
 msgid "Votic"
 msgstr ""
 
-#: src/language.c:462
+#: src/language.c:465
 msgid "Wakashan languages"
 msgstr ""
 
-#: src/language.c:463
+#: src/language.c:466
 msgid "Walamo"
 msgstr ""
 
-#: src/language.c:464
+#: src/language.c:467
 msgid "Waray"
 msgstr ""
 
-#: src/language.c:465
+#: src/language.c:468
 msgid "Washo"
 msgstr ""
 
-#: src/language.c:466
+#: src/language.c:469
 msgid "Welsh"
 msgstr "Walesiska"
 
-#: src/language.c:467
+#: src/language.c:470
 msgid "Wolof"
 msgstr "Wolof"
 
-#: src/language.c:468
+#: src/language.c:471
 msgid "Xhosa"
 msgstr "Xhosa"
 
-#: src/language.c:469
+#: src/language.c:472
 msgid "Yakut"
 msgstr ""
 
-#: src/language.c:470
+#: src/language.c:473
 msgid "Yao"
 msgstr ""
 
-#: src/language.c:471
+#: src/language.c:474
 msgid "Yapese"
 msgstr ""
 
-#: src/language.c:472 src/language.c:473
+#: src/language.c:475 src/language.c:476
 msgid "Yiddish"
 msgstr "Jiddisch"
 
-#. // Withdrawn in 1989. Still used?
-#: src/language.c:474
+#: src/language.c:477
 msgid "Yoruba"
 msgstr ""
 
-#: src/language.c:475
+#: src/language.c:478
 msgid "Yupik languages"
 msgstr ""
 
-#: src/language.c:476
+#: src/language.c:479
 msgid "Zande"
 msgstr ""
 
-#: src/language.c:477
+#: src/language.c:480
 msgid "Zapotec"
 msgstr ""
 
-#: src/language.c:478
+#: src/language.c:481
 msgid "Zenaga"
 msgstr ""
 
-#: src/language.c:479
+#: src/language.c:482
 msgid "Zhuang"
 msgstr "Zhuang"
 
-#: src/language.c:480
+#: src/language.c:483
 msgid "Zulu"
 msgstr "Zulu"
 
-#: src/language.c:481
+#: src/language.c:484
 msgid "Zuni"
 msgstr ""
 
-#. Unknown language
-#: src/language.c:504
+#: src/language.c:507
 msgid "Unknown"
 msgstr "Okänt"
 
@@ -1880,187 +1863,154 @@ msgstr "Titel"
 msgid "Resume"
 msgstr "Återuppta"
 
-#. ogle_gui.glade:187
 #: pixmaps/glade-strings.c:10
 msgid "%P %%"
 msgstr "%P %%"
 
-#. ogle_gui.glade:1122
 #: pixmaps/glade-strings.c:13
 msgid "About"
 msgstr "Om"
 
-#. ogle_gui.glade:1069
 #: pixmaps/glade-strings.c:16
 msgid "Angle select"
 msgstr "Val av vinkel"
 
-#. ogle_gui.glade:993
 #: pixmaps/glade-strings.c:19
 msgid "Audio select"
 msgstr "Val av ljud"
 
-#. ogle_gui.glade:92
 #: pixmaps/glade-strings.c:22
+msgid "Chapters"
+msgstr "Kapitel"
+
+#: pixmaps/glade-strings.c:25
 msgid "E_xit"
 msgstr "_Avsluta"
 
-#. ogle_gui.glade:902
-#: pixmaps/glade-strings.c:25
+#: pixmaps/glade-strings.c:28
 msgid "Enter"
 msgstr "Enter"
 
-#. ogle_gui.glade:378
-#: pixmaps/glade-strings.c:28
+#: pixmaps/glade-strings.c:31
 msgid "Fast forward"
 msgstr "Snabbspelning"
 
-#. ogle_gui.glade:712
-#: pixmaps/glade-strings.c:31
+#: pixmaps/glade-strings.c:34
 msgid "Go up"
 msgstr "Gå upp"
 
-#. ogle_gui.glade:826
-#: pixmaps/glade-strings.c:34
+#: pixmaps/glade-strings.c:37
 msgid "Move cursor down"
 msgstr "Flytta markör neråt"
 
-#. ogle_gui.glade:750
-#: pixmaps/glade-strings.c:37
+#: pixmaps/glade-strings.c:40
 msgid "Move cursor left"
 msgstr "Flytta markör åt vänster"
 
-#. ogle_gui.glade:864
-#: pixmaps/glade-strings.c:40
+#: pixmaps/glade-strings.c:43
 msgid "Move cursor right"
 msgstr "Flytta markör åt höger"
 
-#. ogle_gui.glade:788
-#: pixmaps/glade-strings.c:43
+#: pixmaps/glade-strings.c:46
 msgid "Move cursor up"
 msgstr "Flytta markör uppåt"
 
-#. ogle_gui.glade:1220
-#: pixmaps/glade-strings.c:46
+#: pixmaps/glade-strings.c:49
 msgid "OK"
 msgstr "Ok"
 
-#. ogle_gui.glade:18
-#: pixmaps/glade-strings.c:49
+#: pixmaps/glade-strings.c:52
 msgid "Ogle"
 msgstr "Ogle"
 
-#. ogle_gui.glade:74
-#: pixmaps/glade-strings.c:52
+#: pixmaps/glade-strings.c:55
 msgid "Open _disc"
 msgstr "Öppna _DVD-skiva"
 
-#. ogle_gui.glade:492
-#: pixmaps/glade-strings.c:55
+#: pixmaps/glade-strings.c:58
 msgid "Pause"
 msgstr "Paus"
 
-#. ogle_gui.glade:1177 ogle_gui.glade:1195
-#: pixmaps/glade-strings.c:58
+#: pixmaps/glade-strings.c:61
 msgid "Placeholder"
 msgstr "Dumruta"
 
-#. ogle_gui.glade:340
-#: pixmaps/glade-strings.c:61
+#: pixmaps/glade-strings.c:64
 msgid "Play"
 msgstr "Spela"
 
-#. ogle_gui.glade:621
-#: pixmaps/glade-strings.c:64
+#: pixmaps/glade-strings.c:67
 msgid "Play fast"
 msgstr "Spela snabbt"
 
-#. ogle_gui.glade:659
-#: pixmaps/glade-strings.c:67
+#: pixmaps/glade-strings.c:70
 msgid "Play slow"
 msgstr "Spela långsamt"
 
-#. ogle_gui.glade:116
-#: pixmaps/glade-strings.c:70
+#: pixmaps/glade-strings.c:73
 msgid "Properties..."
 msgstr "Egenskaper..."
 
-#. ogle_gui.glade:264
-#: pixmaps/glade-strings.c:73
+#: pixmaps/glade-strings.c:76
 msgid "Reverse"
 msgstr "Spela baklänges"
 
-#. ogle_gui.glade:226
-#: pixmaps/glade-strings.c:76
+#: pixmaps/glade-strings.c:79
 msgid "Rewind"
 msgstr "Snabbspelning baklänges"
 
-#. ogle_gui.glade:955
-#: pixmaps/glade-strings.c:79
+#: pixmaps/glade-strings.c:82
 msgid "Select menu..."
 msgstr "Val av meny..."
 
-#. ogle_gui.glade:416
-#: pixmaps/glade-strings.c:82
+#: pixmaps/glade-strings.c:85
 msgid "Skip backwards"
 msgstr "Hoppa bakåt"
 
-#. ogle_gui.glade:568
-#: pixmaps/glade-strings.c:85
+#: pixmaps/glade-strings.c:88
 msgid "Skip forwards"
 msgstr "Hoppa framåt"
 
-#. ogle_gui.glade:530
-#: pixmaps/glade-strings.c:88
+#: pixmaps/glade-strings.c:91
 msgid "Step forwards"
 msgstr "Stega framåt"
 
-#. ogle_gui.glade:454
-#: pixmaps/glade-strings.c:91
+#: pixmaps/glade-strings.c:94
 msgid "Step reverse"
 msgstr "Stega bakåt"
 
-#. ogle_gui.glade:302
-#: pixmaps/glade-strings.c:94
+#: pixmaps/glade-strings.c:97
 msgid "Stop"
 msgstr "Stopp"
 
-#. ogle_gui.glade:1031
-#: pixmaps/glade-strings.c:97
+#: pixmaps/glade-strings.c:100
 msgid "Subtitle select"
 msgstr "Val av textning"
 
-#. ogle_gui.glade:170
-#: pixmaps/glade-strings.c:100
+#: pixmaps/glade-strings.c:103
 msgid "_About..."
 msgstr "_Om..."
 
-#. ogle_gui.glade:101
-#: pixmaps/glade-strings.c:103
+#: pixmaps/glade-strings.c:106
 msgid "_Edit"
 msgstr "_Redigera"
 
-#. ogle_gui.glade:47
-#: pixmaps/glade-strings.c:106
+#: pixmaps/glade-strings.c:109
 msgid "_File"
 msgstr "_Arkiv"
 
-#. ogle_gui.glade:145
-#: pixmaps/glade-strings.c:109
+#: pixmaps/glade-strings.c:112
 msgid "_Full screen"
 msgstr "_Helskärmsläge"
 
-#. ogle_gui.glade:155
-#: pixmaps/glade-strings.c:112
+#: pixmaps/glade-strings.c:115
 msgid "_Help"
 msgstr "_Hjälp"
 
-#. ogle_gui.glade:62
-#: pixmaps/glade-strings.c:115
+#: pixmaps/glade-strings.c:118
 msgid "_Open..."
 msgstr "_Öppna..."
 
-#. ogle_gui.glade:125
-#: pixmaps/glade-strings.c:118
+#: pixmaps/glade-strings.c:121
 msgid "_View"
 msgstr "_Vy"
