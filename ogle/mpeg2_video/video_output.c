@@ -25,6 +25,8 @@
 
 #include "../include/common.h"
 
+#include "yuv2rgb.h"
+
 
 /* This is a verbal copy of the types from video_strean.c for debug/stats */
 
@@ -322,19 +324,21 @@ void display_init()
   windows[2].data = windows[2].ximage->data;
   
    
-  //   bpp = myximage->bits_per_pixel;
+  bpp = windows[0].ximage->bits_per_pixel;
   // If we have blue in the lowest bit then obviously RGB 
-  //mode = ((myximage->blue_mask & 0x01) != 0) ? 1 : 2;
-  //#ifdef WORDS_BIGENDIAN 
-  // if (myximage->byte_order != MSBFirst)
-  //#else
-  //  if (myximage->byte_order != LSBFirst) 
-  //#endif
-  //   {
-  //	 fprintf( stderr, "No support for non-native XImage byte order!\n" );
-  //	 exit(1);
-  //   }
-  //   yuv2rgb_init(bpp, mode);
+  mode = ((windows[0].ximage->blue_mask & 0x01) != 0) ? 1 : 2;
+  /*
+#ifdef WORDS_BIGENDIAN 
+  if (windows[0].ximage->byte_order != MSBFirst)
+#else
+  if (windows[0].ximage->byte_order != LSBFirst) 
+#endif
+  {
+    fprintf( stderr, "No support for non-native XImage byte order!\n" );
+    exit(1);
+  }
+  */
+  yuv2rgb_init(bpp, mode);
   
   return;
   
@@ -712,17 +716,10 @@ void draw_win(debug_win *dwin)
   int horizontal_size = 720;
   int vertical_size = 480;
   
-  // Call the 'correct' YUV function !!
-  mlib_VideoColorYUV2ABGR420(dwin->data,
-			     dwin->image->y,
-			     dwin->image->u,
-			     dwin->image->v,
-			     horizontal_size,
-			     vertical_size,
-			     horizontal_size*4, //TODO
-			     horizontal_size,
-			     horizontal_size/2);
-  
+  yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
+	  horizontal_size, vertical_size, 
+	  horizontal_size*(bpp/8), horizontal_size, horizontal_size/2 );
+    
   if(dwin->grid) {
     if(dwin->color_grid) {
       add_color_grid(dwin);

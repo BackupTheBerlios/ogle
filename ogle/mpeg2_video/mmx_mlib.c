@@ -55,7 +55,7 @@ mmx_average_2_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2)
    paddw_r2r(mm3,mm1);         // add lows to mm1
    psraw_i2r(1,mm1);           // /2
 
-   paddw_m2r(ones, mm1);
+   paddw_m2r(ones, mm2);
    paddw_r2r(mm4,mm2);         // add highs to mm2
    psraw_i2r(1,mm2);           // /2
 
@@ -314,7 +314,7 @@ mlib_VideoCopyRefAve_U8_U8_MxN(
    pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
-      for (x = 0; x < m/step; x++) {
+      for (x = 0; x < m/8; x++) {
          mmx_average_2_U8(curr_block, curr_block, ref_block);
 
          curr_block += step;
@@ -557,7 +557,7 @@ mlib_VideoInterpAveX_U8_U8_MxN(
    pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
-      for (x = 0; x < 8/m; x++) {
+      for (x = 0; x < m/8; x++) {
          mmx_interp_average_2_U8(curr_block, ref_block, ref_block + 1);
 
          curr_block += step;
@@ -1154,107 +1154,6 @@ mlib_VideoInterpY_U8_U8_8x4(
 }
 
 
-const uint32_t matrix_coefficients = 1;
-
-const int32_t Inverse_Table_6_9[8][4] =
-{
-  {117504, 138453, 13954, 34903}, /* no sequence_display_extension */
-  {117504, 138453, 13954, 34903}, /* ITU-R Rec. 709 (1990) */
-  {104597, 132201, 25675, 53279}, /* unspecified */
-  {104597, 132201, 25675, 53279}, /* reserved */
-  {104448, 132798, 24759, 53109}, /* FCC */
-  {104597, 132201, 25675, 53279}, /* ITU-R Rec. 624-4 System B, G */
-  {104597, 132201, 25675, 53279}, /* SMPTE 170M */
-  {117579, 136230, 16907, 35559}  /* SMPTE 240M (1987) */
-};
-
-
-void 
-mlib_VideoColorYUV2ABGR420(uint8_t* image, const uint8_t* py, 
-			   const uint8_t* pu, const uint8_t* pv, 
-			   const uint32_t h_size, const uint32_t v_size, 
-			   const uint32_t rgb_stride, const uint32_t y_stride,
-			   const uint32_t uv_stride)
-{
-  int32_t Y,U,V;
-  int32_t g_common,b_common,r_common;
-  uint32_t x,y;
-  
-  uint32_t *dst_line_1;
-  uint32_t *dst_line_2;
-  const uint8_t* py_line_1;
-  const uint8_t* py_line_2;
-  
-  // matrix coefficients
-  const int32_t crv = Inverse_Table_6_9[matrix_coefficients][0];
-  const int32_t cbu = Inverse_Table_6_9[matrix_coefficients][1];
-  const int32_t cgu = Inverse_Table_6_9[matrix_coefficients][2];
-  const int32_t cgv = Inverse_Table_6_9[matrix_coefficients][3];
-	
-  dst_line_1 = (uint32_t *)(image);
-  dst_line_2 = (uint32_t *)(image + rgb_stride);
-  
-  py_line_1 = py;
-  py_line_2 = py + y_stride;
-  
-  for (y = 0; y < v_size / 2; y++) 
-    {
-      for (x = 0; x < h_size / 2; x++) 
-	{
-	  uint32_t pixel1,pixel2,pixel3,pixel4;
-
-	  //Common to all four pixels
-	  U = (*pu++) - 128;
-	  V = (*pv++) - 128;
-
-	  r_common = crv * V + 32768;
-	  g_common = cgu * U + cgu * V - 32768;
-	  b_common = cbu * U + 32768;
-
-	  //Pixel I
-	  Y = 76309 * ((*py_line_1++) - 16);
-	  pixel1 = 
-	    clip_to_u8((Y+b_common)>>16)/*<<16*/ |
-	    clip_to_u8((Y-g_common)>>16)<<8 |
-	    clip_to_u8((Y+r_common)>>16)<<16;
-	  *dst_line_1++ = pixel1;
-		  
-	  //Pixel II
-	  Y = 76309 * ((*py_line_1++) - 16);
-	  pixel2 = 
-	    clip_to_u8((Y+b_common)>>16)/*<<16*/ |
-	    clip_to_u8((Y-g_common)>>16)<<8 |
-	    clip_to_u8((Y+r_common)>>16)<<16;
-	  *dst_line_1++ = pixel2;
-
-	  //Pixel III
-	  Y = 76309 * ((*py_line_2++) - 16);
-	  pixel3 = 
-	    clip_to_u8((Y+b_common)>>16)/*<<16*/ |
-	    clip_to_u8((Y-g_common)>>16)<<8 |
-	    clip_to_u8((Y+r_common)>>16)<<16;
-	  *dst_line_2++ = pixel3;
-
-	  //Pixel IV
-	  Y = 76309 * ((*py_line_2++) - 16);
-	  pixel4 = 
-	    clip_to_u8((Y+b_common)>>16)/*<<16*/ |
-	    clip_to_u8((Y-g_common)>>16)<<8 |
-	    clip_to_u8((Y+r_common)>>16)<<16;
-	  *dst_line_2++ = pixel4;
-	}
-
-      py_line_1 += y_stride;
-      py_line_2 += y_stride;
-      pu += uv_stride - h_size/2;
-      pv += uv_stride - h_size/2;
-      dst_line_1 += rgb_stride/4;
-      dst_line_2 += rgb_stride/4;
-    }
-}
-
-
-
 
 
 #define W1 2841 /* 2048*sqrt(2)*cos(1*pi/16) */
@@ -1493,7 +1392,57 @@ mlib_VideoIDCT8x8_S16_S16(int16_t *block,
   for (i=0; i<8; i++)
     idct_col(block + i, block + i);
   */
-  IDCT_mmx( block, coeffs );
+  
+  movq_m2r(*coeffs, mm0);
+  movq_m2r(*(coeffs+8), mm1);
+  psllw_i2r(4, mm0);
+  movq_m2r(*(coeffs+16), mm2);
+  psllw_i2r(4, mm1);
+  movq_m2r(*(coeffs+24), mm3);
+  psllw_i2r(4, mm2);
+  movq_m2r(*(coeffs+32), mm4);
+  psllw_i2r(4, mm3);
+  movq_m2r(*(coeffs+40), mm5);
+  psllw_i2r(4, mm4);
+  movq_m2r(*(coeffs+48), mm6);
+  psllw_i2r(4, mm5);
+  movq_m2r(*(coeffs+56), mm7);
+  psllw_i2r(4, mm6);
+  psllw_i2r(4, mm7);
+  movq_r2m(mm0, *block);
+  movq_r2m(mm0, *(block+8));
+  movq_r2m(mm0, *(block+16));
+  movq_r2m(mm0, *(block+24));
+  movq_r2m(mm0, *(block+32));
+  movq_r2m(mm0, *(block+40));
+  movq_r2m(mm0, *(block+48));
+  movq_r2m(mm0, *(block+56));
+  movq_m2r(*(coeffs+64), mm0);
+  movq_m2r(*(coeffs+72), mm1);
+  psllw_i2r(4, mm0);
+  movq_m2r(*(coeffs+80), mm2);
+  psllw_i2r(4, mm1);
+  movq_m2r(*(coeffs+88), mm3);
+  psllw_i2r(4, mm2);
+  movq_m2r(*(coeffs+96), mm4);
+  psllw_i2r(4, mm3);
+  movq_m2r(*(coeffs+104), mm5);
+  psllw_i2r(4, mm4);
+  movq_m2r(*(coeffs+112), mm6);
+  psllw_i2r(4, mm5);
+  movq_m2r(*(coeffs+120), mm7);
+  psllw_i2r(4, mm6);
+  psllw_i2r(4, mm7);
+  movq_r2m(mm0, *(block+64));
+  movq_r2m(mm0, *(block+72));
+  movq_r2m(mm0, *(block+80));
+  movq_r2m(mm0, *(block+88));
+  movq_r2m(mm0, *(block+96));
+  movq_r2m(mm0, *(block+104));
+  movq_r2m(mm0, *(block+112));
+  movq_r2m(mm0, *(block+120));
+	
+  IDCT_mmx( block );
 }
 
 
@@ -1515,9 +1464,9 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
   const int n = 8;
   const int jump = stride - n;
   
-  IDCT_mmx( coeffs, coeffs );
+  IDCT_mmx( coeffs );
   
-#if !defined(HAVE_MMX)
+#ifndef HAVE_MMX
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++)
       *block++ = clip_to_u8(*block + *coeffs++);

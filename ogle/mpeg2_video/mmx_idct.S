@@ -18,8 +18,8 @@ IDCT_mmx:
 	pushl	 %ecx
 	pushl	 %esi
 	movl 8(%ebp),%esi		/* source/dest matrix */
+#if 0
 	movl 12(%ebp),%ecx		/* source matrix */
-/* #if 0 */
 	movq (%ecx), %mm0
 	movq 8(%ecx), %mm1
 	psllw $4, %mm0
@@ -68,7 +68,7 @@ IDCT_mmx:
 	movq %mm5,104(%esi)
 	movq %mm6,112(%esi)
 	movq %mm7,120(%esi)
-/* #endif */
+#endif
 	
 	leal preSC, %ecx
 /* 

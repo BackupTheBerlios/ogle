@@ -55,10 +55,6 @@ double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
 double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
 
 
-#define READ_SIZE 1024*8*9765
-#define ALLOC_SIZE 2048
-#define BUF_SIZE_MAX 1024*8
-
 //#define DEBUG
 //#define STATS
 
@@ -103,6 +99,8 @@ uint32_t stats_f_intra_compute_first_nr = 0;
 
 uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
 uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
+
+uint8_t new_scaled = 0;
 
 void statistics_init()
 {  
@@ -150,8 +148,8 @@ void statistics_init()
 #define DPRINTF(level, text...) \
 if(debug > level) \
 { \
-    fprintf(stderr, ## text); \
-				}
+  fprintf(stderr, ## text); \
+}
 #else
 #define DPRINTF(level, text...)
 #endif
@@ -159,51 +157,15 @@ if(debug > level) \
 #ifdef DEBUG
 #define DPRINTBITS(level, bits, value) \
 { \
-    int n; \
-	     for(n = 0; n < bits; n++) { \
-					   DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-											      } \
-												  }
+  int n; \
+  for(n = 0; n < bits; n++) { \
+    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+  } \
+}
 #else
 #define DPRINTBITS(level, bits, value)
 #endif
 
-
-
-#define GETBITSMMAP
-
-
-
-#ifndef GETBITSMMAP
-uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
-#else
-uint32_t *buf;
-uint32_t buf_size;
-uint8_t *mmap_base;
-struct off_len_packet packet;
-#endif
-unsigned int buf_len    = 0;
-unsigned int buf_start  = 0;
-unsigned int buf_fill   = 0;
-unsigned int bytes_read = 0;
-unsigned int bit_start  = 0;
-
-FILE *infile;
-
-//#define GETBITS32
-
-#ifdef GETBITS32
-unsigned int backed = 0;
-unsigned int buf_pos = 0;
-unsigned int bits_left = 32;
-uint32_t cur_word = 0;
-#else
-unsigned int bits_left = 64;
-uint64_t cur_word = 0;
-#endif
-//uint8_t bytealign = 1;
-
-uint8_t new_scaled = 0;
 
 
 
@@ -299,9 +261,6 @@ macroblock_t *ref2_mbs;
 
 
 //prototypes
-int bytealigned(void);
-void back_word(void);
-void next_word(void);
 void next_start_code(void);
 void resync(void);
 void video_sequence(void);
@@ -360,13 +319,6 @@ void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
-void read_buf(void);
-
-
-
-#define NR_BLOCKS 64
-#define BLOCK_SIZE 1024
-static int offs = 0;
 
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
@@ -377,27 +329,89 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 }
   
 
+
+
+
+
+
+
+
+//#define GETBITS32
+#define GETBITS64
+#define GETBITSMMAP
+
+
+int bytealigned(void);
+FILE *infile;
+
+#ifdef GETBITSMMAP // Mmap i/o
+void setup_mmap(char *);
+void get_next_packet();
+uint32_t *buf;
+uint32_t buf_size;
+struct off_len_packet packet;
+uint8_t *mmap_base;
+
+#else // Normal i/o
+#define READ_SIZE 1024*8*9765
+#define ALLOC_SIZE 2048
+#define BUF_SIZE_MAX 1024*8
+uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
+
+#endif
+
+#ifdef GETBITS32
+void back_word(void);
+void next_word(void);
+unsigned int backed = 0;
+unsigned int buf_pos = 0;
+unsigned int bits_left = 32;
+uint32_t cur_word = 0;
+#endif
+
+#ifdef GETBITS64
+void read_buf(void);
+int offs = 0;
+unsigned int bits_left = 64;
+uint64_t cur_word = 0;
+#endif
+
+
+
+#ifdef DEBUG
+#define GETBITS(a,b) getbits(a,b)
+#else
+#define GETBITS(a,b) getbits(a)
+#endif
+
 /* 5.2.1 Definition of bytealigned() function */
 int bytealigned(void)
 {
   return !(bits_left%8);
 }
 
+
+
+/* ---------------------------------------------------------------------- */
+#ifdef GETBITS64
+#ifdef GETBITSMMAP // (64bit) Discontinuous buffers of variable size
+
+
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
-static inline   
+static inline
 uint32_t getbits(unsigned int nr)
 #endif
-#ifndef GETBITS32
-#ifdef GETBITSMMAP
 {
   uint32_t result;
 #ifdef STATS
   stats_bits_read+=nr;
 #endif
-  result = (cur_word << (64-bits_left)) >> 32;
-  result = result >> (32-nr);
+  result = (cur_word << (64-bits_left)) >> (64-nr);
+  //  result = result >> (32-nr);
+  //  result = cur_word >> (64-nr); //+
+  //  cur_word = cur_word << nr; //+
   bits_left -= nr;
   if(bits_left <= 32) {
     if(offs >= buf_size)
@@ -405,6 +419,7 @@ uint32_t getbits(unsigned int nr)
     else {
       uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
+      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
       bits_left += 32;
     }
   }
@@ -413,7 +428,53 @@ uint32_t getbits(unsigned int nr)
   DPRINTF(5, "\n");
   return result;
 }
+
+
+static inline
+void dropbits(unsigned int nr)
+{
+#ifdef STATS
+  stats_bits_read+=nr;
+#endif
+  //cur_word = cur_word << nr; //+
+  bits_left -= nr;
+  if(bits_left <= 32) {
+    if(offs >= buf_size)
+      read_buf();
+    else {
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+      cur_word = (cur_word << 32) | new_word;
+      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
+      bits_left += 32;
+    }
+  }
+}
+
+
+/* 5.2.2 Definition of nextbits() function */
+static inline
+uint32_t nextbits(unsigned int nr)
+{
+  //  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return (cur_word << (64-bits_left)) >> (64-nr);
+  //return *((uint32_t*)&cur_word) >> (32-nr); //+
+}
+
+#endif
+#endif
+
+
+/* ---------------------------------------------------------------------- */
+#ifdef GETBITS64
+#ifndef GETBITSMMAP // (64bit) Discontinuous buffers of *static* size
+
+
+#ifdef DEBUG
+uint32_t getbits(unsigned int nr, char *func)
 #else
+static inline
+uint32_t getbits(unsigned int nr)
+#endif
 {
   uint32_t result;
 #ifdef STATS
@@ -434,69 +495,10 @@ uint32_t getbits(unsigned int nr)
   DPRINTF(5, "\n");
   return result;
 }
-#endif
-#else
-{
-  uint32_t result;
-  uint32_t rem;
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
-
-  if(nr <= bits_left) {
-    result = (cur_word << (32-bits_left)) >> (32-nr);
-    bits_left -=nr;
-    if(bits_left == 0) {
-      next_word();
-      bits_left = 32;
-    } 
-    //    bytealign = !(bits_left%8);
-    DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
-    DPRINTBITS(6, nr, result);
-    DPRINTF(5, "\n");
-    return result;
-  } else {
-    rem = nr-bits_left;
-    result = ((cur_word << (32-bits_left)) >> (32-bits_left)) << rem;
-
-    next_word();
-    bits_left = 32;
-    result |= ((cur_word << (32-bits_left)) >> (32-rem));
-    bits_left -=rem;
-    if(bits_left == 0) {
-      next_word();
-      bits_left = 32;
-    }
-    //    bytealign = !(bits_left%8);
-    DPRINTF(5,"%s getbits(%u): %x ", func, nr, result);
-    DPRINTBITS(6, nr, result);
-    DPRINTF(5, "\n");
-    return result;
-  }
-}
-#endif
 
 
-static inline   
+static inline
 void dropbits(unsigned int nr)
-#ifndef GETBITS32
-#ifdef GETBITSMMAP
-{
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
-  bits_left -= nr;
-  if(bits_left <= 32) {
-    if(offs >= buf_size)
-      read_buf();
-    else {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
-      cur_word = (cur_word << 32) | new_word;
-      bits_left += 32;
-    }
-  }
-}
-#else
 {
 #ifdef STATS
   stats_bits_read+=nr;
@@ -510,8 +512,65 @@ void dropbits(unsigned int nr)
     bits_left += 32;
   }
 }
+
+
+/* 5.2.2 Definition of nextbits() function */
+static inline
+uint32_t nextbits(unsigned int nr)
+{
+  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return result >> (32-nr);
+}
+
 #endif
+#endif
+
+
+/* ---------------------------------------------------------------------- */
+#ifdef GETBITS32  // (32bit) 'Normal' getbits, word based.
+
+
+#ifdef DEBUG
+uint32_t getbits(unsigned int nr, char *func)
 #else
+static inline
+uint32_t getbits(unsigned int nr)
+#endif
+{
+  uint32_t result;
+  uint32_t rem;
+#ifdef STATS
+  stats_bits_read+=nr;
+#endif
+  if(nr <= bits_left) {
+    result = (cur_word << (32-bits_left)) >> (32-nr);
+    bits_left -=nr;
+    if(bits_left == 0) {
+      next_word();
+      bits_left = 32;
+    } 
+  } else {
+    rem = nr-bits_left;
+    result = ((cur_word << (32-bits_left)) >> (32-bits_left)) << rem;
+
+    next_word();
+    bits_left = 32;
+    result |= ((cur_word << (32-bits_left)) >> (32-rem));
+    bits_left -=rem;
+    if(bits_left == 0) {
+      next_word();
+      bits_left = 32;
+    }
+  }
+  DPRINTF(5,"%s getbits(%u): %x ", func, nr, result);
+  DPRINTBITS(6, nr, result);
+  DPRINTF(5, "\n");
+  return result;
+}
+
+
+static inline
+void dropbits(unsigned int nr)
 {
 #ifdef STATS
   stats_bits_read+=nr;
@@ -522,25 +581,37 @@ void dropbits(unsigned int nr)
     bits_left += 32;
   } 
 }
+
+
+/* 5.2.2 Definition of nextbits() function */
+static inline
+uint32_t nextbits(unsigned int nr)
+{
+  uint32_t result;
+  uint32_t rem;
+  unsigned int t_bits_left = bits_left;
+
+  if(nr <= t_bits_left) {
+    result = (cur_word << (32-t_bits_left)) >> (32-nr);
+  } else {
+    rem = nr-t_bits_left;
+    result = ((cur_word << (32-t_bits_left)) >> (32-t_bits_left)) << rem;
+    t_bits_left = 32;
+    next_word();
+    result |= ((cur_word << (32-t_bits_left)) >> (32-rem));
+    back_word();
+  }
+  return result;
+}
 #endif
 
 
-#ifdef GETBITS32
-void back_word(void)
-{
-  backed = 1;
-  
-  if(buf_pos == 0) {
-    buf_pos = 1;
-  } else {
-    buf_pos = 0;
-  }
-  cur_word = buf[buf_pos];
-}
-#else
+/* ---------------------------------------------------------------------- */
 
 
-#ifdef GETBITSMMAP
+
+
+#ifdef GETBITSMMAP // Support functions
 void setup_mmap(char *filename) {
   int filefd;
   struct stat statbuf;
@@ -609,8 +680,8 @@ void read_buf()
   
   // Read them, as we have at least 32 bits free they will fit.
   while( i < end_bytes ) {
-    cur_word 
-      = (cur_word << 8) | packet_base[packet.length - end_bytes + i++];
+    cur_word=(cur_word << 8) | packet_base[packet.length - end_bytes + i++];
+    //cur_word=cur_word|(((uint64_t)packet_base[packet.length-end_bytes+i++])<<(56-bits_left)); //+
     bits_left += 8;
   }
    
@@ -626,8 +697,8 @@ void read_buf()
     
     // Read them, as we have at least 24 bits free they will fit.
     while( i < start_bytes ) {
-      cur_word 
-        = (cur_word << 8) | packet_base[i++];
+      cur_word  = (cur_word << 8) | packet_base[i++];
+      //cur_word=cur_word|(((uint64_t)packet_base[i++])<<(56-bits_left)); //+
       bits_left += 8;
     }
      
@@ -638,6 +709,7 @@ void read_buf()
     if(bits_left <= 32) {
       uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
+      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
       bits_left += 32;
     }
   } else {
@@ -652,7 +724,7 @@ void read_buf()
   }
 
 }
-#else
+#else // Normal (no-mmap) file io support functions
 
 void read_buf()
 {
@@ -669,9 +741,22 @@ void read_buf()
 }
 
 #endif
-#endif
 
-#ifdef GETBITS32
+
+
+#ifdef GETBITS32 // 'Normal' getbits, word based support functions
+void back_word(void)
+{
+  backed = 1;
+  
+  if(buf_pos == 0) {
+    buf_pos = 1;
+  } else {
+    buf_pos = 0;
+  }
+  cur_word = buf[buf_pos];
+}
+
 void next_word(void)
 {
 
@@ -701,40 +786,12 @@ void next_word(void)
 #endif
 
 
-/* 5.2.2 Definition of nextbits() function */
-static inline
-uint32_t nextbits(unsigned int nr)
-#ifndef GETBITS32
-{
-  uint32_t result = (cur_word << (64-bits_left)) >> 32;
-  return result >> (32-nr);
-}
-#else
-{
-  uint32_t result;
-  uint32_t rem;
-  unsigned int t_bits_left = bits_left;
-
-  if(nr <= t_bits_left) {
-    result = (cur_word << (32-t_bits_left)) >> (32-nr);
-  } else {
-    rem = nr-t_bits_left;
-    result = ((cur_word << (32-t_bits_left)) >> (32-t_bits_left)) << rem;
-    t_bits_left = 32;
-    next_word();
-    result |= ((cur_word << (32-t_bits_left)) >> (32-rem));
-    back_word();
-  }
-  return result;
-}
-#endif
+/* ---------------------------------------------------------------------- */
 
 
-#ifdef DEBUG
-#define GETBITS(a,b) getbits(a,b)
-#else
-#define GETBITS(a,b) getbits(a)
-#endif
+
+
+
 
 int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
@@ -785,11 +842,9 @@ void init_program()
 
   // Setup signal handler.
 
-  
   sig.sa_handler = sighandler;
   sigaction(SIGINT, &sig, NULL);
   
-
 
 
 #ifdef STATS
@@ -955,7 +1010,7 @@ void marker_bit(void)
 }
 
 #else // DEBUG
-
+inline
 void marker_bit(void)
 {
   dropbits(1);
@@ -1140,7 +1195,6 @@ void sequence_header(void)
 
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
-  
 
 }
 
@@ -1644,10 +1698,6 @@ void picture_data(void)
   
   DPRINTF(2," switching buffers\n");
   
-  // HH - 2000-02-10
-  //memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
-  //memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
-  //memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
 
   switch(pic.header.picture_coding_type) {
   case 0x1:
@@ -1886,7 +1936,9 @@ void slice(void)
   /** opt4 **/
   mb.quantiser_scale =
     q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+#ifdef STATS
   new_scaled = 1;
+#endif
   /**/
 
   if(nextbits(1) == 1) {
@@ -2064,7 +2116,9 @@ void macroblock(void)
     mb.quantiser_scale =
       q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
     /**/
+#ifdef STATS
     new_scaled = 1;
+#endif
   }
   
 #ifdef STATS
@@ -2072,29 +2126,20 @@ void macroblock(void)
   if(new_scaled) {
     stats_quantiser_scale_nr++;
   }
-#endif
   if(mb.modes.macroblock_intra) {
-#ifdef STATS
     stats_intra_quantiser_scale_possible++;
-#endif
     if(new_scaled) {
-#ifdef STATS
       stats_intra_quantiser_scale_nr++;
-#endif
       new_scaled = 0;
     }
-    
   } else {
-#ifdef STATS
     stats_non_intra_quantiser_scale_possible++;
-#endif
     if(new_scaled) {
-#ifdef STATS
       stats_non_intra_quantiser_scale_nr++;
-#endif
       new_scaled = 0;
     }
   }    
+#endif
   if(mb.modes.macroblock_motion_forward ||
      (mb.modes.macroblock_intra &&
       pic.coding_ext.concealment_motion_vectors)) {
@@ -2178,7 +2223,6 @@ void macroblock(void)
 	     (mb.modes.macroblock_motion_backward == 0)) {
 	    reset_PMV();
 	    DPRINTF(4, "* 4\n");
-
 	  }
 	}
       }
@@ -2236,8 +2280,6 @@ void macroblock(void)
     block_count = 12;
   }
   
-
-
 
   /* Intra blocks always have all sub block and are writen directly 
      to the output buffers by block() */
@@ -2339,8 +2381,7 @@ void macroblock(void)
     } 
   }
   
-  // HH - 2000-02-10
-  // Intra blocks are already handled directly in block()
+  /* Intra blocks are already handled directly in block() */
   if(mb.modes.macroblock_intra == 0) {
     motion_comp();
   }
@@ -2935,15 +2976,16 @@ void block_intra(unsigned int i)
       int16_t half_range;
       runlevel_t runlevel;
       int eob_not_read;
-      int m;
       
       int inverse_quantisation_sum;
       
       DPRINTF(3, "pattern_code(%d) set\n", i);
       
       // Reset all coefficients to 0.
-      for(m=0;m<16;m++) {
-	memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+      {
+	int m;
+	for(m=0; m<16; m++)
+	  memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
       }
       
       if(i < 4) {
@@ -3166,15 +3208,16 @@ void block_non_intra(unsigned int b)
     int n;
     
     runlevel_t runlevel;
-    int m;
     
     int inverse_quantisation_sum = 0;
     
     DPRINTF(3, "pattern_code(%d) set\n", b);
     
     // Reset all coefficients to 0.
-    for(m=0;m<16;m++) {
-      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+    {
+      int m;
+      for(m=0; m<16; m+=4)
+	memset( ((uint64_t *)mb.QFS) + m, 0, 4*sizeof(uint64_t) );
     }
     
     /* 7.2.2.4 Summary */
@@ -3193,10 +3236,12 @@ void block_non_intra(unsigned int b)
     stats_f_non_intra_compute_first_nr++;
 #endif
     
+#if 0
     if(f > 2047)
       f = 2047;
     else if(f < -2048)
       f = -2048;
+#endif
     
     mb.QFS[i] = f;
     inverse_quantisation_sum += f;
@@ -3296,17 +3341,15 @@ void block_non_intra(unsigned int b)
 	stats_f_non_intra_compute_subseq_nr++;
 #endif
 
-	if(f > 2047) {
-#ifdef DEBUG
-	  DPRINTF(0, "!!! qfs clipping  !!!");
-#endif
-	  //	  if( sgn )
-	  //	    fprintf(stderr,"==2048");
-	  f = 2047;
-	}
 	if( sgn )
 	  f = -f;
 	
+#if 0
+	if(f > 2047)
+	  f = 2047;
+	else if(f < -2048)
+	  f = -2048;
+#endif
 	mb.QFS[i] = f;
 	inverse_quantisation_sum += f;
 	

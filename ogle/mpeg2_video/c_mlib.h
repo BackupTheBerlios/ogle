@@ -203,12 +203,6 @@ mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
 			     uint8_t *ref_block,
 			     int32_t frame_stride,
 			     int32_t field_stride);
-void 
-mlib_VideoColorYUV2ABGR420(uint8_t* image, const uint8_t* py, 
-			   const uint8_t* pu, const uint8_t* pv, 
-			   const uint32_t h_size, const uint32_t v_size, 
-			   const uint32_t rgb_stride, const uint32_t y_stride,
-			   const uint32_t uv_stride);
 void
 mlib_VideoIDCT8x8_S16_S16(int16_t *block,
 			  int16_t *coeffs);

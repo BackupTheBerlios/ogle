@@ -5,6 +5,7 @@ DFLAGS= -g -Wall -O6 `glib-config --cflags` -mcpu=ultrasparc -mvis \
 LDFLAGS= -L/usr/X11R6/lib -lX11 -lXext -lsocket -lnsl
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
-video_stream: video_output.o /opt/SUNWmlib/lib/libmlib.a #mmx_idct.o mmx_mlib.o 
+#video_stream: video_output.o yuv2rgb.o yuv2rgb_mmx.o mmx_idct.o mmx_mlib.o 
+video_stream: video_output.o yuv2rgb.o yuv2rgb_mlib.o /opt/SUNWmlib/lib/libmlib.a
 clean:
 	rm -f video_stream *.o
