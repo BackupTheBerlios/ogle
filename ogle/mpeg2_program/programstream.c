@@ -117,7 +117,8 @@ uint32_t getbits(unsigned int nr)
     bits_left = bits_left+32;
   }
   
-  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+  DPRINTF(5, "%s getbits(%u): %0*i, 0x%0*x, ", 
+             func, nr, (nr-1)/3+1, result, (nr-1)/4+1, result);
   DPRINTBITS(6, nr, result);
   DPRINTF(5, "\n");
   
@@ -175,6 +176,66 @@ void next_start_code(void)
   } 
 }
 
+/* Table 2-24 -- Stream_id table */
+void dprintf_stream_id (int debuglevel, int stream_id)
+{
+#ifdef DEBUG
+  DPRINTF(debuglevel, "0x%02x ", stream_id);
+  if ((stream_id & 0xf0) == 0xb0) // 1011 xxxx
+    switch (stream_id & 0x0f) { 
+      case 0x8:
+        DPRINTF(debuglevel, "[all audio streams]\n");
+        return;
+      case 0x9:
+        DPRINTF(debuglevel, "[all video streams]\n");
+        return;
+      case 0xc:
+        DPRINTF(debuglevel, "[program stream map]\n");
+        return;
+      case 0xd:
+        DPRINTF(debuglevel, "[private_stream_1]\n");
+        return;
+      case 0xe:
+        DPRINTF(debuglevel, "[padding stream]\n");
+        return;
+      case 0xf:
+        DPRINTF(debuglevel, "[private_stream_2]\n");
+        return;
+    }
+  else if ((stream_id & 0xe0) == 0xc0) { // 110x xxxx
+    DPRINTF(debuglevel, "[audio stream number %i]\n", stream_id & 0x1f);
+    return;
+  } else if ((stream_id & 0xf0) == 0xe0) {
+    DPRINTF(debuglevel, "[video stream number %i]\n", stream_id & 0x1f);
+    return;
+  } else if ((stream_id & 0xf0) == 0xf0) {
+    switch (stream_id & 0x0f) {
+      case 0x0:
+        DPRINTF(debuglevel, "[ECM]\n");
+        return;
+      case 0x1:
+        DPRINTF(debuglevel, "[EMM]\n");
+        return;
+      case 0x2:
+        DPRINTF(debuglevel, "[DSM CC]\n");
+        return;
+      case 0x3:
+        DPRINTF(debuglevel, "[ISO/IEC 13522 stream]\n");
+        return;
+      case 0xf:
+        DPRINTF(debuglevel, "[program stream directory]\n");
+        return;
+      default:
+        DPRINTF(debuglevel, "[reserved data stream - number %i]\n",
+                stream_id & 0x0f);
+        return;
+    }
+  }
+  DPRINTF(debuglevel, "[illegal stream_id]\n");
+#else
+#endif
+}
+
 void system_header()
 {
   uint16_t header_length;
@@ -206,7 +267,8 @@ void system_header()
   GETBITS(8, "reserved_byte");
 
   DPRINTF(3, "header_length:          %hu\n", header_length);
-  DPRINTF(3, "rate_bound:             %u\n", rate_bound);
+  DPRINTF(3, "rate_bound:             %u [%u bits/s]\n",
+          rate_bound, rate_bound*50*8);
   DPRINTF(3, "audio_bound:            %u\n", audio_bound);
   DPRINTF(3, "fixed_flag:             %u\n", fixed_flag);
   DPRINTF(3, "CSPS_flag:              %u\n", CSPS_flag);
@@ -219,15 +281,19 @@ void system_header()
     GETBITS(2, "11");
     P_STD_buffer_bound_scale = GETBITS(1, "P_STD_buffer_bound_scale");
     P_STD_buffer_size_bound  = GETBITS(13, "P_STD_buffer_size_bound");
-    DPRINTF(3, "stream_id:                %u\n", stream_id);
+    DPRINTF(3, "stream_id:                ");
+    dprintf_stream_id(3, stream_id);
     DPRINTF(3, "P-STD_buffer_bound_scale: %u\n", P_STD_buffer_bound_scale);
-    DPRINTF(3, "P-STD_buffer_size_bound:  %u\n", P_STD_buffer_size_bound);
+    DPRINTF(3, "P-STD_buffer_size_bound:  %u [%u bytes]\n",
+        P_STD_buffer_size_bound,
+        P_STD_buffer_size_bound*(P_STD_buffer_bound_scale?1024:128));
   }
 }
 
 
 void pack_header()
 {
+  uint64_t system_clock_reference;
   uint64_t system_clock_reference_base;
   uint16_t system_clock_reference_extension;
   uint32_t program_mux_rate;
@@ -249,6 +315,9 @@ void pack_header()
   marker_bit();
   system_clock_reference_extension = 
     GETBITS(9, "system_clock_reference_extension");
+  /* 2.5.2 or 2.5.3.4 (definition of system_clock_reference) */
+  system_clock_reference = 
+    system_clock_reference_base * 300 + system_clock_reference_base;
   marker_bit();
   program_mux_rate = GETBITS(22, "program_mux_rate");
   marker_bit();
@@ -262,8 +331,10 @@ void pack_header()
       system_clock_reference_base);
   DPRINTF(3, "system_clock_reference_extension: %u\n",
       system_clock_reference_extension);
-  DPRINTF(3, "program_mux_rate: %u\n",
-      program_mux_rate);
+  DPRINTF(3, "system_clock_reference: %llu [%6f s]\n", 
+          system_clock_reference, ((double)system_clock_reference)/27E6);
+  DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
+      program_mux_rate, program_mux_rate*50*8);
   DPRINTF(3, "pack_stuffing_length: %u\n",
       pack_stuffing_length);
 
@@ -305,7 +376,7 @@ void push_stream_data(uint8_t stream_id, int len)
       // }
     }
   } else {
-    DPRINTF(4, "Uknown packet (%02x): %u bytes\n", stream_id, len);
+    DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
   }
    
 
@@ -367,7 +438,8 @@ void PES_packet()
   GETBITS(24 ,"packet_start_code_prefix");
   stream_id = GETBITS(8, "stream_id");
   PES_packet_length = GETBITS(16, "PES_packet_length");
-  DPRINTF(3, "stream_id:         %02X\n", stream_id);
+  DPRINTF(3, "stream_id:         ");
+  dprintf_stream_id(3, stream_id);
   DPRINTF(3, "PES_packet_length: %u\n", PES_packet_length);
   
   if((stream_id != MPEG2_PRIVATE_STREAM_2) &&
@@ -456,7 +528,7 @@ void PES_packet()
 	field_rep_cntrl = GETBITS(5, "field_rep_cntrl");
       } else if(trick_mode_control == 0x02) {
 	field_id = GETBITS(2, "field_id");
-	GETBITS(3, "reserved");
+        GETBITS(3, "reserved");
       } else if(trick_mode_control == 0x03) {
 	field_id = GETBITS(2, "field_id");
 	intra_slice_refresh = GETBITS(1, "intra_slice_refresh");
@@ -625,7 +697,7 @@ void pack()
 	break;
       default:
 	is_PES = 0;
-	fprintf(stderr, "unknown stream_id: %02x\n", stream_id);
+	fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
 	break;
       }
     }
