@@ -79,6 +79,7 @@ typedef enum {
 
 
   /* infocmds */
+
   DVDCtrlGetCurrentAudio,
   DVDCtrlCurrentAudio,
 
@@ -101,8 +102,11 @@ typedef enum {
   DVDCtrlGetCurrentAngle,
   DVDCtrlCurrentAngle,
 
-  DVDCtrlPlayerRegionSelect
-
+  DVDCtrlPlayerRegionSelect,
+  
+  DVDCtrlGetCurrentUOPS,
+  DVDCtrlCurrentUOPS
+  
 } DVDCtrlEventType_t;
 
 
@@ -255,7 +259,10 @@ typedef struct {
 } DVDCtrlStopEvent_t;
 */
 
-
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDUOP_t uops;
+} DVDCtrlCurrentUOPS_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
@@ -420,7 +427,9 @@ typedef union {
   DVDCtrlSubpictureStateEvent_t subpicturestate;
 
   DVDCtrlAngleChangeEvent_t anglechange;
+  
   /* infocmd */
+  DVDCtrlCurrentUOPS_t currentuops;
 
   DVDCtrlCurrentAudioEvent_t currentaudio;
   DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;

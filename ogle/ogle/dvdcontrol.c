@@ -242,11 +242,38 @@ DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, const DVDSPRMArray_t *Registers)
 
 /**
  * Get the current allowed user operations
- * @todo implement function
+ * @todo handle more return events.
+ * @todo more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param uop Points to where the user operations will be written
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.currentuops.type = DVDCtrlGetCurrentUOPS;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentUOPS)) {
+      *uop = ev.dvdctrl.cmd.currentuops.uops;
+      return DVD_E_Ok;
+    }
+  }
 }
 
 /**
