@@ -3,6 +3,8 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <dlfcn.h>
 #include <gtk/gtk.h>
 #include <glade/glade.h>
@@ -50,6 +52,7 @@ static void *my_dlsym(void *handle, char *symbol) {
 void my_glade_setup ()
 {
   void *glade_lib;
+  char *home;
 
   glade_lib = dlopen (LIBGLADE_LIB, RTLD_NOW);
   if (glade_lib == NULL) {
@@ -65,7 +68,25 @@ void my_glade_setup ()
     my_dlsym(glade_lib, "glade_xml_get_widget");
 
   my_glade_init();
-  xml = my_glade_xml_new(OGLE_GLADE_FILE, NULL);
+
+  // first, try the user's home directory
+  home = getenv("HOME");
+  if (home != NULL) {
+    char *filename;
+    filename = g_strdup_printf("%s/.ogle_gui/ogle_gui.glade", home);
+    if(!access(filename, R_OK)) {
+      xml = my_glade_xml_new(filename, NULL);
+    }
+    g_free(filename);
+  }
+  if (xml == NULL) {
+    xml = my_glade_xml_new(OGLE_GLADE_FILE, NULL);
+  }
+  if (xml == NULL) {
+    fprintf(stderr, "Couldn't find $HOME/.ogle_gui/ogle_gui.glade or %s\n", 
+	    OGLE_GLADE_FILE);
+    gtk_exit(1);
+  }
   my_glade_xml_signal_autoconnect(xml);
 }
 
