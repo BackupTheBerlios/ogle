@@ -779,7 +779,7 @@ int pack_header()
       fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
 	      ((double)prev_scr)/27000000.0);
       
-    } else if((system_clock_reference - prev_scr) > 2700000) {
+    } else if((system_clock_reference - prev_scr) > 2700000*7) {
       scr_discontinuity = 1;
       fprintf(stderr, "*** Forward scr discontinuity\n");
       fprintf(stderr, "system_clock_reference: [%6f s]\n", 
@@ -917,10 +917,16 @@ void push_stream_data(uint8_t stream_id, int len,
 
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
-	if((subtype >= 0x80) && (subtype < 0x90)) {
+	if((subtype >= 0x80) && (subtype < 0x88)) {
+	  // ac3
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
 		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	} else if((subtype >= 0x88) && (subtype < 0x90)) {
+	  // dts
+	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
+	  // spu
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
 		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else {
@@ -934,10 +940,16 @@ void push_stream_data(uint8_t stream_id, int len,
     } else {
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
-	if((subtype >= 0x80) && (subtype < 0x90)) {
+	if((subtype >= 0x80) && (subtype < 0x88)) {
+	  // ac3
 	  fwrite(&disk_buf[offs-(bits_left/8)+4], len-4, 1,
 		 id_file(stream_id, subtype));
+	} else if((subtype >= 0x88) && (subtype < 0x90)) {
+	  // dts
+	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
+		 id_file(stream_id, subtype));
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
+	  // spu
 	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
 		 id_file(stream_id, subtype));
 	} else {
@@ -1948,9 +1960,9 @@ int register_id(uint8_t id, int subtype)
     /* TODO how should we decide buf sizes? */
     switch(id) {
     case MPEG2_PRIVATE_STREAM_1:
-      if((subtype&~0x1f) == 0x80) {
+      if((subtype&~0x1f) == 0x80) { // ac3, dts
 	qsize = 100;
-      } else if((subtype&~0x1f) == 0x20) {
+      } else if((subtype&~0x1f) == 0x20) { // spu
 	qsize = 100;
       } else {
 	qsize = 100;
@@ -2163,9 +2175,13 @@ uint8_t type_registered(uint8_t id, uint8_t subtype)
       idrange = 32;
       break;
     case 0x80:
-    case 0x90:
-      idtype = 0x80;
-      idrange = 32;
+      if(subtype < 0x88) {
+	idtype = 0x80;
+	idrange = 8;
+      } else {
+	idtype = 0x88;
+	idrange = 8;
+      }
       break;
     default:
       fprintf(stderr, "demux: type_registered(), subtype not handled\n");
