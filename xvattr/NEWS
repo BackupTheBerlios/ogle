@@ -1,3 +1,6 @@
+1.3:
+  - Fix for getopt_long on non glibc systems
+  - Added gxvattr (gtk version)
 1.2: 
   - Use Automake/autoconf (rocky@panix.com)
   - Turn README into manual page via perlpod (rocky@panix.com)
