@@ -11,7 +11,7 @@ Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 Requires: libdvdread >= 0.9.4, libdvdcss, libjpeg, libxml2
 BuildRequires: libdvdread-devel >= 0.9.4, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel >= 2.4.19, libmad
-ExclusiveArch: i686 i586 ppc sparc
+ExclusiveArch: i686 i586 x86_64 ppc sparc
 
 %description
 Ogle is a DVD player. It's features are: Supports DVD menus and navigation,
@@ -73,6 +73,12 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_libdir}/ogle/*.a
 
 %changelog
+* Mon Dec 29 2003 Håkan Hjort <d95hjort@dtek.chalmers.se>
+- Include x86_64 and sparc in ExclusiveArch's.
+
+* Thu Nov 6 2003 Björn Englund <d4bjorn@dtek.chalmers.se>
+- Updated version to 0.9.2
+
 * Tue Mar 11 2003 Björn Englund <d4bjorn@dtek.chalmers.se>
 - Updated to version 0.9.1
 

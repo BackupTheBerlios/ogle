@@ -724,10 +724,17 @@ dnl Do we need this ? should we hard code it to pentium/pentiumpro?
 dnl what about k6 / athlon
 dnl will it still assemble the mmx instructions when -march=i386
 dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
-	  XCFLAGS="$CFLAGS -march=i586 -mcpu=pentiumpro"
+	  XCFLAGS="-march=i586 -mcpu=pentiumpro"
 	fi
 	USE_MMX=yes
 	;;
+x86_64)
+        if test "x$GCC" = xyes; then
+          O_CFLAGS="$O_CFLAGS -fomit-frame-pointer -funroll-loops"
+          XCFLAGS=""
+        fi
+        USE_MMX=yes
+        ;;
 sparc)
 	if test "x$GCC" = xyes; then
 	  O_CFLAGS="$O_CFLAGS -mcpu=ultrasparc -mvis"
