@@ -1,7 +1,7 @@
 #ifndef DVDCONTROL_H
 #define DVDCONTROL_H
 
-#include <dvd.h>
+#include <ogle/dvd.h>
 
 
 typedef struct DVDNav_s DVDNav_t;
