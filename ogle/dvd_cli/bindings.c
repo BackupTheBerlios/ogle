@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
@@ -264,25 +265,31 @@ void actionBookmarkAdd(void *data)
   }
   
   if(DVDGetVolumeIdentifiers(nav, 0, &volid_type, volid, NULL) != DVD_E_Ok) {
-    NOTE("%s", "GetVolumeIdentifiers failed\n");
+    DNOTE("%s", "GetVolumeIdentifiers failed\n");
     volid_type = 0;
   }
   
   if(DVDGetState(nav, &state) == DVD_E_Ok) {
     if((bm = DVDBookmarkOpen(id, NULL, 1)) == NULL) {
-      NOTE("%s", "BookmarkOpen failed\n");
+      if(errno != ENOENT) {
+	NOTE("%s", "BookmarkOpen failed: ");
+	perror("");
+      }
+      free(state);
       return;
     }
     if(DVDBookmarkAdd(bm, state, NULL, NULL, NULL) == -1) {
-      NOTE("%s", "BookmarkAdd failed\n");
+      DNOTE("%s", "BookmarkAdd failed\n");
       DVDBookmarkClose(bm);
+      free(state);
       return;
     }
+    free(state);
     if(volid_type != 0) {
       if(DVDBookmarkGetDiscComment(bm, &disccomment) != -1) {
 	if((disccomment == NULL) || (disccomment[0] == '\0')) {
 	  if(DVDBookmarkSetDiscComment(bm, volid) == -1) {
-	    NOTE("%s", "SetDiscComment failed\n");
+	    DNOTE("%s", "SetDiscComment failed\n");
 	  }
 	}
 	if(disccomment) {
@@ -294,9 +301,7 @@ void actionBookmarkAdd(void *data)
       NOTE("%s", "BookmarkSave failed\n");
     }
     DVDBookmarkClose(bm);
-    NOTE("%s", "Bookmark Saved\n");
   }
-  free(state);
 }
 
 
@@ -313,7 +318,10 @@ void actionBookmarkRemove(void *data)
   }
   
   if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
-    NOTE("%s", "BookmarkOpen failed\n");
+    if(errno != ENOENT) {
+      NOTE("%s", "BookmarkOpen failed: ");
+      perror("");
+    }
     return;
   }
 
@@ -330,16 +338,14 @@ void actionBookmarkRemove(void *data)
     }
 
     if(DVDBookmarkRemove(bm, n-1) != -1) {
-      NOTE("Bookmark %d removed\n", n-1);
-      
       if(DVDBookmarkSave(bm, 0) == -1) {
 	NOTE("%s", "BookmarkSave failed\n");
       }
     } else {
       NOTE("%s", "DVDBookmarkRemove failed\n");
     }
-
   }
+  
   DVDBookmarkClose(bm);
 }
 
@@ -358,7 +364,10 @@ void actionBookmarkRestore(void *data)
   }
   
   if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
-    NOTE("%s", "BookmarkOpen failed\n");
+    if(errno != ENOENT) {
+      NOTE("%s", "BookmarkOpen failed: ");
+      perror("");
+    }
     return;
   }
 
@@ -373,13 +382,16 @@ void actionBookmarkRestore(void *data)
       }
       user->valid = 0;
     }
-
-    DVDBookmarkGet(bm, n-1, &state, NULL, NULL, NULL);
-    
-    if(DVDSetState(nav, state) != DVD_E_Ok) {
-      NOTE("%s", "DVDSetState failed\n");
+    if(DVDBookmarkGet(bm, n-1, &state, NULL, NULL, NULL) != -1) {
+      if(state) {
+	if(DVDSetState(nav, state) != DVD_E_Ok) {
+	  NOTE("%s", "DVDSetState failed\n");
+	}
+	free(state);
+      }
+    } else {
+      NOTE("%s", "BookmarkGet failed\n");
     }
-    free(state);
   }
   DVDBookmarkClose(bm);
 }
@@ -592,9 +604,7 @@ void add_keybinding(char *key, char *action)
   keysym = XStringToKeysym(key);
   
   if(keysym == NoSymbol) {
-    fprintf(stderr,
-	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
-	    key);
+    WARNING("add_keybinding(): '%s' not a valid keysym\n", key);
     return;
   }
   
@@ -612,9 +622,7 @@ void add_keybinding(char *key, char *action)
     }
   }
   
-  fprintf(stderr,
-	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
-	  action);
+  WARNING("add_keybinding(): No such action: '%s'\n", action);
   
   return;
 }
@@ -628,10 +636,8 @@ void add_pointerbinding(char *, char *action)
   keysym = XStringToKeysym(key);
   
   if(keysym == NoSymbol) {
-    fprintf(stderr,
-	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
-	    key);
-    return;
+  WARNING("add_keybinding(): '%s' not a valid keysym\n", key);
+  return;
   }
   
   if(!strcmp("NoAction", action)) {
@@ -648,9 +654,7 @@ void add_pointerbinding(char *, char *action)
     }
   }
   
-  fprintf(stderr,
-	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
-	  action);
+  WARNING("add_keybinding(): No such action: '%s'\n", action);
   
   return;
 }
