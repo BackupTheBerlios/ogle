@@ -1,7 +1,7 @@
 Summary: A DVD player for linux that supports DVD menus.
 Name: ogle
-Version: 0.8.5
-Release: ogle2alsa
+Version: 0.9.0
+Release: ogle1alsa
 Vendor: Ogle
 Packager: Ogle developer team
 URL: http://www.dtek.chalmers.se/~dvd/
@@ -9,8 +9,8 @@ License: GPL
 Group: Applications/Multimedia
 Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-Requires: libdvdread >= 0.9.2, libdvdcss, libjpeg, libxml2
-BuildRequires: libdvdread-devel >= 0.9.2, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel >= 2.4.19, libmad
+Requires: libdvdread >= 0.9.4, libdvdcss, libjpeg, libxml2
+BuildRequires: libdvdread-devel >= 0.9.4, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel >= 2.4.19, libmad
 ExclusiveArch: i686 i586 ppc sparc
 
 %description
@@ -74,6 +74,9 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_libdir}/ogle/*.a
 
 %changelog
+* Sun Feb 23 2003 Björn Englund <d4bjorn@dtek.chalmers.se>
+- Updated to version 0.9.0, require >= libdvdread-0.9.4
+
 * Wed Aug 14 2002 Martin Norbäck <d95mback@dtek.chalmers.se>
 + ogle-0.8.5-ogle2alsa
 - Use --enable-alsa instead of --disable-alsa...
