@@ -16,6 +16,7 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_ALWAYS_INLINE
+AC_CHECK_GENERATE_INTTYPES([include])
 
 
 dnl Checks for header files.
