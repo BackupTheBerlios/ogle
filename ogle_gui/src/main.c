@@ -68,7 +68,6 @@ int
 main (int argc, char *argv[])
 {
   GtkWidget *app;
-  GtkWidget *audio;
   int c;
 
 
@@ -109,7 +108,7 @@ main (int argc, char *argv[])
   }
 
   
-  audio = audio_menu_new();
+  audio_menu_new();
   
   app = create_app ();
   gtk_widget_show (app);
