@@ -101,7 +101,8 @@ static int child_killed = 0;
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
+  fprintf(stderr, "Usage: %s [-h] [-u cli|gui] [<path>]", program_name);
+  //"[-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
 }
 
 
@@ -175,21 +176,29 @@ int search_capabilities(int caps, MsgEventClient_t *client, int *ret_caps,
   if(client != NULL) {
     *client = CLIENT_NONE;
   }
+#if DEBUG
   fprintf(stderr, "searching cap: %d\n", caps);
+#endif
   
   for(n = 0; n < nr_caps; n++) {
     if((caps_array[n].caps & caps) == caps) {
       nr++;
       if(client != NULL) {
 	*client = caps_array[n].client;
+#if DEBUG
         fprintf(stderr, "found capclient: %ld\n", *client);
+#endif
       }
       if(ret_caps != NULL) {
 	*ret_caps = caps_array[n].caps;
+#if DEBUG
 	fprintf(stderr, "found cap: %x\n", *ret_caps);
+#endif
       }
 
+#if DEBUG
       fprintf(stderr, "state cap: %d\n", caps_array[n].state);
+#endif
 
       if(ret_state != NULL) {
 	*ret_state = caps_array[n].state;
@@ -308,7 +317,7 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 
 static void cleanup(void)
 {
-  fprintf(stderr, "ctrl: waiting for children to really die\n"); 
+  //fprintf(stderr, "ctrl: waiting for children to really die\n"); 
   
   while(sleep(2)); // Continue sleeping if interupted 
 
@@ -324,8 +333,10 @@ int request_capability(MsgEventQ_t *q, int cap,
   MsgEvent_t r_ev;
   char *decodername;
   cap_state_t state = 0;
-  fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
 
+#if DEBUG
+  fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
+#endif
   
   if(!search_capabilities(cap, capclient, retcaps, &state)) {
     int fullcap;
@@ -337,9 +348,7 @@ int request_capability(MsgEventQ_t *q, int cap,
 			    fullcap,
 			    CAP_started);
       
-      fprintf(stderr, "ctrl: starting decoder %d %s\n",
-	      fullcap,
-	      decodername);
+    //fprintf(stderr, "ctrl: starting decoder %d %s\n", fullcap, decodername);
       init_decoder(msgqid_str, decodername);
     }
     
@@ -361,7 +370,9 @@ int request_capability(MsgEventQ_t *q, int cap,
   }
   
   if(state == CAP_running) {
+#if DEBUG
     fprintf(stderr, "ctrl: sending ctrldata\n");
+#endif
     r_ev.type = MsgEventQCtrlData;
     r_ev.ctrldata.shmid = ctrl_data_shmid;
     
@@ -369,7 +380,7 @@ int request_capability(MsgEventQ_t *q, int cap,
     
     return 1;
   } else {
-    fprintf(stderr, "ctrl: didn't find capability\n");
+    fprintf(stderr, "*ctrl: didn't find capability\n");
     return 0;
   }
 }
@@ -385,13 +396,17 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   
   switch(ev->type) {
   case MsgEventQInitReq:
+#if DEBUG
     fprintf(stderr, "ctrl: _MsgEventQInitReq, new_id: %d\n", next_client_id);
+#endif
     ev->type = MsgEventQInitGnt;
     ev->initgnt.newclientid = next_client_id++;
     MsgSendEvent(q, CLIENT_UNINITIALIZED, ev, 0);
     break;
   case MsgEventQRegister:
+#if DEBUG
     fprintf(stderr, "ctrl: _MsgEventQRegister\n");
+#endif
     register_capabilities(ev->registercaps.client,
 			  ev->registercaps.capabilities,
 			  CAP_running);
@@ -416,8 +431,10 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     {
       shm_bufinfo_t bufinfo;
       
+#if DEBUG
       fprintf(stderr, "ctrl: _got request for buffer size %d\n",
 	      ev->reqbuf.size);
+#endif
       if(get_buffer(ev->reqbuf.size, &bufinfo) == -1) {
 	bufinfo.shmid = -1;
       }
@@ -432,6 +449,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     {
       int shmid;
       cap_state_t state = 0;
+      
       fprintf(stderr, "ctrl: _new stream %x, %x\n",
 	      ev->reqstreambuf.stream_id,
 	      ev->reqstreambuf.subtype);
@@ -468,11 +486,9 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 				  capability,
 				  CAP_started);
 	  }
-	  fprintf(stderr, "ctrl: starting decoder %d %s\n", capability,
-		  decodername);
+ // fprintf(stderr, "ctrl: starting decoder %d %s\n", capability, decodername);
 	  init_decoder(msgqid_str, decodername);
-	  fprintf(stderr, "ctrl: started decoder %d\n", capability);
-	 
+ // fprintf(stderr, "ctrl: started decoder %d\n", capability);
 	}
 	
 	while(!search_capabilities(capability, &rcpt, NULL, &state) ||
@@ -494,7 +510,9 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	
 	// send ctrl_data shm: let client know where the timebase
 	// data is
+#if DEBUG
 	fprintf(stderr, "ctrl: sending ctrldata\n");
+#endif
 	s_ev.type = MsgEventQCtrlData;
 	s_ev.ctrldata.shmid = ctrl_data_shmid;
 	
@@ -551,8 +569,10 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     {
       int shmid;
       cap_state_t state;
+
+#if DEBUG
       fprintf(stderr, "ctrl: _new pic q\n");
-      
+#endif
       // check if we have a decoder
       
       //TODO check which decoder handles the stream and start it
@@ -569,7 +589,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 			      CAP_started);
 	
 	init_decoder(msgqid_str, getenv("DVDP_VIDEO_OUT"));
-	fprintf(stderr, "ctrl: started video_out\n");
+	//fprintf(stderr, "ctrl: started video_out\n");
       }
       while(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, &state) ||
 	    (state != CAP_running)) {
@@ -591,7 +611,9 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       
       // send ctrl_data shm: let client know where the timebase
       // data is
+#if DEBUG
       fprintf(stderr, "ctrl: sending ctrldata\n");
+#endif
       s_ev.type = MsgEventQCtrlData;
       s_ev.ctrldata.shmid = ctrl_data_shmid;
 	
@@ -612,9 +634,10 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       s_ev.type = MsgEventQGntPicBuf;
       s_ev.gntpicbuf.q_shmid = shmid;
       
+#if DEBUG
       fprintf(stderr, "ctrl: create_q, q_shmid: %d picture_buf_shmid: %d\n",
 	      shmid,  ev->reqpicbuf.data_buf_shmid);
-      
+#endif      
       MsgSendEvent(q, ev->reqpicbuf.client, &s_ev, 0);
       
       // connect the picbuf  to the reader
@@ -631,19 +654,16 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       clocktime_t rt;
       
       clocktime_get(&rt);
+#if DEBUG
       fprintf(stderr, "ctrl: _MsgEventQSpeed\n");
       fprintf(stderr, "ctrl: speed: %.2f\n", ev->speed.speed);
-
+#endif
       ctrl_data->speed = ev->speed.speed;
       
       
 
       // send speed event to syncmasters
-      
       {
-	fprintf(stderr, "ctrl: new speed\n");
-	
-	
 	// TODO get decoders that do sync...
 	//
 	if(search_capabilities(DECODE_AC3_AUDIO, &rcpt, NULL, NULL)) {
@@ -661,7 +681,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    fprintf(stderr, "ctrl: handle_events: msgtype %d not handled\n",
+    fprintf(stderr, "ctrl: handle_events: notice, msgtype %d not handled\n",
 	    ev->type);
     break;
   }
@@ -678,7 +698,7 @@ int main(int argc, char *argv[])
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
   if(sigaction(SIGINT, &sig, NULL) == -1) {
-    perror("sigaction1");
+    perror("ctrl: failed to set sigaction SIGINT handler");
   }
 
 #if defined(SA_SIGINFO)
@@ -688,14 +708,15 @@ int main(int argc, char *argv[])
   sig.sa_handler = (sig_t)sigchld_handler;
 #endif
   if(sigaction(SIGCHLD, &sig, NULL) == -1) {
-    perror("sigaction2");
+    perror("ctrl: failed to set sigaction SIGCHL handler");
   }
   
   
   program_name = argv[0];
-  
-  while((c = getopt(argc, argv, "na:v:s:m:f:r:o:p:d:u:t:h?")) != EOF) {
+  //"na:v:s:m:f:r:o:p:d:u:t:h?"
+  while((c = getopt(argc, argv,"u:h?" )) != EOF) {
     switch(c) {
+#if 0
     case 'a':
       ac3_audio_stream = atoi(optarg);
       break;
@@ -717,9 +738,6 @@ int main(int argc, char *argv[])
     case 'n':
       nav_stream = 1;
       break;
-    case 'u':
-      ui = optarg;
-      break;
     case 'f':
       framerate = optarg;
       break;
@@ -735,6 +753,10 @@ int main(int argc, char *argv[])
     case 'D':
       demux_debug = optarg;
       break;      
+#endif
+    case 'u':
+      ui = optarg;
+      break;
     case 'h':
     case '?':
       usage();
@@ -754,29 +776,25 @@ int main(int argc, char *argv[])
     input_file = NULL;
   }
   
-  
+  /* Print the version info sot that we get it with bug reports. */
   fprintf(stderr, "%s %s\n", PACKAGE, VERSION);
-  
   
   ctrl_data_shmid = create_ctrl_data();
   
-  /* create msgq */
-  
+  /* create msgq */  
   create_msgq();
-  
-
   sprintf(msgqid_str, "%d", msgqid);
   
-  fprintf(stderr, "msgid: %d\n", msgqid);
-  
+#if DEBUG
+  fprintf(stderr, "msgid: %d\n", msgqid);  
   {
     struct msqid_ds msgqinfo;
     
     msgctl(msgqid, IPC_STAT, &msgqinfo);
     
     fprintf(stderr, "max_bytes: %ld\n", (long)msgqinfo.msg_qbytes);
-
   }
+#endif
 
   q.msqid = msgqid;
   q.mtype = CLIENT_RESOURCE_MANAGER;
@@ -834,7 +852,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   
   if(decode_path == NULL) {
     fprintf(stderr, "*ctrl: init_decoder(): decoder not set\n");
-    return(-1);
+    return -1;
   }
   
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
@@ -845,7 +863,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     return -1;
   }
   
-  fprintf(stderr, "ctrl: init_decoder(): %s\n", decode_name);
+  //fprintf(stderr, "ctrl: init_decoder(): %s\n", decode_name);
 
   //starting_decoder = 1;
 
@@ -900,10 +918,9 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   }
   
 
-  fprintf(stderr, "Started %s with pid %ld\n", decoderstr, (long)pid);
+  fprintf(stderr, "ctrl: Started %s with pid %ld\n", decoderstr, (long)pid);
   //  starting_decoder = 0;
   return pid;
-
 }
 
 
@@ -1075,10 +1092,9 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 
 int create_msgq()
 {
-  
   if((msgqid = msgget(IPC_PRIVATE, IPC_CREAT | 0600)) == -1) {
-    perror("msgget msgqid");
-    exit(-1);
+    perror("*ctrl: msgget ipc_creat failed");
+    exit(1);
   }
 
   return 0;
@@ -1087,11 +1103,10 @@ int create_msgq()
 
 void destroy_msgq()
 {
-  if(msgctl(msgqid, IPC_RMID, NULL) == -1) {
-    perror("msgctl ipc_rmid");
+  if(msgctl(msgqid, IPC_RMID, NULL) != 0) {
+    perror("*ctrl: msgctl ipc_rmid failed");
   }
   msgqid = -1;
-
 }
 
 
@@ -1099,11 +1114,10 @@ int get_buffer(int size, shm_bufinfo_t *bufinfo)
 {
   int shmid;
   
-  fprintf(stderr, "get_buffer\n");
   if((shmid = shmget(IPC_PRIVATE,
 		     size,
 		     IPC_CREAT | 0600)) == -1) {
-    perror("get_buffer(), shmget()");
+    perror("*ctrl: get_buffer, shmget failed");
     return -1;
   }
 
@@ -1126,22 +1140,19 @@ int create_q(int nr_of_elems, int buf_shmid,
   q_elem_t *q_elems;
   int n;
 
-  fprintf(stderr, "create_q\n");
-  fprintf(stderr, "shmget\n");
   if((shmid = shmget(IPC_PRIVATE,
 		     sizeof(q_head_t) + nr_of_elems*sizeof(q_elem_t),
 		     IPC_CREAT | 0600)) == -1) {
-    perror("create_q(), shmget()");
+    perror("*ctrl: create_q, shmget failed");
     return -1;
   }
   
   
-  fprintf(stderr, "shmat\n");
   if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    perror("create_q(), shmat()");
+    perror("*ctrl: create_q, shmat failed");
     
-    if(shmctl(shmid, IPC_RMID, NULL) == -1) {
-      perror("ipc_rmid");
+    if(shmctl(shmid, IPC_RMID, NULL) != 0) {
+      perror("*ctrl: create_q, shmctl ipc_rmid faild");
     }
     return -1;
   }
@@ -1166,8 +1177,8 @@ int create_q(int nr_of_elems, int buf_shmid,
   for(n = 0; n < nr_of_elems; n++) {
     q_elems[n].in_use = 0;
   }
-  if(shmdt(shmaddr) == -1) {
-    perror("create_q(), shmdt()");
+  if(shmdt(shmaddr) != 0) {
+    perror("*ctrl: create_q, shmdt failed");
   }
   return shmid;
 }
@@ -1187,15 +1198,15 @@ int create_ctrl_data()
 		     sizeof(ctrl_data_t)+
 		     nr_of_offsets*sizeof(ctrl_time_t),
 		     IPC_CREAT | 0600)) == -1) {
-    perror("create_ctrl_data(), shmget()");
+    perror("*ctrl: create_ctrl_data, shmget failed");
     return -1;
   }
   
   if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    perror("create_ctrl_data(), shmat()");
+    perror("*ctrl: create_ctrl_data, shmat failed");
     
     if(shmctl(shmid, IPC_RMID, NULL) == -1) {
-      perror("ipc_rmid");
+      perror("*ctrl: create_ctrl_data, shmctl ipc_rmid");
     }
     
     return -1;
@@ -1214,7 +1225,6 @@ int create_ctrl_data()
   }
   
   return shmid;
-  
 }
 
 
@@ -1226,13 +1236,12 @@ void add_q_shmid(int shmid)
   nr_shmids++;
   
   if((shm_ids = (int *)realloc(shm_ids, sizeof(int)*nr_shmids)) == NULL) {
-    perror("realloc");
+    perror("*ctrl: add_q_shmid, realloc failed");
     nr_shmids--;
     return;
   }
 
   shm_ids[nr_shmids-1] = shmid;
-  
 }
 
 
@@ -1241,9 +1250,9 @@ void remove_q_shm()
   int n;
 
   for(n = 0; n < nr_shmids; n++) {
-    fprintf(stderr, "removing shmid: %d\n", shm_ids[n]);
+    fprintf(stderr, "ctrl: removing shmid: %d\n", shm_ids[n]);
     if(shmctl(shm_ids[n], IPC_RMID, NULL) == -1) {
-      perror("ipc_rmid");
+      perror("ctrl: ipc_rmid");
     }
   }
   nr_shmids = 0;
@@ -1254,7 +1263,6 @@ void remove_q_shm()
 
 void cleanup_and_exit(void)
 {
-  fprintf(stderr, "ctrl: cleaning up\n");
   remove_q_shm();
   destroy_msgq();
   fprintf(stderr, "ctrl: exiting\n");
@@ -1275,12 +1283,12 @@ void int_handler(int sig)
   int n;
   pid_t pid;
   
-  fprintf(stderr, "Caught signal %d, cleaning up\n", sig);
+  fprintf(stderr, "ctrl: Caught signal %d, cleaning up\n", sig);
 
   for(n = 0; n < num_pids; n++) {
     if((pid = pidlist[n]) != -1) {
       child_killed = 1;
-      fprintf(stderr, "killing child: %ld\n", (long)pid);
+      fprintf(stderr, "ctrl: killing child: %ld\n", (long)pid);
       kill(pid, SIGINT);
     }
     if(!child_killed) {
@@ -1322,9 +1330,9 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   if(info->si_errno) {
     fprintf(stderr, "ctrl: error: %s\n", strerror(info->si_errno));
   }
-  fprintf(stderr, "si_code: %d\n", info->si_code);
+  //fprintf(stderr, "ctrl: si_code: %d\n", info->si_code);
 
-  fprintf(stderr, "si_pid: %ld\n", (long)info->si_pid);
+  //fprintf(stderr, "ctrl: si_pid: %ld\n", (long)info->si_pid);
   
   switch(info->si_code) {
   case CLD_STOPPED:
@@ -1351,13 +1359,13 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
     died = 1;
     break;
 #if defined(SI_NOINFO)  // Solaris only
-   case SI_NOINFO:
-    fprintf(stderr, "ctrl: sigchld with no info\n");
+  case SI_NOINFO:
+    fprintf(stderr, "ctrl: pid %ld, sigchld: no info\n", (long)info->si_pid);
     break;
 #endif
   default:
-    fprintf(stderr, "**ctrl: unknown cause of sigchld, si_code: %d\n",
-	    info->si_code);
+    fprintf(stderr, "**ctrl: pid %ld, unknown sigchld si_code: %d\n",
+	    (long)info->si_pid, info->si_code);
     break;
   }
   wpid = info->si_pid;
@@ -1367,7 +1375,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   
   while(1) {
     if((pid = waitpid(wpid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
-      perror("ctrl: waitpid");
+      perror("ctrl: waitpid failed");
       switch(errno) {
       case EINTR:
 	continue;
@@ -1380,29 +1388,29 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   
   if(WIFEXITED(stat_loc)) {
     died = 1;
-    fprintf(stderr, "pid: %ld exited with status: %d\n",
+    fprintf(stderr, "ctrl: pid: %ld exited with status: %d\n",
 	    (long)pid, WEXITSTATUS(stat_loc));
   } else if(WIFSIGNALED(stat_loc)) {
     died = 1;
-    fprintf(stderr, "pid: %ld terminated on signal: %d\n",
+    fprintf(stderr, "ctrl: pid: %ld terminated on signal: %d\n",
 	    (long)pid, WTERMSIG(stat_loc));
   } else if(WIFSTOPPED(stat_loc)) {
-    fprintf(stderr, "pid: %ld stopped on signal: %d\n",
+    fprintf(stderr, "ctrl: pid: %ld stopped on signal: %d\n",
 	    (long)pid, WSTOPSIG(stat_loc));
   } else if(WIFCONTINUED(stat_loc)) {
-    fprintf(stderr, "pid: %ld continued\n", (long)pid);
+    fprintf(stderr, "ctrl: pid: %ld continued\n", (long)pid);
   } else {
-    fprintf(stderr, "pid: %ld\n", (long)pid);
+    fprintf(stderr, "ctrl: pid: %ld\n", (long)pid);
   }
   if(died) {
     int n;
     if(!remove_from_pidlist(pid)) {
-      fprintf(stderr, "pid died before registering\n");
+      fprintf(stderr, "ctrl: pid died before registering\n");
     }
     for(n = 0; n < num_pids; n++) {
       if((pid = pidlist[n]) != -1) {
 	child_killed = 1;
-	fprintf(stderr, "killing child: %ld\n", (long)pid);
+	//fprintf(stderr, "ctrl: killing child: %ld\n", (long)pid);
 	kill(pid, SIGINT);
       }
     }
@@ -1411,7 +1419,6 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
       child_killed = 2;
     }
   }
-
 }
 
 
@@ -1419,12 +1426,16 @@ void slay_children(void)
 {
   int n;
   pid_t pid;
+  
   for(n = 0; n < num_pids; n++) {
     if((pid = pidlist[n]) != -1) {
       child_killed = 2;
-      fprintf(stderr, "slaying child: %ld\n", (long)pid);
+      fprintf(stderr, "ctrl: slaying child: %ld\n", (long)pid);
       kill(pid, SIGKILL);
     }
   }
-  child_killed = 2;
+  if(!child_killed) {
+    fprintf(stderr, "ctrl: No children left in pidlist\n");
+    child_killed = 2;
+  }
 }

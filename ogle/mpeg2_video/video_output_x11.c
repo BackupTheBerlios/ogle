@@ -294,17 +294,17 @@ static void display_init_xv(yuv_image_t *picture_data,
 			    &xv_request_base, &xv_event_base, 
 			    &xv_error_base);
   if(result != Success) {
-    fprintf(stderr, "Xv not found\n");
+    fprintf(stderr, "vo: Xvideo extension not found\n");
     return;
   }
   
-  fprintf(stderr, "Found Xv extension, checking for suitable adaptors\n");
   /* Check for available adaptors */
   result = XvQueryAdaptors(mydisplay, DefaultRootWindow (mydisplay), 
 			   &xv_num_adaptors, &xv_adaptor_info);
-  if(result != Success)
+  if(result != Success) {
+    fprintf(stderr, "vo: no Xv adaptors found\n");
     return;
-  
+  }
       
   /* Check adaptors */
   for(i = 0; i < xv_num_adaptors; i++) {
@@ -315,16 +315,12 @@ static void display_init_xv(yuv_image_t *picture_data,
       continue;
     
     xv_port = xv_adaptor_info[i].base_id;
-    fprintf(stderr, "Found adaptor \"%s\" checking for suitable formats\n",
-	    xv_adaptor_info[i].name);
       
     /* Check image formats of adaptor */
     xv_formats = XvListImageFormats(mydisplay, xv_port, &xv_num_formats);
     for(j = 0; j < xv_num_formats; j++) {
       if(xv_formats[j].id == 0x32315659) { /* YV12 */
 	//if(xv_formats[j].id == 0x30323449) { /* I420 */
-	fprintf(stderr, "Found image format \"%s\", using it\n", 
-		xv_formats[j].guid);
 	xv_id = xv_formats[j].id;
 	break;
       } 
@@ -333,7 +329,8 @@ static void display_init_xv(yuv_image_t *picture_data,
     if(j == xv_num_formats)
       continue;
       
-    fprintf(stderr, "Using Xvideo port %li for hw scaling\n", xv_port);
+    fprintf(stderr, "vo: Xv adaptor \"%s\" port %li image format %i\n"
+	    xv_adaptor_info[i].name, xv_port, xv_id);
       
     /* Allocate XvImages */
     xv_image = XvShmCreateImage(mydisplay, xv_port, xv_id, NULL,
@@ -430,8 +427,8 @@ static void display_init_xshm()
 			  window.ximage->height, 
 			  IPC_CREAT | 0777);
   
-  if(shm_info.shmid < 0) {
-    fprintf(stderr, "vo: shmget failed\n");
+  if(shm_info.shmid == -1) {
+    perror("vo: shmget failed");
     exit(1);
   }
   
@@ -439,14 +436,13 @@ static void display_init_xshm()
   shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
   
   if(shm_info.shmaddr == ((char *) -1)) {
-    fprintf(stderr, "vo: shmat failed\n");
+    perror("vo: shmat failed");
     exit(1);
   }
   
   /* Set the data pointer to the allocated segment. */  
   window.ximage->data = shm_info.shmaddr;
   shm_info.readOnly = False;
-  
 
   /* make sure we don't have any unhandled errors */
   XSync(mydisplay, False);
@@ -472,10 +468,6 @@ static void display_init_xshm()
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   
   pixel_stride = window.ximage->bits_per_pixel;
-
-  
-  fprintf(stderr, "vo: pixel_stride: %d\n", pixel_stride);
-  
 
   // If we have blue in the lowest bit then obviously RGB 
   mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
@@ -605,7 +597,6 @@ void init_config(Display *dpy)
   DpyInfoUpdateResolution(dpy, screen_nr);
   
   /* Query and calculate the displays aspect rate. */
- 
   {
     int width, height;
     int horizontal_pixels, vertical_pixels;
@@ -617,13 +608,10 @@ void init_config(Display *dpy)
     
     fprintf(stderr, "NOTE[ogle_vo]: Display w: %d, h: %d, hp: %d, vp: %d\n",
 	    width, height, horizontal_pixels, vertical_pixels);
-    fprintf(stderr, "NOTE[ogle_vo]:  Display sar: %d/%d = %f\n",
+    fprintf(stderr, "NOTE[ogle_vo]: Display sar: %d/%d = %f\n",
 	    dpy_sar_frac_n, dpy_sar_frac_d,
 	    (double)dpy_sar_frac_n/(double)dpy_sar_frac_d);
   }
-  
-  
-  
 }
 
 
@@ -646,7 +634,7 @@ void display_init(yuv_image_t *picture_data,
   mydisplay = XOpenDisplay(NULL);
   
   if(mydisplay == NULL) {
-    fprintf(stderr, "vo: Can not open display\n");
+    fprintf(stderr, "*vo: Can not open display!\n");
     exit(1);
   }
   
@@ -665,12 +653,12 @@ void display_init(yuv_image_t *picture_data,
   color_depth = attribs.depth;
   if(color_depth != 15 && color_depth != 16 && 
      color_depth != 24 && color_depth != 32) {
-    fprintf(stderr,"Only 15, 16, 24, and 32bpp supported. Trying 24bpp!\n");
+    fprintf(stderr,"vo: color_depth %d not supported (not 15, 16, 24, 32). "
+	    "Trying to force 24bpp!\n");
     color_depth = 24;
   }
   
   XMatchVisualInfo(mydisplay, screen_nr, color_depth, TrueColor, &vinfo);
-  fprintf(stderr, "vo: X11 visual id is %lx\n", vinfo.visualid);
 
   hint.x = 0;
   hint.y = 0;
@@ -752,11 +740,7 @@ void display_init(yuv_image_t *picture_data,
   /* Create the colormaps. (needed in the PutImage calls) */   
   mygc = XCreateGC(mydisplay, window.win, 0L, &xgcv);
   
-
-  
-
   xshmeventbase = XShmGetEventBase(mydisplay);  
-  fprintf(stderr, "xshmeventbase: %d\n", xshmeventbase);
 
   /* Try to use XFree86 Xv (X video) extension for display.
      Sets use_xv to true on success. */
@@ -768,21 +752,20 @@ void display_init(yuv_image_t *picture_data,
     display_init_xshm();
   }
   
-  /*** sun ffb2+ ***/
-  
+  /*** sun ffb2+ ***/  
   if(use_ffb2_yuv2rgb) {  
     fb_fd = open("/dev/fb", O_RDWR);
     yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
 				   MAP_SHARED, fb_fd, 0x0701a000);
     if(yuyv_fb == MAP_FAILED) {
-      perror("mmap");
+      perror("*vo: mmap failed");
       exit(1);
     }
     
     rgb_fb = (uint8_t *)mmap(NULL, 4*2048*1024, PROT_READ | PROT_WRITE,
 				  MAP_SHARED, fb_fd, 0x05004000);
     if(rgb_fb == MAP_FAILED) {
-      perror("mmap");
+      perror("*vo: mmap faild");
       exit(1);
     }
   }
@@ -792,7 +775,6 @@ void display_init(yuv_image_t *picture_data,
   snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
   XStoreName(mydisplay, window.win, &title[0]);
-  
 }
 
 
@@ -806,8 +788,8 @@ static void display_change_size(yuv_image_t *img, int new_width,
   int padded_height = img->info->picture.padded_height;
   //int alloc_width, alloc_height;
   int alloc_size;
-  fprintf(stderr, "DEBUG[ogle_vo] resize: %d, %d\n", new_width, new_height);
   
+  fprintf(stderr, "DEBUG[ogle_vo] resize: %d, %d\n", new_width, new_height);
   
   /* If we cant scale (i.e no Xv or mediaLib) exit give up now. */
 #ifndef HAVE_MLIB
@@ -834,13 +816,13 @@ static void display_change_size(yuv_image_t *img, int new_width,
     if(use_xshm)
       XShmDetach(mydisplay, &shm_info);
     XDestroyImage(window.ximage);
-    shmdt(shm_info.shmaddr);
-    if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't detach segment\n");
+    
+    if(shmdt(shm_info.shmaddr) != 0) {
+      perror("FATAL[ogle_vo]: Couldn't detach shm segment");
       exit(1);
     }
-    if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-      perror("FATAL[ogle_vo]: shmctl ipc_rmid");
+    if(shmctl(shm_info.shmid, IPC_RMID, 0) != 0) {
+      perror("FATAL[ogle_vo]: shmctl ipc_rmid failed");
       exit(1);
     }
     
@@ -856,7 +838,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				    new_height);
 
     if(window.ximage == NULL) {
-      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: couldn't create Shm image\n");
+      fprintf(stderr, "FATAL[ogle_vo]: XShmCreateImage failed\n");
       exit(1);
     }
 
@@ -869,20 +851,17 @@ static void display_change_size(yuv_image_t *img, int new_width,
     }
     
     /* Get a shared memory segment */
-    shm_info.shmid = shmget(IPC_PRIVATE,
-			    alloc_size,
-			    IPC_CREAT | 0777);
+    shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0777);
 
-
-    if(shm_info.shmid < 0) {
-      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't get segment\n");
+    if(shm_info.shmid == -1) {
+      perror("FATAL[ogle_vo]: failed to get a shm segment");
       exit(1);
     }
-  
+    
     /* Attach shared memory segment */
     shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "FATAL[ogle_vo]: Shared memory: Couldn't attach segment\n");
+      perror("FATAL[ogle_vo]: failed to attach shm segment");
       exit(1);
     }
     
@@ -933,10 +912,12 @@ static void display_adjust_size(yuv_image_t *current_image,
   scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
   scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
   
+#ifdef DEBUG
   fprintf(stderr, "vo: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
 	  sar_frac_n, sar_frac_d,
 	  dpy_sar_frac_n, dpy_sar_frac_d,
 	  scale_frac_n, scale_frac_d); 
+#endif
   
   /* Keep either the height or the width constant. */ 
   if(scale_frac_n > scale_frac_d) {
@@ -974,7 +955,7 @@ static void display_adjust_size(yuv_image_t *current_image,
     new_width  = max_width;
     new_height = (base_height * max_width) / base_width;
   } else {
-    fprintf(stderr, "vo: using zoom %d / %d\n", scale.zoom_n, scale.zoom_d);
+    //fprintf(stderr, "vo: using zoom %d / %d\n", scale.zoom_n, scale.zoom_d);
     /* Use the provided zoom value. */
     new_width  = (base_width  * scale.zoom_n) / scale.zoom_d;
     new_height = (base_height * scale.zoom_n) / scale.zoom_d;
@@ -1002,7 +983,8 @@ static void display_adjust_size(yuv_image_t *current_image,
       scale.zoom_n = new_height;
       scale.zoom_d = base_height;
     }
-    fprintf(stderr, "DEBUG[ogle_vo]: zoom2 %d / %d\n", scale.zoom_n, scale.zoom_d);
+    //fprintf(stderr, "DEBUG[ogle_vo]: zoom2 %d / %d\n", 
+    //        scale.zoom_n, scale.zoom_d);
   }
   
   /* Don't care about aspect and can't change the window size, use it all. */
@@ -1077,11 +1059,11 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    fprintf(stderr, "vo: keypress: no msgq\n");
+	    perror("vo: keypress");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    fprintf(stderr, "vo: keypress: couldn't send notification\n");
+	    perror("vo: keypress, couldn't send notification");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  }
@@ -1122,19 +1104,17 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    fprintf(stderr, "vo: buttonpress: no msgq\n");
+	    perror("vo: buttonpress");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    fprintf(stderr, "vo: buttonpress: couldn't send notification\n");
+	    perror("vo: buttonpress, couldn't send notification");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  }
 	}
-
       }
       
-
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
 	cursor_visible = True;
@@ -1170,11 +1150,11 @@ void check_x_events(yuv_image_t *current_image)
 	    case EIDRM:
 #endif
 	    case EINVAL:
-	      fprintf(stderr, "vo: pointermotion: no msgq\n");
+	      perror("vo: pointermotion");
 	      display_exit(); //TODO clean up and exit
 	      break;
 	    default:
-	      fprintf(stderr, "vo: pointermotion: couldn't send notification\n");
+	      perror("vo: pointermotion, couldn't send notification");
 	      display_exit(); //TODO clean up and exit
 	      break;
 	    }
@@ -1192,7 +1172,6 @@ void check_x_events(yuv_image_t *current_image)
       while(XCheckTypedEvent(mydisplay, Expose, &ev) == True);
       
       if(ev.xexpose.window == window.win) {
-
 	if(use_xv) {
 	  draw_win_xv(&window);
  	} else {
@@ -1227,7 +1206,6 @@ void check_x_events(yuv_image_t *current_image)
 			      &window.window_area.x,
 			      &window.window_area.y,
 			      &dummy_win);
-
 	
 	// top border
 	if(window.video_area.y > 0) {
@@ -1265,7 +1243,6 @@ void check_x_events(yuv_image_t *current_image)
 		     window.window_area.height,
 		     False);
 	}
-	
       }
       break;    
     default:
@@ -1350,7 +1327,6 @@ void display_exit(void)
       shmdt(shm_info.shmaddr);
     if(shm_info.shmid > 0) {
       shmctl(shm_info.shmid, IPC_RMID, 0);
-      fprintf(stderr, "DEBUG[ogle_vo]: removed shm segment\n");
     }
   }
   display_process_exit();
@@ -1389,7 +1365,6 @@ static void draw_win_x11(window_info *dwin)
 #endif /* HAVE_MLIB */
 
   /*** sun ffb2 ***/
-
   if(use_ffb2_yuv2rgb) {
     int stride;
     int m;
@@ -1617,7 +1592,6 @@ static void draw_win_x11(window_info *dwin)
 		 window.video_area.width,
 		 window.video_area.height,
 		 True);
-
     
     {
       XEvent ev;
@@ -1634,7 +1608,6 @@ static void draw_win_x11(window_info *dwin)
 	      window.video_area.height);
     XSync(mydisplay, False);
   }
-  
 }
 
 

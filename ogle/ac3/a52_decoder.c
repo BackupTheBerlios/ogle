@@ -183,7 +183,7 @@ static void open_output(int flags)
   }
   output = ao_open(drivers[driver_num].open, get_audio_device());
   if(output == NULL) {
-    fprintf(stderr, "Can not open audio output\n");
+    fprintf(stderr, "*a52_decoder: Can not open audio output\n");
     exit(1);
   }
 }
@@ -228,15 +228,15 @@ int main(int argc, char *argv[])
 
     samples = a52_init(accel);
     if(samples == NULL) {
-        fprintf(stderr, "A52 init failed\n");
+        fprintf(stderr, "*a52_decoder: A/52 init failed\n");
         exit(1);
     }
   }
 
   if(msgqid != -1) {
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "a52: couldn't get message q\n");
-      exit(-1);
+      fprintf(stderr, "*a52_decoder: couldn't get message q\n");
+      exit(1);
     }
     
     ev.type = MsgEventQRegister;
@@ -251,13 +251,12 @@ int main(int argc, char *argv[])
     }
 
   } else {
-    fprintf(stderr, "what?\n");
+    fprintf(stderr, "*a52_decoder: what? need a msgid\n");
   }
 
   while(1) {
     get_q();
   }
-
 
   return 0;
 }
@@ -299,7 +298,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    fprintf(stderr, "a52: unrecognized event type: %d\n", ev->type);
+    fprintf(stderr, "a52_decoder: unrecognized event type: %d\n", ev->type);
     break;
   }
 }
@@ -330,11 +329,11 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   char *shmaddr;
   q_head_t *q_head;
 
-  fprintf(stderr, "a52: shmid: %d\n", shmid);
+  fprintf(stderr, "a52_decoder: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("ac3: attach_decoder_buffer(), shmat()");
+      perror("ac52_decoder: attach_decoder_buffer(), shmat()");
       return -1;
     }
     
@@ -347,7 +346,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("ac3: attach_data_buffer(), shmat()");
+      perror("a52_decoder: attach_data_buffer(), shmat()");
       return -1;
     }
     
@@ -426,7 +425,7 @@ int get_q()
 	q_head->writer_requests_notification = 0;
 	ev.type = MsgEventQNotify;
 	if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-	  fprintf(stderr, "a52: couldn't send notification\n");
+	  fprintf(stderr, "a52_decoder: couldn't send notification\n");
 	}
       }
       return 0;
@@ -606,12 +605,12 @@ int get_q()
       if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
 	TIME_S(time_offset) = 0;
 	TIME_SS(time_offset) = 0;
-	fprintf(stderr, "a52: resetting offset\n");
+	fprintf(stderr, "a52_decoder: resetting offset\n");
 	set_sync_point(&ctrl_time[scr_nr],
 		       &real_time,
 		       &scr_time,
 		       ctrl_data->speed);
-	fprintf(stderr, "a52: offset reset\n");
+	//fprintf(stderr, "a52_decoder: offset reset\n");
       }
     }
 
@@ -677,7 +676,7 @@ int get_q()
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      fprintf(stderr, "a52: couldn't send notification\n");
+      fprintf(stderr, "a52_decoder: couldn't send notification\n");
     }
   }
 
@@ -711,7 +710,7 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	int length;
 	
 	if(print_error) {
-	  fprintf(stderr, "a52dec: error while decoding, restarting\n");
+	  fprintf(stderr, "a52_decoder: error while decoding, restarting\n");
 	  print_error = 0;
 	}
 
@@ -728,7 +727,7 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	int i;	
 	if(print_skip) {
 	  print_skip = 0;
-	  fprintf(stderr, "a52dec: Discarded data to find a valid frame\n");
+	  fprintf(stderr, "a52_decoder: skipped data to find a valid frame\n");
 	}
 	flags = speaker_flags | A52_ADJUST_LEVEL;
         if(flags != last_output_flags) {
@@ -736,13 +735,13 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
           last_output_flags = flags;
         }
 	if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
-	  fprintf(stderr, "ao_setup() error\n");
+	  fprintf(stderr, "a52_decoder: ao_setup() error\n");
 	  goto error;
 	}
 
 	memset(&state, 0, sizeof(a52_state_t));
 	if(a52_frame(&state, buf, &flags, &level, bias)) {
-	  fprintf(stderr, "a52_frame() error\n");
+	  fprintf(stderr, "a52_decoder: a52_frame() error\n");
 	  goto error;
 	}
 
@@ -751,12 +750,12 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	for(i = 0; i < 6; i++) {
 
 	  if(a52_block(&state, samples)) {
-	    fprintf(stderr, "a52_block() error\n");
+	    fprintf(stderr, "a52_decoder: a52_block() error\n");
 	    goto error;
 	  }
 
 	  if(ao_play(output, flags, samples)) {
-	    fprintf(stderr, "ao_play() error\n");
+	    fprintf(stderr, "a52_decoder: ao_play() error\n");
 	    goto error;
 	  }
 	  blocks++;
