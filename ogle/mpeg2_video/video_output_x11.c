@@ -695,6 +695,7 @@ void display_init(int padded_width, int padded_height,
   scale.image_height = padded_height;
   
   if(!initialized) {
+#ifdef HAVE_MLIB
     char *scalemode_str;
     if(getenv("USE_FFB2_YUV2RGB")) {
       use_ffb2_yuv2rgb = 1;
@@ -715,6 +716,7 @@ void display_init(int padded_width, int padded_height,
 	scalemode = MLIB_BICUBIC2;
       }
     }
+#endif /* HAVE_MLIB */
 
 
     mydisplay = XOpenDisplay(NULL);
@@ -771,7 +773,7 @@ void display_init(int padded_width, int padded_height,
       }
 #endif
       NOTE("Found %d matching visuals, using visual id: %x\n",
-	   vinfo_nitems, vinfo_list[n].visualid);
+	   vinfo_nitems, (unsigned)vinfo_list[n].visualid);
       vinfo = vinfo_list[n];
       XFree(vinfo_list);
     }
