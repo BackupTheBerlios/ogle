@@ -36,6 +36,9 @@
 #elif defined(HAVE_SYS_BSWAP_H)
 #  include <sys/bswap.h>
 #  define FROM_BE_32(x) (bswap32(x))
+#elif defined(HAVE_SYS_ENDIAN_H)
+#  include <sys/endian.h>
+#  define FROM_BE_32(x) (swap32(x))
 #else
 #  define FROM_BE_32(x) \
      ((((x) & 0xff000000) >> 24) | \
