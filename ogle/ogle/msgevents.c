@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <sys/msg.h>
 #include <errno.h>
-#include "msgevents.h"
+#include <ogle/msgevents.h>
 
 
 
