@@ -20,8 +20,6 @@
 #include <stdlib.h>
 #include <assert.h>
 
-#include "config.h"
-
 #include <dvdread/dvd_reader.h>
 #include <dvdread/ifo_types.h>
 #include <dvdread/ifo_read.h>

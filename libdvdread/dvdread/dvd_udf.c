@@ -27,6 +27,8 @@
  * http://www.gnu.org/copyleft/gpl.html
  */
  
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

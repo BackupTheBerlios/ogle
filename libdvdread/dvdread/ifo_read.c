@@ -1,6 +1,7 @@
 /*
- * Copyright (C) 2000, 2001, 2002  Björn Englund <d4bjorn@dtek.chalmers.se>, 
- *                                 Håkan Hjort <d95hjort@dtek.chalmers.se>
+ * Copyright (C) 2000, 2001, 2002, 2003
+ *               Björn Englund <d4bjorn@dtek.chalmers.se>, 
+ *               Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,18 +18,17 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
 
-#include "dvd_reader.h"
-
-#include "config.h" // Needed for WORDS_BIGENDIAN
 #include "bswap.h"
 #include "ifo_types.h"
 #include "ifo_read.h"
-
+#include "dvd_reader.h"
 #include "dvdread_internal.h"
 
 #ifndef DVD_BLOCK_LEN

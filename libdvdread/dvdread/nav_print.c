@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2000, 2001, 2002 Håkan Hjort <d95hjort@dtek.chalmers.se>
+ * Copyright (C) 2000, 2001, 2002, 2003 Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
  * Much of the contents in this file is based on VOBDUMP.
  *
@@ -23,13 +23,13 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <inttypes.h>
 
-#include "config.h" // Needed for WORDS_BIGENDIAN
 #include "nav_types.h"
 #include "nav_print.h"
-
 #include "dvdread_internal.h"
 
 static void print_time(dvd_time_t *dtime) {

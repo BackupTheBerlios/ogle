@@ -19,8 +19,6 @@
 
 #include <stdio.h>
 
-#include "config.h"
-
 #include <dvdread/dvd_reader.h>
 #include <dvdread/ifo_types.h>
 #include <dvdread/ifo_read.h>
