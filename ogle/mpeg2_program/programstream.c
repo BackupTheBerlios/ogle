@@ -502,7 +502,7 @@ int pack_header()
       fprintf(stderr, "prev system_clock_reference: [%6f s]\n", 
 	      ((double)prev_scr)/27000000.0);
       
-    } else if((system_clock_reference - prev_scr) > 1890000) {
+    } else if((system_clock_reference - prev_scr) > 2700000) {
       scr_discontinuity = 1;
       fprintf(stderr, "*** Forward scr discontinuity ******\n");
       fprintf(stderr, "system_clock_reference: [%6f s]\n", 
@@ -1110,7 +1110,7 @@ void loadinputfile(char *infilename)
     exit(1);
   }
   infilelen = statbuf.st_size;
-#ifdef HAVE_MADVICE
+#ifdef HAVE_MADVISE
   rv = madvise(buf, infilelen, MADV_SEQUENTIAL);
   if(rv == -1) {
     perror("madvise");

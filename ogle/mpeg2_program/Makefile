@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 CC=gcc
-CFLAGS=  -g -Wall -O6 `glib-config --cflags` -DHAVE_MADVICE -lposix4
+CFLAGS=  -g -Wall -O6 `glib-config --cflags` -DHAVE_MADVISE -lposix4
 LDFLAGS= 
 
 all:	programstream play_pes
