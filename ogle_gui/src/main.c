@@ -60,6 +60,8 @@ void set_dvd_path(char *new_path)
 int
 main (int argc, char *argv[])
 {
+  DVDResult_t res;
+  
   program_name = argv[0];
 #ifdef ENABLE_NLS
   setlocale(LC_ALL, "");
@@ -84,7 +86,6 @@ main (int argc, char *argv[])
   my_glade_setup();
 
   if(msgqid !=-1) { // ignore sending data.
-    DVDResult_t res;
     res = DVDOpenNav(&nav, msgqid);
     if(res != DVD_E_Ok ) {
       DVDPerror("DVDOpen", res);
@@ -101,7 +102,15 @@ main (int argc, char *argv[])
   gtk_widget_show(app);
 
   menu_new(app);  
-
+  
+  // If a filename is given on the command line,  start immediately.
+  if(argc == 4) {
+    res = DVDSetDVDRoot(nav, argv[3]);
+    if(res != DVD_E_Ok) {
+      DVDPerror("main: DVDSetDVDRoot", res);
+    }
+  }
+  
   gtk_main ();
   return 0;
 }
