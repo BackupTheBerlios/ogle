@@ -111,7 +111,7 @@ struct pvd_t {
 };
 
 struct lbudf {
-  int lb;
+  uint32_t lb;
   uint8_t *data;
 };
 
@@ -160,7 +160,7 @@ void FreeUDFCache(void *cache)
 
 
 static int GetUDFCache(dvd_reader_t *device, UDFCacheType type,
-		       int nr, void *data)
+		       uint32_t nr, void *data)
 {
   int n;
   struct udf_cache *c;
@@ -224,7 +224,7 @@ static int GetUDFCache(dvd_reader_t *device, UDFCacheType type,
 }
 
 static int SetUDFCache(dvd_reader_t *device, UDFCacheType type,
-		       int nr, void *data)
+		       uint32_t nr, void *data)
 {
   int n;
   struct udf_cache *c;
@@ -537,7 +537,7 @@ static int UDFScanDir( dvd_reader_t *device, struct AD Dir, char *FileName,
     uint8_t filechar;
     unsigned int p;
     uint8_t *cached_dir = NULL;
-    int dir_lba;
+    uint32_t dir_lba;
     struct AD tmpICB;
     int found = 0;
     int in_cache = 0;
@@ -942,10 +942,11 @@ static int UDFGetPVD(dvd_reader_t *device, struct pvd_t *pvd)
  * volid_size, size of the buffer volid points to
  * returns the size of buffer needed for all data
  */
-int UDFGetVolumeIdentifier(dvd_reader_t *device, char *volid, int volid_size)
+int UDFGetVolumeIdentifier(dvd_reader_t *device, char *volid,
+			   unsigned int volid_size)
 {
   struct pvd_t pvd;
-  int volid_len;
+  unsigned int volid_len;
 
   /* get primary volume descriptor */
   if(!UDFGetPVD(device, &pvd)) {
@@ -975,7 +976,7 @@ int UDFGetVolumeIdentifier(dvd_reader_t *device, char *volid, int volid_size)
  * or 0 on error
  */
 int UDFGetVolumeSetIdentifier(dvd_reader_t *device, uint8_t *volsetid,
-			      int volsetid_size)
+			      unsigned int volsetid_size)
 {
   struct pvd_t pvd;
 

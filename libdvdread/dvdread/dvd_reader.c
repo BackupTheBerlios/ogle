@@ -970,7 +970,7 @@ ssize_t DVDFileSize( dvd_file_t *dvd_file )
     return dvd_file->filesize;
 }
 
-int DVDDiscID( dvd_reader_t *dvd, char *discid )
+int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 {
   struct md5_ctx ctx;
   int title;
@@ -981,14 +981,14 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
   for( title = 0; title < 10; title++ ) {
     dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
     if( dvd_file != NULL ) {
-      ssize_t read;
+      ssize_t bytes_read;
       size_t file_size = dvd_file->filesize * DVD_VIDEO_LB_LEN;
       char *buffer = malloc( file_size );
 
-      read = DVDReadBytes( dvd_file, buffer, file_size );
-      if( read != file_size ) {
+      bytes_read = DVDReadBytes( dvd_file, buffer, file_size );
+      if( bytes_read != file_size ) {
         fprintf( stderr, "DVDDiscId: read returned %d bytes, wanted %d\n",
-                 read, file_size );
+                 bytes_read, file_size );
         DVDCloseFile( dvd_file );
         return -1;
       }
@@ -1006,10 +1006,10 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
 
 
 int DVDISOVolumeInfo( dvd_reader_t *dvd,
-		      char *volid, int volid_size,
-		      char *volsetid, int volsetid_size )
+		      char *volid, unsigned int volid_size,
+		      char *volsetid, unsigned int volsetid_size )
 {
-  char *buffer;
+  unsigned char *buffer;
   int ret;
 
   /* Check arguments. */
@@ -1036,7 +1036,7 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
   }
   
   if( (volid != NULL) && (volid_size > 0) ) {
-    int n;
+    unsigned int n;
     for(n = 0; n < 32; n++) {
       if(buffer[40+n] == 0x20) {
 	break;
@@ -1062,8 +1062,8 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
 
 
 int DVDUDFVolumeInfo( dvd_reader_t *dvd,
-		      char *volid, int volid_size,
-		      char *volsetid, int volsetid_size )
+		      char *volid, unsigned int volid_size,
+		      char *volsetid, unsigned int volsetid_size )
 {
   int ret;
   /* Check arguments. */
