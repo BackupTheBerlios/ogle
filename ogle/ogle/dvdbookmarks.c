@@ -28,10 +28,13 @@ static xmlDocPtr new_bookmark_doc(char *dvdid_str)
     return NULL;
   }
   if((node = xmlNewDocNode(doc, NULL, "ogle_bookmarks", NULL)) == NULL) {
-    fprintf(stderr, "apa\n");
+    xmlFreeDoc(doc);
+    return NULL;
   }
   if(xmlDocSetRootElement(doc, node)) {
-    fprintf(stderr, "old root\n");
+    xmlFreeNode(node);
+    xmlFreeDoc(doc);
+    return NULL;
   }
   xmlNewProp(node, "dvddiscid", dvdid_str);
   
@@ -86,11 +89,10 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
   for(n = 0; n < 16; n++) {
     sprintf(&dvdid_str[n*2], "%02x", dvdid[n]);
   }
-  fprintf(stderr, "id: '%s'\n", dvdid_str);
+
   if(file == NULL) {
     home = getenv("HOME");
     if(home == NULL) {
-      fprintf(stderr, "No $HOME\n");
       return NULL;
     } else {
       char *bmpath = NULL;
