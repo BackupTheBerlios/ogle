@@ -19,6 +19,9 @@
 #include <mlib_video.h>
 #include <mlib_algebra.h>
 #else
+#ifdef HAVE_MMX
+#include "mmx.h"
+#endif
 #include "c_mlib.h"
 #endif
 
@@ -1783,7 +1786,10 @@ void picture_data(void)
     otv.tv_usec = tv.tv_usec;
     
     gettimeofday(&tv, NULL);
-    
+#ifdef HAVE_MMX
+  emms();
+#endif
+  
     diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
 	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
     
@@ -4950,6 +4956,9 @@ void exit_program(int exitcode)
   shmctl (ring_shmid, IPC_RMID, 0);
   shmctl (ring_c_shmid, IPC_RMID, 0);
 
+#ifdef HAVE_MMX
+  emms();
+#endif
   {
     int n;
     /*

@@ -18,6 +18,8 @@
 #include <inttypes.h>
 #include "mmx.h"
 
+extern void IDCT_mmx(int16_t *,int16_t *);
+
 static uint64_t ones = 0x0001000100010001ULL;
 static uint64_t twos = 0x0002000200020002ULL;
 
@@ -241,11 +243,11 @@ mlib_VideoAddBlock_U8_S16(
       int16_t *mc_block,
       int32_t stride) 
 {
-   int n = 8;
+   const int n = 8;
 #define MMX_mmx_VideoAddBlock_U8_S16
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoAddBlock_U8_S16)
    int x,y;
-   int jump = stride - n;
+   const int jump = stride - n;
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < n; x++)
@@ -257,10 +259,10 @@ mlib_VideoAddBlock_U8_S16(
 
    //printf("%d %d\n", (uint_32)curr_block % 64, (uint_32)mc_block % 64);
 
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
+
    for (y = 0; y < n; y++) {
       for (x = 0; x < n/8; x++) {
-         pxor_r2r(mm0,mm0);             // load 0 into mm0
-
          movq_m2r(*curr_block,mm1);     // load 8 curr bytes
          movq_r2r(mm1,mm2);             // copy 8 curr bytes
 
@@ -296,7 +298,7 @@ mlib_VideoCopyRefAve_U8_U8_MxN(
 #define MMX_mmx_VideoCopyRefAve_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoCopyRefAve_U8_U8_MxN)
    int x,y;
-   int jump = stride - m;
+   const int jump = stride - m;
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
@@ -306,11 +308,13 @@ mlib_VideoCopyRefAve_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = stride - m;
+   const int step = 8;
+   const int jump = stride - m;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
-      for (x = 0; x < m/8; x++) {
+      for (x = 0; x < m/step; x++) {
          mmx_average_2_U8(curr_block, curr_block, ref_block);
 
          curr_block += step;
@@ -384,7 +388,7 @@ mlib_VideoCopyRef_U8_U8(
       int32_t stride)
 {
    int x,y;
-   int jump = stride - width;
+   const int jump = stride - width;
    printf("I don't get called!");
 
    for (y = 0; y < height; y++) {
@@ -428,7 +432,7 @@ mlib_VideoCopyRef_U8_U8_MxN(
 #define MMX_mmx_VideoCopyRef_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoCopyRef_U8_U8_MxN)
    int x,y;
-   int jump = stride - m;
+   const int jump = stride - m;
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
@@ -438,14 +442,16 @@ mlib_VideoCopyRef_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = stride - m;
+   const int step = 8;
+   const int jump = stride - m;
 #ifdef MC_MMX_verify
    uint8_t *old_curr_block = curr_block;
    uint8_t *old_ref_block = ref_block;
    printf("before\n");
    print_U8_U8_MxN(n,old_curr_block,old_ref_block,stride);
 #endif
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -535,7 +541,7 @@ mlib_VideoInterpAveX_U8_U8_MxN(
 #define MMX_mmx_VideoInterpAveX_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpAveX_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
@@ -545,8 +551,10 @@ mlib_VideoInterpAveX_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - m;
+   const int step = 8;
+   const int jump = frame_stride - m;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < 8/m; x++) {
@@ -633,7 +641,7 @@ mlib_VideoInterpX_U8_U8_MxN(
 #define MMX_mmx_VideoInterpX_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpX_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m; x++)
@@ -643,8 +651,10 @@ mlib_VideoInterpX_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - n;
+   const int step = 8;
+   const int jump = frame_stride - n;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -733,7 +743,7 @@ mlib_VideoInterpAveXY_U8_U8_MxN(
 #define MMX_mmx_VideoInterpAveXY_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpAveXY_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block+field_stride;
 
    for (y = 0; y < n; y++) {
@@ -745,9 +755,11 @@ mlib_VideoInterpAveXY_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - n;
+   const int step = 8;
+   const int jump = frame_stride - n;
    uint8_t *ref_block_next = ref_block + field_stride;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -836,7 +848,7 @@ mlib_VideoInterpXY_U8_U8_MxN(
 #define MMX_mmx_VideoInterpXY_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpXY_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block+field_stride;
 
    for (y = 0; y < n; y++) {
@@ -848,9 +860,11 @@ mlib_VideoInterpXY_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - m;
+   const int step = 8;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -941,7 +955,7 @@ mlib_VideoInterpAveY_U8_U8_MxN(
 #define MMX_mmx_VideoInterpAveY_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpAveY_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
 
    for (y = 0; y < n; y++) {
@@ -953,9 +967,11 @@ mlib_VideoInterpAveY_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - m;
+   const int step = 8;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -1044,7 +1060,7 @@ mlib_VideoInterpY_U8_U8_MxN(
 #define MMX_mmx_VideoInterpY_U8_U8_MxN
 #if !defined(HAVE_MMX) || !defined(MMX_mmx_VideoInterpY_U8_U8_MxN)
    int x,y;
-   int jump = frame_stride - m;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
 
    for (y = 0; y < n; y++) {
@@ -1056,9 +1072,11 @@ mlib_VideoInterpY_U8_U8_MxN(
    }
 #else
    int x,y;
-   int step = 8;
-   int jump = frame_stride - m;
+   const int step = 8;
+   const int jump = frame_stride - m;
    uint8_t *ref_block_next = ref_block + field_stride;
+
+   pxor_r2r(mm0,mm0);             // load 0 into mm0
 
    for (y = 0; y < n; y++) {
       for (x = 0; x < m/8; x++) {
@@ -1136,9 +1154,9 @@ mlib_VideoInterpY_U8_U8_8x4(
 }
 
 
-uint32_t matrix_coefficients = 1;
+const uint32_t matrix_coefficients = 1;
 
-int32_t Inverse_Table_6_9[8][4] =
+const int32_t Inverse_Table_6_9[8][4] =
 {
   {117504, 138453, 13954, 34903}, /* no sequence_display_extension */
   {117504, 138453, 13954, 34903}, /* ITU-R Rec. 709 (1990) */
@@ -1167,13 +1185,11 @@ mlib_VideoColorYUV2ABGR420(uint8_t* image, const uint8_t* py,
   const uint8_t* py_line_1;
   const uint8_t* py_line_2;
   
-  int32_t crv,cbu,cgu,cgv;
-  
   // matrix coefficients
-  crv = Inverse_Table_6_9[matrix_coefficients][0];
-  cbu = Inverse_Table_6_9[matrix_coefficients][1];
-  cgu = Inverse_Table_6_9[matrix_coefficients][2];
-  cgv = Inverse_Table_6_9[matrix_coefficients][3];
+  const int32_t crv = Inverse_Table_6_9[matrix_coefficients][0];
+  const int32_t cbu = Inverse_Table_6_9[matrix_coefficients][1];
+  const int32_t cgu = Inverse_Table_6_9[matrix_coefficients][2];
+  const int32_t cgv = Inverse_Table_6_9[matrix_coefficients][3];
 	
   dst_line_1 = (uint32_t *)(image);
   dst_line_2 = (uint32_t *)(image + rgb_stride);
@@ -1469,12 +1485,15 @@ void
 mlib_VideoIDCT8x8_S16_S16(int16_t *block,
 			  int16_t *coeffs)
 {
+  /*
   int i;
   
   for (i=0; i<8; i++)
     idct_row(block + 8*i, coeffs + 8*i);
   for (i=0; i<8; i++)
     idct_col(block + i, block + i);
+  */
+  IDCT_mmx( block, coeffs );
 }
 
 
@@ -1483,6 +1502,7 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
 			 int16_t *coeffs,
 			 int32_t stride)
 {
+  /*
   int16_t temp[64];
   int i;
   
@@ -1490,4 +1510,36 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
     idct_row(temp + 8*i, coeffs + 8*i);
   for (i=0; i<8; i++)
     idct_col_u8(block + i, temp + i, stride);
-}
+  */
+  int x,y;
+  const int n = 8;
+  const int jump = stride - n;
+  
+  IDCT_mmx( coeffs, coeffs );
+  
+#if !defined(HAVE_MMX)
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n; x++)
+      *block++ = clip_to_u8(*block + *coeffs++);
+    block += jump;
+  }
+#else  
+  pxor_r2r(mm0,mm0);             // load 0 into mm0
+  
+  for (y = 0; y < n; y++) {
+    for (x = 0; x < n/8; x++) {
+      movq_m2r(*coeffs,mm1);         // load 4 mc words (mc0)
+      movq_m2r(*(coeffs+4),mm2);     // load next 4 mc words (mc1)
+      
+      packuswb_r2r(mm2,mm1);         // pack (w/ saturation)
+      movq_r2m(mm1,*block);          // store result in curr
+      
+      block  += stride;
+      coeffs += n;
+    }
+  }
+#endif
+}  
+
+
+
