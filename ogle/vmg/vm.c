@@ -980,10 +980,15 @@ static int next_PG(link_t *link_values)
   //      we have to add Random/shuffle behaviour
   // Does pgN always contain the current value?
   if(state.pgN == state.pgc->nr_of_programs) {
-    if(get_PGC(state.pgc->next_pgc_nr))
-      return -1; // error / unable to..
+    if(get_PGC(state.pgc->next_pgc_nr)) {
+ /* This should be conditional on beeing a user command!! */
+      /* This is what a compliant player should, do it seems. */
+      //return -1; // there is no next PG
+      /* We think that the following makes more sense though. */
+      *link_values = play_PGC_post();
+    }
     *link_values = play_PGC();
-  } else {                                                                
+  } else {
     state.pgN += 1;
     *link_values = play_PG();
   }
