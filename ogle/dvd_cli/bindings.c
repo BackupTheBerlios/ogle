@@ -230,7 +230,29 @@ void actionSlower(void *data)
   DVDForwardScan(nav, speed);
 }
 
+static char *state = NULL;
 
+void actionBookmarkAdd(void *data)
+{
+  
+  if(state) {
+    free(state);
+  }
+  if(DVDGetState(nav, &state) == DVD_E_Ok) {
+    fprintf(stderr, "state: '%s'\n", state);
+  }
+  
+}
+
+void actionBookmarkJump(void *data)
+{
+  
+  if(state) {
+    if(DVDSetState(nav, state) != DVD_E_Ok) {
+      fprintf(stderr, "setstate failed\n");
+    }
+  }
+}
 
 typedef struct {
   PointerEventType event_type;
@@ -285,7 +307,8 @@ static action_mapping_t actions[] = {
   { "FullScreenToggle", actionFullScreenToggle },
   { "SubtitleToggle", actionSubpictureToggle },
   { "Quit", actionQuit },
-
+  { "BookmarkAdd", actionBookmarkAdd },
+  { "BookmarkJump", actionBookmarkJump },
   { NULL, NULL }
 };
 
