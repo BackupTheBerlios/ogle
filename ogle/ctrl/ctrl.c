@@ -660,7 +660,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
     return 1;
   }
   
-  if((stream_id == 0xbf) && (nav_stream >= 0)) { // nav packs
+  if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav packs
     return 1;
   }
   
