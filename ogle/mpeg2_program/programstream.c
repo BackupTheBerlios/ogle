@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <unistd.h>
 #include "programstream.h"
 
 
@@ -13,9 +14,7 @@
 #define TRUE  1
 
 uint8_t    *buf;
-unsigned int buf_len = 0;
-unsigned int buf_start = 0;
-unsigned int buf_fill = 0;
+
 unsigned int bytes_read = 0;
 
 extern char *optarg;
@@ -31,7 +30,7 @@ int audio       = 0;
 int video       = 0;
 int subtitle    = 0;
 int subtitle_id = 0;
-int debug       = 15;
+int debug       = 0;
 
 char *program_name;
 FILE *video_file;
@@ -68,16 +67,18 @@ if(debug > level) \
 #define DPRINTBITS(level, bits, value)
 #endif
 
-usage()
+void usage()
 {
-  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] <input file>\n", 
+  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] [-d <debug level>] <input file>\n", 
 	  program_name);
 }
 
-resync() {
+#if 0
+void resync() {
   fprintf(stderr, "Resyncing\n");
   offs++;
 }
+#endif
 
 /* 2.3 Definition of bytealigned() function */
 int bytealigned(void)
@@ -107,8 +108,8 @@ uint32_t getbits(unsigned int nr)
   if(bits_left <= 32) {
     uint32_t new_word = *(uint32_t *)(&buf[offs]);
     offs+=4;
-    DPRINTF(4, " new word %08x\n", new_word);
-  if(using_pipe_for_input && (offs >= BUF_SIZE)) {
+    
+    if(using_pipe_for_input && (offs >= BUF_SIZE)) {
       read_buf();
       offs = 0;
     }
@@ -116,8 +117,23 @@ uint32_t getbits(unsigned int nr)
     bits_left = bits_left+32;
   }
   
-  DPRINTF(4, " getbits %08x\n", result);
+  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+  DPRINTBITS(6, nr, result);
+  DPRINTF(5, "\n");
+  
   return result;
+}
+
+
+void drop_bytes(int len)
+{
+  int n;
+  for(n = 0; n < len; n++) {
+    GETBITS(8, "drop");
+  }
+  //  offs+=len;
+  return;
+
 }
 
 
@@ -137,7 +153,7 @@ void read_buf()
 unsigned int nextbits(unsigned int nr_of_bits)
 {
   uint32_t result = (cur_word << (64-bits_left)) >> 32;
-  DPRINTF(4, "nextbits %08x",(result >> (32-nr_of_bits )));
+  DPRINTF(4, "nextbits %08x\n",(result >> (32-nr_of_bits )));
   return result >> (32-nr_of_bits);
 }
 
@@ -157,137 +173,6 @@ void next_start_code(void)
   while(nextbits(24) != 0x000001) {
     GETBITS(8, "next_start_code");
   } 
-}
-
-MPEG2_program_stream()
-{
-
-  DPRINTF(2,"MPEG2_program_stream()\n");
-  do {
-    pack();
-  } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
-  if(GETBITS(32, "MPEG2_PS_PROGRAM_END_CODE") == MPEG2_PS_PROGRAM_END_CODE) {
-    DPRINTF(2, "MPEG Program End\n");
-  } else {
-    fprintf(stderr, "*** Lost Sync\n");
-    fprintf(stderr, "*** after: %u bytes\n", bytes_read);
-  }
-}
-  
-  
-pack()
-{
-  unsigned int start_code;
-  unsigned char stream_id;
-  unsigned char is_PES = 0;
-
-  //fprintf(stderr, "pack()\n");
-  
-  pack_header();
-  while((((start_code = nextbits(32))>>8)&0x00ffffff) ==
-	MPEG2_PES_PACKET_START_CODE_PREFIX) {
-    
-    stream_id = (start_code&0xff);
-    
-    is_PES = 0;
-    if(((stream_id&0xc0) == 0xc0) || ((stream_id&0xe0) == 0x0e0)) {
-      is_PES = 1;
-    } else {
-      switch(stream_id) {
-      case 0xBC:
-      case 0xBD:
-      case 0xBE:
-      case 0xBF:
-	is_PES = 1;
-	break;
-      case 0xBA:
-				//fprintf(stderr, "Pack Start Code\n");
-	is_PES = 0;
-	break;
-      default:
-	is_PES = 0;
-	fprintf(stderr, "unknown stream_id: %02x\n", stream_id);
-	break;
-      }
-    }
-    if(!is_PES) {
-      break;
-    }
-    
-    PES_packet();
-    
-  }
-}
-
-#if 0
-int get_bytes(unsigned int len, unsigned char **data) 
-{
-  int n;
-
-  //  fprintf(stderr, "get_bytes(%u)\n", len);
-  //fprintf(stderr, "start: %d,  fill: %d,  len: %d\n",
-  //	  buf_start, buf_fill, buf_len);
-
-  if(len > buf_fill) {
-    get_data();
-  }
-
-  
-  if(buf_start+len > buf_len) {
-    /*TODO */
-    fprintf(stderr, "Hit a buffer boundary\n");
-    exit(0);
-  } else {
-    *data = &buf[buf_start];
-    return 1;
-  }
-}
-#endif
-
-pack_header()
-{
-  uint64_t system_clock_reference_base;
-  uint16_t system_clock_reference_extension;
-  uint32_t program_mux_rate;
-  uint8_t  pack_stuffing_length;
-  int i;
-
-  DPRINTF(2, "pack_header()\n");
-
-  GETBITS(32,"pack_start_code");
-  GETBITS(2, "01");
-  system_clock_reference_base = 
-    GETBITS(3,"system_clock_reference_base [32..30]") << 30;
-  marker_bit();
-  system_clock_reference_base |= 
-    GETBITS(15, "system_clock_reference_base [29..15]") << 15;
-  marker_bit();
-  system_clock_reference_base |= 
-    GETBITS(15, "system_clock_reference_base [14..0]");
-  marker_bit();
-  system_clock_reference_extension = 
-    GETBITS(9, "system_clock_reference_extension");
-  marker_bit();
-  program_mux_rate = GETBITS(22, "program_mux_rate");
-  marker_bit();
-  marker_bit();
-  GETBITS(5, "reserved");
-  pack_stuffing_length = GETBITS(3, "pack_stuffing_length");
-  for(i=0;i<pack_stuffing_length;i++) {
-    GETBITS(8 ,"stuffing_byte");
-  }
-  DPRINTF(3, "system_clock_reference_base: %lu\n",
-      system_clock_reference_base);
-  DPRINTF(3, "system_clock_reference_extension: %u\n",
-      system_clock_reference_extension);
-  DPRINTF(3, "program_mux_rate: %u\n",
-      program_mux_rate);
-  DPRINTF(3, "pack_stuffing_length: %u\n",
-      pack_stuffing_length);
-
-  if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
-    system_header();
-  }
 }
 
 void system_header()
@@ -340,12 +225,97 @@ void system_header()
   }
 }
 
+
+void pack_header()
+{
+  uint64_t system_clock_reference_base;
+  uint16_t system_clock_reference_extension;
+  uint32_t program_mux_rate;
+  uint8_t  pack_stuffing_length;
+  int i;
+
+  DPRINTF(2, "pack_header()\n");
+
+  GETBITS(32,"pack_start_code");
+  GETBITS(2, "01");
+  system_clock_reference_base = 
+    GETBITS(3,"system_clock_reference_base [32..30]") << 30;
+  marker_bit();
+  system_clock_reference_base |= 
+    GETBITS(15, "system_clock_reference_base [29..15]") << 15;
+  marker_bit();
+  system_clock_reference_base |= 
+    GETBITS(15, "system_clock_reference_base [14..0]");
+  marker_bit();
+  system_clock_reference_extension = 
+    GETBITS(9, "system_clock_reference_extension");
+  marker_bit();
+  program_mux_rate = GETBITS(22, "program_mux_rate");
+  marker_bit();
+  marker_bit();
+  GETBITS(5, "reserved");
+  pack_stuffing_length = GETBITS(3, "pack_stuffing_length");
+  for(i=0;i<pack_stuffing_length;i++) {
+    GETBITS(8 ,"stuffing_byte");
+  }
+  DPRINTF(3, "system_clock_reference_base: %llu\n",
+      system_clock_reference_base);
+  DPRINTF(3, "system_clock_reference_extension: %u\n",
+      system_clock_reference_extension);
+  DPRINTF(3, "program_mux_rate: %u\n",
+      program_mux_rate);
+  DPRINTF(3, "pack_stuffing_length: %u\n",
+      pack_stuffing_length);
+
+  if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
+    system_header();
+  }
+}
+
+
+
+void push_stream_data(uint8_t stream_id, int len)
+{
+  DPRINTF(5, "bitsleft: %d\n", bits_left);
+  if(stream_id == 0xe0) {
+    if(video) {
+      fwrite(&buf[offs-(bits_left/8)], len, 1, video_file);
+    }
+
+    DPRINTF(4, "Video packet: %u bytes\n", len);
+    
+  } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+    DPRINTF(4, "Private_stream_1 packet: %u bytes\n", len);
+    if(audio) {
+      //if(data[i+0] == 0x80) {
+      
+      //fprintf(stderr, "%02x %02x\n", data[i], data[i+1]);
+      // fwrite(&data[i], PES_packet_length-i, 1, audio_file);
+      //}
+    }
+    if(subtitle) {
+      DPRINTF(4, "(subpicture)\n");
+
+      //if(data[i] >= 0x20 && data[i]<=0x2f) {
+      //fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
+      //}
+      //      if(data[i+0] == subtitle_id ){ 
+      //	fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
+      //	fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
+      // }
+    }
+  } else {
+    DPRINTF(4, "Uknown packet (%02x): %u bytes\n", stream_id, len);
+  }
+   
+
+  drop_bytes(len);
+
+}
+
+
 void PES_packet()
 {
-  int i = 0;
-  int alloced;
-  unsigned char *data;
-  unsigned int tmp;
   unsigned short PES_packet_length;
   uint8_t stream_id;
   unsigned char PES_scrambling_control;
@@ -624,56 +594,105 @@ void PES_packet()
 }
 
 
-void drop_bytes(int len)
+void pack()
+{
+  unsigned int start_code;
+  unsigned char stream_id;
+  unsigned char is_PES = 0;
+
+  //fprintf(stderr, "pack()\n");
+  
+  pack_header();
+  while((((start_code = nextbits(32))>>8)&0x00ffffff) ==
+	MPEG2_PES_PACKET_START_CODE_PREFIX) {
+    
+    stream_id = (start_code&0xff);
+    
+    is_PES = 0;
+    if(((stream_id&0xc0) == 0xc0) || ((stream_id&0xe0) == 0x0e0)) {
+      is_PES = 1;
+    } else {
+      switch(stream_id) {
+      case 0xBC:
+      case 0xBD:
+      case 0xBE:
+      case 0xBF:
+	is_PES = 1;
+	break;
+      case 0xBA:
+				//fprintf(stderr, "Pack Start Code\n");
+	is_PES = 0;
+	break;
+      default:
+	is_PES = 0;
+	fprintf(stderr, "unknown stream_id: %02x\n", stream_id);
+	break;
+      }
+    }
+    if(!is_PES) {
+      break;
+    }
+    
+    PES_packet();
+    
+  }
+}
+
+
+void MPEG2_program_stream()
+{
+
+  DPRINTF(2,"MPEG2_program_stream()\n");
+  do {
+    pack();
+  } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
+  if(GETBITS(32, "MPEG2_PS_PROGRAM_END_CODE") == MPEG2_PS_PROGRAM_END_CODE) {
+    DPRINTF(2, "MPEG Program End\n");
+  } else {
+    fprintf(stderr, "*** Lost Sync\n");
+    fprintf(stderr, "*** after: %u bytes\n", bytes_read);
+  }
+}
+  
+  
+
+#if 0
+int get_bytes(unsigned int len, unsigned char **data) 
 {
   int n;
-  for(n = 0; n < len; n++) {
-    GETBITS(8, "drop");
-  }
-  //  offs+=len;
-  return;
 
-}
+  //  fprintf(stderr, "get_bytes(%u)\n", len);
+  //fprintf(stderr, "start: %d,  fill: %d,  len: %d\n",
+  //	  buf_start, buf_fill, buf_len);
 
-void push_stream_data(uint8_t stream_id, int len)
-{
-  if(stream_id == 0xe0) {
-    if(video) {
-      fwrite(&buf[offs], len, 1, video_file);
-    } else {
-      drop_bytes(len);
-    }
+  if(len > buf_fill) {
+    get_data();
+  }
 
-    //fprintf(stderr, "*len: %u\n", PES_packet_length-i);
-  } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-    if(audio) {
-      
-      //if(data[i+0] == 0x80) {
-      
-      //fprintf(stderr, "%02x %02x\n", data[i], data[i+1]);
-      // fwrite(&data[i], PES_packet_length-i, 1, audio_file);
-      //}
-    }
-    if(subtitle) {
-      //if(data[i] >= 0x20 && data[i]<=0x2f) {
-      //fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
-      //}
-      //      if(data[i+0] == subtitle_id ){ 
-      //	fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
-      //	fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
-      // }
-  }
-  }
   
+  if(buf_start+len > buf_len) {
+    /*TODO */
+    fprintf(stderr, "Hit a buffer boundary\n");
+    exit(0);
+  } else {
+    *data = &buf[buf_start];
+    return 1;
+  }
 }
+#endif
 
-main(int argc, char **argv)
+
+
+
+
+
+int main(int argc, char **argv)
 {
   int c; 
   program_name = argv[0];
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "v:a:s:i:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "v:a:s:i:d:h?")) != EOF) {
     switch (c) {
     case 'v':
       video_file = fopen(optarg,"w");
@@ -705,6 +724,9 @@ main(int argc, char **argv)
 	fprintf(stderr, "Invalid subtitle_id range.\n");
 	exit(1);
       } 
+      break;
+    case 'd':
+      debug = atoi(optarg);
       break;
     case 'h':
     case '?':
@@ -774,7 +796,7 @@ main(int argc, char **argv)
       fprintf(stderr, "Found Program Stream\n");
       MPEG2_program_stream();
     }
-    GETBITS(8, "");//    resync();
+    GETBITS(8, "resync");//    resync();
   }
 }
 
