@@ -1976,14 +1976,25 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
   uint8_t oldid;
   
   oldid = type_registered(id, subtype);
-  if(id == 0) {
+  if(oldid == 0) {
     if(id != MPEG2_PRIVATE_STREAM_1) {
       id_reg[id].state = STREAM_DECODE;
     } else {
-      id_reg_ps1[id].state = STREAM_DISCARD;
+      id_reg_ps1[subtype].state = STREAM_DISCARD;
     }
   }
-
+  
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    if(id == oldid) {
+      return 1;
+    }
+  } else {
+    if(subtype == oldid) {
+      return 1;
+    }
+  }
+  
+  
   if(id != MPEG2_PRIVATE_STREAM_1) {
     id_reg[id] = id_reg[oldid];
     id_reg[oldid].shmid = -1;
@@ -1991,7 +2002,7 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
     id_reg[oldid].state = STREAM_DISCARD;
     id_reg[oldid].file = NULL;
   } else {
-    id_reg_ps1[id] = id_reg_ps1[oldid];
+    id_reg_ps1[subtype] = id_reg_ps1[oldid];
     id_reg_ps1[oldid].shmid = -1;
     id_reg_ps1[oldid].shmaddr = NULL;
     id_reg_ps1[oldid].state = STREAM_DISCARD;
@@ -2039,19 +2050,19 @@ void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid,
 }
   
 
-int init_id_reg()
+int init_id_reg(stream_state_t default_state)
 {
   int n;
   
   for(n = 0; n < 256; n++) {
-    id_reg[n].state = STREAM_DISCARD;
+    id_reg[n].state = default_state;
     id_reg[n].shmid = -1;
     id_reg[n].shmaddr = NULL;
     id_reg[n].file = NULL;
   }
 
   for(n = 0; n < 256; n++) {
-    id_reg_ps1[n].state = STREAM_DISCARD;
+    id_reg_ps1[n].state = default_state;
     id_reg_ps1[n].shmid = -1;
     id_reg_ps1[n].shmaddr = NULL;
     id_reg_ps1[n].file = NULL;
