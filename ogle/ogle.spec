@@ -1,7 +1,7 @@
 Summary: A DVD player for linux that supports DVD menus.
 Name: ogle
 Version: 0.8.2
-Release: ogle1
+Release: ogle2
 Vendor: Ogle
 Packager: Ogle developer team
 URL: http://www.dtek.chalmers.se/~dvd/
@@ -10,7 +10,7 @@ Group: Applications/Multimedia
 Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 Requires: libdvdread >= 0.9.2, libdvdcss >= 0.0.3, libjpeg, libxml2
-BuildRequires: libdvdread-devel >= 0.9.2, libdvdcss-devel >= 0.0.3, libjpeg-devel, a52dec-devel, libxml2-devel
+BuildRequires: libdvdread-devel >= 0.9.2, libdvdcss-devel >= 0.0.3, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel
 ExclusiveArch: i686 i586 ppc
 
 %description
@@ -73,6 +73,9 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_libdir}/ogle/*.a
 
 %changelog
+* Thu Feb 21 2002 Martin Norbäck <d95mback@dtek.chalmers.se>
+- Rebuild using a52dec-0.7.3
+
 * Fri Dec 7 2001 Martin Norbäck <d95mback@dtek.chalmers.se>
 - Updated version to 0.8.2
 - Incorporated into cvs
