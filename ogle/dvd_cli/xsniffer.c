@@ -33,13 +33,6 @@
 extern DVDNav_t *nav;
 
 
-void xsniff_init() {
-  
-  fprintf(stderr, "sniff_init\n");
-
-
-  fprintf(stderr, "sniff_init  out\n");
-}
 
 void* xsniff_mouse(void* args) {
   MsgEvent_t mev;
@@ -54,6 +47,7 @@ void* xsniff_mouse(void* args) {
       
       //case MotionNotify:
     case MsgEventQInputPointerMotion:
+      
       {
 	DVDResult_t res;
 	int x, y;
@@ -67,6 +61,18 @@ void* xsniff_mouse(void* args) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
       }
+      /*
+      {
+	pointer_mapping_t p_ev;
+	p_ev.type = PointerMotion;
+	p_ev.time = mev.input.time;
+	p_ev.x = mev.input.x;
+	p_ev.y = mev.input.y;
+	p_ev.modifier_mask = mev.mod_mask;
+
+	do_pointer_action(&p_ev);
+      }
+      */
       break;
     case MsgEventQInputButtonPress:
       switch(mev.input.input) {
@@ -94,7 +100,11 @@ void* xsniff_mouse(void* args) {
       {
 	KeySym keysym;
 	keysym = mev.input.input;
-	
+	/*
+	fprintf(stderr, "keysym: %ld, modifier: %ld\n",
+		mev.input.input,
+		mev.input.mod_mask);
+	*/
 	do_keysym_action(keysym);
       }
       break;
