@@ -188,6 +188,64 @@
 	  <action>BookmarkRestore</action>
 	  <key>b</key>
   	</b>
+	<b>	
+	  <action>DigitZero</action>
+	  <key>0</key>
+	  <key>KP_0</key>
+  	</b>
+	<b>	
+	  <action>DigitOne</action>
+	  <key>1</key>
+	  <key>KP_1</key>
+  	</b>
+	<b>	
+	  <action>DigitTwo</action>
+	  <key>2</key>
+	  <key>KP_2</key>
+  	</b>
+	<b>	
+	  <action>DigitThree</action>
+	  <key>3</key>
+	  <key>KP_3</key>
+  	</b>
+	<b>	
+	  <action>DigitFour</action>
+	  <key>4</key>
+	  <key>KP_4</key>
+  	</b>
+	<b>	
+	  <action>DigitFive</action>
+	  <key>5</key>
+	  <key>KP_5</key>
+  	</b>
+	<b>	
+	  <action>DigitSix</action>
+	  <key>6</key>
+	  <key>KP_6</key>
+  	</b>
+	<b>	
+	  <action>DigitSeven</action>
+	  <key>7</key>
+	  <key>KP_7</key>
+  	</b>
+	<b>	
+	  <action>DigitEight</action>
+	  <key>8</key>
+	  <key>KP_8</key>
+  	</b>
+	<b>	
+	  <action>DigitNine</action>
+	  <key>9</key>
+	  <key>KP_9</key>
+  	</b>
+	<b>	
+	  <action>SkipForward</action>
+	  <key>KP_Right</key>
+  	</b>
+	<b>	
+	  <action>SkipBackward</action>
+	  <key>KP_Left</key>
+  	</b>
     </bindings>
   </user_interface>
 </ogle_conf>
