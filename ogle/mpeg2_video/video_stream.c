@@ -2,6 +2,9 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/time.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <inttypes.h>
 
@@ -233,10 +236,18 @@ void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
+
+#define GETBITSMMAP
+
+
+
 #ifndef GETBITSMMAP
 uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
 #else
-uint32_t buf[];
+uint32_t *buf;
+uint32_t buf_size;
+uint8_t *mmap_base;
+struct off_len_packet packet;
 #endif
 unsigned int buf_len = 0;
 unsigned int buf_start = 0;
@@ -245,7 +256,6 @@ unsigned int bytes_read = 0;
 unsigned int bit_start = 0;
 
 
-struct off_len_packet packet;
 
 
 FILE *infile;
@@ -260,8 +270,6 @@ uint32_t cur_word = 0;
 #else
 unsigned int bits_left = 64;
 uint64_t cur_word = 0;
-struct off_len_packet packet;
-
 #endif
 //uint8_t bytealign = 1;
 
@@ -403,8 +411,8 @@ int bytealigned(void)
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
-     //static inline   
-     uint32_t getbits(unsigned int nr)
+static inline   
+uint32_t getbits(unsigned int nr)
 #endif
 #ifndef GETBITS32
 #ifdef GETBITSMMAP
@@ -443,7 +451,6 @@ uint32_t getbits(unsigned int nr, char *func)
     cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;
   }
-  
   return result;
 }
 #endif
@@ -539,18 +546,45 @@ void back_word(void)
 }
 #else
 
+
+#ifdef GETBITSMMAP
 void setup_mmap(char *filename) {
+  int filefd;
+  struct stat statbuf;
+  int rv;
   
+  filefd = open(filename, O_RDONLY);
+  if(filefd == -1) {
+    perror(filename);
+    exit(1);
+  }
+  rv = fstat(filefd, &statbuf);
+  if (rv == -1) {
+    perror("fstat");
+    exit(1);
+  }
+  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
+			      PROT_READ, MAP_SHARED, filefd,0);
+  if(mmap_base == MAP_FAILED) {
+    perror("mmap");
+    exit(1);
+  }
+  rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
+  if(rv == -1) {
+    perror("madvise");
+    exit(1);
+  }
+  DPRINTF(1, "All mmap systems ok!\n");
 }
 
-void get_next_package()
+void get_next_packet()
 {
-  uint32_t package_type;
+  uint32_t packet_type;
   struct off_len_packet ol_packet;
   
-  fread(&package_type, 4, 1, infile);
+  fread(&packet_type, 4, 1, infile);
   
-  if(package_type == PACK_TYPE_OFF_LEN) {
+  if(packet_type == PACK_TYPE_OFF_LEN) {
     fread(&ol_packet, 8, 1, infile);
   
     packet.offset = ol_packet.offset;
@@ -558,71 +592,97 @@ void get_next_package()
 
     return;
   }
-  else if( package_type == PACK_TYPE_LOAD_FILE ) {
+  else if( packet_type == PACK_TYPE_LOAD_FILE ) {
     uint32_t length;
     char filename[200];
     
     fread(&length, 4, 1, infile);
     fread(&filename, length, 1, infile);
-    filename[length+1] = 0;
+    filename[length] = 0;
 
     setup_mmap( filename );
   }  
 }  
 
-
-  
-#ifdef GETBITSMMAP
 void read_buf()
 {
-  char packet_base[] = &mmap_base[packet.offset];
+  uint8_t *packet_base = &mmap_base[packet.offset];
   // How many bytes are there left? (0, 1, 2 or 3).
-  int end_bytes = &packet_base[packet.length] - &buf[buf_size];
+  int end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
+  int i = 0;
+#ifdef DEBUG
+  DPRINTF(0, "-- read_buf --\n");
+  if( (64 - bits_left) < 32 )
+    DPRINTF(0, "read_buf: assert 1 failed\n");
+  if( end_bytes < 0 )
+    DPRINTF(0, "read_buf: assert 5 failed\n");
+#endif
+  
   // Read them, as we have at least 32 bits free they will fit.
-  while( end_bytes-- > 0 ) {
+  while( i < end_bytes ) {
     cur_word 
-      = (cur_word << 8) | packet_base[packet.length - end_bytes];
+      = (cur_word << 8) | packet_base[packet.length - end_bytes + i++];
     bits_left += 8;
   }
    
-  if( bits_left > 40 ) {
-    // The trick!! 
-    // We have enough data to return. Infact it's so much data that we 
-    // can't be certain that we can read enough of the next packet to 
-    // align the buff[ ] pointer to a 4 byte boundary.
-    // Fake it so that we still are at the end of the package but make
-    // sure that we don't read the last bytes again.
-    packet.length -= end_bytes;
-    return;
-  } else {
+  // If we have enough 'free' bits so that we always can align
+  // the buff[] pointer to a 4 byte boundary. 
+  if( bits_left <= 40 ) {
     int start_bytes;
-    int i = 0;
-    get_next_package(); // Get new packet struct
+    get_next_packet(); // Get new packet struct
     packet_base = &mmap_base[packet.offset];
     // How many bytes to the next 4 byte boundary? (0, 1, 2 or 3).
-    start_bytes = (4 - (&packet_base[0] & 0x3)) & 0x3; 
-    // Read them, as we have at least 25 bits free they will fit.
-    while( i <= start_bytes ) {
+    start_bytes = (4 - ((long)packet_base % 4)) % 4; 
+    i = 0;
+    
+#ifdef DEBUG
+  if( (64 - bits_left) < 24 )
+    DPRINTF(0, "read_buf: assert 2 failed\n");
+#endif
+    
+    // Read them, as we have at least 24 bits free they will fit.
+    while( i < start_bytes ) {
       cur_word 
         = (cur_word << 8) | packet_base[i++];
       bits_left += 8;
     }
      
     buf = (uint32_t *)&packet_base[start_bytes];
-    buf_size = (package.length - start_bytes) / 4;  // number of 32 bit words
+    buf_size = (packet.length - start_bytes) / 4;// number of 32 bit words
     offs = 0;
+
+#ifdef DEBUG
+  if( ((long)buf & 0x3) != 0 )
+    DPRINTF(0, "read_buf: assert 3 failed\n");
+  if( (uint8_t *)&buf[buf_size] < &packet_base[packet.length] )
+    DPRINTF(0, "read_buf: assert 6 failed\n");
+#endif
      
     if(bits_left <= 32) {
       uint32_t new_word = buf[offs++];
       cur_word = (cur_word << 32) | new_word;
       bits_left += 32;
-
     }
+  } else {
+    // The trick!! 
+    // We have enough data to return. Infact it's so much data that we 
+    // can't be certain that we can read enough of the next packet to 
+    // align the buff[ ] pointer to a 4 byte boundary.
+    // Fake it so that we still are at the end of the packet but make
+    // sure that we don't read the last bytes again.
+    
+#ifdef DEBUG
+    if( bits_left >= 32 )
+      DPRINTF(0, "read_buf: assert 4 failed\n");
+#endif
+    DPRINTF(0, "Hepp! Stora buffertricket.\n" );
+    
+    packet.length -= end_bytes;
   }
+
 }
-
-
 #else
+
 void read_buf()
 {
   if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
@@ -778,6 +838,20 @@ int main(int argc, char **argv)
 
   program_init();
   
+#ifdef GETBITSMMAP
+  get_next_packet(); // Realy, open and mmap the FILE
+  packet.offset = 0;
+  packet.length = 0;  
+  buf = (uint32_t *)mmap_base;
+  buf_size = 0;
+  offs = 0;
+  bits_left = 0;
+  read_buf(); // Read firs packet and fill 'curent_word'.
+  while( 1 ) {
+    DPRINTF(1, "Looking for new Video Sequence\n");
+    video_sequence();
+  }  
+#else
 #ifdef GETBITS32
   next_word();
 #else
@@ -797,6 +871,7 @@ int main(int argc, char **argv)
     DPRINTF(1, "Looking for new Video Sequence\n");
     video_sequence();
   }
+#endif
   return 0;
 }
 
