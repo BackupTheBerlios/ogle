@@ -26,4 +26,4 @@ libmsgevents_la_LDFLAGS = -version-info 3:1:0
 
 libdvdcontrol_la_SOURCES = dvdcontrol.c
 libdvdcontrol_la_LIBADD = $(top_builddir)/ogle/libmsgevents.la
-libdvdcontrol_la_LDFLAGS = -version-info 4:0:1
+libdvdcontrol_la_LDFLAGS = -version-info 5:1:0
