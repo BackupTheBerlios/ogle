@@ -236,6 +236,27 @@ at start up. If <fullscreen> is set to yes, the video will start in fullscreen
 mode (default is no).
 
   <user_interface>
+    <bookmarks>
+      <autosave>yes</autosave>
+      <autoload>no</autoload>
+    </bookmarks>
+
+Autosave saves the position where you exit.
+Autoload starts the dvd at a previously autosaved position if available.
+
+    <digit_timeout>2</digit_timeout>
+Timeout between digits in a number entered.
+If you enter '1', '2' and the time between '1' and '2' is more than
+the timeout the final number will be 2,
+if the time is less the number will be 12.
+
+    <number_timeout>5</number_timeout>
+Timeout between a number entered and the action.
+If a number is entered and the time until the associated action key is pressed is greater than the timeout the number will not be used (reset).
+
+    <default_skiptime>60</default_skiptime>
+The default time used for the SkipForward/Backward actions
+
     <bindings>
       <!-- Each binding contains an action and one or more keys.
            The keys are given as X11 keysyms -->
