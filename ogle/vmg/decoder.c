@@ -257,8 +257,6 @@ eval_system_set () {
       }
       break;
     case 6: // 8
-      print_system_reg(8);
-
       if (bits(0,3,1)) { // immediate
         state->SPRM[8] = bits(4,0,16);
       } else {
@@ -335,7 +333,7 @@ static bool
 eval_set (link_t *return_values) {
   eval_set_op();
   if(bits(1,4,4)) {
-    return print_link_instruction(return_values);
+    return eval_link_instruction(return_values);
   }
   return 0;
 }
