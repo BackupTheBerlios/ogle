@@ -105,6 +105,7 @@ fi
 if test x"$JPEG_CFLAGS" = x"-I/usr/include"; then
   JPEG_CFLAGS=""
 fi
+
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $JPEG_CFLAGS"
 AC_CHECK_HEADER(jpeglib.h,, 
@@ -177,16 +178,17 @@ AC_ARG_WITH(dvdread-includes,
   [  --with-dvdread-includes=path  specify location of libdvdread headers ], 
   DVDREAD_CFLAGS=-I$with_dvdread_includes)
 
-dnl Linux and Solaris needs this to prototype lseek64 and others
-dnl Should really be taken from getconf...
-DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
-
 if test x"$DVDREAD_CFLAGS" = x"-I/usr/local/include"; then
   DVDREAD_CFLAGS=""
 fi
 if test x"$DVDREAD_CFLAGS" = x"-I/usr/include"; then
   DVDREAD_CFLAGS=""
 fi
+
+dnl Linux and Solaris needs this to prototype lseek64 and others
+dnl Should really be taken from getconf...
+DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
+
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $DVDREAD_CFLAGS"
 AC_CHECK_HEADER(dvdread/dvd_reader.h,, 
@@ -231,6 +233,7 @@ if test "x$have_mlib" = xyes; then
   if test x"$MLIB_CFLAGS" = x"-I/usr/include"; then
     MLIB_CFLAGS=""
   fi
+
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $MLIB_CFLAGS"
   AC_CHECK_HEADER(mlib_types.h,, 
@@ -308,6 +311,7 @@ fi
 if test x"$A52_CFLAGS" = x"-I/usr/include"; then
   A52_CFLAGS=""
 fi
+
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $A52_CFLAGS"
 AC_CHECK_HEADER(a52dec/a52.h,, 
