@@ -242,6 +242,7 @@ DVDResult_t DVDMenuCall(DVDMenuID_t MenuId)
 
 DVDResult_t DVDResume(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlResume;
   
@@ -252,6 +253,7 @@ DVDResult_t DVDResume(void)
 
 DVDResult_t DVDGoUp(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGoUp;
   
@@ -263,6 +265,7 @@ DVDResult_t DVDGoUp(void)
 
 DVDResult_t DVDForwardScan(double Speed)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlForwardScan;
   ev.dvdctrl.cmd.forwardscan.speed = Speed;
@@ -275,6 +278,7 @@ DVDResult_t DVDForwardScan(double Speed)
 
 DVDResult_t DVDBackwardScan(double Speed)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlBackwardScan;
   ev.dvdctrl.cmd.backwardscan.speed = Speed;
@@ -287,6 +291,7 @@ DVDResult_t DVDBackwardScan(double Speed)
 
 DVDResult_t DVDNextPGSearch(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlNextPGSearch;
 
@@ -298,6 +303,7 @@ DVDResult_t DVDNextPGSearch(void)
 
 DVDResult_t DVDPrevPGSearch(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPrevPGSearch;
 
@@ -309,6 +315,7 @@ DVDResult_t DVDPrevPGSearch(void)
 
 DVDResult_t DVDTopPGSearch(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTopPGSearch;
 
@@ -320,6 +327,7 @@ DVDResult_t DVDTopPGSearch(void)
 
 DVDResult_t DVDPTTSearch(DVDPTT_t PTT)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPTTSearch;
   ev.dvdctrl.cmd.pttsearch.ptt = PTT;
@@ -332,6 +340,7 @@ DVDResult_t DVDPTTSearch(DVDPTT_t PTT)
 
 DVDResult_t DVDPTTPlay(DVDTitle_t Title, DVDPTT_t PTT)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPTTPlay;
   ev.dvdctrl.cmd.pttsearch.title = Title;
@@ -345,6 +354,7 @@ DVDResult_t DVDPTTPlay(DVDTitle_t Title, DVDPTT_t PTT)
 
 DVDResult_t DVDTitlePlay(DVDTitle_t Title)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTitlePlay;
   ev.dvdctrl.cmd.titleplay.title = Title;
@@ -357,6 +367,7 @@ DVDResult_t DVDTitlePlay(DVDTitle_t Title)
 
 DVDResult_t DVDTimeSearch(DVDTimecode_t time)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
   ev.dvdctrl.cmd.timesearch.time = time;
@@ -369,6 +380,7 @@ DVDResult_t DVDTimeSearch(DVDTimecode_t time)
 
 DVDResult_t DVDTimePlay(DVDTitle_t Title, DVDTimecode_t time)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
   ev.dvdctrl.cmd.timesearch.title = Title;
@@ -382,6 +394,7 @@ DVDResult_t DVDTimePlay(DVDTitle_t Title, DVDTimecode_t time)
 
 DVDResult_t DVDPauseOn(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPauseOn;
 
@@ -393,6 +406,7 @@ DVDResult_t DVDPauseOn(void)
 
 DVDResult_t DVDPauseOff(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlPauseOff;
 
@@ -404,6 +418,7 @@ DVDResult_t DVDPauseOff(void)
 
 DVDResult_t DVDStop(void)
 {
+  MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlStop;
 
