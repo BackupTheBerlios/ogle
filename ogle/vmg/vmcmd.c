@@ -282,6 +282,10 @@ print_system_set () {
     default:
       printf ("Unknown system set instruction");
   }
+  if(bits(1,4,4)) {
+    printf(" ");
+    print_link_instruction();
+  }
 }
 
 print_if_version_3 () {
