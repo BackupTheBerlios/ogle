@@ -1,5 +1,6 @@
-SUBDIRS         = ctrl mpeg2_video mpeg2_program ac3 mpeg_audio vmg ui
+SUBDIRS         = ctrl mpeg2_video mpeg2_program ac3 mpeg_audio vmg ui subpicture
 
+top_srcdir = @top_srcdir@
 all:
 	cd ctrl && $(MAKE)
 	cd mpeg2_video && ${MAKE}
@@ -8,6 +9,7 @@ all:
 	cd mpeg_audio && ${MAKE}
 	cd vmg && ${MAKE}
 	cd ui && ${MAKE}
+	cd subpicture && ${MAKE}
 
 
 clean: 

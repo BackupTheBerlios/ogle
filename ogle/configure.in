@@ -16,7 +16,7 @@ AC_PATH_XTRA
 AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE(HAVE_XV))
 AC_CHECK_HEADER(X11/extensions/XShm.h, AC_DEFINE(HAVE_XSHM))
 
-CFLAGS="$CFLAGS -I/usr/pd/include"
+CFLAGS="$CFLAGS -I. -I$(top_srcdir)/include -I- -I/usr/pd/include"
 AC_SUBST(INCLUDES)
 dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE(HAVE_XV))
 
@@ -90,5 +90,5 @@ esac
 
 AC_CHECK_FUNCS(clock_gettime madvise)
 
-AC_OUTPUT(ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile)
+AC_OUTPUT(ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
 
