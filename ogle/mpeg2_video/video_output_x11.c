@@ -197,10 +197,12 @@ static Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
 
 static Cursor hidden_cursor;
 
-
+#ifndef MIN
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
 #define MAX(a,b) ((a) > (b) ? (a) : (b))
-
+#endif
 
 
 
@@ -823,7 +825,7 @@ void display_init(int padded_width, int padded_height,
 		  padded_width, padded_height);
 
   /* Try XShm if we didn't have/couldn't use Xv. 
-     This allso falls back to normal X11 if XShm fails. */
+     This also falls back to normal X11 if XShm fails. */
   if(!use_xv) {
     display_init_xshm();
   }
@@ -835,6 +837,7 @@ void display_init(int padded_width, int padded_height,
       fb_fd = open("/dev/fb", O_RDWR);
       yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
 				     MAP_SHARED, fb_fd, 0x0701a000);
+
       if(yuyv_fb == MAP_FAILED) {
 	perror("mmap");
 	exit(1);
