@@ -482,9 +482,10 @@ static int ifoRead_VTS(ifo_handle_t *ifofile) {
 static int ifoRead_PGC_COMMAND_TBL(ifo_handle_t *ifofile, 
                                    pgc_command_tbl_t *cmd_tbl, 
 				   unsigned int offset) {
-  
+  unsigned int total;
+
   memset(cmd_tbl, 0, sizeof(pgc_command_tbl_t));
-  
+
   if(!DVDFileSeek_(ifofile->file, offset))
     return 0;
 
@@ -494,9 +495,13 @@ static int ifoRead_PGC_COMMAND_TBL(ifo_handle_t *ifofile,
   B2N_16(cmd_tbl->nr_of_pre);
   B2N_16(cmd_tbl->nr_of_post);
   B2N_16(cmd_tbl->nr_of_cell);
+  B2N_16(cmd_tbl->last_byte);
+  
+  total = cmd_tbl->nr_of_pre + cmd_tbl->nr_of_post + cmd_tbl->nr_of_cell;
+  CHECK_VALUE(PGC_COMMAND_TBL_SIZE + total * COMMAND_DATA_SIZE 
+	      <= cmd_tbl->last_byte + 1U);
+  CHECK_VALUE(total <= 255);
 
-  CHECK_VALUE(cmd_tbl->nr_of_pre + cmd_tbl->nr_of_post + cmd_tbl->nr_of_cell<= 255);
-     
   if(cmd_tbl->nr_of_pre != 0) {
     unsigned int pre_cmds_size  = cmd_tbl->nr_of_pre * COMMAND_DATA_SIZE;
     cmd_tbl->pre_cmds = (vm_cmd_t *)malloc(pre_cmds_size);
@@ -508,7 +513,7 @@ static int ifoRead_PGC_COMMAND_TBL(ifo_handle_t *ifofile,
       return 0;
     }
   }
-  
+
   if(cmd_tbl->nr_of_post != 0) {
     unsigned int post_cmds_size = cmd_tbl->nr_of_post * COMMAND_DATA_SIZE;
     cmd_tbl->post_cmds = (vm_cmd_t *)malloc(post_cmds_size);
@@ -851,7 +856,7 @@ int ifoRead_TT_SRPT(ifo_handle_t *ifofile) {
   CHECK_ZERO(tt_srpt->zero_1);
   CHECK_VALUE(tt_srpt->nr_of_srpts != 0);
   CHECK_VALUE(tt_srpt->nr_of_srpts < 100); // ??
-  CHECK_VALUE((int)tt_srpt->nr_of_srpts * sizeof(title_info_t) <= info_length);
+  CHECK_VALUE(tt_srpt->nr_of_srpts * sizeof(title_info_t) <= info_length);
   
   for(i = 0; i < tt_srpt->nr_of_srpts; i++) {
     CHECK_VALUE(tt_srpt->title[i].pb_ty.zero_1 == 0);
@@ -1102,8 +1107,8 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
     CHECK_ZERO(ptl_mait->countries[i].zero_1);
     CHECK_ZERO(ptl_mait->countries[i].zero_2);    
-    CHECK_VALUE(ptl_mait->countries[i].pf_ptl_mai_start_byte
-		+ 8*2 * (ptl_mait->nr_of_vtss + 1) <= ptl_mait->last_byte + 1);
+    CHECK_VALUE(ptl_mait->countries[i].pf_ptl_mai_start_byte +
+		16U * (ptl_mait->nr_of_vtss + 1) <= ptl_mait->last_byte + 1U);
   }
 
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {

@@ -189,9 +189,9 @@ static char *file_error(dvd_input_t dev)
  */
 static int file_seek(dvd_input_t dev, int blocks)
 {
-  off_t pos;
+  off_t pos = (off_t)blocks * (off_t)DVD_VIDEO_LB_LEN;
 
-  pos = lseek(dev->fd, (off_t)blocks * (off_t)DVD_VIDEO_LB_LEN, SEEK_SET);
+  pos = lseek(dev->fd, pos, SEEK_SET);
   if(pos < 0) {
       return pos;
   }
