@@ -53,8 +53,8 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle);
 DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, DVDVideoAttributes_t *const Attr);
 
-DVDResult_t GetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain);
-DVDResult_t GetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location);
+DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain);
+DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location);
 
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable);
 

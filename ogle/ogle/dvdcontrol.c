@@ -455,8 +455,7 @@ DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
 
 
 /** 
- * @todo Implement function.
- *
+ * Querry the currently selected angle.
  * @param nav Specifies the connection to the DVD navigator.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
@@ -491,6 +490,17 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 }
 
 
+/** 
+ * Querry the number of Titel tracks on the DVD.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param TitlesAvailable Will contain the number of Title tracks.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
 {
   MsgEvent_t ev;
@@ -513,7 +523,18 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
   }
 }
 
-DVDResult_t GetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
+/** 
+ * Querry the current domain.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Domain Will contain the current domain.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -535,7 +556,18 @@ DVDResult_t GetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
   }  
 }
 
-DVDResult_t GetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
+/** 
+ * Get the current location information.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Location Will contain the current location information.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -557,6 +589,9 @@ DVDResult_t GetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
   }  
 }
 
+/** 
+ * Backwards compatablility. Deprecated.  Use DVDGetNumberOfPTTs.
+ */
 DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title, 
 			       int *const PartsAvailable)
 {
@@ -564,6 +599,18 @@ DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title,
 }  
 
 
+/** 
+ * Querry the number of Part's (Chapters) for a Title track.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Title The Title track number.
+ * @param PartsAvailable Will contain the number of Title tracks.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
 DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title, 
 			       int *const PartsAvailable)
 {
