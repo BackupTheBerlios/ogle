@@ -107,10 +107,18 @@ typedef enum {
   DVDCtrlCurrentUOPS,
   
   DVDCtrlGetTitles,
-  DVDCtrlGetPTTsForTitle
+  DVDCtrlTitles,
+  
+  DVDCtrlGetNumberOfPTTs,
+  DVDCtrlNumberOfPTTs,
+  
+  DVDCtrlGetCurrentDomain,
+  DVDCtrlCurrentDomain,
+  
+  DVDCtrlGetCurrentLocation,
+  DVDCtrlCurrentLocation
 
 } DVDCtrlEventType_t;
-
 
 typedef enum {
   DVDCtrlLongSetDVDRoot
@@ -315,14 +323,24 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  DVDDomain_t domain;
+} DVDCtrlCurrentDomainEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDLocation_t location;
+} DVDCtrlCurrentLocationEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
   int titles;
-} DVDCtrlGetTitlesEvent_t;
+} DVDCtrlTitlesEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
   DVDTitle_t title;
   int ptts;
-} DVDCtrlGetPTTsForTitleEvent_t;
+} DVDCtrlNumberOfPTTsEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
@@ -447,13 +465,16 @@ typedef union {
   DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;
   DVDCtrlAudioAttributesEvent_t audioattributes;
 
-  DVDCtrlGetTitlesEvent_t titles;
-  DVDCtrlGetPTTsForTitleEvent_t parts;
+  DVDCtrlTitlesEvent_t titles;
+  DVDCtrlNumberOfPTTsEvent_t parts;
 
   DVDCtrlCurrentSubpictureEvent_t currentsubpicture;
   DVDCtrlSubpictureStreamEnabledEvent_t subpicturestreamenabled;
   DVDCtrlSubpictureAttributesEvent_t subpictureattributes;
   DVDCtrlCurrentAngleEvent_t currentangle;
+  
+  DVDCtrlCurrentDomainEvent_t domain;
+  DVDCtrlCurrentLocationEvent_t location;
   /* end infocmd */
 
 } DVDCtrlEvent_t;

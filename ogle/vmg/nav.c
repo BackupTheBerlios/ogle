@@ -723,6 +723,10 @@ static void do_run(void) {
 	  res = vm_jump_title(ev.dvdctrl.cmd.titleplay.title);
 	  break;
 	case DVDCtrlTimeSearch:
+	  //dsi.dsi_gi.c_eltm; /* Current 'nav' time */
+	  //ev.dvdctrl.cmd.timesearch.time; /* wanted time */
+	  //dsi.vobu_sri.[FWDA|BWDA]; /* Table for small searches */
+	  break;
 	case DVDCtrlTimePlay:
 	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
 		ev.dvdctrl.cmd.type);
@@ -752,25 +756,59 @@ static void do_run(void) {
 	    state.SPST_REG &= ~0x40; // Turn it off
 	  NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
 	  break;
+	case DVDCtrlGetCurrentDomain:
+	  {
+	    MsgEvent_t send_ev;
+	    int domain;
+	    domain = vm_get_domain();
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentDomain;
+	    send_ev.dvdctrl.cmd.domain.domain = domain;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+	  }
+	  break;
+	case DVDCtrlGetCurrentLocation:
+	  {
+	    MsgEvent_t send_ev;
+
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentLocation;
+	    /* should not return in domain is wrong( /= title). */
+	    /* how to get current time for searches in menu/system space? */
+	    /* a bit of a hack */
+	    send_ev.dvdctrl.cmd.location.location.title = state.TTN_REG;
+	    send_ev.dvdctrl.cmd.location.location.ptt = state.PTTN_REG;
+	    /* This is wrong, just gives the time within the cell. */
+	    send_ev.dvdctrl.cmd.location.location.time.Hours = 
+	      pci.pci_gi.e_eltm.hour;
+	    send_ev.dvdctrl.cmd.location.location.time.Minutes = 
+	      pci.pci_gi.e_eltm.minute;
+	    send_ev.dvdctrl.cmd.location.location.time.Seconds = 
+	      pci.pci_gi.e_eltm.second;
+	    send_ev.dvdctrl.cmd.location.location.time.Frames = 
+	      pci.pci_gi.e_eltm.frame_u & 0x3f;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+	  }
+	  break;
 	case DVDCtrlGetTitles:
 	  {
 	    MsgEvent_t send_ev;
 	    int titles;
 	    titles = vm_get_titles();
 	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlGetTitles;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlTitles;
 	    send_ev.dvdctrl.cmd.titles.titles = titles;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }
 	  break;
-	case DVDCtrlGetPTTsForTitle:
+	case DVDCtrlGetNumberOfPTTs:
 	  {
 	    MsgEvent_t send_ev;
             int ptts, title;
 	    title = ev.dvdctrl.cmd.parts.title;
             ptts = vm_get_ptts_for_title(title);
             send_ev.type = MsgEventQDVDCtrl;
-            send_ev.dvdctrl.cmd.type = DVDCtrlGetPTTsForTitle;
+            send_ev.dvdctrl.cmd.type = DVDCtrlNumberOfPTTs;
 	    send_ev.dvdctrl.cmd.parts.title = title;
 	    send_ev.dvdctrl.cmd.parts.ptts = ptts;
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);

@@ -26,7 +26,8 @@ typedef enum {
   FP_DOMAIN = 1,
   VTS_DOMAIN = 2,
   VMGM_DOMAIN = 4,
-  VTSM_DOMAIN = 8
+  VTSM_DOMAIN = 8,
+  STOP_DOMAIN = 16
 } domain_t;  
 
 /**
@@ -92,6 +93,7 @@ int vm_get_subp_active_stream(void);
 void vm_get_angle_info(int *num_avail, int *current);
 void vm_get_audio_info(int *num_avail, int *current);
 void vm_get_subp_info(int *num_avail, int *current);
+int vm_get_domain(void);
 int vm_get_titles(void);
 int vm_get_ptts_for_title(DVDTitle_t titleN);
 subp_attr_t vm_get_subp_attr(int streamN);

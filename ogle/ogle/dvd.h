@@ -291,7 +291,11 @@ typedef struct {
   int more_to_come;
 } DVDVideoAttributes_t;
 
-
+typedef struct {
+  DVDTitle_t title;     /**< TT number not VTS_TT number */
+  DVDPTT_t ptt;
+  DVDTimecode_t time;
+} DVDLocation_t;
 
 /* hack */
 

@@ -506,19 +506,70 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
       return DVD_E_Unspecified;
     }
     if((ev.type == MsgEventQDVDCtrl) &&
-       (ev.dvdctrl.cmd.type == DVDCtrlGetTitles)) {
+       (ev.dvdctrl.cmd.type == DVDCtrlTitles)) {
       *TitlesAvailable = ev.dvdctrl.cmd.titles.titles;
       return DVD_E_Ok;
     }
   }
 }
 
+DVDResult_t GetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetCurrentDomain;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentDomain)) {
+      *Domain = ev.dvdctrl.cmd.domain.domain;
+      return DVD_E_Ok;
+    }
+  }  
+}
+
+DVDResult_t GetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetCurrentLocation;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentLocation)) {
+      *Location = ev.dvdctrl.cmd.location.location;
+      return DVD_E_Ok;
+    }
+  }  
+}
+
 DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title, 
+			       int *const PartsAvailable)
+{
+  return DVDGetNumberOfPTTs(nav, Title, PartsAvailable);
+}  
+
+
+DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title, 
 			       int *const PartsAvailable)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlGetPTTsForTitle;
+  ev.dvdctrl.cmd.type = DVDCtrlGetNumberOfPTTs;
   ev.dvdctrl.cmd.parts.title = Title;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
@@ -530,7 +581,7 @@ DVDResult_t DVDGetPTTsForTitle(DVDNav_t *nav, DVDTitle_t Title,
      return DVD_E_Unspecified;
    }
    if((ev.type == MsgEventQDVDCtrl) &&
-      (ev.dvdctrl.cmd.type == DVDCtrlGetPTTsForTitle)) {
+      (ev.dvdctrl.cmd.type == DVDCtrlNumberOfPTTs)) {
      *PartsAvailable = ev.dvdctrl.cmd.parts.ptts;
      return DVD_E_Ok;
     }

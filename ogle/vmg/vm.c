@@ -69,6 +69,7 @@ static int get_video_aspect(void);
 /* Can only be called when in VTS_DOMAIN */
 static int get_TT(int tt);
 static int get_VTS_TT(int vtsN, int vts_ttn);
+static int get_TT_PTT(int tt, int ptt);
 static int get_VTS_PTT(int vtsN, int vts_ttn, int part);
 
 static int get_MENU(int menu); // VTSM & VMGM
@@ -242,7 +243,7 @@ int vm_jump_ptt(int pttN)
 {
   link_t link_values;
   
-  //check domain!!
+  //check domain!! should be only VTS Title domain
   
   if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, pttN) == -1)
     return 0;
@@ -258,7 +259,7 @@ int vm_jump_title_ptt(int titleN, int pttN)
 {
   link_t link_values;
   
-  //check domain?!?
+  //check domain?!?  (VMGM & (Menu) Title & Stop)?
   
   if(get_TT_PTT(titleN, pttN) == -1)
     return 0;
@@ -274,7 +275,7 @@ int vm_jump_title(int titleN)
 {
   link_t link_values;
   
-  //check domain?
+  //check domain?  VMGM & (Menu) Title & Stop
   
   if(get_TT(titleN) == -1)
     return 0;
@@ -545,6 +546,11 @@ void vm_get_subp_info(int *num_avail, int *current)
     *num_avail = vmgi->vmgi_mat->nr_of_vmgm_subp_streams; // 1
     *current = 0x41;
   }
+}
+
+int vm_get_domain(void)
+{
+ return state.domain;
 }
 
 int vm_get_titles(void)
