@@ -17,6 +17,8 @@
 
 static char* window_string = NULL;
 
+DVDNav_t *nav;
+
 int msgqid;
 extern int win;
 
@@ -83,7 +85,7 @@ main (int argc, char *argv[])
   }
   win = strtol(window_string, NULL, 0);
   
-  fprintf(stderr, "Window-id: %x\n", win);
+  fprintf(stderr, "Window-id: 0x%x\n", win);
   
 
   /*
@@ -94,8 +96,10 @@ main (int argc, char *argv[])
 
   
   if(msgqid !=-1) { // ignore sending data.
-    if( DVDOpen(msgqid) != DVD_E_Ok ) {
-      fprintf(stderr, "Failed DVDOpen.\n");
+    DVDResult_t res;
+    res = DVDOpenNav(&nav, msgqid);
+    if(res != DVD_E_Ok ) {
+      DVDPerror("DVDOpen", res);
       exit(1);
     }
   }

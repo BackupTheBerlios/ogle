@@ -16,5 +16,5 @@ ogle_SOURCES = \
 	menu.c menu.h \
 	audio.c audio.h 
 
-ogle_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVD_LIBDIR)/libdvdcontrol.a $(DVD_LIBDIR)/libcommon.a
-
+ogle_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVDLIBS) \
+	$(PTHREAD_LIB)

@@ -11,11 +11,13 @@
 
 #include "menu.h"
 
+extern DVDNav_t *nav;
+
 void
 on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Part);
+  DVDMenuCall(nav, DVD_MENU_Part);
 }
 
 
@@ -23,7 +25,7 @@ void
 on_angle_activate_pm                   (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Angle);
+  DVDMenuCall(nav, DVD_MENU_Angle);
 }
 
 
@@ -31,7 +33,7 @@ void
 on_audio_activate_pm                   (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Audio);
+  DVDMenuCall(nav, DVD_MENU_Audio);
 }
 
 
@@ -39,7 +41,7 @@ void
 on_subpicture_activate_pm              (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Subpicture);
+  DVDMenuCall(nav, DVD_MENU_Subpicture);
 }
 
 
@@ -47,7 +49,7 @@ void
 on_root_activate_pm                    (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Subpicture);
+  DVDMenuCall(nav, DVD_MENU_Subpicture);
 }
 
 
@@ -55,7 +57,7 @@ void
 on_title_activate_pm                   (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(DVD_MENU_Title);
+  DVDMenuCall(nav, DVD_MENU_Title);
 }
 
 
@@ -63,7 +65,7 @@ void
 on_resume_activate_pm                  (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDResume();
+  DVDResume(nav);
 }
 
 
@@ -166,7 +168,7 @@ void
 on_stop_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDStop();
+  DVDStop(nav);
 }
 
 
@@ -176,10 +178,10 @@ on_pause_button_clicked                (GtkButton       *button,
 {
   static int isPaused = 0;
   if(isPaused) {
-    DVDPauseOff();
+    DVDPauseOff(nav);
     isPaused =1;
   } else {
-    DVDPauseOn();
+    DVDPauseOn(nav);
     isPaused =0;
   }
 }
@@ -189,7 +191,7 @@ void
 on_rewind_button_clicked               (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDBackwardScan(2.0);
+  DVDBackwardScan(nav, 2.0);
 }
 
 
@@ -197,7 +199,7 @@ void
 on_skip_backwards_button_clicked       (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDPrevPGSearch();
+  DVDPrevPGSearch(nav);
 }
 
 
@@ -237,7 +239,7 @@ void
 on_fastforward_button_clicked          (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDForwardScan(2.0);
+  DVDForwardScan(nav, 2.0);
 }
 
 
@@ -245,7 +247,7 @@ void
 on_skip_forwards_button_clicked        (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDNextPGSearch();
+  DVDNextPGSearch(nav);
 }
 
 
@@ -269,7 +271,7 @@ void
 on_cursor_up_button_clicked            (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDUpperButtonSelect();
+  DVDUpperButtonSelect(nav);
 }
 
 
@@ -277,7 +279,7 @@ void
 on_cursor_left_button_clicked          (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDLeftButtonSelect();
+  DVDLeftButtonSelect(nav);
 }
 
 
@@ -285,7 +287,7 @@ void
 on_cursor_right_button_clicked         (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDRightButtonSelect();
+  DVDRightButtonSelect(nav);
 }
 
 
@@ -293,7 +295,7 @@ void
 on_cursor_go_up_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDGoUp();
+  DVDGoUp(nav);
 }
 
 
@@ -301,7 +303,7 @@ void
 on_cursor_down_button_clicked          (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDLowerButtonSelect();
+  DVDLowerButtonSelect(nav);
 }
 
 
@@ -309,7 +311,7 @@ void
 on_cursor_enter_button_clicked         (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDButtonActivate();
+  DVDButtonActivate(nav);
 }
 
 
@@ -325,7 +327,7 @@ void
 on_audio_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  audio_menu_show(button);
+  audio_menu_show(utton);
 }
 
 

@@ -9,6 +9,7 @@
 #include "interface.h"
 #include "support.h"
 
+extern DVDNav_t *nav;
 
 static GtkWidget *menu;
 static GtkWidget *button;
@@ -56,7 +57,7 @@ void menu_update() {
   DVDUOP_t uop;
   int i=0;
   
-  res = DVDGetCurrentUOPS(&uop);
+  res = DVDGetCurrentUOPS(nav, &uop);
   if(res != DVD_E_Ok) {
     DVDPerror("menu.menu_update()", res);
     return;

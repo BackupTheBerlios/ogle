@@ -11,7 +11,7 @@
 #include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
 
-
+extern DVDNav_t *nav;
 Display *display;
 int win = 0;
 pthread_t at;
@@ -60,7 +60,7 @@ void* xsniff_mouse(void* args) {
 	  fprintf(stderr, "#\n");
 	}
 	fprintf(stderr, "MotionNotify: (%d,%d)\n", ev.xbutton.x, ev.xbutton.y);
-	res = DVDMouseSelect(ev.xbutton.x, ev.xbutton.y);
+	res = DVDMouseSelect(nav, ev.xbutton.x, ev.xbutton.y);
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
@@ -73,7 +73,7 @@ void* xsniff_mouse(void* args) {
 	  DVDResult_t res;
 	  fprintf(stderr, "ButtonPress: (%d,%d)\n",
 		  ev.xbutton.x, ev.xbutton.y);
-	  res = DVDMouseActivate(ev.xbutton.x, ev.xbutton.y);
+	  res = DVDMouseActivate(nav, ev.xbutton.x, ev.xbutton.y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
 	  }
@@ -98,20 +98,20 @@ void* xsniff_mouse(void* args) {
 	switch(keysym) {
 	case XK_Up:
 	  fprintf(stderr, "UP\n");
-	  DVDUpperButtonSelect();	  
+	  DVDUpperButtonSelect(nav);	  
 	  break;
 	case XK_Down:
-	  DVDLowerButtonSelect();
+	  DVDLowerButtonSelect(nav);
 	  break;
 	case XK_Left:
-	  DVDLeftButtonSelect();
+	  DVDLeftButtonSelect(nav);
 	  break;
 	case XK_Right:
-	  DVDRightButtonSelect();
+	  DVDRightButtonSelect(nav);
 	  break;
 	case XK_Return:
 	case XK_KP_Enter:
-	  DVDButtonActivate();
+	  DVDButtonActivate(nav);
 	default:
 	  break;
 	}

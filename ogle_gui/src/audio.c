@@ -8,7 +8,7 @@
 #include "audio.h"
 #include <ogle/dvdcontrol.h>
 
-
+extern DVDNav_t *nav;
 GtkWidget *menu;
 GtkWidget *button;
 
@@ -57,7 +57,7 @@ void audio_menu_update() {
   
   audio_menu_clear();
 
-  res = DVDGetCurrentAudio(&StreamsAvailable, &CurrentStream);
+  res = DVDGetCurrentAudio(nav, &StreamsAvailable, &CurrentStream);
   if(res != DVD_E_Ok) {
     DVDPerror("audio.audio_menu_create_new: DVDGetCurrentAudio", res);
     return;
@@ -74,7 +74,7 @@ void audio_menu_update() {
     //DVDStream_t StreamNr;
     DVDBool_t Enabled;
     
-    res = DVDIsAudioStreamEnabled( (DVDStream_t)stream , &Enabled);
+    res = DVDIsAudioStreamEnabled(nav, (DVDStream_t)stream , &Enabled);
     if(res != DVD_E_Ok) {
       DVDPerror("audio.audio_menu_create_new: DVDIsAudioStreamEnabled", res);
       return;
@@ -86,7 +86,7 @@ void audio_menu_update() {
       int stringlength;
       char *label;
 
-      res = DVDGetAudioAttributes( (DVDStream_t)stream , &Attr);
+      res = DVDGetAudioAttributes(nav, (DVDStream_t)stream , &Attr);
       if(res != DVD_E_Ok) {
 	DVDPerror("audio.audio_menu_create_new: DVDGetAudioAttributes", res);
 	return;
