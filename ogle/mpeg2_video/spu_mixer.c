@@ -694,6 +694,12 @@ void decode_dcsq(spu_t *spu_info) {
 	      spu_info->x_start, spu_info->x_end,
 	      spu_info->y_start, spu_info->y_end,
 	      spu_info->width, spu_info->height);
+
+      fprintf(stderr, "x_start=%i x_end=%i, y_start=%i, y_end=%i "
+	      "width=%i height=%i\n",
+	      spu_info->x_start, spu_info->x_end,
+	      spu_info->y_start, spu_info->y_end,
+	      spu_info->width, spu_info->height);
       break;
     case 0x06: /* set start address in PXD */
       DPRINTF(3, "\t\t\t\tset start address in PXD\n");
@@ -882,7 +888,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
       color = palette_rgb[spu_info->color[colorid]];
       contrast = spu_info->contrast[colorid]<<4;
     } else {
-      if(y >= highlight.y_start && y <= highlight.y_end &&
+      if(y+spu_info->y_start >= highlight.y_start &&
+	 y+spu_info->y_start <= highlight.y_end &&
 	 x >= highlight.x_start && x <= highlight.x_end) {
 	color = palette_rgb[highlight.color[colorid]];
 	contrast = highlight.contrast[colorid]<<4;
@@ -947,7 +954,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
       field = 1-field;
       set_byte(&spu_info->buffer[fieldoffset[field]]);
     }
-    
+
   }
 }  
 
@@ -1026,7 +1033,7 @@ void mix_subpicture(char *data, int width, int height)
   while(next_spu_cmd_pending(&spu_info)) {
 
     if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
-      char *swap;
+      unsigned char *swap;
       /* Change to the next buffer and recycle the old */
       swap = spu_info.buffer;
       spu_info.buffer = spu_info.next_buffer;
