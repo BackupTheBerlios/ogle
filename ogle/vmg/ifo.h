@@ -46,10 +46,10 @@ typedef struct { // Video Manager Information Management Table
   uint16_t vmgm_video_attributes;
   uint8_t  zero_7;
   uint8_t  nr_of_vmgm_audio_streams;
-  uint8_t  audio_attributes[8]; // new type
-  uint8_t  zero_8[73];
+  uint8_t  vmgm_audio_attributes[8][8]; // new type
+  uint8_t  zero_8[17];
   uint8_t  nr_of_vmgm_subp_streams;
-  uint8_t  subp_attributes[6]; // new type
+  uint8_t  vmgm_subp_attributes[28][6]; // new type
   //how much 'padding' here?
 } __attribute__ ((packed)) vmgi_mat_t;
 
@@ -272,22 +272,23 @@ typedef struct { // Video Manager Information Management Table
   uint32_t vts_c_adt;		// sector ptr
   uint32_t vts_vobu_admap;	// sector ptr
   uint8_t  zero_13[24];
+  
   uint16_t vtsm_video_attributes;
   uint8_t  zero_14;
   uint8_t  nr_of_vtsm_audio_streams;
-  uint8_t  vtsm_audio_attributes[8]; // new type
-  uint8_t  zero_15[73];
+  uint8_t  vtsm_audio_attributes[8][8]; // new type
+  uint8_t  zero_15[17];//??
   uint8_t  nr_of_vtsm_subp_streams;
-  uint8_t  vtsm_subp_attributes[6]; // new type
-  uint8_t  zero_16[164];//??
+  uint8_t  vtsm_subp_attributes[28][6]; // new type
+  uint8_t  zero_16[2];//??
   
   uint16_t vts_video_attributes;
   uint8_t  zero_17;
   uint8_t  nr_of_vts_audio_streams;
   uint8_t  vts_audio_attributes[8][8]; // new type ??
-  uint8_t  zero_18[17];
+  uint8_t  zero_18[17];//??
   uint8_t  nr_of_vts_subp_streams;
-  uint8_t  vts_subp_attributes[6][32]; // new type
+  uint8_t  vts_subp_attributes[28][6]; // new type
   //how much 'padding' here?
 } __attribute__ ((packed)) vtsi_mat_t;
 

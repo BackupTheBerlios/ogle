@@ -50,11 +50,11 @@ if(level < debug) { \
 #define CHECK_ZERO(arg) \
 if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
  int i; \
- fprintf(stdout, "*** Zero check failed in %s:%i\n    for %s = 0x", \
+ fprintf(stderr, "*** Zero check failed in %s:%i\n    for %s = 0x", \
 	   __FILE__, __LINE__, # arg ); \
  for(i=0;i<sizeof(arg);i++) \
-   fprintf(stdout, "%02x", *((uint8_t *)&arg + i)); \
- fprintf(stdout, "\n"); \
+   fprintf(stderr, "%02x", *((uint8_t *)&arg + i)); \
+ fprintf(stderr, "\n"); \
 }
 
 
@@ -80,7 +80,7 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
 #endif
 
 
-int debug = 10;
+int debug = 8;
 uint8_t my_friendly_zeros[2048];
 
 int vob_mode = 0;
@@ -190,7 +190,7 @@ int main(int argc, char *argv[])
       
       PUT(1, "\nVideo Title Set Attribute table\n");
       PUT(1,   "-------------------------------\n");
-      if(vmgi_mat.vmg_ptl_mait != 0) {
+      if(vmgi_mat.vmg_vts_atrt != 0) {
 	ifoRead_VMG_VTS_ATRT(&vmg_vts_atrt, vmgi_mat.vmg_vts_atrt);
 	ifoPrint_VMG_VTS_ATRT(&vmg_vts_atrt);
       } else
@@ -311,6 +311,7 @@ void ifoPrint_time(int level, dvd_time_t *time) {
 
 
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
+  int i, j;
   CHECK_ZERO(vmgi_mat->zero_1);
   CHECK_ZERO(vmgi_mat->zero_2);
   CHECK_ZERO(vmgi_mat->zero_3);
@@ -344,15 +345,40 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   PUT(5, "Start sector of VMGM_C_ADT: %08x\n", vmgi_mat->vmgm_c_adt);
   PUT(5, "Start sector of VMGM_VOBU_ADMAP: %08x\n", 
       vmgi_mat->vmgm_vobu_admap);
+  
   PUT(5, "Video attributes of VMGM_VOBS: %04x\n", 
       vmgi_mat->vmgm_video_attributes);
-  PUT(5, "VMG Number of Audio attributes: %i\n", 
+  PUT(5, "VMGM Number of Audio attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_audio_streams);
-  PUT(5, "VMG Number of Sub-picture attributes: %i\n", 
+  assert(vmgi_mat->nr_of_vmgm_audio_streams <= 8);
+  for(i=0;i<8;i++) {
+    if(i<vmgi_mat->nr_of_vmgm_audio_streams) {
+      PUT(5, "\tAudio stream %i status: ", i+1);
+      for(j=0;j<8;j++)  /* This should be a function (verbose) */
+	PUT(5, "%02x ", vmgi_mat->vmgm_audio_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vmgi_mat->vmgm_audio_attributes[i][j]);
+  }      
+  PUT(5, "VMGM Number of Sub-picture attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_subp_streams);
+  assert(vmgi_mat->nr_of_vmgm_subp_streams <= 28);
+  for(i=0;i<28;i++) {
+    if(i<vmgi_mat->nr_of_vmgm_subp_streams) {
+      PUT(5, "\tSub-picture stream %2i status: ", i+1);
+      for(j=0;j<6;j++) /* This should be a function (verbose) */
+	PUT(5, "%02x ", vmgi_mat->vmgm_subp_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vmgi_mat->vmgm_subp_attributes[i][j]);      
+  }
+
 }
 
 void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
+  int i,j;
   CHECK_ZERO(vtsi_mat->zero_1);
   CHECK_ZERO(vtsi_mat->zero_2);
   CHECK_ZERO(vtsi_mat->zero_3);
@@ -392,14 +418,59 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
       vtsi_mat->vtsm_video_attributes);
   PUT(5, "VTSM Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vtsm_audio_streams);
+  assert(vtsi_mat->nr_of_vtsm_audio_streams <= 8);
+  for(i=0;i<8;i++) {
+    if(i<vtsi_mat->nr_of_vtsm_audio_streams) {
+      PUT(5, "\tAudio stream %i status: ", i+1);
+      for(j=0;j<8;j++)  /* This should be a function (verbose) */
+	PUT(5, "%02x ", vtsi_mat->vtsm_audio_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vtsi_mat->vtsm_audio_attributes[i][j]);
+  }      
   PUT(5, "VTSM Number of Sub-picture attributes: %i\n", 
       vtsi_mat->nr_of_vtsm_subp_streams);
+  assert(vtsi_mat->nr_of_vtsm_subp_streams <= 28);
+  for(i=0;i<28;i++) {
+    if(i<vtsi_mat->nr_of_vtsm_subp_streams) {
+      PUT(5, "\tSub-picture stream %2i status: ", i+1);
+      for(j=0;j<6;j++) /* This should be a function (verbose) */
+	PUT(5, "%02x ", vtsi_mat->vtsm_subp_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vtsi_mat->vtsm_subp_attributes[i][j]);      
+  }
+  
   PUT(5, "Video attributes of VTS_VOBS: %04x\n", 
-      vtsi_mat->vtsm_video_attributes);
+      vtsi_mat->vts_video_attributes);
   PUT(5, "VTS Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vts_audio_streams);
-  PUT(5, "VTS Number of Sub-picture attributes: %i\n", 
+  assert(vtsi_mat->nr_of_vts_audio_streams <= 8);
+  for(i=0;i<8;i++) {
+    if(i<vtsi_mat->nr_of_vts_audio_streams) {
+      PUT(5, "\tAudio stream %i status: ", i+1);
+      for(j=0;j<8;j++)  /* This should be a function (verbose) */
+	PUT(5, "%02x ", vtsi_mat->vts_audio_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vtsi_mat->vts_audio_attributes[i][j]);
+  }      
+  PUT(5, "VTS Number of Subpicture attributes: %i\n", 
       vtsi_mat->nr_of_vts_subp_streams);
+  assert(vtsi_mat->nr_of_vts_subp_streams <= 28);
+  for(i=0;i<28;i++) {
+    if(i<vtsi_mat->nr_of_vts_subp_streams) {
+      PUT(5, "\tSub-picture stream %2i status: ", i+1);
+      for(j=0;j<6;j++) /* This should be a function (verbose) */
+	PUT(5, "%02x ", vtsi_mat->vts_subp_attributes[i][j]);
+      PUT(5, "\n");
+    } else
+      for(j=0;j<6;j++)
+	CHECK_ZERO(vtsi_mat->vts_subp_attributes[i][j]);      
+  }
 }
 
 void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
@@ -531,7 +602,6 @@ typedef struct
 void ifoPrint_COMMAND(uint8_t *command) {
   buffer_t buffer;
   int i;
-
   memcpy(buffer.bytes, command, 8);
   buffer.bit_position = 0;
 
@@ -579,7 +649,7 @@ void ifoPrint_PGC_PROGRAM_MAP(pgc_progam_map_t *progam_map, int nr) {
     return;
   }
   for(i=0;i<nr;i++) {
-    PUT(5, "Program %3i Entry Cell: %3i\n", i, progam_map[i]);
+    PUT(5, "Program %3i Entry Cell: %3i\n", i+1, progam_map[i]);
   }
 }
 
@@ -592,7 +662,7 @@ void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
   for(i=0;i<nr;i++) {
     /* lowest bit indicating cell command, lowest ?byte? cell command nr? */ 
     /* 0000xx00 might be still, play and then pause or repeat count */
-    PUT(5, "Cell: %3i category %08x ", i, cell_playback[i].category);
+    PUT(5, "Cell: %3i category %08x ", i+1, cell_playback[i].category);
     ifoPrint_time(5, &cell_playback[i].playback_time); PUT(5,"\n");
     PUT(5, "\tStart sector: %08x\tFirst ILVU end  sector: %08x\n", 
 	cell_playback[i].first_sector, 
@@ -610,7 +680,7 @@ void ifoPrint_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr) {
     return;
   }
   for(i=0;i<nr;i++) {
-    PUT(5, "Cell: %3i has VOB ID: %3i, Cell ID: %3i\n", i, 
+    PUT(5, "Cell: %3i has VOB ID: %3i, Cell ID: %3i\n", i+1, 
 	cell_position[i].vob_id_nr, cell_position[i].cell_nr);
     CHECK_ZERO(cell_position[i].zero_1);
   }
@@ -632,7 +702,7 @@ void ifoPrint_PGC(pgc_t *pgc) {
     int i;
     for(i=0;i<8;i++)
       if(pgc->audio_status[i] & 0x8000) { /* The 'is present' bit */
-	PUT(5, "Audio stream %i status: %04x\n", i, pgc->audio_status[i]);
+	PUT(5, "Audio stream %i status: %04x\n", i+1, pgc->audio_status[i]);
       } else {
 	CHECK_ZERO(pgc->audio_status[i]);
       }
@@ -641,24 +711,20 @@ void ifoPrint_PGC(pgc_t *pgc) {
     int i;
     for(i=0;i<32;i++)
       if(pgc->subp_status[i] & 0x80000000) { /* The 'is present' bit */
-	PUT(5, "Subpicture stream %2i status: %08x\n", i, pgc->subp_status[i]);
+	PUT(5, "Subpicture stream %2i status: %08x\n", i+1, 
+	    pgc->subp_status[i]);
       } else { 
 	CHECK_ZERO(pgc->subp_status[i]);
       }
   }
   
+  PUT(5, "Next PGC number: %i\n", pgc->next_pgc_nr);
+  PUT(5, "Prev PGC number: %i\n", pgc->prev_pgc_nr);
+  PUT(5, "GoUp PGC number: %i\n", pgc->goup_pgc_nr);
   if(pgc->nr_of_programs != 0) {
-    PUT(5, "Next PGC number: %i\n", pgc->next_pgc_nr);
-    PUT(5, "Prev PGC number: %i\n", pgc->prev_pgc_nr);
-    PUT(5, "GoUp PGC number: %i\n", pgc->goup_pgc_nr);
-    
     PUT(5, "Still time: %i seconds (255=inf)\n", pgc->still_time);
     PUT(5, "PG Playback mode %02x\n", pgc->pg_playback_mode);
   } else {
-    CHECK_ZERO(pgc->next_pgc_nr);
-    CHECK_ZERO(pgc->prev_pgc_nr);
-    CHECK_ZERO(pgc->goup_pgc_nr);
-    
     CHECK_ZERO(pgc->still_time);
     CHECK_ZERO(pgc->pg_playback_mode);
   }
@@ -1074,5 +1140,4 @@ void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
     ifoPrint_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i]);
   }
 }
-
 
