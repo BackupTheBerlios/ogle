@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -98,6 +97,7 @@ void reset_dc_dct_pred(void)
   
   /* Table 7-2. Relation between intra_dc_precision and the predictor
      reset value */
+  /*
   switch(pic.coding_ext.intra_dc_precision) {
   case 0:
     mb.dc_dct_pred[0] = 128;
@@ -124,6 +124,10 @@ void reset_dc_dct_pred(void)
     exit_program(-1);
     break;
   }
+  */
+  mb.dc_dct_pred[0] = 128 << pic.coding_ext.intra_dc_precision;
+  mb.dc_dct_pred[1] = 128 << pic.coding_ext.intra_dc_precision;
+  mb.dc_dct_pred[2] = 128 << pic.coding_ext.intra_dc_precision;
 }
 
 static
@@ -1007,80 +1011,70 @@ void coded_block_pattern(void)
 static
 void motion_vector(int r, int s)
 {
-  int16_t motion_code[2];
-  int16_t motion_residual[2];
-  int16_t r_size;
-  int16_t f;
-  int16_t high;
-  int16_t low;
-  int16_t range;
-  int16_t delta;
-  int16_t prediction;
   int t;
   
   DPRINTF(2, "motion_vector(%d, %d)\n", r, s);
 
-  motion_code[0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
-  if((pic.coding_ext.f_code[s][0] != 1) && (motion_code[0] != 0)) {
-    r_size = pic.coding_ext.f_code[s][0] - 1;
-    motion_residual[0] = GETBITS(r_size, "motion_residual[r][s][0]");
-  }
-  if(mb.dmv == 1) {
-    mb.dmvector[0] = get_vlc(table_b11, "dmvector[0] (b11)");
-  }
-  
-  motion_code[1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
-  // The reference code has f_code[s][0] here, that is probably wrong....
-  if((pic.coding_ext.f_code[s][1] != 1) && (motion_code[1] != 0)) {
-    r_size = pic.coding_ext.f_code[s][1] - 1;
-    motion_residual[1] = GETBITS(r_size, "motion_residual_[r][s][1]");
-  }
-  if(mb.dmv == 1) {
-    mb.dmvector[1] = get_vlc(table_b11, "dmvector[1] (b11)");
-  }
-
-  
-
   for(t = 0; t < 2; t++) {   
-    r_size = pic.coding_ext.f_code[s][t] - 1;
-    f = 1 << r_size;
-    high = (16 * f) - 1;
-    low = ((-16) * f);
-    range = (32 * f);
+    int delta;
+    int prediction;
+    int vector;
     
-    if((f == 1) || (motion_code[t] == 0)) { 
-      delta = motion_code[t];
-    } else { 
-      delta = ((abs(motion_code[t]) - 1) * f) + motion_residual[t] + 1;
-      if(motion_code[t] < 0) {
-	delta = - delta;
+    int r_size = pic.coding_ext.f_code[s][t] - 1;
+    
+    { // Read and compute the motion vector delta
+      int motion_code = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
+      
+      if((pic.coding_ext.f_code[s][t] != 1) && (motion_code != 0)) {
+	int motion_residual = GETBITS(r_size, "motion_residual[r][s][0]");
+	
+	delta = ((abs(motion_code) - 1) << r_size) + motion_residual + 1;
+	if(motion_code < 0)
+	  delta = - delta;
+      }
+      else {
+	delta = motion_code;
+      }      
+    }
+    
+    if(mb.dmv == 1)
+      mb.dmvector[t] = get_vlc(table_b11, "dmvector[0] (b11)");
+  
+    // Get the predictor
+    if((mb.mv_format == MV_FORMAT_FIELD) && (t==1) &&
+       (pic.coding_ext.picture_structure ==  0x3))
+      prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
+    else
+      prediction = pic.PMV[r][s][t];
+    
+    { // Compute the resulting motion vector
+      int f = 1 << r_size;
+      int high = (16 * f) - 1;
+      int low = ((-16) * f);
+      int range = (32 * f);
+      
+      vector = prediction + delta;
+      if(vector < low) {
+	vector = vector + range;
+      }
+      else if(vector > high) {
+	vector = vector - range;
       }
     }
     
-    prediction = pic.PMV[r][s][t];
-    if((mb.mv_format == MV_FORMAT_FIELD) && (t==1) &&
-       (pic.coding_ext.picture_structure ==  0x3)) {
-      prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
-    }
-    
-    mb.vector[r][s][t] = prediction + delta;
-    if(mb.vector[r][s][t] < low) {
-      mb.vector[r][s][t] = mb.vector[r][s][t] + range;
-    }
-    if(mb.vector[r][s][t] > high) {
-      mb.vector[r][s][t] = mb.vector[r][s][t] - range;
-    }
+    // Update predictors
     if((mb.mv_format ==  MV_FORMAT_FIELD) && (t==1) &&
-       (pic.coding_ext.picture_structure ==  0x3)) {
-      pic.PMV[r][s][t] = mb.vector[r][s][t] * 2;
-    } else {
-      pic.PMV[r][s][t] = mb.vector[r][s][t];
-    }
+       (pic.coding_ext.picture_structure ==  0x3))
+      pic.PMV[r][s][t] = vector * 2;
+    else
+      pic.PMV[r][s][t] = vector;
     
+    // Scale the vector so that it is always measured in half pels
     if((s == 0 && pic.header.full_pel_forward_vector) || 
-       (s == 1 && pic.header.full_pel_backward_vector)) {
-      mb.vector[r][s][t] = mb.vector[r][s][t] << 1;
-    }
+       (s == 1 && pic.header.full_pel_backward_vector))
+      mb.vector[r][s][t] = vector << 1;
+    else
+      mb.vector[r][s][t] = vector;
   }
 }
 

@@ -179,7 +179,7 @@ typedef struct {
   uint8_t quantiser_scale;
   int intra_dc_mult;
 
-  int16_t QFS[64]  __attribute__ ((aligned (8)));
+  int16_t QFS[64] __attribute__ ((aligned (8)));
 
 } macroblock_t;
 
