@@ -92,9 +92,9 @@ linux-gnu)
 	;;
 esac
 
-INCLUDES='-I. -I$(top_srcdir)/include -I/usr/pd/include'
+INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include -I/usr/pd/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
 AC_CHECK_FUNCS(clock_gettime madvise)
-AC_OUTPUT(include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
+AC_OUTPUT(ogle/Makefile include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
 
