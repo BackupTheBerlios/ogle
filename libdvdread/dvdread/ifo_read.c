@@ -334,9 +334,8 @@ static int ifoRead_VMG(ifo_handle_t *ifofile) {
   assert(vmgi_mat->vmgi_last_byte >= 341);
   assert(vmgi_mat->vmgi_last_byte / DVD_BLOCK_LEN <= 
          vmgi_mat->vmgi_last_sector);
-  /* It seems that first_play_pgc might be optional. */
-  assert(vmgi_mat->first_play_pgc != 0 && 
-         vmgi_mat->first_play_pgc < vmgi_mat->vmgi_last_byte);
+  /* It seems that first_play_pgc is optional. */
+  assert(vmgi_mat->first_play_pgc < vmgi_mat->vmgi_last_byte);
   assert(vmgi_mat->vmgm_vobs == 0 || 
         (vmgi_mat->vmgm_vobs > vmgi_mat->vmgi_last_sector &&
          vmgi_mat->vmgm_vobs < vmgi_mat->vmg_last_sector));
@@ -731,11 +730,10 @@ int ifoRead_FP_PGC(ifo_handle_t *ifofile) {
   if(!ifofile->vmgi_mat)
     return 0;
   
-  /* It seems that first_play_pgc might be optional after all. */
-  if(ifofile->vmgi_mat->first_play_pgc == 0) { /* mandatory */
-    ifofile->first_play_pgc = 0;
-    return 0; /* change this to a 1 if it's optional. */
-  }
+  /* It seems that first_play_pgc is optional after all. */
+  ifofile->first_play_pgc = 0;
+  if(ifofile->vmgi_mat->first_play_pgc == 0)
+    return 1;
   
   ifofile->first_play_pgc = (pgc_t *)malloc(sizeof(pgc_t));
   if(!ifofile->first_play_pgc)
