@@ -52,7 +52,7 @@ dnl
 link_dvdcss=no
 dvdcss_path=""
 AC_ARG_WITH([libdvdcss],
-    [  --with-libdvdcss=PATH   force linking against libdvdcss],
+    [  --with-libdvdcss[=PATH] force linking against libdvdcss],
     [if test x"$withval" != xno; then
        link_dvdcss=yes
      fi
