@@ -35,6 +35,18 @@ typedef enum {
 } MsgQPlayCtrlCmd_t;
 
 typedef enum {
+  InputCmdButtonUp,
+  InputCmdButtonDown,
+  InputCmdButtonLeft,
+  InputCmdButtonRight,
+  InputCmdButtonActivate,
+  InputCmdButtonActivateNr,
+  InputCmdButtonSelectNr,
+  InputCmdMouseActivate,
+  InputCmdMouseMove //???
+} MsgQInputCmd_t;
+
+typedef enum {
   MsgEventQNone = 0,
   MsgEventQInitReq = 2,
   MsgEventQInitGnt,  
@@ -55,6 +67,7 @@ typedef enum {
   MsgEventQAttachQ,
   MsgEventQSPUPalette,
   MsgEventQSPUHighlight,
+  MsgEventQUserInput,
   MsgEventQSpeed
 } MsgEventType_t;
 
@@ -66,6 +79,16 @@ typedef struct {
   MsgEventClient_t client;
   double speed;
 } MsgQSpeedEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  MsgQInputCmd_t cmd;
+  int button_nr;
+  int mouse_x;
+  int mouse_y;
+} MsgQUserInputEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -245,6 +268,7 @@ typedef union {
   MsgQAttachQEvent_t attachq;
   MsgQSPUPaletteEvent_t spupalette;
   MsgQSPUHighlightEvent_t spuhighlight;
+  MsgQUserInputEvent_t userinput;
   MsgQSpeedEvent_t speed;
 } MsgEvent_t;
 
