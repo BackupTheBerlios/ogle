@@ -19,7 +19,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
@@ -83,7 +83,7 @@ static void ifoFree_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl);
 static void ifoFree_PGCIT_internal(pgcit_t *pgcit);
 
 
-static int DVDFileSeek_( dvd_file_t *dvd_file, uint32_t offset ) {
+static inline int DVDFileSeek_( dvd_file_t *dvd_file, uint32_t offset ) {
   return (DVDFileSeek(dvd_file, (int)offset) == (int)offset);
 }
 
@@ -98,6 +98,8 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
+  if(!ifofile->file) /* Should really catch any error and try to fallback */
+    ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
   if(!ifofile->file) {
     if(title) {
       fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.IFO.\n", title);
@@ -180,6 +182,8 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
   ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_FILE);
+  if(!ifofile->file) /* Should really catch any error and try to fallback */
+    ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_BACKUP_FILE);
   if(!ifofile->file) {
     fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.IFO.\n");
     free(ifofile);
@@ -211,6 +215,8 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
   }
     
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
+  if(!ifofile->file) /* Should really catch any error and try to fallback */
+    ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
   if(!ifofile->file) {
     fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.IFO.\n", title);
     free(ifofile);
@@ -1020,8 +1026,7 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   if(ifofile->vmgi_mat->ptl_mait == 0)
     return 1;
 
-  if(!DVDFileSeek_(ifofile->file, 
-		  ifofile->vmgi_mat->ptl_mait * DVD_BLOCK_LEN))
+  if(!DVDFileSeek_(ifofile->file, ifofile->vmgi_mat->ptl_mait * DVD_BLOCK_LEN))
     return 0;
 
   ptl_mait = (ptl_mait_t *)malloc(sizeof(ptl_mait_t));
