@@ -35,7 +35,7 @@ DVDP_CTRL=$DVDP_ROOT/ctrl
 export DVDP_CTRL
 DVDP_DEMUX=$DVDP_ROOT/programstream
 export DVDP_DEMUX
-DVDP_UI=$DVDP_ROOT/ui
+DVDP_UI=$DVDP_ROOT/ogle
 export DVDP_UI
 DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
 export DVDP_AC3
@@ -51,4 +51,4 @@ DVDP_SPU=$DVDP_ROOT/video_output
 export DVDP_SPU
 DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
 export DVDP_VIDEO_OUT
-$DVDP_CTRL $*
+$DVDP_CTRL -u dvd $*
