@@ -411,6 +411,7 @@ static bool eval_system_set(int cond, link_t *return_values)
 	  }
 	}
 	state->GPRM[8] = data;
+      }
       break;
   }
   if(bits(1, 4, 4)) {
