@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: Ogle 0.8.2\n"
-"POT-Creation-Date: 2001-12-05 00:31+0100\n"
+"POT-Creation-Date: 2001-12-05 16:59+0100\n"
 "PO-Revision-Date: 2001-11-29 22:20+0100\n"
 "Last-Translator: Martin Norbäck <d95mback@dtek.chalmers.se>\n"
 "Language-Team: Swedish <sv@li.org>\n"
@@ -41,7 +41,7 @@ msgstr "Inget"
 #: src/callbacks.c:217
 #, c-format
 msgid "Ogle GUI version %s"
-msgstr "Ogle användargränssnitt, version %s"
+msgstr "Ogle-användargränssnitt, version %s"
 
 #: src/fileselector.c:44
 msgid "Please select a file or directory."
@@ -684,7 +684,6 @@ msgstr ""
 msgid "Hebrew"
 msgstr "Hebreiska"
 
-#. Withdrawn in 1989. Still used!!!
 #: src/language.c:193
 msgid "Herero"
 msgstr "Herero"
@@ -753,7 +752,6 @@ msgstr ""
 msgid "Indonesian"
 msgstr "Indonesiska"
 
-#. Withdrawn in 1989. Still used?
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "Interlingua"
@@ -802,7 +800,6 @@ msgstr "Japanska"
 msgid "Javanese"
 msgstr "Javanesiska"
 
-#. Withdrawn 2001-07-27
 #: src/language.c:225
 msgid "Judeo-Arabic"
 msgstr ""
@@ -1367,7 +1364,10 @@ msgstr ""
 msgid "Rarotongan"
 msgstr ""
 
-#. { N_("Reserved for local use"), "qaa-qtz", "qaa-qtz", ""},
+#: src/language.c:366
+msgid "Reserved for local use"
+msgstr ""
+
 #: src/language.c:367
 msgid "Romance (Other)"
 msgstr ""
@@ -1452,7 +1452,6 @@ msgstr "Serbiska"
 msgid "Serbo-Croatian"
 msgstr "Serbokroatiska"
 
-#. Withdrawn 2000-02-18. Still used?
 #: src/language.c:388
 msgid "Serer"
 msgstr ""
@@ -1793,7 +1792,6 @@ msgstr ""
 msgid "Yiddish"
 msgstr "Jiddisch"
 
-#. // Withdrawn in 1989. Still used?
 #: src/language.c:474
 msgid "Yoruba"
 msgstr ""
@@ -1857,7 +1855,7 @@ msgstr "Titel"
 
 #: src/menu.c:52
 msgid "Resume"
-msgstr "Återgå"
+msgstr "Återuppta"
 
 #. ogle_gui.glade:187
 #: pixmaps/glade-strings.c:10
@@ -1872,12 +1870,12 @@ msgstr "Om"
 #. ogle_gui.glade:1069
 #: pixmaps/glade-strings.c:16
 msgid "Angle select"
-msgstr "Välj vinkel"
+msgstr "Val av vinkel"
 
 #. ogle_gui.glade:993
 #: pixmaps/glade-strings.c:19
 msgid "Audio select"
-msgstr "Välj ljud"
+msgstr "Val av ljud"
 
 #. ogle_gui.glade:1201
 #: pixmaps/glade-strings.c:22
@@ -1921,7 +1919,7 @@ msgstr "Gå upp"
 #. ogle_gui.glade:826
 #: pixmaps/glade-strings.c:44
 msgid "Move cursor down"
-msgstr "Flytta markör uppåt"
+msgstr "Flytta markör neråt"
 
 #. ogle_gui.glade:750
 #: pixmaps/glade-strings.c:47
@@ -1936,7 +1934,7 @@ msgstr "Flytta markör åt höger"
 #. ogle_gui.glade:788
 #: pixmaps/glade-strings.c:53
 msgid "Move cursor up"
-msgstr "Flytta markör upp"
+msgstr "Flytta markör uppåt"
 
 #. ogle_gui.glade:1226
 #: pixmaps/glade-strings.c:56
@@ -1956,7 +1954,7 @@ msgstr "Öppna _DVD-skiva"
 #. ogle_gui.glade:492
 #: pixmaps/glade-strings.c:65
 msgid "Pause"
-msgstr "Pause"
+msgstr "Paus"
 
 #. ogle_gui.glade:1177
 #: pixmaps/glade-strings.c:68
@@ -1996,7 +1994,7 @@ msgstr "Snabbspelning baklänges"
 #. ogle_gui.glade:955
 #: pixmaps/glade-strings.c:89
 msgid "Select menu..."
-msgstr "Välj meny..."
+msgstr "Val av meny..."
 
 #. ogle_gui.glade:416
 #: pixmaps/glade-strings.c:92
@@ -2026,7 +2024,7 @@ msgstr "Stopp"
 #. ogle_gui.glade:1031
 #: pixmaps/glade-strings.c:107
 msgid "Subtitle select"
-msgstr "Välj textning"
+msgstr "Val av textning"
 
 #. ogle_gui.glade:170
 #: pixmaps/glade-strings.c:110
@@ -2046,7 +2044,7 @@ msgstr "_Arkiv"
 #. ogle_gui.glade:145
 #: pixmaps/glade-strings.c:119
 msgid "_Full screen"
-msgstr "_Fullskärm"
+msgstr "_Helskärmsläge"
 
 #. ogle_gui.glade:155
 #: pixmaps/glade-strings.c:122
