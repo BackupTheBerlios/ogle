@@ -995,10 +995,10 @@ void push_stream_data(uint8_t stream_id, int len,
 #else
 	  if(!((unsigned int)(&disk_buf[packet_data_offset]) & 0x1)) {
 	    // should be odd address
-	    DNOTE("lpcm at even address\n");
+	    DNOTE("lpcm at even address\n", 0);
 	  }
 	  if(!PTS_DTS_flags) {
-	    DNOTE("lpcm without PTS\n");
+	    DNOTE("lpcm without PTS\n", 0);
 	  }
 	  fwrite(&disk_buf[packet_data_offset], 8, 1,
 		 id_file(stream_id, subtype));
@@ -2440,13 +2440,13 @@ int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
   
   if(newid != MPEG2_PRIVATE_STREAM_1) {
     if(newid == oldid) {
-      DNOTE("equal(not private)\n");
+      DNOTE("equal(not private)\n", 0);
       return 1;
     }
   } else {
     if(oldid == MPEG2_PRIVATE_STREAM_1) {
       if(newsubtype == oldsubtype) {
-	DNOTE("equal(private)\n");
+	DNOTE("equal(private)\n", 0);
 	return 1;
       }
     }
@@ -2454,16 +2454,16 @@ int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
   
   
   if(newid != MPEG2_PRIVATE_STREAM_1) {
-    DNOTE("newid not private:\n");
+    DNOTE("newid not private:\n", 0);
     if(oldid != MPEG2_PRIVATE_STREAM_1) {
-      DNOTE("oldid not private\n");
+      DNOTE("oldid not private\n", 0);
       id_reg[newid] = id_reg[oldid];
       id_reg[oldid].shmid = -1;
       id_reg[oldid].shmaddr = NULL;
       id_reg[oldid].state = STREAM_DISCARD;
       id_reg[oldid].file = NULL;
     } else {
-      DNOTE("oldid private\n");
+      DNOTE("oldid private\n", 0);
       id_reg[newid] = id_reg_ps1[oldsubtype];
       id_reg_ps1[oldsubtype].shmid = -1;
       id_reg_ps1[oldsubtype].shmaddr = NULL;
@@ -2471,16 +2471,16 @@ int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
       id_reg_ps1[oldsubtype].file = NULL;  
     }
   } else {
-    DNOTE("newid private:\n");
+    DNOTE("newid private:\n", 0);
     if(oldid != MPEG2_PRIVATE_STREAM_1) {
-      DNOTE("oldid not private\n");
+      DNOTE("oldid not private\n", 0);
       id_reg_ps1[newsubtype] = id_reg[oldid];
       id_reg[oldid].shmid = -1;
       id_reg[oldid].shmaddr = NULL;
       id_reg[oldid].state = STREAM_DISCARD;
       id_reg[oldid].file = NULL;
     } else {
-      DNOTE("oldid private\n");
+      DNOTE("oldid private\n", 0);
       id_reg_ps1[newsubtype] = id_reg_ps1[oldsubtype];
       id_reg_ps1[oldsubtype].shmid = -1;
       id_reg_ps1[oldsubtype].shmaddr = NULL;

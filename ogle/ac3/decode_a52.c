@@ -234,7 +234,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       if(frame_len == 0) {
 	//this is not the start of a frame
 	if(has_sync) {
-	  DNOTE("decode_a52: lost sync\n");
+	  DNOTE("decode_a52: lost sync\n", 0);
 	  has_sync = 0;
 	}
 	for(n = 0; n < 6; n++) {
@@ -244,7 +244,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	handle->bytes_needed = 1;
       } else {
 	if(!has_sync) {
-	  DNOTE("decode_a52: found sync\n");
+	  DNOTE("decode_a52: found sync\n", 0);
 	  has_sync = 1;
 	}
 
@@ -323,7 +323,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       }
 
       if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
-	DNOTE("a52_frame() error\n");
+	DNOTE("a52_frame() error\n", 0);
 	goto error;
       }
 
@@ -360,7 +360,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       for(i = 0; i < 6; i++) {
 
 	if(a52_block(handle->state)) {
-	  DNOTE("a52_block() error\n");
+	  DNOTE("a52_block() error\n", 0);
 	  goto error;
 	}
 	convert_samples((adec_handle_t *)handle, handle->samples, 256);
@@ -408,7 +408,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 
 
       if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
-	DNOTE("a52_frame() error\n");
+	DNOTE("a52_frame() error\n", 0);
 	goto error2;
       }
 
@@ -507,12 +507,12 @@ adec_handle_t *init_a52(void)
 
     handle->state = a52_init(accel);
     if(handle->state == NULL) {
-        FATAL("A/52 init failed\n");
+        FATAL("A/52 init failed\n", 0);
         exit(1);
     }
     handle->samples = a52_samples(handle->state);
     if(handle->samples == NULL) {
-        FATAL("A/52 samples failed\n");
+        FATAL("A/52 samples failed\n", 0);
         exit(1);
     }
   }

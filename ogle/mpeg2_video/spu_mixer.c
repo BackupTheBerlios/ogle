@@ -177,7 +177,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      ERROR("spu_mixer: attach_decoder_buffer()");
+      ERROR("spu_mixer: attach_decoder_buffer()", 0);
       perror("shmat");
       return -1;
     }
@@ -191,7 +191,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      ERROR("spu: attach_data_buffer()");
+      ERROR("spu: attach_data_buffer()", 0);
       perror("shmat");
       return -1;
     }
@@ -362,7 +362,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      FATAL("spu_mixer: couldn't send notification\n");
+      FATAL("spu_mixer: couldn't send notification\n", 0);
       exit(1);
     }
   }
@@ -381,7 +381,7 @@ int init_spu(void)
   spu_info.buffer = malloc(MAX_BUF_SIZE);
   spu_info.next_buffer = malloc(MAX_BUF_SIZE);
   if(spu_info.buffer == NULL || spu_info.next_buffer == NULL) {
-    ERROR("init_spu\n");
+    ERROR("init_spu\n", 0);
     perror("malloc");
   }
   register_event_handler(handle_events);
@@ -431,7 +431,7 @@ static int get_data(uint8_t *databuf, int bufsize,
     
     if(spu_size > bufsize) {
       // databuf not big enough
-      ERROR("buffer too small\n");
+      ERROR("buffer too small\n", 0);
       return -1;
     }
     
@@ -486,7 +486,7 @@ static inline uint32_t getbytes(unsigned int num)
   uint32_t result = 0;
 
   if(num > 4)
-    ERROR("spu_mixer: getbytes used with more than 4 bytes\n");
+    ERROR("spu_mixer: getbytes used with more than 4 bytes\n", 0);
 
   while(num > 0) {
     result <<= 8;
@@ -682,12 +682,12 @@ static void decode_dcsq(spu_handle_t *spu_info)
 	  u2 = GETBYTES(2, "wipe x_end 1?");
 	  u3 = GETBYTES(2, "wipe x_end 2?");
 	} else {
-	  FATAL("unknown cmd 07 type\n");
+	  FATAL("unknown cmd 07 type\n", 0);
 	  exit(1);
 	}
 	  
 	if((u1 != 0) || (u2 != 0x0fff) || (u3 != 0xffff)) {
-	  FATAL("unknown bits in cmd 7 used\n");
+	  FATAL("unknown bits in cmd 7 used\n", 0);
 	  exit(1);
 	}
       }
@@ -960,7 +960,7 @@ static void decode_display_data(spu_handle_t *spu_info, char *data,
       length = spu_info->width - x;
     }
     if(length+x > spu_info->width) {
-      WARNING("tried to write past line-end\n");
+      WARNING("tried to write past line-end\n", 0);
       length = spu_info->width - x;
     }
     

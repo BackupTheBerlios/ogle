@@ -107,14 +107,14 @@ int main(int argc, char *argv[])
   }
   
   if(parse_config() == -1) {
-    FATAL("Couldn't read config files\n");
+    FATAL("Couldn't read config files\n", 0);
     exit(1);
   }
 
 
   if(msgqid != -1) {
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      FATAL("couldn't get message q\n");
+      FATAL("couldn't get message q\n", 0);
       exit(1);
     }
     
@@ -133,7 +133,7 @@ int main(int argc, char *argv[])
     }
 
   } else {
-    FATAL("what? need a msgid\n");
+    FATAL("what? need a msgid\n", 0);
   }
 
 
@@ -469,7 +469,7 @@ int get_q()
 	  pts_offset--;
 	}
 	if(first) {
-	  DNOTE("LPCM Audio >2 channels not implemented\n");
+	  DNOTE("LPCM Audio >2 channels not implemented\n", 0);
 	  first = 0;
 	}
       } else {
@@ -480,7 +480,7 @@ int get_q()
       static int first = 1;
       new_audio_type = AudioType_MPEG;
       if(first) {
-	DNOTE("MPEG Audio\n");
+	DNOTE("MPEG Audio\n", 0);
 	first = 0;
       }
       decode_offset = packet_data_offset;
@@ -523,16 +523,16 @@ int get_q()
 	q_head->writer_requests_notification = 0;
 	ev.type = MsgEventQNotify;
 	if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-	  WARNING("couldn't send notification\n");
+	  WARNING("couldn't send notification\n", 0);
 	}
       }
       //DNOTE("flushed, packet droped on scr\n");
       return 0;
     } else {
       //TODO flush audio now that we have flushed all packets
-      DNOTE("flushing audio driver\n");
+      DNOTE("flushing audio driver\n", 0);
       flush_audio();
-      DNOTE("flushed audio\n");
+      DNOTE("flushed audio\n", 0);
       flush_to_scrid = -1;
     }
   }
@@ -553,7 +553,7 @@ int get_q()
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      WARNING("couldn't send notification\n");
+      WARNING("couldn't send notification\n", 0);
     }
   }
 

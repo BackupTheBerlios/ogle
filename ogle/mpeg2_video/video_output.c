@@ -155,7 +155,7 @@ void wait_for_q_attach(void)
 	continue;
 	break;
       default:
-	FATAL("waiting for attachq\n");
+	FATAL("waiting for attachq\n", 0);
 	perror("MsgNextEvent");
 	exit(1);
 	break;
@@ -176,7 +176,7 @@ static int attach_ctrl_shm(int shmid)
 
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      ERROR("attach_ctrl_data()\n");
+      ERROR("attach_ctrl_data()\n", 0);
       perror("shmat");
       return -1;
     }
@@ -209,11 +209,11 @@ static int attach_data_q(int q_shmid, data_q_t *data_q)
   //DNOTE("attach_data_q: q_shmid: %d\n", q_shmid);
   
   if(q_shmid < 0) {
-    ERROR("attach_data_q(), q_shmid < 0\n");
+    ERROR("attach_data_q(), q_shmid < 0\n", 0);
     return -1;
   }
   if((q_shmaddr = shmat(q_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    ERROR("attach_data_q()\n");
+    ERROR("attach_data_q()\n", 0);
     perror("shmat");
     return -1;
   }
@@ -226,12 +226,12 @@ static int attach_data_q(int q_shmid, data_q_t *data_q)
   //DNOTE("attach_data_q: data_shmid: %d\n", data_shmid);
 
   if(data_shmid < 0) {
-    ERROR("attach_data_q(), data_shmid\n");
+    ERROR("attach_data_q(), data_shmid\n", 0);
     return -1;
   }
 
   if((data_shmaddr = shmat(data_shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-    ERROR("attach_data_q()");
+    ERROR("attach_data_q()", 0);
     perror("shmat");
     return -1;
   }
@@ -263,7 +263,7 @@ static int attach_data_q(int q_shmid, data_q_t *data_q)
 #endif
 
   if(data_head->info.type != DataBufferType_Video) {
-    ERROR("Didn't get type Video\n");
+    ERROR("Didn't get type Video\n", 0);
     return -1;
   }
   data_q->in_use = 0;
@@ -297,19 +297,19 @@ static int detach_data_q(int q_shmid, data_q_t **data_q_head)
   }
 
   if(*data_q_p == NULL) {
-    ERROR("detach_data_q q_shmid not found\n");
+    ERROR("detach_data_q q_shmid not found\n", 0);
     return -1;
   }
 
   client = (*data_q_p)->q_head->writer;
 
   if(shmdt((char *)(*data_q_p)->data_head) == -1) {
-    ERROR("detach_data_q data_head");
+    ERROR("detach_data_q data_head", 0);
     perror("shmdt");
   }
   
   if(shmdt((char *)(*data_q_p)->q_head) == -1) {
-    ERROR("detach_data_q q_head");
+    ERROR("detach_data_q q_head", 0);
     perror("shmdt");
   }
 
@@ -590,7 +590,7 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 	  end_of_wait = 1;
 	  break;
 	default:
-	  FATAL("waiting for notification");
+	  FATAL("waiting for notification", 0);
 	  perror("MsgNextEvent");
 	  // might never have had dispay_init called
 	  display_exit(); //clean up and exit
@@ -652,7 +652,7 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
 	  continue;
 	  break;
 	default:
-	  FATAL("waiting for notification");
+	  FATAL("waiting for notification", 0);
 	  perror("MsgNextEvent");
 	  // might never have had dispay_init called?
 	  display_exit(); //clean up and exit
@@ -702,7 +702,7 @@ static void release_picture(int q_elem_id, data_q_t *data_q)
 	MsgEvent_t c_ev;
 	switch(errno) {
 	case EAGAIN:
-	  WARNING("msgq full, checking incoming messages and trying again\n");
+	  WARNING("msgq full, checking incoming messages and trying again\n", 0);
 	  while(MsgCheckEvent(msgq, &c_ev) != -1) {
 	    event_handler(msgq, &c_ev);
 	  }
@@ -711,11 +711,11 @@ static void release_picture(int q_elem_id, data_q_t *data_q)
 	case EIDRM:
 #endif
 	case EINVAL:
-	  FATAL("couldn't send notification no msgq\n");
+	  FATAL("couldn't send notification no msgq\n", 0);
 	  display_exit(); //TODO clean up and exit
 	  break;
 	default:
-	  FATAL("couldn't send notification\n");
+	  FATAL("couldn't send notification\n", 0);
 	  display_exit(); //TODO clean up and exit
 	  break;
 	}
@@ -742,7 +742,7 @@ data_q_t *get_next_data_q(data_q_t **head, data_q_t *cur_q)
       data_q = &(*data_q)->next);
   
   if(*data_q == NULL) {
-    ERROR("get_next_data_q(), couldn't find cur_q\n");
+    ERROR("get_next_data_q(), couldn't find cur_q\n", 0);
     return NULL;
   }
 
@@ -755,7 +755,7 @@ data_q_t *get_next_data_q(data_q_t **head, data_q_t *cur_q)
 
   if(tmp_q == NULL) {
     // no next q, lets wait for it
-    DNOTE("get_next_data_q: no next q\n");
+    DNOTE("get_next_data_q: no next q\n", 0);
     wait_for_q_attach();
     if(*data_q != cur_q) {
       //cur has been detached
@@ -864,7 +864,7 @@ static void display_process()
 	if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
 
 	  clocktime_t scr_time;
-	  DNOTE("set_sync_point()\n");
+	  DNOTE("set_sync_point()\n", 0);
 
 	  PTS_TO_CLOCKTIME(scr_time, pinfos[buf_id].PTS);
 	  clocktime_get(&real_time);
@@ -1106,7 +1106,7 @@ int main(int argc, char **argv)
   if(msgqid != -1) {
     
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      FATAL("couldn't get message q\n");
+      FATAL("couldn't get message q\n", 0);
       exit(1);
     }
     
@@ -1126,7 +1126,7 @@ int main(int argc, char **argv)
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = UI_DVD_GUI;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      FATAL("didn't get dvd_gui cap\n");
+      FATAL("didn't get dvd_gui cap\n", 0);
       exit(1); //TODO clean up and exit
     }
     
@@ -1139,7 +1139,7 @@ int main(int argc, char **argv)
 	  continue;
 	  break;
 	default:
-	  FATAL("waiting for attachq");
+	  FATAL("waiting for attachq", 0);
 	  perror("MsgNextEvent");
 	  exit(1);
 	  break;

@@ -104,7 +104,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     if((new_ch = (new_lpcm_info & 0x07))) {
       new_ch = new_ch + 1;
     } else {
-      DNOTE("REPORT BUG: is mono 2ch(dual mono) or really 1 ch"); 
+      DNOTE("REPORT BUG: is mono 2ch(dual mono) or really 1 ch", 0); 
       new_ch = 2; // is mono 2ch(dual mono) or really 1 ch ?
     }
     new_quantization_word_length = (new_lpcm_info & 0xC0) >> 6;

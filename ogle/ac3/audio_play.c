@@ -274,7 +274,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
     clocktime_t real_time;
 
     if(odelay_fail) {
-      ERROR("odelay failed, falling back to clock sync\n");
+      ERROR("odelay failed, falling back to clock sync\n", 0);
       s->type = SyncType_clock;
     }
 

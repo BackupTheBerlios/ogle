@@ -189,7 +189,7 @@ static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
 	    conf->chtype[conf->nr_ch-1] = ct;
 	  }
 	} else {
-	  WARNING("<chtype> is empty\n"); 
+	  WARNING("<chtype> is empty\n", 0); 
 	}
       }
       if(s) {
@@ -425,7 +425,7 @@ int parse_config(void)
   
   home = getenv("HOME");
   if(home == NULL) {
-    WARNING("No $HOME\n");
+    WARNING("No $HOME\n", 0);
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -445,7 +445,7 @@ int parse_config(void)
   }
   
   if(!config_read) {
-    ERROR("parse_config(): Couldn't read "CONFIG_FILE"\n");
+    ERROR("parse_config(): Couldn't read "CONFIG_FILE"\n", 0);
     return -1;
   }
 
