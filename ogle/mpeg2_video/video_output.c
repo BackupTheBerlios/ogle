@@ -325,13 +325,12 @@ void int_handler()
   display_exit();
 }
 
-#define LINUX
 static void display_process()
 {
   clocktime_t real_time, prefered_time, frame_interval;
   clocktime_t real_time2, diff, avg_time, oavg_time;
   clocktime_t calc_rt;
-#ifdef LINUX
+#ifndef HAVE_CLOCK_GETTIME
   clocktime_t waittmp;
 #endif
   struct timespec wait_time;
@@ -434,10 +433,10 @@ static void display_process()
       prefered_time = calc_rt;
       
     }
-    // Fixme!!! wait_time can't be used here..
-#ifdef LINUX
+#ifndef HAVE_CLOCK_GETTIME
     timesub(&waittmp, &prefered_time, &real_time);
 #else
+    // Fixme!!! wait_time can't be used here..
     timesub(&wait_time, &prefered_time, &real_time);
 #endif
     /*
@@ -447,9 +446,9 @@ static void display_process()
     fprintf(stderr, "wait: %d.%09ld, ",
 	    TIME_S(wait_time), TIME_SS(wait_time));
     */
-#ifdef LINUX
+#ifndef HAVE_CLOCK_GETTIME
     wait_time.tv_sec = waittmp.tv_sec;
-    wait_time.tv_nsec = waittmp.tv_usec*1000;
+    wait_timtv_nsec = waittmp.tv_usec*1000;
 #endif
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
