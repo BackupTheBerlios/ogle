@@ -22,5 +22,7 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 all: ac3dec_wrap
 
+ac3dec_wrap: ../common/timemath.o
+
 clean:
 	rm -f ac3dec_wrap *.o

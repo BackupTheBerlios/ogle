@@ -18,9 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
 #include <sys/types.h>
-#include <sys/time.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -59,6 +57,7 @@
 #include <glib.h>
 
 #include "../include/common.h"
+#include "../include/timemath.h"
 #include "c_getbits.h"
 
 #ifndef SHM_SHARE_MMU
@@ -78,11 +77,6 @@ union semun {
 };
 #endif
 #endif
-
-/*
-void timeadd(struct timespec *d, struct timespec *s1, struct timespec *s2);
-void timesub(struct timespec *d, struct timespec *s1, struct timespec *s2);
-*/
 
 
 extern int chk_for_msg();
@@ -149,35 +143,35 @@ uint32_t stats_f_intra_compute_first_nr = 0;
 void timestat_init();
 void timestat_print();
 
-struct timespec picture_decode_start_time;
-struct timespec picture_decode_end_time;
-struct timespec picture_display_start_time;
-struct timespec picture_display_end_time;
+clocktime_t picture_decode_start_time;
+clocktime_t picture_decode_end_time;
+clocktime_t picture_display_start_time;
+clocktime_t picture_display_end_time;
 
-struct timespec picture_time;
-struct timespec picture_decode_time;
-struct timespec picture_display_time;
+clocktime_t picture_time;
+clocktime_t picture_decode_time;
+clocktime_t picture_display_time;
 
-struct timespec picture_time0;
-struct timespec picture_time1;
-struct timespec picture_time2;
+clocktime_t picture_time0;
+clocktime_t picture_time1;
+clocktime_t picture_time2;
 
-struct timespec picture_decode_time_tot[3];
-struct timespec picture_display_time_tot[3];
+clocktime_t picture_decode_time_tot[3];
+clocktime_t picture_display_time_tot[3];
 
-struct timespec picture_decode_time_min[3];
-struct timespec picture_display_time_min[3];
+clocktime_t picture_decode_time_min[3];
+clocktime_t picture_display_time_min[3];
 
-struct timespec picture_decode_time_max[3];
-struct timespec picture_display_time_max[3];
+clocktime_t picture_decode_time_max[3];
+clocktime_t picture_display_time_max[3];
 
 uint32_t picture_decode_nr[3];
 uint32_t picture_display_nr[3];
 
-struct timespec *picture_decode_start_times;
-struct timespec *picture_decode_end_times;
-struct timespec *picture_display_start_times;
-struct timespec *picture_display_end_times;
+clocktime_t *picture_decode_start_times;
+clocktime_t *picture_decode_end_times;
+clocktime_t *picture_display_start_times;
+clocktime_t *picture_display_end_times;
 uint8_t *picture_type;
 
 
@@ -185,18 +179,18 @@ uint32_t picture_decode_num;
 uint32_t picture_display_num;
 
 typedef struct {
-  struct timespec dec_start;
-  struct timespec dec_end;
-  struct timespec dec_tot;
-  struct timespec dec_min;
-  struct timespec disp_start;
-  struct timespec disp_end;
-  struct timespec disp_tot;
-  struct timespec disp_min;
-  struct timespec pic_tot;
-  struct timespec pic_min;
-  struct timespec should_sleep;
-  struct timespec did_sleep;
+  clocktime_t dec_start;
+  clocktime_t dec_end;
+  clocktime_t dec_tot;
+  clocktime_t dec_min;
+  clocktime_t disp_start;
+  clocktime_t disp_end;
+  clocktime_t disp_tot;
+  clocktime_t disp_min;
+  clocktime_t pic_tot;
+  clocktime_t pic_min;
+  clocktime_t should_sleep;
+  clocktime_t did_sleep;
   int type;
 } picture_time_t;
 
@@ -270,148 +264,6 @@ void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
-
-#ifdef HAVE_CLOCK_GETTIME
-
-
-static void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-
-}  
-
-static void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-}  
-
-static int timecompare(struct timespec *s1, struct timespec *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_nsec > s2->tv_nsec) {
-    return 1;
-  } else if(s1->tv_nsec < s2->tv_nsec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-#else
-
-
-static void timesub(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_usec = s1->tv_usec - s2->tv_usec;
-  
-  if(d->tv_usec >= 1000000) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-
-}  
-
-static void timeadd(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_usec = s1->tv_usec + s2->tv_usec;
-  if(d->tv_usec >= 1000000) {
-    d->tv_usec -=1000000;
-    d->tv_sec +=1;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_usec +=1000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-}  
-
-static int timecompare(struct timeval *s1, struct timeval *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_usec > s2->tv_usec) {
-    return 1;
-  } else if(s1->tv_usec < s2->tv_usec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-#endif
 
 
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
@@ -1236,10 +1088,8 @@ void sequence_extension(void) {
     DPRINTF(2, "\n");
   }
  
-#endif
   DPRINTFI(2, "progressive seq: %01x\n", seq.ext.progressive_sequence);
 
-#ifdef DEBUG
   DPRINTFI(2, "chroma_format:(0x%01x) ", seq.ext.chroma_format);
   switch(seq.ext.chroma_format) {
   case 0x0:
@@ -1590,26 +1440,14 @@ void picture_header(void)
     if(last_scr_nr != prev_scr_nr) {   
       fprintf(stderr, "=== last_scr_nr: %d, prev_scr_nr: %d\n",
 	      last_scr_nr, prev_scr_nr);
-#ifdef HAVE_CLOCK_GETTIME
-
+      
       fprintf(stderr, "--- last_scr: %ld.%09ld, prev_scr: %ld.%09ld\n",
-	      ctrl_time[last_scr_nr].realtime_offset.tv_sec,
-	      ctrl_time[last_scr_nr].realtime_offset.tv_nsec,
-	      ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
-	      ctrl_time[prev_scr_nr].realtime_offset.tv_nsec);
-#else
-
-      fprintf(stderr, "--- last_scr: %ld.%06ld, prev_scr: %ld.%06ld\n",
-	      ctrl_time[last_scr_nr].realtime_offset.tv_sec,
-	      ctrl_time[last_scr_nr].realtime_offset.tv_usec,
-	      ctrl_time[prev_scr_nr].realtime_offset.tv_sec,
-	      ctrl_time[prev_scr_nr].realtime_offset.tv_usec);
-
-#endif
+	      TIME_S (ctrl_time[last_scr_nr].realtime_offset),
+	      TIME_SS(ctrl_time[last_scr_nr].realtime_offset),
+	      TIME_S (ctrl_time[prev_scr_nr].realtime_offset),
+	      TIME_SS(ctrl_time[prev_scr_nr].realtime_offset));
 
       fprintf(stderr, "+++ last_pts: %lld\n", last_pts);
-
-
     }
   }
 
@@ -1712,7 +1550,7 @@ int get_picture_buf()
   if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
     perror("sem_wait get_picture_buf");
   }
-#elif USE_SYSV_SEM
+#elif defined USE_SYSV_SEM
   {
     struct sembuf sops;
     sops.sem_num = PICTURES_DISPLAYED;
@@ -1749,7 +1587,7 @@ int get_picture_buf()
   if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
     perror("sem_wait get_picture_buf");
   }
-#elif USE_SYSV_SEM
+#elif defined USE_SYSV_SEM
   {
     struct sembuf sops;
     sops.sem_num = PICTURES_DISPLAYED;
@@ -1799,11 +1637,7 @@ void dpy_q_put(int id)
     if(forced_frame_rate == 0) {
       buf_ctrl_head->frame_interval = 1;
     } else {
-#ifdef HAVE_CLOCK_GETTIME
-      buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
-#else
-      buf_ctrl_head->frame_interval = 1000000/forced_frame_rate;
-#endif
+      buf_ctrl_head->frame_interval = CT_FRACTION/forced_frame_rate; // XXX
     }
   }
 #if defined USE_POSIX_SEM
@@ -1834,7 +1668,6 @@ void picture_data(void)
   static int buf_id;
   static int fwd_ref_buf_id = -1;
   static int bwd_ref_buf_id  = -1;
-  uint64_t calc_pts;
   int err;
   picture_info_t *pinfos;
   static int bepa = FPS_FRAMES;
@@ -1848,84 +1681,23 @@ void picture_data(void)
   DPRINTFI(1, "picture_data()\n");
   DINDENT(2);
   
-#ifdef HAVE_CLOCK_GETTIME
-  
   if(bepa >= FPS_FRAMES) {
-    static struct timespec qot;
-    struct timespec qtt;
-    struct timespec qpt;
+    static clocktime_t ct_beg;
+    clocktime_t ct_end, elapsed;
+    int fps;
     
-    bepa = 0; 
+    bepa = 0;
     
-    clock_gettime(CLOCK_REALTIME, &qtt);
-    // d = s1-s2
-    qpt.tv_sec = qtt.tv_sec - qot.tv_sec;
-    qpt.tv_nsec = qtt.tv_nsec - qot.tv_nsec;
+    clocktime_get(&ct_end);
+    timesub(&elapsed, &ct_end, &ct_beg);
+    ct_beg = ct_end;
     
-    if(qpt.tv_nsec >= 1000000000) {
-      qpt.tv_sec += 1;
-      qpt.tv_nsec -= 1000000000;
-    } else if(qpt.tv_nsec <= -1000000000) {
-      qpt.tv_sec -= 1;
-      qpt.tv_nsec += 1000000000;
-    }
-    
-    if((qpt.tv_sec > 0) && (qpt.tv_nsec < 0)) {
-      qpt.tv_sec -= 1;
-      qpt.tv_nsec += 1000000000;
-    } else if((qpt.tv_sec < 0) && (qpt.tv_nsec > 0)) {
-      qpt.tv_sec += 1;
-      qpt.tv_nsec -= 1000000000;
-    }
-    //    timesub(&qpt, &qtt, &qot);
-    
-    qot = qtt;
-
-    fprintf(stderr, "decode fps: %.3f\n",
-	    FPS_FRAMES/((double)qpt.tv_sec+(double)qpt.tv_nsec/1000000000.0));
+    fps = TIME_S(elapsed)*100 + TIME_SS(elapsed)/(CT_FRACTION/100); // 100x fps
+    fprintf(stderr, "decode fps: %d.%02d\n", fps / 100, fps % 100);
   }
-
-#else
-
-  if(bepa >= FPS_FRAMES) {
-    static struct timeval qot;
-    struct timeval qtt;
-    struct timeval qpt;
-    
-    bepa = 0; 
-    
-    gettimeofday(&qtt, NULL);
-    // d = s1-s2
-    qpt.tv_sec = qtt.tv_sec - qot.tv_sec;
-    qpt.tv_usec = qtt.tv_usec - qot.tv_usec;
-    
-    if(qpt.tv_usec >= 1000000) {
-      qpt.tv_sec += 1;
-      qpt.tv_usec -= 1000000;
-    } else if(qpt.tv_usec <= -1000000) {
-      qpt.tv_sec -= 1;
-      qpt.tv_usec += 1000000;
-    }
-    
-    if((qpt.tv_sec > 0) && (qpt.tv_usec < 0)) {
-      qpt.tv_sec -= 1;
-      qpt.tv_usec += 1000000;
-    } else if((qpt.tv_sec < 0) && (qpt.tv_usec > 0)) {
-      qpt.tv_sec += 1;
-      qpt.tv_usec -= 1000000;
-    }
-    //    timesub(&qpt, &qtt, &qot);
-    
-    qot = qtt;
-
-    fprintf(stderr, "decode fps: %.3f\n",
-	    FPS_FRAMES/((double)qpt.tv_sec+(double)qpt.tv_usec/1000000.0));
-  }
-
-#endif
   
   bepa++;
-
+  
 
   
   if(msgqid != -1) {
@@ -1944,9 +1716,9 @@ void picture_data(void)
     switch(pic.header.picture_coding_type) {
     case PIC_CODING_TYPE_I:
     case PIC_CODING_TYPE_P:
-
+      
       /* check to see if a temporal reference has been skipped */
-  
+      
       if(bwd_ref_temporal_reference != -1) {
 	
 	fprintf(stderr, "** temporal reference skipped\n");
@@ -2066,7 +1838,7 @@ void picture_data(void)
     
     /* This is just a marker to later know if there is a real time 
        stamp for this picure. */
-    pinfos[buf_id].pts_time.tv_sec = -1;
+    TIME_S(pinfos[buf_id].pts_time) = -1;
     
     /* If the packet containing the picture header start code had 
        a time stamp, that time stamp used.
@@ -2079,21 +1851,13 @@ void picture_data(void)
     if(picture_has_pts) {
       last_timestamped_temp_ref = pic.header.temporal_reference;
       pinfos[buf_id].PTS = last_pts;
-      pinfos[buf_id].pts_time.tv_sec = last_pts/90000;
-#ifdef HAVE_CLOCK_GETTIME
-      pinfos[buf_id].pts_time.tv_nsec =
-	(last_pts%90000)*(1000000000/90000);
-#else
-      pinfos[buf_id].pts_time.tv_usec =
-	(last_pts%90000)*(1000000/90000);
-#endif
-      pinfos[buf_id].realtime_offset =
-	ctrl_time[last_scr_nr].realtime_offset;
+      pinfos[buf_id].realtime_offset = ctrl_time[last_scr_nr].realtime_offset;
       pinfos[buf_id].scr_nr = last_scr_nr;
+      PTS_TO_CLOCKTIME(pinfos[buf_id].pts_time, last_pts);
       /*
 	fprintf(stderr, "#%ld.%09ld\n",
-	pinfos[buf_id].pts_time.tv_sec,
-	pinfos[buf_id].pts_time.tv_nsec);
+	TIME_S (pinfos[buf_id].pts_time),
+	TIME_SS(pinfos[buf_id].pts_time));
       */
     } else {
       /* Predict if we don't already have a pts for the frame. */
@@ -2122,39 +1886,18 @@ void picture_data(void)
 	 * In this case we can look at the previous temporal ref
 	 */
 	
-#ifdef HAVE_CLOCK_GETTIME
-
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(1000000000/buf_ctrl_head->frame_interval);
+	  90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
 	/*
 	  calc_pts = last_pts_to_dpy +
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
 	*/
 	pinfos[buf_id].PTS = calc_pts;
-	pinfos[buf_id].pts_time.tv_sec = calc_pts/90000;
-	pinfos[buf_id].pts_time.tv_nsec =
-	  (calc_pts%90000)*(1000000000/90000);
-	pinfos[buf_id].realtime_offset =
+	pinfos[buf_id].realtime_offset = 
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
-#else
-
-	calc_pts = last_pts +
-	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(1000000/buf_ctrl_head->frame_interval);
-	/*
-	  calc_pts = last_pts_to_dpy +
-	  90000/(1000000/buf_ctrl_head->frame_interval);
-	*/
-	pinfos[buf_id].PTS = calc_pts;
-	pinfos[buf_id].pts_time.tv_sec = calc_pts/90000;
-	pinfos[buf_id].pts_time.tv_usec =
-	  (calc_pts%90000)*(1000000/90000);
-	pinfos[buf_id].realtime_offset =
-	  ctrl_time[last_scr_nr].realtime_offset;
-	pinfos[buf_id].scr_nr = last_scr_nr;
-#endif	
+	PTS_TO_CLOCKTIME(pinfos[buf_id].pts_time, calc_pts);
 	
 	break;
       case PIC_CODING_TYPE_B:
@@ -2178,41 +1921,19 @@ void picture_data(void)
 	 */
 	/* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from.*/
 
-#ifdef HAVE_CLOCK_GETTIME
-
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(1000000000/buf_ctrl_head->frame_interval);
+	  90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
 	/*
 	  calc_pts = last_pts_to_dpy + 
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
 	*/
-	buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
-	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
-	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
-	  (calc_pts%90000)*(1000000000/90000);
-	pinfos[buf_id].realtime_offset =
+	pinfos[buf_id].PTS = calc_pts;
+	pinfos[buf_id].realtime_offset = 
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
-
-#else
-
-	calc_pts = last_pts +
-	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(1000000/buf_ctrl_head->frame_interval);
-	/*
-	  calc_pts = last_pts_to_dpy + 
-	  90000/(1000000/buf_ctrl_head->frame_interval);
-	*/
-	buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
-	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
-	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_usec =
-	  (calc_pts%90000)*(1000000/90000);
-	pinfos[buf_id].realtime_offset =
-	  ctrl_time[last_scr_nr].realtime_offset;
-	pinfos[buf_id].scr_nr = last_scr_nr;
-
-#endif	
+	PTS_TO_CLOCKTIME(pinfos[buf_id].pts_time, calc_pts);
+	
 	break;
       }
     }
@@ -2225,108 +1946,77 @@ void picture_data(void)
     
     /* Calculate the time remaining until this picture shall be viewed. */
     if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
-
-#ifdef HAVE_CLOCK_GETTIME
+      clocktime_t realtime, calc_rt, err_time;
       
-      struct timespec realtime, calc_rt, err_time;
-      
-      clock_gettime(CLOCK_REALTIME, &realtime);
-      
+      clocktime_get(&realtime);
       timeadd(&calc_rt,
 	      &(pinfos[buf_id].pts_time),
 	      &(pinfos[buf_id].realtime_offset));
       timesub(&err_time, &calc_rt, &realtime);
-	
+      
       /* If the picture should already have been displayed then drop it. */
       /* TODO: More investigation needed. */
-      if(((err_time.tv_nsec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
+      if((TIME_SS(err_time) < 0 || TIME_S(err_time) < 0) && forced_frame_rate) {
 	fprintf(stderr, "!");
-	  
+	
 	/*
 	  fprintf(stderr, "errpts %ld.%+010ld\n\n",
-	  err_time.tv_sec,
-	  err_time.tv_nsec);
+	  TIME_S(err_time), TIME_SSerr_time));
 	*/
-
-#else
 	
-	struct timeval realtime, calc_rt, err_time;
+	/* mark the frame to be dropped */
+	drop_frame = 1;
 	
-	gettimeofday(&realtime, NULL);
-      
-	timeadd(&calc_rt,
-		&(pinfos[buf_id].pts_time),
-		&(pinfos[buf_id].realtime_offset));
-	timesub(&err_time, &calc_rt, &realtime);
-	
-	/* If the picture should already have been displayed then drop it. */
-	/* TODO: More investigation needed. */
-	if(((err_time.tv_usec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
-	  fprintf(stderr, "!");
-	  
-	  /*
-	    fprintf(stderr, "errpts %ld.%+06ld\n\n",
-	    err_time.tv_sec,
-	    err_time.tv_usec);
-	  */
-
-#endif	  
-	  /* mark the frame to be dropped */
-	  drop_frame = 1;
-	
-	}
       }
     }
-    
-    /*
-      else {
+  }/* else {
       // either this is the second field of the frame or it is an error
       fprintf(stderr, "*** error prev_temp_ref == cur_temp_ref\n");
+      
+      }
+   */
+  
+  {
+    double sar = 1.0;
+    uint16_t hsize,vsize;
     
-      }
-    */
-    {
-      double sar = 1.0;
-      uint16_t hsize,vsize;
-      
-      if(seq.dpy_ext.display_horizontal_size) {      
-	hsize = seq.dpy_ext.display_horizontal_size;
-	vsize = seq.dpy_ext.display_vertical_size;
-      } else {
-	hsize = seq.horizontal_size;
-	vsize = seq.vertical_size;	
-      }
-      switch(seq.header.aspect_ratio_information) {
-      case 0x0:
-	DPRINTF(2, "forbidden\n");
-	break;
-      case 0x1:
-	DPRINTF(2, "SAR = 1.0\n");
-	sar = 1.0;
-	break;
-      case 0x2:
-	DPRINTF(2, "DAR = 3/4\n");
-	sar = 3.0/4.0*(double)hsize/(double)vsize;
-	break;
-      case 0x3:
-	DPRINTF(2, "DAR = 9/16\n");
-	sar = 9.0/16.0*(double)hsize/(double)vsize;
-	break;
-      case 0x4:
-	DPRINTF(2, "DAR = 1/2.21\n");
-	sar = 1.0/2.21*(double)hsize/(double)vsize;
-	break;
-      default:
-	DPRINTF(2, "reserved\n");
-	break;
-      }
-      pinfos[buf_id].picture.sar = sar;
-      
+    if(seq.dpy_ext.display_horizontal_size) {      
+      hsize = seq.dpy_ext.display_horizontal_size;
+      vsize = seq.dpy_ext.display_vertical_size;
+    } else {
+      hsize = seq.horizontal_size;
+      vsize = seq.vertical_size;	
     }
+    switch(seq.header.aspect_ratio_information) {
+    case 0x0:
+      DPRINTF(2, "forbidden\n");
+      break;
+    case 0x1:
+      DPRINTF(2, "SAR = 1.0\n");
+      sar = 1.0;
+      break;
+    case 0x2:
+      DPRINTF(2, "DAR = 3/4\n");
+      sar = 3.0/4.0*(double)hsize/(double)vsize;
+      break;
+    case 0x3:
+      DPRINTF(2, "DAR = 9/16\n");
+      sar = 9.0/16.0*(double)hsize/(double)vsize;
+      break;
+    case 0x4:
+      DPRINTF(2, "DAR = 1/2.21\n");
+      sar = 1.0/2.21*(double)hsize/(double)vsize;
+      break;
+    default:
+      DPRINTF(2, "reserved\n");
+      break;
+    }
+    pinfos[buf_id].picture.sar = sar;
+    
+  }
+  
 
-
-
-    /* now we can decode the picture if it shouldn't be dropped */
+  /* now we can decode the picture if it shouldn't be dropped */
   if(!drop_frame) {
     /* Decode the slices. */
     if( MPEG2 )
@@ -2381,11 +2071,11 @@ void picture_data(void)
 	  drop_frame = 0;
 	  pinfos[buf_id].is_ref = 0; // this is never set in a B picture ?
 	  pinfos[buf_id].displayed = 1;
-
+	  
 	} else {
 	  
 	  dpy_q_put(buf_id);
-	
+	  
 	}
 	
 	if(bwd_ref_buf_id == -1) {
@@ -2410,22 +2100,20 @@ void picture_data(void)
 	
 	dpy_q_put(buf_id);
 	
-	
-      	
       }
     }
     /*
-    if(temporal_reference_error) {
-      if((bwd_ref_temporal_reference != -1)) {
-	dpy_q_put(bwd_ref_buf_id);
+      if(temporal_reference_error) {
+        if((bwd_ref_temporal_reference != -1)) {
+          dpy_q_put(bwd_ref_buf_id);
+        }
       }
-    }
     */
     
     if((bwd_ref_temporal_reference != -1) && 
        (bwd_ref_temporal_reference == (last_temporal_ref_to_dpy+1)%1024)) {
       
-      if((pinfos[bwd_ref_buf_id].pts_time.tv_sec == -1)) {
+      if(TIME_S(pinfos[bwd_ref_buf_id].pts_time) == -1) {
 	fprintf(stderr, "***** NO pts set\n");
       }
       last_temporal_ref_to_dpy = bwd_ref_temporal_reference;
@@ -2434,7 +2122,6 @@ void picture_data(void)
       bwd_ref_temporal_reference = -1;
       
       /* put bwd_ref in dpy_q */
-      
       last_pts_to_dpy = pinfos[bwd_ref_buf_id].PTS;
       last_scr_nr_to_dpy = pinfos[bwd_ref_buf_id].scr_nr;
       
@@ -2460,16 +2147,14 @@ void picture_data(void)
     
     double diff;
     static double old_time = 0.0;
-
+    
 #ifdef HAVE_MMX
     emms();
 #endif
-
-
+    
     // The time for the lastframe 
     diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
 	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
-    
     
     if(first) {
       first = 0;
@@ -2939,19 +2624,8 @@ void exit_program(int exitcode)
 
 
 
-
-
-
-
-
-
-
-
-
 #ifdef TIMESTAT
 
-
-#define TIMESTAT_NOF 24*60
 void timestat_init()
 {
   int n;
@@ -2995,10 +2669,10 @@ void timestat_init()
     picture_timestat[n].type = 0xff;
   }
 
-  picture_decode_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_decode_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_display_start_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
-  picture_display_end_times = calloc(TIMESTAT_NOF, sizeof(struct timespec));
+  picture_decode_start_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
+  picture_decode_end_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
+  picture_display_start_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
+  picture_display_end_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
   picture_type = calloc(TIMESTAT_NOF, sizeof(uint8_t));
 
   picture_decode_num = 0;
@@ -3357,43 +3031,3 @@ void timestat_print()
 
 #endif
 
-#ifdef HAVE_CLOCK_GETTIME
-
-void print_time_offset(uint64_t PTS)
-{
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec predtime;
-  struct timespec offset;
-
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
-
-  clock_gettime(CLOCK_REALTIME, &curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-
-  fprintf(stderr, "video: offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
-}
-
-#else
-
-void print_time_offset(uint64_t PTS)
-{
-  struct timeval curtime;
-  struct timeval ptstime;
-  struct timeval predtime;
-  struct timeval offset;
-
-
-
-  gettimeofday(&curtime, NULL);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-
-  fprintf(stderr, "video: offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
-}
-
-#endif

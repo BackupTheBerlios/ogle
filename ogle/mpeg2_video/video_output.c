@@ -23,6 +23,7 @@
 #include <signal.h>
 
 #include "../include/common.h"
+#include "../include/timemath.h"
 #include "video_types.h"
 
 #include <time.h>
@@ -96,155 +97,8 @@ void release_picture_buf(int id)
 }
 
 
-
-#ifdef HAVE_CLOCK_GETTIME
-
-static int timecompare(struct timespec *s1, struct timespec *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_nsec > s2->tv_nsec) {
-    return 1;
-  } else if(s1->tv_nsec < s2->tv_nsec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-static void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-
-}  
-
-
-static void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-}  
-
-#else
-
-static int timecompare(struct timeval *s1, struct timeval *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_usec > s2->tv_usec) {
-    return 1;
-  } else if(s1->tv_usec < s2->tv_usec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-static void timesub(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_usec = s1->tv_usec - s2->tv_usec;
-  
-  if(d->tv_usec >= 1000000) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-
-}  
-
-
-static void timeadd(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_usec = s1->tv_usec + s2->tv_usec;
-  if(d->tv_usec >= 1000000) {
-    d->tv_usec -=1000000;
-    d->tv_sec +=1;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_usec +=1000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-}  
-
-#endif
-
 /* Erhum test... */
-#ifdef HAVE_CLOCK_GETTIME
-struct timespec first_time;
-#else
-struct timeval first_time;
-#endif
+clocktime_t first_time;
 int frame_nr = 0;
 
 void int_handler()
@@ -253,23 +107,23 @@ void int_handler()
   exit(0);
 }
 
-#ifdef HAVE_CLOCK_GETTIME
 
 void display_process()
 {
-  struct timespec real_time, prefered_time, wait_time, frame_interval;
-  struct timespec real_time2, diff, avg_time, oavg_time;
-  struct timespec calc_rt, err_time;
+  clocktime_t real_time, prefered_time, frame_interval;
+  clocktime_t real_time2, diff, avg_time, oavg_time;
+  clocktime_t calc_rt;
+  struct timespec wait_time;
   struct sigaction sig;
   int buf_id;
   int drop = 0;
   int avg_nr = 23;
   int first = 1;
-  frame_interval.tv_sec = 0;
-  //frame_interval.tv_nsec = 28571428; //35 fps
-  //frame_interval.tv_nsec = 33366700; // 29.97 fps
-  frame_interval.tv_nsec = 41666666; //24 fps
-  prefered_time.tv_sec = 0;
+  TIME_S(frame_interval) = 0;
+  //TIME_(frame_interval) = 28571428; //35 fps
+  //TIME_(frame_interval) = 33366700; // 29.97 fps
+  TIME_SS(frame_interval) = 41666666; //24 fps
+  TIME_S(prefered_time) = 0;
 
   sig.sa_handler = int_handler;
   sigaction(SIGINT, &sig, NULL);
@@ -277,7 +131,7 @@ void display_process()
   while(1) {
     buf_id = get_next_picture_buf_id();
     //fprintf(stderr, "display: start displaying buf: %d\n", buf_id);
-    frame_interval.tv_nsec = buf_ctrl_head->frame_interval;
+    TIME_SS(frame_interval) = buf_ctrl_head->frame_interval;
     if(first) {
       first = 0;
       display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
@@ -287,19 +141,19 @@ void display_process()
 		   buf_ctrl_head);
       //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
-      clock_gettime(CLOCK_REALTIME, &first_time);      
+      clocktime_get(&first_time);      
     }
-    clock_gettime(CLOCK_REALTIME, &real_time);
-    if((prefered_time.tv_sec == 0) || (frame_interval.tv_nsec == 1)) {
+    clocktime_get(&real_time);
+    if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
       prefered_time = real_time;
-    } else if(buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec != -1) {
-      struct timespec buftime;
-      buftime.tv_sec = 0;
-      buftime.tv_nsec = 00000000;
+    } else if(TIME_S(buf_ctrl_head->picture_infos[buf_id].pts_time) != -1) {
+      clocktime_t buftime;
+      TIME_S(buftime) = 0;
+      TIME_SS(buftime) = 00000000;
       /*
       fprintf(stderr, "realtime_offset: %ld.%09ld\n",
-	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_sec,
-	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_nsec);
+	      TIME_S(buf_ctrl_head->picture_infos[buf_id].realtime_offset),
+	      TIME_SS(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
       fprintf(stderr, "pts: %lld\n",
 	      buf_ctrl_head->picture_infos[buf_id].PTS);
       */
@@ -308,23 +162,22 @@ void display_process()
 	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
 	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
       timeadd(&calc_rt, &calc_rt, &buftime);
-      timesub(&err_time, &calc_rt, &real_time);
       prefered_time = calc_rt;
-      //      fprintf(stderr, "%ld.%+010ld\n", err_time.tv_sec, err_time.tv_nsec);
     }
+    // Fixme!!! wait_time can't be used here..
     timesub(&wait_time, &prefered_time, &real_time);
     /*
     fprintf(stderr, "pref: %d.%09ld\n",
-	    prefered_time.tv_sec, prefered_time.tv_nsec);
+	    TIME_S(prefered_time), TIME_SS(prefered_time));
 
     fprintf(stderr, "real: %d.%09ld\n",
-	    real_time.tv_sec, real_time.tv_nsec);
+	    TIME_S(real_time), TIME_SS(real_time));
 
     fprintf(stderr, "wait: %d.%09ld, ",
-	    wait_time.tv_sec, wait_time.tv_nsec);
+	    TIME_S(wait_time), TIME_SS(wait_time));
     */     
 
-    if((wait_time.tv_nsec > 5000000) && (wait_time.tv_sec >= 0)) {
+    if(wait_time.tv_nsec > 5000000 && wait_time.tv_sec >= 0) {
       nanosleep(&wait_time, NULL);
     } else {
       //fprintf(stderr, "---less than 0.005 s\n");
@@ -335,31 +188,31 @@ void display_process()
     if(avg_nr == 24) {
       avg_nr = 0;
       oavg_time = avg_time;
-      clock_gettime(CLOCK_REALTIME, &avg_time);
+      clocktime_get(&avg_time);
       
       fprintf(stderr, "display: frame rate: %.3f fps\n",
-	      24.0/(((double)avg_time.tv_sec+
-		     (double)(avg_time.tv_nsec)/1000000000.0)-
-		    ((double)oavg_time.tv_sec+
-		     (double)(oavg_time.tv_nsec)/1000000000.0))
+	      24.0/(((double)TIME_S(avg_time)+
+		     (double)TIME_SS(avg_time)/1000000000.0)-
+		    ((double)TIME_S(oavg_time)+
+		     (double)TIME_SS(oavg_time)/1000000000.0))
 	      );
     }
 
-    clock_gettime(CLOCK_REALTIME, &real_time2);
+    clocktime_get(&real_time2);
     timesub(&diff, &prefered_time, &real_time2);
     /*
     fprintf(stderr, "diff: %d.%09ld\n",
-	    diff.tv_sec, diff.tv_nsec);
+	    TIME_S(diff), TIME_SS(diff));
     */
     /*
     fprintf(stderr, "rt: %d.%09ld, pt: %d.%09ld, diff: %d.%+09ld\n",
-	    real_time2.tv_sec, real_time2.tv_nsec,
-	    prefered_time.tv_sec, prefered_time.tv_nsec,
-	    diff.tv_sec, diff.tv_nsec);
+	    TIME_S(real_time2), TIME_SS(real_time2),
+	    TIME_S(prefered_time), TIME_SS(prefered_time),
+	    TIME_S(diff), TIME_SS(diff));
     */
     /*
     if(drop) {
-      if((wait_time.tv_nsec > -10000000) && (wait_time.tv_sec > -1)) {
+      if(wait_time.tv_nsec > -10000000 && wait_time.tv_sec > -1) {
 
 	//	fprintf(stderr, "$ %ld.%+09ld \n",
 	//	wait_time.tv_sec,
@@ -367,7 +220,7 @@ void display_process()
 	drop = 0;
       } else {
 	//fprintf(stderr, "# %ld.%+09ld \n",
-	//	wait_time.tv_sec,
+	//	wait_timetv_sec,
 	//	wait_time.tv_nsec);
       }
     }
@@ -385,7 +238,7 @@ void display_process()
 
     timeadd(&prefered_time, &prefered_time, &frame_interval);
     /*
-    if((wait_time.tv_nsec < 0) || (wait_time.tv_sec < 0)) {
+    if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
       drop = 1;
     }
     */
@@ -395,185 +248,20 @@ void display_process()
 }
 
 void display_process_exit(void) {
-  struct timespec now_time;
+  clocktime_t now_time;
   
   clock_gettime(CLOCK_REALTIME, &now_time);
       
   fprintf(stderr, "display: Total frame rate: %.3f fps "
 	          "(%i frames in %.3f seconds)\n ",
-	  (double)frame_nr/(((double)now_time.tv_sec+
-			     (double)(now_time.tv_nsec)/1000000000.0)-
-			    ((double)first_time.tv_sec+
-			     (double)(first_time.tv_nsec)/1000000000.0)),
-	  frame_nr, (((double)now_time.tv_sec+
-			     (double)(now_time.tv_nsec)/1000000000.0)-
-			    ((double)first_time.tv_sec+
-			     (double)(first_time.tv_nsec)/1000000000.0))
+	  (double)frame_nr/(((double)TIME_S(now_time)+
+			     (double)TIME_SS(now_time)/1000000000.0)-
+			    ((double)TIME_S(first_time)+
+			     (double)TIME_SS(first_time)/1000000000.0)),
+	  frame_nr, (((double)TIME_S(now_time)+
+			     (double)TIME_SS(now_time)/1000000000.0)-
+			    ((double)TIME_S(first_time)+
+			     (double)TIME_SS(first_time)/1000000000.0))
 	  );
   exit(0);
 }
-
-#else
-
-void display_process()
-{
-  struct timeval real_time, prefered_time, wait_time, frame_interval;
-  struct timeval real_time2, diff, avg_time, oavg_time;
-  struct timeval calc_rt, err_time;
-  struct sigaction sig;
-  int buf_id;
-  int drop = 0;
-  int avg_nr = 23;
-  int first = 1;
-  frame_interval.tv_sec = 0;
-  //frame_interval.tv_usec = 28571; //35 fps
-  //frame_interval.tv_usec = 33366; // 29.97 fps
-  frame_interval.tv_usec = 41666; //24 fps
-  prefered_time.tv_sec = 0;
-
-  sig.sa_handler = int_handler;
-  sigaction(SIGINT, &sig, NULL);
-
-  while(1) {
-    buf_id = get_next_picture_buf_id();
-    //fprintf(stderr, "display: start displaying buf: %d\n", buf_id);
-    frame_interval.tv_usec = buf_ctrl_head->frame_interval;
-    if(first) {
-      first = 0;
-      display_init(buf_ctrl_head->picture_infos[buf_id].picture.padded_width,
-		   buf_ctrl_head->picture_infos[buf_id].picture.padded_height,
-		   buf_ctrl_head->picture_infos[buf_id].picture.horizontal_size,
-		   buf_ctrl_head->picture_infos[buf_id].picture.vertical_size,
-		   buf_ctrl_head);
-      //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
-      /* Erhum test... */
-      gettimeofday(&first_time, NULL);      
-    }
-    gettimeofday(&real_time, NULL);
-    if((prefered_time.tv_sec == 0) || (frame_interval.tv_usec == 1)) {
-      prefered_time = real_time;
-    } else if(buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec != -1) {
-      struct timeval buftime;
-      buftime.tv_sec = 0;
-      buftime.tv_usec = 00000;
-      /*
-      fprintf(stderr, "realtime_offset: %ld.%06ld\n",
-	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_sec,
-	      buf_ctrl_head->picture_infos[buf_id].realtime_offset.tv_usec);
-      fprintf(stderr, "pts: %lld\n",
-	      buf_ctrl_head->picture_infos[buf_id].PTS);
-      */
-      
-      timeadd(&calc_rt,
-	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
-	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
-      timeadd(&calc_rt, &calc_rt, &buftime);
-      timesub(&err_time, &calc_rt, &real_time);
-      prefered_time = calc_rt;
-      //      fprintf(stderr, "%ld.%+010ld\n", err_time.tv_sec, err_time.tv_usec);
-    }
-    timesub(&wait_time, &prefered_time, &real_time);
-    /*
-    fprintf(stderr, "pref: %d.%06ld\n",
-	    prefered_time.tv_sec, prefered_time.tv_usec);
-
-    fprintf(stderr, "real: %d.%06ld\n",
-	    real_time.tv_sec, real_time.tv_usec);
-
-    fprintf(stderr, "wait: %d.%06ld, ",
-	    wait_time.tv_sec, wait_time.tv_usec);
-    */     
-
-    if((wait_time.tv_usec > 5000) && (wait_time.tv_sec >= 0)) {
-      struct timespec tmp_time;
-      tmp_time.tv_sec = wait_time.tv_sec;
-      tmp_time.tv_nsec = wait_time.tv_usec * 1000;
-      nanosleep(&tmp_time, NULL);
-    } else {
-      //fprintf(stderr, "---less than 0.005 s\n");
-    }
-
-    frame_nr++;
-    avg_nr++;
-    if(avg_nr == 24) {
-      avg_nr = 0;
-      oavg_time = avg_time;
-      gettimeofday(&avg_time, NULL);
-      
-      fprintf(stderr, "display: frame rate: %.3f fps\n",
-	      24.0/(((double)avg_time.tv_sec+
-		     (double)(avg_time.tv_usec)/1000000.0)-
-		    ((double)oavg_time.tv_sec+
-		     (double)(oavg_time.tv_usec)/1000000.0))
-	      );
-    }
-
-    gettimeofday(&real_time2, NULL);
-    timesub(&diff, &prefered_time, &real_time2);
-    /*
-    fprintf(stderr, "diff: %d.%06ld\n",
-	    diff.tv_sec, diff.tv_usec);
-    */
-    /*
-    fprintf(stderr, "rt: %d.%06ld, pt: %d.%06ld, diff: %d.%+06ld\n",
-	    real_time2.tv_sec, real_time2.tv_usec,
-	    prefered_time.tv_sec, prefered_time.tv_usec,
-	    diff.tv_sec, diff.tv_usec);
-    */
-    /*
-    if(drop) {
-      if((wait_time.tv_usec > -10000) && (wait_time.tv_sec > -1)) {
-
-	//	fprintf(stderr, "$ %ld.%+06ld \n",
-	//	wait_time.tv_sec,
-	//	wait_time.tv_usec);
-	drop = 0;
-      } else {
-	//fprintf(stderr, "# %ld.%+06ld \n",
-	//	wait_time.tv_sec,
-	//	wait_time.tv_usec);
-      }
-    }
-    */
-#if 0
-    if(!drop) {
-      display(&(buf_ctrl_head->picture_infos[buf_id].picture));
-    } else {
-      fprintf(stderr, "*");
-      drop = 0;
-    }
-#else
-      display(&(buf_ctrl_head->picture_infos[buf_id].picture));
-#endif
-
-    timeadd(&prefered_time, &prefered_time, &frame_interval);
-    /*
-    if((wait_time.tv_usec < 0) || (wait_time.tv_sec < 0)) {
-      drop = 1;
-    }
-    */
-    //    fprintf(stderr, "display: done with buf %d\n", buf_id);
-    release_picture_buf(buf_id);
-  }
-}
-
-void display_process_exit(void) {
-  struct timeval now_time;
-  
-  gettimeofday(&now_time, NULL);
-      
-  fprintf(stderr, "display: Total frame rate: %.3f fps "
-	          "(%i frames in %.3f seconds)\n ",
-	  (double)frame_nr/(((double)now_time.tv_sec+
-			     (double)(now_time.tv_usec)/1000000.0)-
-			    ((double)first_time.tv_sec+
-			     (double)(first_time.tv_usec)/1000000.0)),
-	  frame_nr, (((double)now_time.tv_sec+
-			     (double)(now_time.tv_usec)/1000000.0)-
-			    ((double)first_time.tv_sec+
-			     (double)(first_time.tv_usec)/1000000.0))
-	  );
-  exit(0);
-}
-
-#endif

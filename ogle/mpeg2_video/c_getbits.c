@@ -22,7 +22,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 #if defined USE_SYSV_SEM
@@ -41,6 +40,7 @@
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
+#include "../include/timemath.h"
 
 
 #ifndef SHM_SHARE_MMU
@@ -69,14 +69,11 @@ int chk_for_msg();
 int get_q();
 int eval_msg(cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
-#ifdef HAVE_CLOCK_GETTIME
-int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset);
-struct timespec get_time_base_offset(uint64_t PTS, int scr_nr);
-#else
-int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset);
-struct timeval get_time_base_offset(uint64_t PTS, int scr_nr);
-#endif
+
 int attach_ctrl_shm(int shmid);
+
+int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
+clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr);
 
 
 
@@ -141,111 +138,6 @@ void setup_mmap(char *filename) {
   DPRINTF(1, "All mmap systems ok!\n");
 }
 
-#ifdef HAVE_CLOCK_GETTIME
-
-static void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-
-}  
-
-static void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-}  
-
-#else
-
-static void timesub(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_usec = s1->tv_usec - s2->tv_usec;
-  
-  if(d->tv_usec >= 1000000) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-
-}  
-
-static void timeadd(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_usec = s1->tv_usec + s2->tv_usec;
-  if(d->tv_usec >= 1000000) {
-    d->tv_usec -=1000000;
-    d->tv_sec +=1;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_usec +=1000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-}  
-
-#endif
 
 
 void get_next_packet()
@@ -253,11 +145,8 @@ void get_next_packet()
 
   if(msgqid == -1) {
     if(mmap_base == NULL) {
-#ifdef HAVE_CLOCK_GETTIME
-      static struct timespec time_offset = { 0, 0 };
-#else
-      static struct timeval time_offset = { 0, 0 };
-#endif
+      static clocktime_t time_offset = { 0, 0 };
+
       setup_mmap(infilename);
       packet.offset = 0;
       packet.length = 1000000000;
@@ -605,11 +494,7 @@ int get_q()
 
 #ifdef SYNCMASTER
   static int prev_scr_nr = 0;
-#ifdef HAVE_CLOCK_GETTIME
-  static struct timespec time_offset = { 0, 0 };
-#else
-  static struct timeval time_offset = { 0, 0 };
-#endif  
+  static clocktime_t time_offset = { 0, 0 };
 #endif
 
   //fprintf(stderr, "video_dec: get_q()\n");
@@ -718,7 +603,6 @@ int get_q()
   
 #ifdef SYNCMASTER
 
-    
   //TODO release scr_nr when done
   if(prev_scr_nr != scr_nr) {
     ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
@@ -749,8 +633,6 @@ int get_q()
   */
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
-
-
   return 0;
 }
 
@@ -768,106 +650,64 @@ int attach_ctrl_shm(int shmid)
     ctrl_data_shmid = shmid;
     ctrl_data = (ctrl_data_t*)shmaddr;
     ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
-  }    
-  return 0;
+  }
   
+  return 0;  
 }
 
-#ifdef HAVE_CLOCK_GETTIME
 
-int set_time_base(uint64_t PTS, int scr_nr, struct timespec offset)
+
+
+int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
 {
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec modtime;
+  clocktime_t curtime, ptstime, modtime;
   
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+  PTS_TO_CLOCKTIME(ptstime, PTS)
 
-  clock_gettime(CLOCK_REALTIME, &curtime);
+  clocktime_get(&curtime);
   timeadd(&modtime, &curtime, &offset);
   timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
   ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
   
   fprintf(stderr, "video_stream: setting offset[%d]: %ld.%09ld\n",
 	  scr_nr,
-	  ctrl_time[scr_nr].realtime_offset.tv_sec,
-	  ctrl_time[scr_nr].realtime_offset.tv_nsec);
+	  TIME_S(ctrl_time[scr_nr].realtime_offset),
+	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
   
   return 0;
 }
 
-struct timespec get_time_base_offset(uint64_t PTS, int scr_nr)
+clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr)
 {
-  struct timespec curtime;
-  struct timespec ptstime;
-  struct timespec predtime;
-  struct timespec offset;
+  clocktime_t curtime, ptstime, predtime, offset;
 
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_nsec = (PTS%90000)*(1000000000/90000);
+  PTS_TO_CLOCKTIME(ptstime, PTS);
 
-  clock_gettime(CLOCK_REALTIME, &curtime);
+  clocktime_get(&curtime);
   timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
 
   timesub(&offset, &predtime, &curtime);
-
-  //fprintf(stderr, "\nac3: get offset: %ld.%09ld\n", offset.tv_sec, offset.tv_nsec);
-
+  
+  /*
+  fprintf(stderr, "\nvideo_stream: get offset: %ld.%09ld\n", 
+	  TIME_S(offset), 
+	  TIME_SS(offset));
+  */
   return offset;
 }
-  
-#else
 
-int set_time_base(uint64_t PTS, int scr_nr, struct timeval offset)
+void print_time_offset(uint64_t PTS)
 {
-  struct timeval curtime;
-  struct timeval ptstime;
-  struct timeval modtime;
-  
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+  clocktime_t ptstime, curtime, offset;
 
-  gettimeofday(&curtime, NULL);
-  timeadd(&modtime, &curtime, &offset);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
-  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-  
-  fprintf(stderr, "video_stream: setting offset[%d]: %ld.%09ld\n",
-	  scr_nr,
-	  ctrl_time[scr_nr].realtime_offset.tv_sec,
-	  ctrl_time[scr_nr].realtime_offset.tv_usec);
-  
-  return 0;
+  PTS_TO_CLOCKTIME(ptstime, PTS);
+  timeadd(&ptstime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
+
+  clocktime_get(&curtime);
+  timesub(&offset, &ptstime, &curtime);
+
+  fprintf(stderr, "video: offset: %ld.%09ld\n",TIME_S(offset),TIME_SS(offset));
 }
-
-struct timeval get_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  struct timeval curtime;
-  struct timeval ptstime;
-  struct timeval predtime;
-  struct timeval offset;
-
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
-
-  gettimeofday(&curtime, NULL);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-
-  //fprintf(stderr, "\nac3: get offset: %ld.%06ld\n", offset.tv_sec, offset.tv_usec);
-
-  return offset;
-}
-  
-#endif
-
-
-
-
-
-
 
 
 

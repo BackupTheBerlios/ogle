@@ -232,10 +232,9 @@ int block_intra(unsigned int i)
       return -1;
     }
 
-#if 0    //#ifdef DEBUG
-    if(tab->run != 64 /*VLC_END_OF_BLOCK*/) {
-      DPRINTF(4, "coeff run: %d, level: %d\n",
-	      tab->run, tab->level);
+#if DEBUG
+    if(tab->run < 64 /*VLC_END_OF_BLOCK*/) {
+      DPRINTF(4, "coeff run: %d, level: %d\n", tab->run, tab->level);
     }
 #endif
 
@@ -361,9 +360,8 @@ int block_non_intra(unsigned int b)
     }
     
 #ifdef DEBUG
-    if(tab->run != 64 /*VLC_END_OF_BLOCK*/) {
-      DPRINTF(4, "coeff run: %d, level: %d\n",
-	      tab->run, tab->level);
+    if(tab->run < 64 /*VLC_END_OF_BLOCK*/) {
+      DPRINTF(4, "coeff run: %d, level: %d\n", tab->run, tab->level);
     }
 #endif
    
@@ -576,7 +574,7 @@ int macroblock_modes(void)
   mb.modes.macroblock_pattern = mb.modes.macroblock_type & MACROBLOCK_PATTERN;
   mb.modes.macroblock_intra = mb.modes.macroblock_type & MACROBLOCK_INTRA;
 
-#if 0
+#if 0 // MPEG2
   mb.modes.spatial_temporal_weight_code_flag =
     mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG;
   

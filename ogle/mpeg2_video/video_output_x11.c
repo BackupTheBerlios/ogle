@@ -163,9 +163,18 @@ void display_init(int padded_width, int padded_height,
 
 
   /* Scale init. */
-  scaled_image_width = (int)(((double)horizontal_size)*xscale_factor);
-  scaled_image_height = vertical_size;
-
+  if(xscale_factor > 1) {
+    scaled_image_width = (int)(((double)horizontal_size)*xscale_factor);
+    scaled_image_height = vertical_size;
+    if(scaled_image_width != horizontal_size)
+       scaled_image_width &= ~1;
+  } else {
+    scaled_image_width = horizontal_size;
+    scaled_image_height = (int)(((double)vertical_size)/xscale_factor);
+    if(scaled_image_height != vertical_size)
+      scaled_image_height &= ~1;
+  }
+  
   hint.x = 0;
   hint.y = 0;
   hint.width = scaled_image_width;
@@ -318,12 +327,19 @@ void display_init(int padded_width, int padded_height,
     }
   }
 #endif /* HAVE_XV */
-
+  
   /* Create shared memory image */
-  windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
-				      ZPixmap, NULL, &shm_info,
-				      scaled_image_width,
-				      scaled_image_height);
+  if(scaled_image_width * scaled_image_height < padded_width * padded_height) {
+    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
+					ZPixmap, NULL, &shm_info,
+					padded_width,
+					padded_height);
+  } else {
+    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
+					ZPixmap, NULL, &shm_info,
+					scaled_image_width,
+					scaled_image_height);
+  }
   
   if (windows[0].ximage == NULL) {
     fprintf(stderr, "Shared memory: couldn't create Shm image\n");

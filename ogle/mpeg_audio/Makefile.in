@@ -22,5 +22,7 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 all: mpg123_wrap
 
+mpg123_wrap: ../common/timemath.o
+
 clean:
 	rm -f mpg123_wrap *.o

@@ -33,8 +33,9 @@ typedef mlib_status (*mc_function_t)(mlib_u8 *curr_block, mlib_u8 *ref_block,
 				     mlib_s32 frm_stride, mlib_s32 fld_stride);
 #else
 typedef void (*mc_function_t)(uint8_t *curr_block, uint8_t *ref_block, 
-				     int32_t frm_stride, int32_t fld_stride);
+			      int32_t frm_stride, int32_t fld_stride);
 #endif
+
 /* [normal/Ave] [size] [half-pell-modes] */
 static const mc_function_t motion[2][4][4] = {
   { 
@@ -100,8 +101,8 @@ void motion_comp()
   DPRINTF(5, "dct_type: %d\n", mb.modes.dct_type);
   
   if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
-    fprintf(stderr, "**** DP remove this and check if working\n");
-    exit(-1);
+    fprintf(stderr, "**** DP remove this when implemented\n");
+    //exit(-1);
   }
   if(mb.prediction_type == PRED_TYPE_16x8_MC) {
     fprintf(stderr, "**** 16x8 MC remove this and check if working\n");

@@ -304,12 +304,6 @@ void block_intra(unsigned int i)
       exit_program(1);
     }
     
-#ifdef DEBUG
-    if(tab->run != 64 /*VLC_END_OF_BLOCK*/ ) {
-      DPRINTF(4, "coeff run: %d, level: %d\n",
-	      tab->run, tab->level);
-    }
-#endif
     
     if(tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
       /*dropbits(tab->len); // pic.coding_ext.intra_vlc_format ? 4 : 2 bits */
@@ -327,7 +321,7 @@ void block_intra(unsigned int i)
 	val = (word >> (24-(6+12+6))); left -= (6+12+6);
 	run = (val >> 12) & 0x3f;
 	val = val & 0xfff;
-	
+
 	if ((val & 2047) == 0) {
 	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
@@ -336,12 +330,18 @@ void block_intra(unsigned int i)
 	sgn = (val >= 2048);
 	if(val >= 2048)                // !!!! ?sgn? 
 	  val = 4096 - val;
+#ifdef DEBUG
+	DPRINTF(4, "coeff run: %d, level: %d (esc)\n", run, sgn?-val:val);
+#endif      
       } else {
 	//    dropbits(tab->len);
 	run = tab->run;
 	val = tab->level; 
 	/* sgn = 0x1 & GETBITS(tab->len + 1, "(get_dct sign )"); //sign bit */
 	sgn = 0x1 & (word >> (24-(tab->len + 1))); left -= (tab->len + 1);
+#ifdef DEBUG
+	DPRINTF(4,"coeff run: %d, level: %d\n",tab->run,(sgn?-1:1)*tab->level);
+#endif
       }
       
       n += run;
@@ -457,12 +457,6 @@ void block_non_intra(unsigned int b)
       exit_program(1);
     }
     
-#ifdef DEBUG
-    if(tab->run != 64 /*VLC_END_OF_BLOCK*/) {
-      DPRINTF(4, "coeff run: %d, level: %d\n",
-	      tab->run, tab->level);
-    }
-#endif
    
     if(tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
       //      dropbits( 2 ); // tab->len, end of block always = 2bits
@@ -489,6 +483,9 @@ void block_non_intra(unsigned int b)
 	sgn = (val >= 2048);
 	if(val >= 2048)                // !!!! ?sgn? 
 	  val =  4096 - val;// - 4096;
+#ifdef DEBUG
+	DPRINTF(4, "coeff run: %d, level: %d (esc)\n", run, sgn?-val:val);
+#endif
       }
       else {
 	//	  dropbits(tab->len);
@@ -496,6 +493,9 @@ void block_non_intra(unsigned int b)
 	val = tab->level; 
 	/*sgn = 0x1 & GETBITS(tab->len + 1, "(get_dct sign )"); //sign bit*/
 	sgn = 0x1 & (word >> (24-(tab->len + 1))); left -= (tab->len + 1);
+#ifdef DEBUG
+	DPRINTF(4,"coeff run: %d, level: %d\n",tab->run,(sgn?-1:1)*tab->level);
+#endif
       }
       
       n += run;
@@ -808,11 +808,11 @@ int macroblock_modes(void)
   if((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) ||
      (mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD)) {
     if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-      if(pic.coding_ext.frame_pred_frame_dct == 0) {
-	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
-      } else {
+      if(pic.coding_ext.frame_pred_frame_dct != 0) {
 	/* frame_motion_type omitted from the bitstream */
 	mb.modes.frame_motion_type = 0x2;
+      } else {
+	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
       }
     } else {
       mb.modes.field_motion_type = GETBITS(2, "field_motion_type");

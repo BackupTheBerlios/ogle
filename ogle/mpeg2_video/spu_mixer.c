@@ -16,6 +16,7 @@
 #include "../include/common.h"
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
+#include "../include/timemath.h"
 
 
 typedef struct {
@@ -27,11 +28,10 @@ typedef struct {
 
   unsigned char *buffer;
   char *next_buffer;
-  struct timespec base_time;
-  struct timespec next_time;
+  clocktime_t base_time;
+  clocktime_t next_time;
   
   int start_time;
-  int stop_time;
   int width;
   int height;
   int x_start;
@@ -63,7 +63,7 @@ static char *mmap_base;
 
 static int aligned;
 static uint16_t fieldoffset[2];
-static uint16_t field=0;
+static uint16_t field = 0;
 
 static spu_t spu_info = { 0 };
 
@@ -81,149 +81,6 @@ extern int msgqid;
 
 
 
-
-
-#ifdef HAVE_CLOCK_GETTIME
-
-
-static void timesub(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec - s2->tv_nsec;
-  
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-
-}  
-
-static void timeadd(struct timespec *d,
-	     struct timespec *s1, struct timespec *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_nsec = s1->tv_nsec + s2->tv_nsec;
-  if(d->tv_nsec >= 1000000000) {
-    d->tv_nsec -=1000000000;
-    d->tv_sec +=1;
-  } else if(d->tv_nsec <= -1000000000) {
-    d->tv_nsec +=1000000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_nsec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_nsec += 1000000000;
-  } else if((d->tv_sec < 0) && (d->tv_nsec > 0)) {
-    d->tv_sec += 1;
-    d->tv_nsec -= 1000000000;
-  }
-}  
-
-static int timecompare(struct timespec *s1, struct timespec *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_nsec > s2->tv_nsec) {
-    return 1;
-  } else if(s1->tv_nsec < s2->tv_nsec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-#else
-
-
-static void timesub(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1-s2
-
-  d->tv_sec = s1->tv_sec - s2->tv_sec;
-  d->tv_usec = s1->tv_usec - s2->tv_usec;
-  
-  if(d->tv_usec >= 1000000) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-
-}  
-
-static void timeadd(struct timeval *d,
-	     struct timeval *s1, struct timeval *s2)
-{
-  // d = s1+s2
-  
-  d->tv_sec = s1->tv_sec + s2->tv_sec;
-  d->tv_usec = s1->tv_usec + s2->tv_usec;
-  if(d->tv_usec >= 1000000) {
-    d->tv_usec -=1000000;
-    d->tv_sec +=1;
-  } else if(d->tv_usec <= -1000000) {
-    d->tv_usec +=1000000;
-    d->tv_sec -=1;
-  }
-
-  if((d->tv_sec > 0) && (d->tv_usec < 0)) {
-    d->tv_sec -= 1;
-    d->tv_usec += 1000000;
-  } else if((d->tv_sec < 0) && (d->tv_usec > 0)) {
-    d->tv_sec += 1;
-    d->tv_usec -= 1000000;
-  }
-}  
-
-static int timecompare(struct timeval *s1, struct timeval *s2) {
-
-  if(s1->tv_sec > s2->tv_sec) {
-    return 1;
-  } else if(s1->tv_sec < s2->tv_sec) {
-    return -1;
-  }
-
-  if(s1->tv_usec > s2->tv_usec) {
-    return 1;
-  } else if(s1->tv_usec < s2->tv_usec) {
-    return -1;
-  }
-  
-  return 0;
-}
-
-#endif
 
 
 
@@ -300,7 +157,7 @@ static int file_open(char *infile)
   return 0;
 }
 
-static int get_q(char *dst, int readlen, struct timespec *display_base_time)
+static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
@@ -315,11 +172,8 @@ static int get_q(char *dst, int readlen, struct timespec *display_base_time)
   int scr_nr;
   int off;
   int len;
-  static int prev_scr_nr = 0;
-  static int packnr = 0;
-  static struct timespec time_offset = { 0, 0 };
   static int read_offset = 0;
-  struct timespec pts_time;
+  clocktime_t pts_time;
   int cpy_len;
 
   q_head = (q_head_t *)stream_shmaddr;
@@ -353,10 +207,8 @@ static int get_q(char *dst, int readlen, struct timespec *display_base_time)
   if(PTS_DTS_flags & 0x2) {
     PTS = data_elem->PTS;
     scr_nr = data_elem->scr_nr;
-    pts_time.tv_sec = PTS/90000;
-    pts_time.tv_nsec = (PTS%90000)*1000000000/90000;
+    PTS_TO_CLOCKTIME(pts_time, PTS)
     timeadd(display_base_time, &pts_time, &ctrl_time[scr_nr].realtime_offset);
-    
   }
   if(PTS_DTS_flags & 0x1) {
     DTS = data_elem->DTS;
@@ -477,7 +329,7 @@ int init_spu(void)
 
 
 
-int get_data(uint8_t *databuf, int bufsize, struct timespec *dtime)
+int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime)
 {
   int r;
   static int bytes_to_read = 0;
@@ -959,10 +811,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
  */
 int next_spu_cmd_pending(spu_t *spu_info) {
   int start_time, offset;
-  struct timespec realtime, errtime;
+  clocktime_t realtime, errtime;
 
-  /* I nexttime haven't been set, try to set it. */
-  if(spu_info->next_time.tv_sec == 0) {
+  /* I next_time haven't been set, try to set it. */
+  if(TIME_S(spu_info->next_time) == 0) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       
@@ -981,17 +833,16 @@ int next_spu_cmd_pending(spu_t *spu_info) {
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
     
-    spu_info->next_time.tv_sec = start_time/100;
-    spu_info->next_time.tv_nsec = (start_time%100) * 1000000000/100;  
+    TIME_S(spu_info->next_time)  = start_time/100;
+    TIME_SS(spu_info->next_time) = (start_time%100) * CT_FRACTION/100;  
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
 
-  clock_gettime(CLOCK_REALTIME, &realtime);
+  clocktime_get(&realtime);
   timesub(&errtime, &spu_info->next_time, &realtime);
 
-  if((errtime.tv_nsec < 0) || (errtime.tv_sec < 0)) {
+  if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0)
     return 1;
-  }
 
   return 0;
 }
@@ -1029,7 +880,7 @@ void mix_subpicture(char *data, int width, int height)
      * The 'next command' is no longer the same, the time needs to
      * be recomputed. 
      */
-    spu_info.next_time.tv_sec = 0;
+    TIME_S(spu_info.next_time) = 0;
   }
 
 

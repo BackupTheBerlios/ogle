@@ -32,7 +32,7 @@ DFLAGS=@CFLAGS@ @DEFS@ @X_CFLAGS@ @MLIB_CFLAGS@ @GLIB_CFLAGS@
 LDFLAGS=@LIBS@ -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
-OBJS=video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o $(MLIB_OBJS) $(MMX_OBJS) $(OTHER_OBJS)
+OBJS=video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o spu_mixer.o ../common/timemath.o $(MLIB_OBJS) $(MMX_OBJS) $(OTHER_OBJS)
 
 video_stream: $(OBJS)
 
