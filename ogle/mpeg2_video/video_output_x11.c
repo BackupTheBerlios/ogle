@@ -98,19 +98,20 @@ static int screenshot = 0;
 /* Display (i.e. monitor) aspect. (set in display_init) */
 static int dpy_sar_frac_n;
 static int dpy_sar_frac_d;
-/* Zoom factor. */
-static int scale_zoom_n = 1;
-static int scale_zoom_d = 1;
-/* Lock aspect. */
-static int scale_preserve_aspect = 1;
-/* Never change the size of the window. */
-static int scale_lock_window_size = 0;
-/* Fullscreen mode. */
-static int scale_fullscreen = 0;
-/* Current destination size. (set in display_change_size) */
-static int scale_image_width;
-static int scale_image_height;
-
+static struct {
+  /* Zoom factor. */
+  int zoom_n;
+  int zoom_d;
+  /* Lock aspect. */
+  int preserve_aspect;
+  /* Never change the size of the window. */
+  int lock_window_size;
+  /* Fullscreen mode. */
+  int fullscreen;
+  /* Current destination size. (set in display_change_size) */
+  int image_width;
+  int image_height;
+} scale = { 1, 1, 0, 1, 0, 720, 480 };
 #ifdef HAVE_MLIB
 static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */
@@ -286,8 +287,8 @@ void display_init_xshm()
   /* Create shared memory image */
   window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				  ZPixmap, NULL, &shm_info,
-				  scale_image_width,
-				  scale_image_height);
+				  scale.image_width,
+				  scale.image_height);
   
   /* Got an Image? */
   if(window.ximage == NULL) {
@@ -296,8 +297,8 @@ void display_init_xshm()
   }
   
   /* Test and see if we really got padded_width x padded_height */
-  if(window.ximage->width != scale_image_width ||
-     window.ximage->height != scale_image_height) {
+  if(window.ximage->width != scale.image_width ||
+     window.ximage->height != scale.image_height) {
     fprintf(stderr, "vo: XvShmCreateImage got size: %d x %d\n",
 	    window.ximage->width, window.ximage->height);
     exit(1);
@@ -428,8 +429,8 @@ Window display_init(yuv_image_t *picture_data,
   
   
   /* Assume (for now) that the window will be the same size as the source. */
-  scale_image_width = picture_data->info->picture.horizontal_size;
-  scale_image_height = picture_data->info->picture.vertical_size;
+  scale.image_width = picture_data->info->picture.horizontal_size;
+  scale.image_height = picture_data->info->picture.vertical_size;
   
   
   /* Make the window */
@@ -446,8 +447,8 @@ Window display_init(yuv_image_t *picture_data,
 
   hint.x = 0;
   hint.y = 0;
-  hint.width = scale_image_width;
-  hint.height = scale_image_height;
+  hint.width = scale.image_width;
+  hint.height = scale.image_height;
   hint.flags = PPosition | PSize;
   
   theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
@@ -542,11 +543,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
 #endif
   
   // Check to not 'reallocate' if the size is the same...
-  if(scale_image_width == new_width && scale_image_height == new_height) {
+  if(scale.image_width == new_width && scale.image_height == new_height) {
     /* Might still need to force a change of the widow size. */
     if(resize_window == True) {
       XResizeWindow(mydisplay, window.win, 
-		    scale_image_width, scale_image_height);
+		    scale.image_width, scale.image_height);
     }
     return;
   }
@@ -622,22 +623,127 @@ static void display_change_size(yuv_image_t *img, int new_width,
   }
   
   /* Save the new size so we know what to scale to. */
-  scale_image_width = new_width;
-  scale_image_height = new_height;
+  scale.image_width = new_width;
+  scale.image_height = new_height;
   
   /* Force a change of the widow size. */
   if(resize_window == True) {
     XResizeWindow(mydisplay, window.win, 
-		  scale_image_width, scale_image_height);
+		  scale.image_width, scale.image_height);
   }
 }
 
 
+void display_adjust_size(yuv_image_t *current_image,
+			 int given_width, int given_height) {
+  int sar_frac_n, sar_frac_d; 
+  int64_t scale_frac_n, scale_frac_d;
+  int base_width, base_height, max_width, max_height;
+  int new_width, new_height;
+  
+  /* Use the stream aspect or a forced/user aspect. */ 
+  //  if(!scale_override_aspect) {
+  sar_frac_n = current_image->info->picture.sar_frac_n;
+  sar_frac_d = current_image->info->picture.sar_frac_d;
+  //  } else {
+  //    sar_frac_n = scale_override_aspect_n;
+  //    sar_frac_d = scale_override_aspect_d;
+  //  }
+  
+  // TODO replace image->sar.. with image->dar
+  scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
+  scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
+  
+  fprintf(stderr, "vo: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
+	  sar_frac_n, sar_frac_d,
+	  dpy_sar_frac_n, dpy_sar_frac_d,
+	  scale_frac_n, scale_frac_d); 
+  
+  /* Keep either the height or the width constant. */ 
+  if(scale_frac_n > scale_frac_d) {
+    base_width = (current_image->info->picture.horizontal_size *
+		  scale_frac_n) / scale_frac_d;
+    base_height = current_image->info->picture.vertical_size;
+  } else {
+    base_width = current_image->info->picture.horizontal_size;
+    base_height = (current_image->info->picture.vertical_size *
+		   scale_frac_d) / scale_frac_n;
+  }
+  //fprintf(stderr, "vo: base %d x %d\n", base_width, base_height);
+  
+  /* Do we have a predetermined size for the window? */ 
+  if(given_width != -1 && given_height != -1 && !scale.fullscreen) {
+    max_width  = given_width;
+    max_height = given_height;
+  } else {
+    if(scale.fullscreen || !scale.lock_window_size) {
+      /* Never make the window bigger than the screen. */
+      max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
+      max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
+    } else {
+      // This isn't great for when we just are about to leave fullscreen mode
+      XWindowAttributes xattr;
+      XGetWindowAttributes(mydisplay, window.win, &xattr);
+      max_width  = xattr.width;
+      max_height = xattr.height;
+    }
+  }
+  //fprintf(stderr, "vo: max %d x %d\n", max_width, max_height);
+  
+  /* Fill the given area or keep the image at the same zoom level? */
+  if(scale.fullscreen || (given_width != -1 && given_height != -1)) {
+    /* Zoom so that the image fill the width. */
+    /* If the height gets to large it's adjusted/fixed bellow. */
+    new_width  = max_width;
+    new_height = (base_height * max_width) / base_width;
+  } else {
+    fprintf(stderr, "vo: using zoom %d / %d\n", scale.zoom_n, scale.zoom_d);
+    /* Use the provided zoom value. */
+    new_width  = (base_width  * scale.zoom_n) / scale.zoom_d;
+    new_height = (base_height * scale.zoom_n) / scale.zoom_d;
+  }
+  //fprintf(stderr, "vo: new1 %d x %d\n", new_width, new_height);
+  
+  /* Don't ever make it larger than the max limits. */
+  if(new_width > max_width) {
+    new_height = (new_height * max_width) / new_width;
+    new_width  = max_width;
+  }
+  if(new_height > max_height) {
+    new_width  = (new_width * max_height) / new_height;
+    new_height = max_height;
+  }
+  //fprintf(stderr, "vo: new2 %d x %d\n", new_width, new_height);
+  
+  /* Remeber what zoom level we ended up with. */
+  if(!scale.fullscreen) {
+    /* Update zoom values. Use the smalles one. */
+    if((new_width * base_height) < (new_height * base_width)) {
+      scale.zoom_n = new_width;
+      scale.zoom_d = base_width;
+    } else {
+      scale.zoom_n = new_height;
+      scale.zoom_d = base_height;
+    }
+    fprintf(stderr, "vo: zoom2 %d / %d\n", scale.zoom_n, scale.zoom_d);
+  }
+  
+  /* Don't care about aspect and can't change the window size, use it all. */
+  if(!scale.preserve_aspect && (scale.lock_window_size || scale.fullscreen)) {
+    new_width  = max_width;
+    new_height = max_height;
+  }
+  
+  if((scale.lock_window_size || scale.fullscreen)
+     || (given_width != -1 && given_height != -1))
+    display_change_size(current_image, new_width, new_height, False);
+  else
+    display_change_size(current_image, new_width, new_height, True);
+}  
 
 
 /* Fullscreen needs to be able to hide the wm decorations. */
 #define MWM_HINTS_DECORATIONS   (1L << 1)
-#define PROP_MWM_HINTS_ELEMENTS 5
 typedef struct {
   uint32_t flags;
   uint32_t functions;
@@ -646,17 +752,21 @@ typedef struct {
   uint32_t status;
 } mwmhints_t;
 
-void display_toggle_fullscreen() {
+void display_toggle_fullscreen(yuv_image_t *current_image) {
   
   /* Toggle the state of the fullscreen flag. */    
-  scale_fullscreen = !scale_fullscreen;
-
+  scale.fullscreen = !scale.fullscreen;
+  
+  if(!scale.fullscreen) {
+    display_adjust_size(current_image, -1, -1);
+    XSync(mydisplay, True);
+  }
   
   /* Unmap window. */
   XUnmapWindow(mydisplay, window.win);
-  XSync(mydisplay, True);
+  XSync(mydisplay, True); // ? Is this needed?
   
-  if(scale_fullscreen) {
+  if(scale.fullscreen) {
     int found_wm = 0;
     Atom WM_HINTS;
     
@@ -702,14 +812,6 @@ void display_toggle_fullscreen() {
       XSetTransientForHint(mydisplay,window.win,DefaultRootWindow(mydisplay));
     }
     
-    XRaiseWindow(mydisplay, window.win);
-    //XSetInputFocus(mydisplay, window.win, RevertToNone, CurrentTime);
-    XResizeWindow(mydisplay, window.win, 
-		  /* Change theses to be more careful for xinerama and.. */
-		  DisplayWidth(mydisplay, DefaultScreen(mydisplay)),
-		  DisplayHeight(mydisplay, DefaultScreen(mydisplay)));
-    XMoveWindow(mydisplay, window.win, 0, 0);
-  
   } else {
     int found_wm = 0;
     Atom WM_HINTS;
@@ -737,6 +839,7 @@ void display_toggle_fullscreen() {
       /* NOTE: Does this work? */
       XSetTransientForHint(mydisplay, window.win, None);
     }
+  
   }
   
   /* Map window. */
@@ -750,115 +853,18 @@ void display_toggle_fullscreen() {
     while (xev.type != MapNotify || xev.xmap.event != window.win);
   }
   
+  if(scale.fullscreen) {
+    XResizeWindow(mydisplay, window.win, 
+		  /* Change theses to be more careful for xinerama and.. */
+		  DisplayWidth(mydisplay, DefaultScreen(mydisplay)),
+		  DisplayHeight(mydisplay, DefaultScreen(mydisplay)));
+    XRaiseWindow(mydisplay, window.win);
+    XSetInputFocus(mydisplay, window.win, RevertToNone, CurrentTime);
+    XMoveWindow(mydisplay, window.win, 0, 0);
+  }
+  
   XSync(mydisplay, False);
 }
-
-
-void display_adjust_size(yuv_image_t *current_image,
-			 int given_width, int given_height) {
-  int sar_frac_n, sar_frac_d; 
-  int64_t scale_frac_n, scale_frac_d;
-  int base_width, base_height, max_width, max_height;
-  int new_width, new_height;
-  
-  /* Use the stream aspect or a forced/user aspect. */ 
-  //  if(!scale_override_aspect) {
-  sar_frac_n = current_image->info->picture.sar_frac_n;
-  sar_frac_d = current_image->info->picture.sar_frac_d;
-  //  } else {
-  //    sar_frac_n = scale_override_aspect_n;
-  //    sar_frac_d = scale_override_aspect_d;
-  //  }
-  
-  // TODO replace image->sar.. with image->dar
-  scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
-  scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
-  
-  fprintf(stderr, "vo: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
-	  sar_frac_n, sar_frac_d,
-	  dpy_sar_frac_n, dpy_sar_frac_d,
-	  scale_frac_n, scale_frac_d); 
-  
-  /* Keep either the height or the width constant. */ 
-  if(scale_frac_n > scale_frac_d) {
-    base_width = (current_image->info->picture.horizontal_size *
-		  scale_frac_n) / scale_frac_d;
-    base_height = current_image->info->picture.vertical_size;
-  } else {
-    base_width = current_image->info->picture.horizontal_size;
-    base_height = (current_image->info->picture.vertical_size *
-		   scale_frac_d) / scale_frac_n;
-  }
-  //fprintf(stderr, "vo: base %d x %d\n", base_width, base_height);
-  
-  /* Do we have a predetermined size for the window? */ 
-  if(given_width != -1 && given_height != -1 && !scale_fullscreen) {
-    max_width  = given_width;
-    max_height = given_height;
-  } else {
-    if(scale_fullscreen || !scale_lock_window_size) {
-      /* Never make the window bigger than the screen. */
-      max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
-      max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
-    } else {
-      XWindowAttributes xattr;
-      XGetWindowAttributes(mydisplay, window.win, &xattr);
-      max_width  = xattr.width;
-      max_height = xattr.height;
-    }
-  }
-  //fprintf(stderr, "vo: max %d x %d\n", max_width, max_height);
-  
-  /* Fill the given area or keep the image at the same zoom level? */
-  if(scale_fullscreen || (given_width != -1 && given_height != -1)) {
-    /* Zoom so that the image fill the width. */
-    /* If the height gets to large it's adjusted/fixed bellow. */
-    new_width  = max_width;
-    new_height = (base_height * max_width) / base_width;
-  } else {
-    fprintf(stderr, "vo: using zoom %d / %d\n", scale_zoom_n, scale_zoom_d);
-    /* Use the provided zoom value. */
-    new_width  = (base_width  * scale_zoom_n) / scale_zoom_d;
-    new_height = (base_height * scale_zoom_n) / scale_zoom_d;
-  }
-  //fprintf(stderr, "vo: new1 %d x %d\n", new_width, new_height);
-  
-  /* Don't ever make it larger than the max limits. */
-  if(new_width > max_width) {
-    new_height = (new_height * max_width) / new_width;
-    new_width  = max_width;
-  }
-  if(new_height > max_height) {
-    new_width  = (new_width * max_height) / new_height;
-    new_height = max_height;
-  }
-  //fprintf(stderr, "vo: new2 %d x %d\n", new_width, new_height);
-  
-  /* Remeber what zoom level we ended up with. */
-  if(!scale_fullscreen) {
-    /* Update zoom values. Use the smalles one. */
-    if((new_width * base_height) < (new_height * base_width)) {
-      scale_zoom_n = new_width;
-      scale_zoom_d = base_width;
-    } else {
-      scale_zoom_n = new_height;
-      scale_zoom_d = base_height;
-    }
-    fprintf(stderr, "vo: zoom2 %d / %d\n", scale_zoom_n, scale_zoom_d);
-  }
-  
-  /* Don't care about aspect and can't change the window size, use it all. */
-  if(!scale_preserve_aspect && (scale_lock_window_size || scale_fullscreen)) {
-    new_width  = max_width;
-    new_height = max_height;
-  }
-  
-  if((scale_lock_window_size || scale_fullscreen)
-     || (given_width != -1 && given_height != -1))
-    display_change_size(current_image, new_width, new_height, False);
-  else
-    display_change_size(current_image, new_width, new_height, True);
-}  
 
 
 
@@ -872,10 +878,11 @@ void display(yuv_image_t *current_image)
   XEvent ev;
   static int sar_frac_n, sar_frac_d; 
   
+#if 0   
   //hack
   static clocktime_t last;
   clocktime_t now;
-  
+#endif  
   
   /* New source aspect ratio? */
   if(current_image->info->picture.sar_frac_n != sar_frac_n ||
@@ -887,7 +894,7 @@ void display(yuv_image_t *current_image)
     display_adjust_size(current_image, -1, -1);
   }
   
-  
+#if 0   
   //Hack, togle fullscreen every 20 seconds
   clocktime_get(&now);
   timesub(&now, &last, &now);
@@ -896,10 +903,10 @@ void display(yuv_image_t *current_image)
     TIME_S(now) = 20; TIME_SS(now) = 0;
     timeadd(&last, &last, &now);
     
-    display_toggle_fullscreen();
-    display_adjust_size(current_image, -1, -1);
+    display_toggle_fullscreen(current_image);
   }
-
+#endif
+  
   window.image = current_image;
     
   while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
@@ -980,12 +987,12 @@ static void draw_win_x11(window_info *dwin)
   
 
 #ifdef HAVE_MLIB
-  if((scale_image_width != dwin->image->info->picture.horizontal_size) ||
-     (scale_image_height != dwin->image->info->picture.vertical_size)) {
+  if((scale.image_width != dwin->image->info->picture.horizontal_size) ||
+     (scale.image_height != dwin->image->info->picture.vertical_size)) {
     /* Destination image */
     mimage_d = mlib_ImageCreateStruct(MLIB_BYTE, 4,
-				      scale_image_width, 
-				      scale_image_height,
+				      scale.image_width, 
+				      scale.image_height,
 				      dwin->ximage->bytes_per_line, 
 				      dwin->ximage->data);
     /* Source image */
@@ -994,15 +1001,15 @@ static void draw_win_x11(window_info *dwin)
 				      dwin->image->info->picture.vertical_size,
 				      dwin->image->info->picture.padded_width*4, address);
     /* Extra fast 2x Zoom */
-    if((scale_image_width == 2 * dwin->image->info->picture.horizontal_size) &&
-       (scale_image_height == 2 * dwin->image->info->picture.vertical_size)) {
+    if((scale.image_width == 2 * dwin->image->info->picture.horizontal_size) &&
+       (scale.image_height == 2 * dwin->image->info->picture.vertical_size)) {
       mlib_ImageZoomIn2X(mimage_d, mimage_s, 
 			 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     } else {
       mlib_ImageZoom 
 	(mimage_d, mimage_s,
-	 (double)scale_image_width/(double)dwin->image->info->picture.horizontal_size, 
-	 (double)scale_image_height/(double)dwin->image->info->picture.vertical_size,
+	 (double)scale.image_width/(double)dwin->image->info->picture.horizontal_size, 
+	 (double)scale.image_height/(double)dwin->image->info->picture.vertical_size,
 	 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     }
     mlib_ImageDelete(mimage_s);
@@ -1019,14 +1026,14 @@ static void draw_win_x11(window_info *dwin)
   
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 
-		 (xattr.width  - scale_image_width )/2,
-		 (xattr.height - scale_image_height)/2, 
-		 scale_image_width, scale_image_height, True);
+		 (xattr.width  - scale.image_width )/2,
+		 (xattr.height - scale.image_height)/2, 
+		 scale.image_width, scale.image_height, True);
   } else {
     XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0,
-	      (xattr.width  - scale_image_width )/2,
-	      (xattr.height - scale_image_height)/2, 
-	      scale_image_width, scale_image_height);
+	      (xattr.width  - scale.image_width )/2,
+	      (xattr.height - scale.image_height)/2, 
+	      scale.image_width, scale.image_height);
   }
   
   //TEST
@@ -1070,9 +1077,9 @@ static void draw_win_xv(window_info *dwin)
 		0, 0, 
 		dwin->image->info->picture.horizontal_size, 
 		dwin->image->info->picture.vertical_size,
-		(xattr.width  - scale_image_width )/2, 
-		(xattr.height - scale_image_height)/2, 
-		scale_image_width, scale_image_height,
+		(xattr.width  - scale.image_width )/2, 
+		(xattr.height - scale.image_height)/2, 
+		scale.image_width, scale.image_height,
 		True);
   
   //XFlush(mydisplay); ??

@@ -32,7 +32,7 @@
 #include "vm.h"
 
 extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
-extern int get_q(MsgEventQ_t *msgq, char *buffer);
+extern int get_q(MsgEventQ_t *msgq, unsigned char *buffer);
 extern void wait_for_init(MsgEventQ_t *msgq);
 extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -834,7 +834,7 @@ static void do_run(void) {
       }
       
     } else { // We got a data to read.
-      char buffer[2048];
+      unsigned char buffer[2048];
       int len;
       
       len = get_q(msgq, &buffer[0]);

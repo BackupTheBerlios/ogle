@@ -109,32 +109,37 @@ int vm_reset(char *dvdroot) // , register_t regs)
   state.vtsN = -1;
   
   dvd = DVDOpen(dvdroot);
-  if(!dvd)
+  if(!dvd) {
+    fprintf(stderr, "vm: faild to open/read the DVD\n");
     return -1;
-  
-  if(vmgi = ifoOpenVMGI(dvd)) {
-    if(!ifoRead_FP_PGC(vmgi)) {
-      fprintf(stderr, "vm: ifoRead_FP_PGC faild\n");
-      return -1;
-    }
-    if(!ifoRead_TT_SRPT(vmgi)) {
-      fprintf(stderr, "vm: ifoRead_TT_SRPT faild\n");
-      return -1;
-    }
-    if(!ifoRead_PGCI_UT(vmgi)) {
-      fprintf(stderr, "vm: ifoRead_PGCI_UT faild\n");
-      return -1;
-    }
-    if(!ifoRead_PTL_MAIT(vmgi)) {
-      fprintf(stderr, "vm: ifoRead_PTL_MAIT faild\n");
-      return -1;
-    }
-    if(!ifoRead_VTS_ATRT(vmgi)) {
-      fprintf(stderr, "vm: ifoRead_VTS_ATRT faild\n");
-      return -1;
-    }
-    //ifoRead_TXTDT_MGI(vmgi);
   }
+  vmgi = ifoOpenVMGI(dvd);
+  if(!vmgi) {
+    fprintf(stderr, "vm: faild to read VIDEO_TS.IFO\n");
+    return -1;
+  }
+  if(!ifoRead_FP_PGC(vmgi)) {
+    fprintf(stderr, "vm: ifoRead_FP_PGC faild\n");
+    return -1;
+  }
+  if(!ifoRead_TT_SRPT(vmgi)) {
+    fprintf(stderr, "vm: ifoRead_TT_SRPT faild\n");
+    return -1;
+  }
+  if(!ifoRead_PGCI_UT(vmgi)) {
+    fprintf(stderr, "vm: ifoRead_PGCI_UT faild\n");
+    return -1;
+  }
+  if(!ifoRead_PTL_MAIT(vmgi)) {
+    fprintf(stderr, "vm: ifoRead_PTL_MAIT faild\n");
+    ; // return -1; Not really used for now..
+  }
+  if(!ifoRead_VTS_ATRT(vmgi)) {
+    fprintf(stderr, "vm: ifoRead_VTS_ATRT faild\n");
+    ; // return -1; Not really used for now..
+  }
+  //ifoRead_TXTDT_MGI(vmgi); Not implemented yet
+
   return 0;
 }
 

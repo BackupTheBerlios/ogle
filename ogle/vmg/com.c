@@ -43,7 +43,7 @@
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
-int get_q(MsgEventQ_t *msgq, char *buffer);
+int get_q(MsgEventQ_t *msgq, unsigned char *buffer);
 void wait_for_init(MsgEventQ_t *msgq);
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -62,7 +62,7 @@ static int stream_shmid;
 static char *stream_shmaddr = NULL;
 
 static int data_buf_shmid;
-static char *data_buf_shmaddr;
+static unsigned char *data_buf_shmaddr;
 
 static MsgEventClient_t demux_client = 0;
 static MsgEventClient_t spu_client = 0;
@@ -180,7 +180,7 @@ static void change_file(char *new_filename)
     perror("fstat");
     exit(1);
   }
-  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
+  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
 			      PROT_READ, MAP_SHARED, filefd,0);
   close(filefd);
   if(mmap_base == MAP_FAILED) {
@@ -242,7 +242,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     }
     
     data_buf_shmid = shmid;
-    data_buf_shmaddr = shmaddr;
+    data_buf_shmaddr = (unsigned char *)shmaddr;
   }    
 
   return 0;
@@ -254,7 +254,7 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   q_elem_t *q_elems;
   int elem;
   
-  while(stream_shmaddr == NULL) {
+  if(stream_shmaddr == NULL) {
     MsgNextEvent(msgq, ev);
     return 0;
   }
@@ -279,7 +279,7 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
 }
 
 
-int get_q(MsgEventQ_t *msgq, char *buffer)
+int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
 {
   q_head_t *q_head;
   q_elem_t *q_elems;

@@ -65,6 +65,8 @@ if test -z "$jpeg_path"; then
     jpeg_path=$ac_default_prefix
   fi  
 fi
+dnl Both this and the libdvdread should first test and see if any flags
+dnl beside -lname are needed. Then they the suggested path (+ some standard?)
 AC_CHECK_LIB(jpeg, main, 
   [ JPEG_LIBS="-L$jpeg_path/lib -rpath $jpeg_path/lib -ljpeg"
     JPEG_CFLAGS=-I$jpeg_path/include
@@ -96,7 +98,7 @@ AC_CHECK_FUNC(nanosleep, ,
 dnl clock_gettime is in librt on Solaris
 AC_CHECK_FUNC(clock_gettime, , 
   AC_CHECK_LIB(rt, clock_gettime, , 
-    AC_MSG_ERROR(You need clock_gettime)
+    dnl AC_MSG_WARN(You need clock_gettime)
   )
 )
 
