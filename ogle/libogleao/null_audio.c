@@ -32,11 +32,11 @@ typedef struct null_instance_s {
   int samples_written;
   int sample_frame_size;
   int initialized;
-} solaris_instance_t;
+} null_instance_t;
 
 
 /* The one directly exported function */
-ogle_ao_instance_t *ao_solaris_open(char *dev)
+ogle_ao_instance_t *ao_null_open(char *dev)
 {
   return null_open(dev);
 }
@@ -120,10 +120,9 @@ int null_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   // int samples_played;
   // samples_played = (time_now - time_at_init) * sample_rate;
   // odelay = instance->samples_written - samples_played;
-  
-  *samples_return = 0;
+  // *samples_return = 0;
 
-  return 0;
+  return -1; // Not supported by null driver
 }
 
 static
