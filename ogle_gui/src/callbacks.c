@@ -21,11 +21,9 @@
 #endif
 
 #include <stdio.h>
-
-#include <ogle/dvdcontrol.h>
 #include <gtk/gtk.h>
 #include <glade/glade.h>
-
+#include <ogle/dvdcontrol.h>
 
 #include "callbacks.h"
 #include "interface.h"
@@ -35,8 +33,9 @@
 #include "subpicture.h"
 #include "fileselector.h"
 
-#include "xsniffer.h" //hack
+#include "myintl.h"
 
+#include "xsniffer.h" //hack
 
 extern ZoomMode_t zoom_mode;
 
@@ -221,6 +220,14 @@ on_about_activate                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
   GtkWidget *widget;
+  GtkWidget *version_label;
+  gchar* version_text;
+
+  version_label = glade_xml_get_widget(xml, "version");
+  version_text = g_strdup_printf(_("Ogle GUI version %s"), VERSION);
+  gtk_label_set_text(GTK_LABEL(version_label), version_text);
+  g_free(version_text);
+
   widget = glade_xml_get_widget(xml, "about");
   gtk_widget_show(widget);
 }

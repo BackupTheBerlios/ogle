@@ -16,17 +16,19 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <gtk/gtk.h>
-
 #include <ogle/dvdcontrol.h>
 
 #include "fileselector.h"
+#include "myintl.h"
 
 #include "xsniffer.h" //hack
-
-#define _(x) x
 
 extern DVDNav_t *nav;
 

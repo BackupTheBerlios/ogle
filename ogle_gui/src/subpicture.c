@@ -23,11 +23,12 @@
 
 #include <glib.h>
 #include <gtk/gtk.h>
-#include "subpicture.h"
-#include "language.h"
+
 #include <ogle/dvdcontrol.h>
 
-#define _(x) x
+#include "subpicture.h"
+#include "language.h"
+#include "myintl.h"
 
 extern DVDNav_t *nav;
 

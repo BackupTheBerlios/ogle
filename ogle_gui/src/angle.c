@@ -16,18 +16,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-
-#include <glib.h>
 #include <gtk/gtk.h>
-#include "angle.h"
-#include "language.h"
 #include <ogle/dvdcontrol.h>
 
-#define _(x) x
+#include "angle.h"
+#include "language.h"
+#include "myintl.h"
 
 extern DVDNav_t *nav;
 

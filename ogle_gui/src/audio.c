@@ -16,20 +16,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#ifdef HAVE_CONFIG_H
+#  include <config.h>
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <strings.h>
-
-#include <glib.h>
 #include <gtk/gtk.h>
-#include "audio.h"
-#include "language.h"
-
 #include <ogle/dvdcontrol.h>
 
-#define N_(x) x
-#define _(x) x
+#include "audio.h"
+#include "language.h"
+#include "myintl.h"
 
 extern DVDNav_t *nav;
 static GtkWidget *menu;
