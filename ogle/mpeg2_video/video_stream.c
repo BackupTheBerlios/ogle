@@ -56,9 +56,9 @@ GC statgc;
 int bpp, mode;
 XWindowAttributes attribs;
 
-#define READ_SIZE 1024*4
+#define READ_SIZE 1024*8
 #define ALLOC_SIZE 2048
-#define BUF_SIZE_MAX 1024*4
+#define BUF_SIZE_MAX 1024*8
 
 //#define DEBUG
 
@@ -281,12 +281,13 @@ macroblock_t *ref2_mbs;
 
 XFontStruct *xfont;
 
-uint32_t get_new_uint32(void);
+void read_buf(void);
 
 
 
 #define NR_BLOCKS 64
 #define BLOCK_SIZE 1024
+static int offs = 0;
 
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
@@ -317,7 +318,10 @@ uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    cur_word = (cur_word << 32) | get_new_uint32();
+    uint32_t new_word = buf[offs++];
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;
   }
   
@@ -362,6 +366,30 @@ uint32_t getbits(unsigned int nr)
 #endif
 
 
+//static inline   
+void dropbits(unsigned int nr)
+#ifndef GETBITS32
+{
+  bits_left -= nr;
+  if(bits_left <= 32) {
+    uint32_t new_word = buf[offs++];
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    cur_word = (cur_word << 32) | new_word;
+    bits_left += 32;
+  }
+}
+#else
+{
+  bits_left -= nr;
+  if(bits_left <= 0) {
+    next_word();
+    bits_left += 32;
+  } 
+}
+#endif
+
+
 #ifdef GETBITS32
 void back_word(void)
 {
@@ -375,26 +403,18 @@ void back_word(void)
   cur_word = buf[buf_pos];
 }
 #else
-uint32_t get_new_uint32()
+void read_buf()
 {
-  uint32_t new_word;
-  static int offs = 0;
-  
-  new_word = buf[offs++];
-  if(offs >= READ_SIZE/4) {
-    if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
-      if(feof(infile)) {
-	fprintf(stderr, "*End Of File\n");
-	exit_program();
-      } else {
-	fprintf(stderr, "**File Error\n");
-	exit(0);
-      }
+  if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
+    if(feof(infile)) {
+      fprintf(stderr, "*End Of File\n");
+      exit_program();
+    } else {
+      fprintf(stderr, "**File Error\n");
+      exit(0);
     }
-    offs = 0;
   }
-  return new_word;
- 
+  offs = 0;
 }
 #endif
 
@@ -456,6 +476,36 @@ uint32_t nextbits(unsigned int nr)
 }
 #endif
 
+#ifdef DEBUG
+#define GETBITS(a,b) getbits(a,b)
+#else
+#define GETBITS(a,b) getbits(a)
+#endif
+
+int get_vlc(const vlc_table_t *table, char *func) {
+  int pos=0;
+  int numberofbits=1;
+  int vlc;
+  
+  while(table[pos].numberofbits != VLC_FAIL) {
+    vlc=nextbits(numberofbits);
+    while(table[pos].numberofbits == numberofbits) {
+      if(table[pos].vlc == vlc) {
+	DPRINTF(3, "%s ", func);
+	dropbits(numberofbits);
+	return (table[pos].value);
+      }
+      pos++;
+    }
+    numberofbits++;
+  }
+  fprintf(stderr, "*** get_vlc(vlc_table *table): no matching bitstream found.\nnext 32 bits: %08x, ", nextbits(32));
+  fprintbits(stderr, 32, nextbits(32));
+  fprintf(stderr, "\n");
+  exit(-1);
+  return VLC_FAIL;
+}
+
 
 
 void program_init()
@@ -507,7 +557,16 @@ int main(int argc, char **argv)
   next_word();
 #else
   fread(&buf[0], READ_SIZE, 1, infile);
-  cur_word = ((uint64_t)(get_new_uint32()) << 32) | get_new_uint32();
+  {
+    uint32_t new_word1 = buf[offs++];
+    uint32_t new_word2;
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    new_word2 = buf[offs++];
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    cur_word = ((uint64_t)(new_word1) << 32) | new_word2;
+  }
 #endif
   while(!feof(infile)) {
     DPRINTF(1, "Looking for new Video Sequence\n");
@@ -515,12 +574,6 @@ int main(int argc, char **argv)
   }
   return 0;
 }
-
-#ifdef DEBUG
-#define GETBITS(a,b) getbits(a,b)
-#else
-#define GETBITS(a,b) getbits(a)
-#endif
 
 
 
@@ -1952,28 +2005,6 @@ void coded_block_pattern(void)
   
 }
 
-int get_vlc(const vlc_table_t *table, char *func) {
-  int pos=0;
-  int numberofbits=1;
-  int vlc;
-  while(table[pos].numberofbits != VLC_FAIL) {
-    vlc=nextbits(numberofbits);
-    while(table[pos].numberofbits == numberofbits) {
-      if(table[pos].vlc == vlc) {
-	DPRINTF(3, "%s ", func);
-	GETBITS(numberofbits, "vlc");
-	return (table[pos].value);
-      }
-      pos++;
-    }
-    numberofbits++;
-  }
-  fprintf(stderr, "*** get_vlc(vlc_table *table): no matching bitstream found.\nnext 32 bits: %08x, ", nextbits(32));
-  fprintbits(stderr, 32, nextbits(32));
-  fprintf(stderr, "\n");
-  exit(-1);
-  return VLC_FAIL;
-}
 
 #if 0
 void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
@@ -2113,7 +2144,7 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
     exit(1);
   }
   
-  GETBITS(tab->len, "(get_dct)");
+  dropbits(tab->len);
   
   if (tab->run==64) { // end_of_block 
     run = VLC_END_OF_BLOCK;
@@ -2146,7 +2177,7 @@ void get_dct_intra(runlevel_t *runlevel, uint8_t intra_vlc_format, char *func)
 
 #else
 
-//static inline
+static inline
 void get_dct_intra_vlcformat_0(runlevel_t *runlevel, char *func) 
 {
   int code;
@@ -2180,15 +2211,18 @@ void get_dct_intra_vlcformat_0(runlevel_t *runlevel, char *func)
     exit(1);
   }
   
-  GETBITS(tab->len, "(get_dct)");
+  dropbits(tab->len);
   
   if (tab->run==64) { // end_of_block 
     run = VLC_END_OF_BLOCK;
     val = VLC_END_OF_BLOCK;
   } 
   else if (tab->run==65) { /* escape */
-    run = GETBITS(6, "(get_dct escape - run )");
-    val = GETBITS(12, "(get_dct escape - level )");
+    uint32_t tmp = GETBITS(6+12, "(get_dct escape - run & level )");
+    //    run = GETBITS(6, "(get_dct escape - run )");
+    //    val = GETBITS(12, "(get_dct escape - level )");
+    run = tmp >> 12;
+    val = tmp & 0xfff;
     
     if ((val&2047)==0) {
       fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
@@ -2211,7 +2245,7 @@ void get_dct_intra_vlcformat_0(runlevel_t *runlevel, char *func)
 
 }
 
-//static inline
+static inline
 void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func) 
 {
   int code;
@@ -2222,9 +2256,7 @@ void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func)
   //this routines handles intra AC and non-intra AC/DC coefficients
   code = nextbits(16);
   
-  if(code>=16384)
-    tab = &DCTtab0a[(code>>8)-4];   // 15
-  else if(code>=1024)
+  if(code>=1024)
     tab = &DCTtab0a[(code>>8)-4];   // 15
   else if(code>=512)
     tab = &DCTtab1a[(code>>6)-8];  // 15
@@ -2246,15 +2278,18 @@ void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func)
     return;
   }
   
-  GETBITS(tab->len, "(get_dct)");
+  dropbits(tab->len);
   
   if (tab->run==64) { // end_of_block 
     run = VLC_END_OF_BLOCK;
     val = VLC_END_OF_BLOCK;
   } 
   else if (tab->run==65) { /* escape */
-    run = GETBITS(6, "(get_dct escape - run )");
-    val = GETBITS(12, "(get_dct escape - level )");
+    uint32_t tmp = GETBITS(6+12, "(get_dct escape - run & level )");
+    //    run = GETBITS(6, "(get_dct escape - run )");
+    //    val = GETBITS(12, "(get_dct escape - level )");
+    run = tmp >> 12;
+    val = tmp & 0xfff;
     
     if ((val&2047)==0) {
       fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
@@ -2313,11 +2348,14 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
     exit(1);
   }
   
-  GETBITS(tab->len, "(get_dct)");
   
   if (tab->run==65) { /* escape */
-    run = GETBITS(6, "(get_dct escape - run )");
-    val = GETBITS(12, "(get_dct escape - level )");
+    uint32_t tmp = GETBITS(6+6+12, "(get_dct escape - run & level )");
+    //    dropbits(tab->len);
+    //    run = GETBITS(6, "(get_dct escape - run )");
+    //    val = GETBITS(12, "(get_dct escape - level )");
+    run = (tmp >> 12) & 0x3f;
+    val = tmp & 0xfff;
     
     if ((val&2047)==0) {
       fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
@@ -2328,9 +2366,10 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
       val =  val - 4096;
   }
   else {
+    //    dropbits(tab->len);
     run = tab->run;
     val = tab->level; 
-    if(GETBITS(1, "(get_dct sign )")) //sign bit
+    if( 0x1 & GETBITS(tab->len+1, "(get_dct sign )")) //sign bit
       val = -val;
   }
   
@@ -2374,7 +2413,7 @@ void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func)
     exit(1);
   }
   
-  GETBITS(tab->len, "(get_dct)");
+  dropbits(tab->len);
   
   if (tab->run==64) { // end_of_block 
     run = VLC_END_OF_BLOCK;
@@ -2510,7 +2549,7 @@ void block_intra(unsigned int i)
       eob_not_read = 1;
 #ifdef DCT_INTRA_SPLIT
       if(pic.coding_ext.intra_vlc_format) {
-      while(eob_not_read) {
+      while( 1 ) {
 	//fprintf(stderr, "Subsequent dct_dc\n");
 	//Subsequent DCT coefficients
 	get_dct_intra_vlcformat_1(&runlevel, 
@@ -2524,7 +2563,7 @@ void block_intra(unsigned int i)
 #endif
     
 	if(runlevel.run == VLC_END_OF_BLOCK) {
-	  eob_not_read = 0;
+	  break;
 	} else {
 	  n += runlevel.run;
 	  
@@ -2547,7 +2586,7 @@ void block_intra(unsigned int i)
 	}
       }
       } else {
-      while(eob_not_read) {
+      while( 1 ) {
 	//fprintf(stderr, "Subsequent dct_dc\n");
 	//Subsequent DCT coefficients
 	get_dct_intra_vlcformat_0(&runlevel, 
@@ -2561,7 +2600,7 @@ void block_intra(unsigned int i)
 #endif
     
 	if(runlevel.run == VLC_END_OF_BLOCK) {
-	  eob_not_read = 0;
+	  break;
 	} else {
 	  n += runlevel.run;
 	  
@@ -2585,7 +2624,7 @@ void block_intra(unsigned int i)
       }
       }
 #else
-      while(eob_not_read) {
+      while( 1 ) {
 	//fprintf(stderr, "Subsequent dct_dc\n");
 	//Subsequent DCT coefficients
 	get_dct_intra(&runlevel, pic.coding_ext.intra_vlc_format, 
@@ -2599,7 +2638,7 @@ void block_intra(unsigned int i)
 #endif
     
 	if(runlevel.run == VLC_END_OF_BLOCK) {
-	  eob_not_read = 0;
+	  break;
 	} else {
 	  n += runlevel.run;
 	  
@@ -2667,10 +2706,9 @@ void block_non_intra(unsigned int b)
     cc = (b%2)+1;
   
   {
-    int n = 0;
+    int n;
     
     runlevel_t runlevel;
-    int eob_not_read;
     int m;
     
     int inverse_quantisation_sum = 0;
@@ -2686,12 +2724,10 @@ void block_non_intra(unsigned int b)
     /* 7.2.2.4 Summary */
     
     get_dct_non_intra_first(&runlevel, "dct_dc_subsequent");
-    n += runlevel.run;
+    n = runlevel.run;
     
     /* inverse quantisation */
-    
     i = inverse_scan[pic.coding_ext.alternate_scan][n];
-    
     
     f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
 	  * seq.header.non_intra_inverse_quantiser_matrix[i]
@@ -2707,9 +2743,7 @@ void block_non_intra(unsigned int b)
     
     n++;
     
-    
-    eob_not_read = 1;
-    while(eob_not_read) {
+    while( 1 ) {
       //      get_dct_non_intra_subseq(&runlevel, "dct_dc_subsequent");
       int code;
       const DCTtab *tab;
@@ -2742,7 +2776,6 @@ void block_non_intra(unsigned int b)
 	exit(1);
       }
   
-      GETBITS(tab->len, "(get_dct)");
 #ifdef DEBUG
       if(runlevel.run != VLC_END_OF_BLOCK) {
 	DPRINTF(4, "coeff run: %d, level: %d\n",
@@ -2753,12 +2786,17 @@ void block_non_intra(unsigned int b)
       if (tab->run == 64) { // end_of_block 
 	//	run = VLC_END_OF_BLOCK;
 	//	val = VLC_END_OF_BLOCK;
-	eob_not_read = 0;
+	dropbits( 2 ); // tab->len, end of block always = 2bits
+	break;
       } 
       else {
 	if (tab->run == 65) { /* escape */
-	  run = GETBITS(6, "(get_dct escape - run )");
-	  val = GETBITS(12, "(get_dct escape - level )");
+	  //	  run = GETBITS(6, "(get_dct escape - run )");
+	  //	  val = GETBITS(12, "(get_dct escape - level )");
+	  //	  dropbits(tab->len); escape always = 6 bits
+	  val = GETBITS(6+12+6, "(escape run + val)" );
+	  run = (val >> 12) & 0x3f;
+	  val &= 0xfff;
 	  
 	  if ((val&2047)==0) {
 	    fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
@@ -2770,14 +2808,12 @@ void block_non_intra(unsigned int b)
 	    val =  4096 - val;// - 4096;
 	}
 	else {
+	  //	  dropbits(tab->len);
 	  run = tab->run;
 	  val = tab->level; 
-	  sgn = GETBITS(1, "(get_dct sign )"); //sign bit
+	  sgn = 0x1 & GETBITS(tab->len+1, "(get_dct sign )"); //sign bit
 	  //	    val = -val;
 	}
-	
-	//	sgn = (val < 0);
-	//	val = abs(val);
 	
 	n += run;
 	
