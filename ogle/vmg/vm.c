@@ -226,28 +226,26 @@ int vm_next_pg(void)
 {
   link_t link_values;
   
-  if(next_PG(&link_values)) {
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-    state.blockN = link_values.data1;
-    return 1; // jump
-  }
-  
-  return 0; // do nothing 
+  if(next_PG(&link_values) == -1)
+    return 0; // do nothing 
+
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Jump
 }
 
 int vm_prev_pg(void)
 {
   link_t link_values;
 
-  if(prev_PG(&link_values)) {
-     link_values = process_command(link_values);
-     assert(link_values.command == PlayThis);
-     state.blockN = link_values.data1;
-     return 1;
-  }
-  
-  return 0;
+  if(prev_PG(&link_values) == -1)
+    return 0; // do nothing
+
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Jump
 }
 
 int vm_jump_ptt(int pttN)
@@ -1159,11 +1157,11 @@ static link_t process_command(link_t link_values)
       link_values = play_PG();
       break;
     case LinkNextPG:
-      if(!next_PG(&link_values))
+      if(next_PG(&link_values) == -1)
 	return do_nothing; // it must do nothing, do not exit...
       break;
     case LinkPrevPG:
-      if(!prev_PG(&link_values))
+      if(prev_PG(&link_values) == -1)
 	return do_nothing; // it must do nothing, do not exit...
       break;
       
