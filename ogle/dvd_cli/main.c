@@ -96,13 +96,19 @@ main (int argc, char *argv[])
     }
     
     // hack
+    /*
     res = DVDGetXWindowID(nav, (void *)&windowid);
     if(res != DVD_E_Ok) {
       DVDPerror("DVDGetXWindowID:", res);
       exit(1);
     }
     win = windowid;
-    xsniff_init();
+    */
+    sleep(1);
+    DVDRequestInput(nav,
+		    INPUT_MASK_KeyPress | INPUT_MASK_ButtonPress |
+		    INPUT_MASK_PointerMotion);
+    // xsniff_init();
   }
   
   xsniff_mouse(NULL);

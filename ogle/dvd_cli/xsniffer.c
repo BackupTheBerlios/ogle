@@ -27,6 +27,8 @@
 #include <X11/keysym.h>
 
 #include <ogle/dvdcontrol.h>
+#include <ogle/msgevents.h>
+
 #include "xsniffer.h"
 
 extern DVDNav_t *nav;
@@ -57,53 +59,76 @@ void xsniff_init() {
 }
 
 void* xsniff_mouse(void* args) {
-  XEvent ev;
+  MsgEvent_t mev;
+  //XEvent ev;
 
   fprintf(stderr, "xsniff_mouse\n");
   
   while(1) {
-    XNextEvent(display, &ev);
     
-    switch(ev.type) {
 
-    case MotionNotify:
+    DVDNextEvent(nav, &mev);
+
+    fprintf(stderr, "dvd_cli: got event\n");
+    //XNextEvent(display, &ev);
+    
+    //switch(ev.type) {
+    switch(mev.type) {
+    
+      
+      //case MotionNotify:
+    case MsgEventQInputPointerMotion:
       {
 	DVDResult_t res;
 	int i = 5;
 	Bool b;
-
+	/*
 	usleep(50000);  // wait for 0.05 s
 	b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	while(b == True && i >= 0) {
 	  i--;
 	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	}
-	
+	*/
 	{ 
 	  int x, y;
-	  XWindowAttributes xattr;
-	  XGetWindowAttributes(display, win, &xattr);
-	  // Represent the coordinate as a fixpoint numer btween 0..65536
-	  x = ev.xbutton.x * 65536 / xattr.width;
-	  y = ev.xbutton.y * 65536 / xattr.height;
+	  /*
+	    XWindowAttributes xattr;
+	    XGetWindowAttributes(display, win, &xattr);
+	    // Represent the coordinate as a fixpoint numer btween 0..65536
+	    x = ev.xbutton.x * 65536 / xattr.width;
+	    y = ev.xbutton.y * 65536 / xattr.height;
+	  */
+	  x = mev.input.x * 65536 / 720;
+	  y = mev.input.y * 65536 / 576;
+	  
 	  res = DVDMouseSelect(nav, x, y);
 	}
+	
+	
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
       }
       break;
-    case ButtonPress:
-      switch(ev.xbutton.button) {
+      //    case ButtonPress:
+    case MsgEventQInputButtonPress:
+      //switch(ev.xbutton.button) {
+      switch(mev.input.input) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
 	  int x, y;
+	  /*
 	  XWindowAttributes xattr;
 	  XGetWindowAttributes(display, win, &xattr);
 	  // Represent the coordinate as a fixpoint numer btween 0..65536
 	  x = ev.xbutton.x * 65536 / xattr.width;
 	  y = ev.xbutton.y * 65536 / xattr.height;
+	  */
+	  x = mev.input.x * 65536 / 720;;
+	  y = mev.input.y * 65536 / 576;;
+	  
 	  res = DVDMouseActivate(nav, x, y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
@@ -118,13 +143,14 @@ void* xsniff_mouse(void* args) {
       break;
 
 
-    case KeyPress:
+      //case KeyPress:
+    case MsgEventQInputKeyPress:
       {
-	char buff[2] = {0};
 	//static int debug_change = 0;
 	KeySym keysym;
-	XLookupString(&(ev.xkey), buff, 2, &keysym, NULL);
-	buff[1] = '\0';
+	keysym = mev.input.input;
+	//XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
+	//buff[1] = '\0';
 
 	switch(keysym) {
 	case XK_Up:
@@ -143,41 +169,36 @@ void* xsniff_mouse(void* args) {
 	case XK_KP_Enter:
 	  DVDButtonActivate(nav);
 	  break;
-	default:
-	  break;
-	}
-	
-	switch(buff[0]) {
-	case 't':
+	case XK_t:
 	  DVDMenuCall(nav, DVD_MENU_Title);
 	  break;
-	case 'r':
+	case XK_r:
 	  DVDMenuCall(nav, DVD_MENU_Root);
 	  break;
-	case 's':
+	case XK_s:
 	  DVDMenuCall(nav, DVD_MENU_Subpicture);
 	  break;
-	case 'a':
+	case XK_a:
 	  DVDMenuCall(nav, DVD_MENU_Audio);
 	  break;
-	case 'g':
+	case XK_g:
 	  DVDMenuCall(nav, DVD_MENU_Angle);
 	  break;
-	case 'p':
+	case XK_p:
 	  DVDMenuCall(nav, DVD_MENU_Part);
 	  break;
-	case 'c':
+	case XK_c:
 	  DVDResume(nav);
 	  break;
-	case '>':
+	case XK_greater:
 	  // next;
 	  DVDNextPGSearch(nav);
 	  break;
-	case '<':
+	case XK_less:
 	  // prev;
 	  DVDPrevPGSearch(nav);
 	  break;
-	case 'q':
+	case XK_q:
 	  {
 	    DVDResult_t res;
 	    res = DVDCloseNav(nav);
@@ -187,7 +208,7 @@ void* xsniff_mouse(void* args) {
 	    exit(0);
 	  }
 	  break;
-	case 'f':
+	case XK_f:
 	  // fullscreen
 	  {
 	    static int fs = 0;
@@ -199,9 +220,12 @@ void* xsniff_mouse(void* args) {
 	    }
 	  }
 	  break;
+	  
 	default:
 	  break;
-	} /* end case KeyPress */
+	}
+      default:
+	break;
       }
     }
   }
