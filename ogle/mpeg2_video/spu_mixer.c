@@ -810,7 +810,7 @@ void display_mix_function_bgr32(uint32_t color, uint32_t contrast,
     } else {
       for(n = 0; n < length; n++, pixel++) {
 	unsigned int pr, pg, pb;
-	uint16_t source = *pixel;
+	uint32_t source = *pixel;
 	pr = source & 0xff;
 	pg = (source >> 8) & 0xff;
 	pb = (source >> 16) & 0xff;
