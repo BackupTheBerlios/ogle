@@ -18,6 +18,7 @@ ogle_gui_SOURCES = \
 	menu.c menu.h \
 	audio.c audio.h \
 	angle.c angle.h \
+	ptt.c ptt.h \
 	subpicture.c subpicture.h \
 	language.c language.h \
 	fileselector.c fileselector.h \

@@ -29,6 +29,7 @@
 #include "menu.h"
 #include "audio.h"
 #include "angle.h"
+#include "ptt.h"
 #include "subpicture.h"
 #include "fileselector.h"
 
@@ -51,7 +52,6 @@ on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
 {
   DVDMenuCall(nav, DVD_MENU_Part);
 }
-
 
 void
 on_angle_activate_pm                   (GtkMenuItem     *menuitem,
@@ -456,6 +456,13 @@ on_angle_button_clicked                (GtkButton       *button,
   angle_menu_show(GTK_WIDGET(button));
 }
 
+void
+on_ptt_button_clicked                  (GtkButton       *button,
+                                        gpointer         user_data)
+{
+  ptt_menu_show(GTK_WIDGET(button));
+}
+
 
 void 
 on_full_screen_activate                (GtkButton       *button,
@@ -472,4 +479,23 @@ on_full_screen_activate                (GtkButton       *button,
 	      res);
     return;
   }
+}
+
+/* hack, pos = title*256+ptt */
+void
+on_jump_to_ptt_activate                (GtkWidget       *widget,
+                                        gpointer        pos)
+{
+  DVDResult_t res;
+  int title;
+  int ptt;
+
+  title = GPOINTER_TO_INT(pos)/256;
+  ptt   = GPOINTER_TO_INT(pos)%256;
+
+  res = DVDPTTPlay (nav, title, ptt);
+  if(res != DVD_E_Ok) {
+    DVDPerror("callbacks.on_jump_to_ptt_activate:DVDPTTPlay", res);
+  }
+  return;
 }
