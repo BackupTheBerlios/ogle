@@ -795,6 +795,7 @@ int main(int argc, char **argv)
   } else {
     struct stat statbuf;
     int rv;
+    struct load_file_packet packet;
     
     infilefd = open(argv[optind], O_RDONLY);
     if(infilefd == -1) {
@@ -821,6 +822,19 @@ int main(int argc, char **argv)
       }
       DPRINTF(1, "All mmap system ok!\n");
 
+      //Sending "load-this-file" packet to listeners
+
+      packet.cmd = PACK_TYPE_LOAD_FILE;
+      packet.len = strlen(argv[optind]);
+      strcpy((char *)&(packet.payload), argv[optind]);
+      
+      if(video)
+	fwrite(&pack, packet.len+2, 1, video_file);
+      if(audio)
+	fwrite(&pack, packet.len+2, 1, audio_file);
+      if(subtitle)
+	fwrite(&pack, packet.len+2, 1, subtitle_file);
+      
       // Setup signal handler for SEGV, to detect that we ran 
       // out of file, without a test.
       sig.sa_handler = segvhandler;
