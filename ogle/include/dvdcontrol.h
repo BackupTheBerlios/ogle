@@ -24,6 +24,8 @@ DVDResult_t DVDGoUP(void);
 
 DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t Lang);
 
+DVDResult_t DVDAudioStreamChange(DVDAudioStream_t StreamNr);
+
 void DVDPerror(const char *str, DVDResult_t ErrCode);
 
 #endif /* DVDCONTROL_H */

@@ -61,9 +61,14 @@ typedef enum {
 typedef DVDRegister DVDGPRMArray_t[16];
 typedef DVDRegister DVDSPRMArray_t[24];
 
-typedef int DVDStream_t;
+//typedef int DVDStream_t;
 typedef int DVDAngle_t;
- 
+
+/** 
+ * Audio stream number (0-7)
+ */
+typedef int DVDAudioStream_t;  
+
 /**
  * The audio application mode
  */

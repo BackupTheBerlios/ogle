@@ -71,17 +71,26 @@ typedef enum {
   MsgEventQSPUHighlight,
   MsgEventQUserInput,
   MsgEventQSpeed,
-  MsgEventQDVDMenuCall
+  MsgEventQDVDMenuCall,
+  MsgEventQDVDAudioStreamChange
 } MsgEventType_t;
 
 
 /* DVD control */
+
 typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
   DVDMenuID_t menuid;
 } MsgQDVDMenuCallEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  DVDAudioStream_t streamnr;
+} MsgQDVDAudioStreamChangeEvent_t;
 
 /* end DVD control */
 
