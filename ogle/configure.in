@@ -363,12 +363,15 @@ AC_SUBST(CONFIG_FILE_DTD)
 case $host_os in
 solaris*)
 	DEFAULT_DVD_DEVICE="/cdrom/cdrom0"
+	DEFAULT_AUDIO_DEVICE="/dev/audio"
 	;;
 linux*)
 	DEFAULT_DVD_DEVICE="/dev/dvd"
+	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 freebsd*)
 	DEFAULT_DVD_DEVICE="/dev/racd0c"
+	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 netbsd*)
   	case "$host_cpu" in
@@ -379,19 +382,24 @@ netbsd*)
 		DEFAULT_DVD_DEVICE="/dev/rcd0c"
 		;;
   	esac
+	DEFAULT_AUDIO_DEVICE="/dev/dsp"
   	;;
 openbsd*)
 	DEFAULT_DVD_DEVICE="/dev/rcd0c"
+	DEFAULT_AUDIO_DEVICE="/dev/audio"
 	;;
 bsdi*)
 	DEFAULT_DVD_DEVICE="/dev/sr0c"
+	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 *)
 	DEFAULT_DVD_DEVICE=""
+	DEFAULT_AUDIO_DEVICE=""
 	;;
 esac
 
 AC_SUBST(DEFAULT_DVD_DEVICE)
+AC_SUBST(DEFAULT_AUDIO_DEVICE)
 
 dnl ---------------------------------------------------------
 dnl end config file
