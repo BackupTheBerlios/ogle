@@ -327,9 +327,8 @@ typedef struct {
   int16_t mb_width;
   int16_t mb_height;
   int16_t mb_row;
-  int16_t macroblock_address;
-  int16_t previous_macroblock_address;
   int16_t mb_column;
+  int16_t macroblock_address;
   
 } sequence_t;
 

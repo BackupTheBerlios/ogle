@@ -529,8 +529,13 @@ void motion_vectors(unsigned int s)
   DPRINTF(3, "motion_vectors(%u)\n", s);
   
   /* This does not differ from MPEG-2 if:
-     motion_vector_count == 1 && mv_format == MV_FORMAT_FRAME
+     pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE &&
+     pic.coding_ext.frame_pred_frame_dct == 1
      but this is shorter. */
+  mb.prediction_type = PRED_TYPE_FRAME_BASED;
+  mb.motion_vector_count = 1;
+  mb.mv_format = MV_FORMAT_FRAME;
+  mb.dmv = 0;
   
   motion_vector(0, s);
 }
@@ -625,22 +630,15 @@ int macroblock(void)
   }
   // MPEG-1 end
 
-
   while(nextbits(11) == 0x008) {
     GETBITS(11, "macroblock_escape");
     inc_add += 33;
   }
-
   mb.macroblock_address_increment
     = get_vlc(table_b1, "macroblock_address_increment");
 
-  mb.macroblock_address_increment += inc_add;
-  
-  seq.macroblock_address
-    =  mb.macroblock_address_increment + seq.previous_macroblock_address;
-  
-  seq.previous_macroblock_address = seq.macroblock_address;
-
+  mb.macroblock_address_increment += inc_add;  
+  seq.macroblock_address += mb.macroblock_address_increment;
 
   seq.mb_column = seq.macroblock_address % seq.mb_width;
   seq.mb_row = seq.macroblock_address / seq.mb_width;
@@ -731,10 +729,8 @@ int macroblock(void)
   }
  
   switch (pic.header.picture_coding_type) {
-  
   case PIC_CODING_TYPE_I: /* I-picture */
     break;
-  
   case PIC_CODING_TYPE_P: /* P-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
@@ -745,10 +741,9 @@ int macroblock(void)
       /* Asume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
       mb.modes.macroblock_motion_backward = 0;
-      reset_vectors();
+      reset_vectors(); // Instead of explicit set to zero.
     }
     break;
-  
   case PIC_CODING_TYPE_B: /* B-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
@@ -800,7 +795,7 @@ int macroblock(void)
 	}
 	else {
 	  stride = width / 2; // HACK alert !!!
-	  if( i == 4 )
+	  if(i == 4)
 	    dst = &dst_image->u[x * 8 + y * width/2 * 8];
 	  else // i == 5
 	    dst = &dst_image->v[x * 8 + y * width/2 * 8];
@@ -841,19 +836,17 @@ int mpeg1_slice(void)
   uint32_t slice_start_code;
   
   DPRINTF(3, "slice\n");
-  
   reset_dc_dct_pred();
   reset_PMV();
   reset_vectors();
 
   DPRINTF(3, "start of slice\n");
-  
   slice_start_code = GETBITS(32, "slice_start_code");
   slice_data.slice_vertical_position = slice_start_code & 0xff;
   
   // Do we need to update seq.mb_col ???
   seq.mb_row = slice_data.slice_vertical_position - 1;
-  seq.previous_macroblock_address = (seq.mb_row * seq.mb_width) - 1;
+  seq.macroblock_address = (seq.mb_row * seq.mb_width) - 1;
 
   mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
 

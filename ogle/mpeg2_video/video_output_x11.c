@@ -591,6 +591,7 @@ void display(yuv_image_t *current_image)
 	case '1':
 	case '2':
 	case '3':
+	case '4':
 	  if(debug_change) 
 	    break; /* Handled below the switch */
 	  else if(scalemode_change) {

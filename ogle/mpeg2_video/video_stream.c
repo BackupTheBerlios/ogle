@@ -397,9 +397,15 @@ void init_program()
 #endif
   
   // init values for MPEG-1
-  pic.coding_ext.picture_structure = 0x3;
+  pic.coding_ext.picture_structure = PIC_STRUCT_FRAME_PICTURE;
   pic.coding_ext.frame_pred_frame_dct = 1;
   pic.coding_ext.intra_vlc_format = 0;
+  pic.coding_ext.concealment_motion_vectors = 0;
+  //mb.modes.frame_motion_type = 0x2; // This implies the ones below..
+  //mb.prediction_type = PRED_TYPE_FRAME_BASED;
+  //mb.motion_vector_count = 1;
+  //mb.mv_format = MV_FORMAT_FRAME;
+  //mb.dmv = 0;
   mb.motion_vector_count = 1;
   seq.ext.chroma_format = 0x1;
 
@@ -1142,16 +1148,16 @@ void picture_coding_extension(void)
   /* Table 6-14 Meaning of picture_structure */
   DPRINTF(1, "picture_structure: ");
   switch(pic.coding_ext.picture_structure) {
-  case 0x0:
+  case PIC_STRUCT_RESERVED:
     DPRINTF(1, "reserved");
     break;
-  case 0x1:
+  case PIC_STRUCT_TOP_FIELD:
     DPRINTF(1, "Top Field");
     break;
-  case 0x2:
+  case PIC_STRUCT_BOTTOM_FIELD:
     DPRINTF(1, "Bottom Field");
     break;
-  case 0x3:
+  case PIC_STRUCT_FRAME_PICTURE:
     DPRINTF(1, "Frame Picture");
     break;
   }
@@ -1191,7 +1197,7 @@ void picture_coding_extension(void)
   if(seq.ext.progressive_sequence) {
     seq.mb_height = (seq.vertical_size+15)/16;
   } else {
-    if(pic.coding_ext.picture_structure == 0x03) {
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
       /* frame pic */
       seq.mb_height = 2*((seq.vertical_size+31)/32);
     } else {
@@ -1448,7 +1454,7 @@ void dpy_q_put(int id)
   
 }
 
-
+#define FPS_FRAMES 480
 /* 6.2.3.6 Picture data */
 void picture_data(void)
 {
@@ -1458,14 +1464,14 @@ void picture_data(void)
   uint64_t calc_pts;
   int err;
   picture_info_t *pinfos;
-  static int bepa = 0;
+  static int bepa = FPS_FRAMES;
   static int bwd_ref_temporal_reference = -1;
   static int prev_coded_temp_ref = -2;
   pinfos = buf_ctrl_head->picture_infos;
 
   //fprintf(stderr, ".");
   
-  if(bepa >= 192) {
+  if(bepa >= FPS_FRAMES) {
     static struct timespec qot;
     struct timespec qtt;
     struct timespec qpt;
@@ -1497,7 +1503,7 @@ void picture_data(void)
     qot = qtt;
 
     fprintf(stderr, "decode fps: %.3f\n",
-	    200/((double)qpt.tv_sec+(double)qpt.tv_nsec/1000000000.0));
+	    FPS_FRAMES/((double)qpt.tv_sec+(double)qpt.tv_nsec/1000000000.0));
   }
   
   bepa++;
@@ -1540,7 +1546,6 @@ void picture_data(void)
       
       /* this buffer is used as reference picture by the decoder */
       pinfos[buf_id].is_ref = 1; 
-      
       
       break;
     case PIC_CODING_TYPE_B:
@@ -1762,8 +1767,7 @@ void picture_data(void)
       if(slice_nr >= seq.mb_height) {
 	break;
       }
-      next_start_code();
-      
+      next_start_code();      
     } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   else {
@@ -1783,12 +1787,8 @@ void picture_data(void)
   // Check 'err' here?
 
   // Picture decoded
-  /*
-  fprintf(stderr, "end of picture tempref: %d\n",
-	  pic.header.temporal_reference);
-  */
   if((prev_coded_temp_ref == pic.header.temporal_reference) ||
-     (pic.coding_ext.picture_structure == 0x3)) {
+     (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE)) {
     
     if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
       
@@ -1797,6 +1797,9 @@ void picture_data(void)
 	last_temporal_ref_to_dpy = pic.header.temporal_reference;
 	last_pts_to_dpy = pinfos[buf_id].PTS;
 	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
+	
+	//pinfos[buf_id].is_ref = 0; // this is never set in a B picture ?
+	//pinfos[buf_id].displayed = 1;
 	dpy_q_put(buf_id);
 	
 	if(bwd_ref_buf_id == -1) {
@@ -2062,8 +2065,8 @@ void picture_display_extension()
   int i;
   
   if((seq.ext.progressive_sequence == 1) || 
-     ((pic.coding_ext.picture_structure == 0x1) ||
-      (pic.coding_ext.picture_structure == 0x2))) {
+     ((pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD) ||
+      (pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD))) {
     number_of_frame_centre_offsets = 1;
   } else {
     if(pic.coding_ext.repeat_first_field == 1) {

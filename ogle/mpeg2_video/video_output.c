@@ -25,7 +25,8 @@
 
 extern buf_ctrl_head_t *buf_ctrl_head;
 extern void display(yuv_image_t *current_image);
-
+extern void display_init(int padded_width, int padded_height,
+			 int horizontal_size, int vertical_size);
 extern void exit_program(int);
 
 
