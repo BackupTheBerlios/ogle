@@ -40,10 +40,6 @@
 #include "../include/common.h"
 #include "c_getbits.h"
 
-int dctstat[128];
-int total_pos = 0;
-int total_calls = 0;
-
 extern int show_stat;
 unsigned int debug = 0;
 int shm_ready = 0;
@@ -67,8 +63,6 @@ double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
 double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
 
 
-//#define DEBUG
-//#define STATS
 
 int MPEG2 = 0;
 
@@ -228,10 +222,6 @@ slice_t slice_data;
 macroblock_t mb;
 
 
-yuv_image_t r1_img;
-yuv_image_t r2_img;
-yuv_image_t b_img;
-
 yuv_image_t *ref_image1;
 yuv_image_t *ref_image2;
 yuv_image_t *dst_image;
@@ -351,26 +341,20 @@ void init_program()
   ref1_mbs = malloc(36*45*sizeof(macroblock_t));
   ref2_mbs = malloc(36*45*sizeof(macroblock_t));
   
-#if 0
-  ref_image1 = &r1_img;
-  ref_image2 = &r2_img;
-  b_image = &b_img;
-
-  display_init();
-#endif
-  
   // Setup signal handler.
   // SIGINT == ctrl-c
   sig.sa_handler = sighandler;
   sigaction(SIGINT, &sig, NULL);
   
   
-  
 #ifdef STATS
   statistics_init();
 #endif
+ 
+#ifdef TIMESTAT
+  timestat_init();
+#endif
   
-
   // init values for MPEG-1
   pic.coding_ext.picture_structure = 0x3;
   pic.coding_ext.frame_pred_frame_dct = 1;
@@ -378,7 +362,6 @@ void init_program()
   mb.motion_vector_count = 1;
   seq.ext.chroma_format = 0x1;
 
-  return;
 }
 
 int main(int argc, char **argv)
@@ -412,10 +395,6 @@ int main(int argc, char **argv)
   }
   
   init_program();
-
-#ifdef TIMESTAT
-  timestat_init();
-#endif
   
   init_out_q(nr_of_buffers);
   
@@ -434,7 +413,7 @@ int main(int argc, char **argv)
   buf_size = 0;
   offs = 0;
   bits_left = 0;
-  read_buf(); // Read firs packet and fill 'curent_word'.
+  read_buf(); // Read first data packet and fill 'curent_word'.
   while( 1 ) {
     DPRINTF(1, "Looking for new Video Sequence\n");
     video_sequence();
@@ -479,129 +458,123 @@ void next_start_code(void)
 void resync(void) {
   DPRINTF(1, "Resyncing\n");
   GETBITS(8, "resync");
-
 }
+
 
 /* 6.2.2 Video Sequence */
 void video_sequence(void) {
-  static int first = 1;
-  
-  if(first) {
-    first = 0;
-    //user_control(cur_mbs, ref1_mbs, ref2_mbs);
-  }
 
   next_start_code();
-  if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
-    DPRINTF(1, "Found Sequence Header\n");
+  if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
+    resync();
+    return;
+  }
+  
+  DPRINTF(1, "Found Sequence Header\n");
 
-    sequence_header();
+  sequence_header();
 
-    if(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
-      MPEG2 = 1;
-      sequence_extension();
+  if(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
+    /* MPEG-2 always have a extension code right after the sequence header. */
+    MPEG2 = 1;
+    
+    sequence_extension();
 
-      if(!shm_ready) {
-	setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
-	//display_init(...);
-	shm_ready = 1;
-	
-	switch(fork()) {
-	case 0:
-	  display_process();
-	  display_exit();
-	  exit(0);
-	  break;
-	case -1:
-	  perror("fork");
-	  break;
-	default:
-	  break;
-	}
-
-      }
+    /* Display init */
+    if(!shm_ready) {
+      setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
+      shm_ready = 1;
       
-      do {
-	extension_and_user_data(0);
-	do {
-#ifdef TIMESTAT
-	  clock_gettime(CLOCK_REALTIME, &picture_decode_start_time);
-#endif
-	  if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
-	    group_of_pictures_header();
-	    extension_and_user_data(1);
-	  }
-	  picture_header();
-	  picture_coding_extension();
-
-	  extension_and_user_data(2);
-
-	  picture_data();
-
-       	} while((nextbits(32) == MPEG2_VS_PICTURE_START_CODE) ||
-		(nextbits(32) == MPEG2_VS_GROUP_START_CODE));
-	if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
-
-	  if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
-	    DPRINTF(1, "*** not a sequence header\n");
-
-	    break;
-	  }
-	  sequence_header();
-
-	  sequence_extension();
-
-	}
-      } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
-    } else {
-      // fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
-      
-      //MPEG-1 2000-04-06 start
-      
-      if(!shm_ready) {
-	setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
-	//display_init(...);
-	shm_ready = 1;
-
-	switch(fork()) {
-	case 0:
-	  display_process();
-	  exit(0);
-	  break;
-	case -1:
-	  perror("fork");
+      switch(fork()) {
+      case 0:
+	display_process();
+	display_exit();
+	exit(0);
 	break;
-	default:
+      case -1:
+	perror("fork");
+	break;
+      default:
+	break;
+      }
+    }
+      
+    do {
+      extension_and_user_data(0);
+      do {
+#ifdef TIMESTAT
+	clock_gettime(CLOCK_REALTIME, &picture_decode_start_time);
+#endif
+	if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
+	  group_of_pictures_header();
+	  extension_and_user_data(1);
+	}
+	picture_header();
+	picture_coding_extension();
+	
+	extension_and_user_data(2);
+	
+	picture_data();
+	
+      } while((nextbits(32) == MPEG2_VS_PICTURE_START_CODE) ||
+	      (nextbits(32) == MPEG2_VS_GROUP_START_CODE));
+      
+      if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
+	if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
+	  DPRINTF(1, "*** not a sequence header or end code\n");
 	  break;
 	}
+	
+	sequence_header();
+	sequence_extension();
       }
+    } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
+    
+  } else {
+    // fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
+    
+    /* No extension code following the sequence header implies MPEG-1 */
       
-      next_start_code();
+    /* Display init */
+    if(!shm_ready) {
+      setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
+      shm_ready = 1;
       
+      switch(fork()) {
+      case 0:
+	display_process();
+	display_exit();
+	exit(0);
+	break;
+      case -1:
+	perror("fork");
+	break;
+      default:
+	break;
+      }
+    }
+    
+    next_start_code();
+    extension_and_user_data(1);
+    do {
+      group_of_pictures_header();
       extension_and_user_data(1);
       do {
-	group_of_pictures_header();
+	picture_header();
 	extension_and_user_data(1);
-	do {
-	  picture_header();
-	  extension_and_user_data(1);
-	  picture_data();
-	} while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE);
-      } while(nextbits(32) == MPEG2_VS_GROUP_START_CODE);
-      
-      //MPEG-1 2000-04-06 end
-      
-    }
-    if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
-      GETBITS(32, "Sequence End Code");
-      DPRINTF(1, "Found Sequence End\n");
-      
-    } else {
-      DPRINTF(1, "*** Didn't find Sequence End\n");
-      
-    }
+	picture_data();
+      } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE);
+    } while(nextbits(32) == MPEG2_VS_GROUP_START_CODE);
+    // } while(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE);
+  }
+    
+  
+  /* If we are exiting there should be a sequence end code following. */
+  if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
+    GETBITS(32, "Sequence End Code");
+    DPRINTF(1, "Found Sequence End\n");
   } else {
-    resync();
+    DPRINTF(1, "*** Didn't find Sequence End\n");
   }
 
 }
@@ -610,8 +583,8 @@ void video_sequence(void) {
 /* 6.2.2.1 Sequence header */
 void sequence_header(void)
 {
-  long int frame_interval_nsec;
   uint32_t sequence_header_code;
+  long int frame_interval_nsec;
   
   DPRINTF(1, "sequence_header\n");
   
@@ -620,30 +593,29 @@ void sequence_header(void)
     fprintf(stderr, "wrong start_code sequence_header_code: %08x\n",
 	    sequence_header_code);
   }
-  /* When a sequence_header_code is decoded all matrices shall be reset
-     to their default values */
-  
-  //  reset_to_default_quantiser_matrix();
   
   seq.header.horizontal_size_value = GETBITS(12, "horizontal_size_value");
   seq.header.vertical_size_value = GETBITS(12, "vertical_size_value");
   seq.header.aspect_ratio_information = GETBITS(4, "aspect_ratio_information");
-  DPRINTF(1, "vertical: %u\n", seq.header.horizontal_size_value);
-  DPRINTF(1, "horisontal: %u\n", seq.header.vertical_size_value);
   seq.header.frame_rate_code = GETBITS(4, "frame_rate_code");
   seq.header.bit_rate_value = GETBITS(18, "bit_rate_value");  
   marker_bit();
   seq.header.vbv_buffer_size_value = GETBITS(10, "vbv_buffer_size_value");
-  seq.header.constrained_parameters_flag = GETBITS(1, "constrained_parameters_flag");
-  seq.header.load_intra_quantiser_matrix = GETBITS(1, "load_intra_quantiser_matrix");
-  if(seq.header.load_intra_quantiser_matrix) {
+  seq.header.constrained_parameters_flag 
+    = GETBITS(1, "constrained_parameters_flag");
+  
+  
+  /* When a sequence header is decoded all matrices shall either 
+     be reset to their default values or downloaded from the bit stream. */
+  if(GETBITS(1, "load_intra_quantiser_matrix")) {
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
 #ifdef STATS
-    stats_intra_inverse_quantiser_matrix_loaded = 1;
+    stats_intra_inverse_quantiser_matrix_loaded_nr++;
 #endif
     for(n = 0; n < 64; n++) {
-      seq.header.intra_quantiser_matrix[n] = GETBITS(8, "intra_quantiser_matrix[n]");
+      seq.header.intra_quantiser_matrix[n] 
+	= GETBITS(8, "intra_quantiser_matrix[n]");
     }
     
     /* 7.3.1 Inverse scan for matrix download */
@@ -662,36 +634,23 @@ void sequence_header(void)
       reset_to_default_intra_quantiser_matrix();
       intra_inverse_quantiser_matrix_changed = 0;
 #ifdef STATS
-      stats_intra_inverse_quantiser_matrix_reset = 1;
+      stats_intra_inverse_quantiser_matrix_reset_nr++;
 #endif
     }
   }
   
-#ifdef STATS
-  stats_intra_inverse_quantiser_matrix_changes_possible++;
-
-  if(stats_intra_inverse_quantiser_matrix_loaded) {
-    stats_intra_inverse_quantiser_matrix_loaded_nr++;
-    stats_intra_inverse_quantiser_matrix_loaded = 0;
-  }
-  if(stats_intra_inverse_quantiser_matrix_reset) {
-    stats_intra_inverse_quantiser_matrix_reset_nr++;
-    stats_intra_inverse_quantiser_matrix_reset = 0;
-  }
-#endif
-  
-  seq.header.load_non_intra_quantiser_matrix = GETBITS(1, "load_non_intra_quantiser_matrix");
-  if(seq.header.load_non_intra_quantiser_matrix) {
+  if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
 #ifdef STATS
-    stats_non_intra_inverse_quantiser_matrix_loaded = 1;
+    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
 #endif
     for(n = 0; n < 64; n++) {
-      seq.header.non_intra_quantiser_matrix[n] = GETBITS(8, "non_intra_quantiser_matrix[n]");
+      seq.header.non_intra_quantiser_matrix[n] 
+	= GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
    
-    /* inverse scan for matrix download */
+    /** 7.3.1 Inverse scan for matrix download */
     {
       int v, u;
       for (v=0; v<8; v++) {
@@ -707,24 +666,19 @@ void sequence_header(void)
       reset_to_default_non_intra_quantiser_matrix();
       non_intra_inverse_quantiser_matrix_changed = 0;
 #ifdef STATS
-      stats_non_intra_inverse_quantiser_matrix_reset = 1;
+      stats_non_intra_inverse_quantiser_matrix_reset_nr++;
 #endif
     }
   }
 
 #ifdef STATS
+  stats_intra_inverse_quantiser_matrix_changes_possible++;
   stats_non_intra_inverse_quantiser_matrix_changes_possible++;
-
-  if(stats_non_intra_inverse_quantiser_matrix_loaded) {
-    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
-    stats_non_intra_inverse_quantiser_matrix_loaded = 0;
-  }
-  if(stats_non_intra_inverse_quantiser_matrix_reset) {
-    stats_non_intra_inverse_quantiser_matrix_reset_nr++;
-    stats_non_intra_inverse_quantiser_matrix_reset = 0;
-  }
 #endif
-
+  
+  
+  DPRINTF(1, "vertical: %u\n", seq.header.horizontal_size_value);
+  DPRINTF(1, "horisontal: %u\n", seq.header.vertical_size_value);
 
   DPRINTF(1, "frame rate: ");
   switch(seq.header.frame_rate_code) {
@@ -767,6 +721,8 @@ void sequence_header(void)
     DPRINTF(1, "Reserved\n");
     break;
   }
+  
+  
   if(forced_frame_rate == -1) { /* No forced frame rate */
     buf_ctrl_head->frame_interval = frame_interval_nsec;
   }
@@ -776,32 +732,24 @@ void sequence_header(void)
   
   seq.mb_width  = (seq.horizontal_size+15)/16;
   seq.mb_height = (seq.vertical_size+15)/16;
-
 }
 
-#define BUFFER_FREE 0
-#define BUFFER_FULL 1
 
-
-#define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
 
 void init_out_q(int nr_of_bufs)
 { 
-
   int buf_ctrl_size  = (sizeof(buf_ctrl_head_t) + 
 			nr_of_bufs * sizeof(picture_info_t) +
 			nr_of_bufs * sizeof(int));
 
-  // Get shared memory and identifiers
-
-  if ((buf_ctrl_shmid =
-       shmget(IPC_PRIVATE, buf_ctrl_size, IPC_CREAT | 0666)) == -1) {
+  /* Get shared memory and identifiers. */
+  buf_ctrl_shmid = shmget(IPC_PRIVATE, buf_ctrl_size, IPC_CREAT | 0666);
+  if( buf_ctrl_shmid == -1) {
     perror("shmget buf_ctrl");
     exit_program(1);
   }
 
-  // Attach the shared memory to the process
-  
+  /* Attach the shared memory to the process. */
   buf_ctrl_shmaddr = shmat(buf_ctrl_shmid, NULL, 0);
   if(buf_ctrl_shmaddr == (char *) -1) {
     perror("shmat buf_ctrl");
@@ -825,7 +773,6 @@ void init_out_q(int nr_of_bufs)
   
   
   // Set the semaphores to the correct starting values
-  
   if(sem_init(&(buf_ctrl_head->pictures_ready_to_display), 1, 0) == -1){
     perror("sem_init ready_to_display");
   }
@@ -835,6 +782,9 @@ void init_out_q(int nr_of_bufs)
   
 }
 
+
+
+#define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
 
 void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
 { 
@@ -853,15 +803,14 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
   char *baseaddr;
 
   // Get shared memory and identifiers
-
-  if ((picture_buffers_shmid =
-       shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0666)) == -1) {
+  picture_buffers_shmid
+    = shmget(IPC_PRIVATE, picture_buffers_size, IPC_CREAT | 0666);
+  if (picture_buffers_shmid == -1) {
     perror("shmget picture_buffers");
     exit_program(1);
   }
 
   // Attach the shared memory to the process
-  
   picture_buffers_shmaddr = shmat(picture_buffers_shmid, NULL, 0);
   if(picture_buffers_shmaddr == (char *) -1) {
     perror("shmat picture_buffers");
@@ -948,8 +897,10 @@ void sequence_extension(void) {
 	    extension_start_code);
   }
   
-  seq.ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
-  seq.ext.profile_and_level_indication = GETBITS(8, "profile_and_level_indication");
+  seq.ext.extension_start_code_identifier 
+    = GETBITS(4, "extension_start_code_identifier");
+  seq.ext.profile_and_level_indication 
+    = GETBITS(8, "profile_and_level_indication");
 
 #ifdef DEBUG
   DPRINTF(2, "profile_and_level_indication: ");
@@ -1020,11 +971,9 @@ void sequence_extension(void) {
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
 
-
-
   DPRINTF(1, "bit rate: %d bits/s\n",
-	  400 *
-	  ((seq.ext.bit_rate_extension << 12) | seq.header.bit_rate_value));
+	  400 * ((seq.ext.bit_rate_extension << 12) 
+		 | seq.header.bit_rate_value));
 
 
   DPRINTF(1, "frame rate: ");
@@ -1072,14 +1021,17 @@ void sequence_extension(void) {
     //TODO: frame_interval_nsec = ?
     break;
   }
-  buf_ctrl_head->frame_interval = frame_interval_nsec;
+  
+  if(forced_frame_rate == -1) { /* No forced frame rate */
+    buf_ctrl_head->frame_interval = frame_interval_nsec;
+  }
 }
+
 
 /* 6.2.2.2 Extension and user data */
 void extension_and_user_data(unsigned int i) {
   
   DPRINTF(3, "extension_and_user_data(%u)\n", i);
-
 
   while((nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) ||
 	(nextbits(32) == MPEG2_VS_USER_DATA_START_CODE)) {
@@ -1103,8 +1055,9 @@ void picture_coding_extension(void)
   DPRINTF(3, "picture_coding_extension\n");
 
   extension_start_code = GETBITS(32, "extension_start_code");
+  pic.coding_ext.extension_start_code_identifier 
+    = GETBITS(4, "extension_start_code_identifier");
 
-  pic.coding_ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
   pic.coding_ext.f_code[0][0] = GETBITS(4, "f_code[0][0]");
   pic.coding_ext.f_code[0][1] = GETBITS(4, "f_code[0][1]");
   pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
@@ -1150,25 +1103,25 @@ void picture_coding_extension(void)
 #endif
 
   pic.coding_ext.top_field_first = GETBITS(1, "top_field_first");
-  DPRINTF(1, "top_field_first: %01x\n", pic.coding_ext.top_field_first);
-
   pic.coding_ext.frame_pred_frame_dct = GETBITS(1, "frame_pred_frame_dct");
-  DPRINTF(1, "frame_pred_frame_dct: %01x\n", pic.coding_ext.frame_pred_frame_dct);
-  pic.coding_ext.concealment_motion_vectors = GETBITS(1, "concealment_motion_vectors");
+  pic.coding_ext.concealment_motion_vectors 
+    = GETBITS(1, "concealment_motion_vectors");
   pic.coding_ext.q_scale_type = GETBITS(1, "q_scale_type");
   pic.coding_ext.intra_vlc_format = GETBITS(1, "intra_vlc_format");
-  DPRINTF(1, "intra_vlc_format: %01x\n", pic.coding_ext.intra_vlc_format);
   pic.coding_ext.alternate_scan = GETBITS(1, "alternate_scan");
-  DPRINTF(1, "alternate_scan: %01x\n", pic.coding_ext.alternate_scan);
   pic.coding_ext.repeat_first_field = GETBITS(1, "repeat_first_field");
-  DPRINTF(1, "repeat_first_field: %01x\n", pic.coding_ext.repeat_first_field);
   pic.coding_ext.chroma_420_type = GETBITS(1, "chroma_420_type");
   pic.coding_ext.progressive_frame = GETBITS(1, "progressive_frame");
-
-  DPRINTF(1, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
-  
   pic.coding_ext.composite_display_flag = GETBITS(1, "composite_display_flag");
+  
+  DPRINTF(1, "top_field_first: %01x\n", pic.coding_ext.top_field_first);
+  DPRINTF(1, "frame_pred_frame_dct: %01x\n", pic.coding_ext.frame_pred_frame_dct);
+  DPRINTF(1, "intra_vlc_format: %01x\n", pic.coding_ext.intra_vlc_format);
+  DPRINTF(1, "alternate_scan: %01x\n", pic.coding_ext.alternate_scan);
+  DPRINTF(1, "repeat_first_field: %01x\n", pic.coding_ext.repeat_first_field);
+  DPRINTF(1, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
   DPRINTF(1, "composite_display_flag: %01x\n", pic.coding_ext.composite_display_flag);
+  
   if(pic.coding_ext.composite_display_flag) {
     pic.coding_ext.v_axis = GETBITS(1, "v_axis");
     pic.coding_ext.field_sequence = GETBITS(3, "field_sequence");
@@ -1176,8 +1129,6 @@ void picture_coding_extension(void)
     pic.coding_ext.burst_amplitude = GETBITS(7, "burst_amplitude");
     pic.coding_ext.sub_carrier_phase = GETBITS(8, "sub_carrier_phase");
   }
-  next_start_code();
-
   
   seq.mb_width = (seq.horizontal_size+15)/16;
   
@@ -1193,25 +1144,25 @@ void picture_coding_extension(void)
     }
   }
   
+  next_start_code();
 }
+
 
 /* 6.2.2.2.2 User data */
 void user_data(void)
 {
   uint32_t user_data_start_code;
-  uint8_t user_data;
   
   DPRINTF(3, "user_data\n");
 
-
-
   user_data_start_code = GETBITS(32, "user_date_start_code");
   while(nextbits(24) != 0x000001) {
-    user_data = GETBITS(8, "user_data");
+    GETBITS(8, "user_data");
   }
-  next_start_code();
   
+  next_start_code();  
 }
+
 
 /* 6.2.2.6 Group of pictures header */
 void group_of_pictures_header(void)
@@ -1222,7 +1173,6 @@ void group_of_pictures_header(void)
   uint8_t broken_link;
   
   DPRINTF(3, "group_of_pictures_header\n");
-
 
   group_start_code = GETBITS(32, "group_start_code");
 
@@ -1240,11 +1190,13 @@ void group_of_pictures_header(void)
 	  (time_code & 0x00000fc0)>>6,
 	  (time_code & 0x0000003f));
   
+  /* These need to be in seq or some thing like that */
   closed_gop = GETBITS(1, "closed_gop");
   broken_link = GETBITS(1, "broken_link");
   next_start_code();
   
 }
+
 
 /* 6.2.3 Picture header */
 void picture_header(void)
@@ -1292,29 +1244,32 @@ void picture_header(void)
 
   pic.header.vbv_delay = GETBITS(16, "vbv_delay");
 
-  if((pic.header.picture_coding_type == 2) ||
-     (pic.header.picture_coding_type == 3)) {
-    pic.header.full_pel_forward_vector = GETBITS(1, "full_pel_forward_vector");
+  if((pic.header.picture_coding_type == 0x02) ||
+     (pic.header.picture_coding_type == 0x03)) {
+    pic.header.full_pel_forward_vector 
+      = GETBITS(1, "full_pel_forward_vector");
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
-    pic.coding_ext.f_code[0][0] = pic.header.forward_f_code; //MPEG-1/2
-    pic.coding_ext.f_code[0][1] = pic.header.forward_f_code; //MPEG-1/2
+    /* To be able to use the same motion vector code for MPEG-1 and 2. In 
+       MPEG-2 these values will be read later in picture_coding_extension(). */
+    pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
+    pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
   }
   
-  if(pic.header.picture_coding_type == 3) {
-    pic.header.full_pel_backward_vector = GETBITS(1, "full_pel_backward_vector");
+  if(pic.header.picture_coding_type == 0x03) {
+    pic.header.full_pel_backward_vector 
+      = GETBITS(1, "full_pel_backward_vector");
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
-    pic.coding_ext.f_code[1][0] = pic.header.backward_f_code; //MPEG-1/2
-    pic.coding_ext.f_code[1][1] = pic.header.backward_f_code; //MPEG-1/2
+    pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
+    pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
   }
   
   while(nextbits(1) == 1) {
-    pic.header.extra_bit_picture = GETBITS(1, "extra_bit_picture");
-    pic.header.extra_information_picture = GETBITS(8, "extra_information_picture");
+    GETBITS(1, "extra_bit_picture");
+    GETBITS(8, "extra_information_picture");
   }
-  pic.header.extra_bit_picture = GETBITS(1, "extra_bit_picture");
+  GETBITS(1, "extra_bit_picture");
+  
   next_start_code();
-
-
 }
 
 
@@ -1324,8 +1279,8 @@ int get_picture_buf()
   static int dpy_q_displayed_pos = 0;
   int n;
   int id;
+  
   //  search for empty buffer
-
   for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
     /*    fprintf(stderr, "decode: BUF[%d]: in_use:%d, displayed: %d\n",
 	    n,
@@ -1335,12 +1290,10 @@ int get_picture_buf()
     if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
        (buf_ctrl_head->picture_infos[n].displayed == 1)) {
       buf_ctrl_head->picture_infos[n].displayed = 0;
-      //      fprintf(stderr, " buf_id %d empty\n", n);
       return n;
     }
   }
 
-  //  fprintf(stderr, "waiting for displayed picture\n");
   // didn't find empty buffer, wait for a picture to display
   if(sem_wait(&(buf_ctrl_head->pictures_displayed)) == -1) {
     perror("sem_wait get_picture_buf");
@@ -1358,7 +1311,6 @@ int get_picture_buf()
     if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
        (buf_ctrl_head->picture_infos[n].displayed == 1)) {
       buf_ctrl_head->picture_infos[n].displayed = 0;
-      //fprintf(stderr, " buf_id %d found empty\n", n);
       return n;
     }
   }
@@ -1391,7 +1343,6 @@ int get_picture_buf()
 }
 
 // Put decoded picture into display queue
-
 void dpy_q_put(int id)
 {
   static int dpy_q_put_pos = 0;
@@ -1407,6 +1358,7 @@ void dpy_q_put(int id)
       buf_ctrl_head->frame_interval = 1000000000/forced_frame_rate;
     }
   }
+  
   if(sem_post(&(buf_ctrl_head->pictures_ready_to_display)) != 0) {
     perror("sempost pictures_ready");
   }
@@ -1422,6 +1374,9 @@ void picture_data(void)
   static int prev_ref_buf_id = -1;
   static int old_ref_buf_id  = -1;
   
+  static struct timeval tv;
+  static struct timeval otv;
+
   DPRINTF(3, "picture_data\n");
 
 
@@ -1430,6 +1385,9 @@ void picture_data(void)
   case 0x1:
   case 0x2:
     //I,P picture
+    
+    /* We are about to decode a new reference picture, so we no longer 
+       requier the old backwards reference picture. */
     if(old_ref_buf_id != -1) {
       buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
     }
@@ -1437,40 +1395,122 @@ void picture_data(void)
   default:
     break;
   }
+  
+  gettimeofday(&tv, NULL); //End time
 
   buf_id = get_picture_buf();
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
-  //  fprintf(stderr, "decode: decode start buf %d\n", buf_id);
-  //fprintf(stderr, "reserved_image->y: %u\n", reserved_image->y);
+  
+  
+  /* Make some statistics on numer of images and time taken to decode them. */
+  {
+    static int first = 1;
+    static int frame_nr = 0;
+    static int previous_picture_type;
+    
+    double diff;
+    static double old_time = 0.0;
+
+#ifdef HAVE_MMX
+    emms();
+#endif
+  
+    // The time for the lastframe 
+    diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
+	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
+    
+    
+    if(first) {
+      first = 0;
+    } else {
+      switch(previous_picture_type) { 
+      case 0x1:
+	time_pic[0] += diff;
+	num_pic[0]++;
+	if(diff > time_max[0]) {
+	  time_max[0] = diff;
+	}
+	if(diff < time_min[0]) {
+	  time_min[0] = diff;
+	}
+	break;
+      case 0x2:
+	time_pic[1] += diff;
+	num_pic[1]++;
+	if(diff > time_max[1]) {
+	  time_max[1] = diff;
+	}
+	if(diff < time_min[1]) {
+	  time_min[1] = diff;
+	}
+	break;
+      case 0x3:
+	time_pic[2] += diff;
+	num_pic[2]++;
+	if(diff > time_max[2]) {
+	  time_max[2] = diff;
+	}
+	if(diff < time_min[2]) {
+	  time_min[2] = diff;
+	}
+	break;
+      }
+      time_pic[3] += diff;
+      num_pic[3]++;
+      if(diff > time_max[3]) {
+	time_max[3] = diff;
+      }
+      if(diff < time_min[3]) {
+	time_min[3] = diff;
+      }
+      
+      if(frame_nr == 0) {  
+        fprintf(stderr, "decode: frame rate: %f fps\n",
+                24.0/(time_pic[3] - old_time) );
+	
+	frame_nr = 24;
+        old_time = time_pic[3];
+      }
+      
+      frame_nr--;
+    }
+    
+    previous_picture_type = pic.header.picture_coding_type;
+    gettimeofday(&otv, NULL); // Start time (for this frame) 
+  }
+  
+  
+  
+  DPRINTF(2," switching buffers\n");
+  
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
     //I,P picture
-    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
-    //    fprintf(stderr, "decode: decoding I/P to buf: %d\n", buf_id);
+  
     ref_image1 = ref_image2;
-
     ref_image2 = reserved_image;
+    
     dst_image = reserved_image;
-
+    
+    /* Mark the new forward reference picture as 'in use'. */
+    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
+    
+    /* Send the backwards (old forwards) reference picture to the display. */
     if(prev_ref_buf_id != -1) {
       dpy_q_put(prev_ref_buf_id);
       old_ref_buf_id = prev_ref_buf_id;
     }
     prev_ref_buf_id = buf_id;
     
-
     break;
   case 0x3:
     // B-picture
-    //    fprintf(stderr, "decode: decoding B to buf: %d\n", buf_id);
     dst_image = reserved_image;
     break;
   }
   
-  DPRINTF(2," switching buffers\n");
   
-
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
@@ -1479,8 +1519,11 @@ void picture_data(void)
       memcpy(&cur_mbs[0], &ref1_mbs[0], sizeof(mb)*45*36);
     }
     break;
+  case 0x3:
+    break;
   }
-
+  
+  
   if( MPEG2 )
     do {
       mpeg2_slice();
@@ -1493,21 +1536,21 @@ void picture_data(void)
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   }
   
-  //  fprintf(stderr, "decode: decoding finished buf %d\n", buf_id);
-  // Picture decoded
+  
+  /* Picture decoded. */
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
+    // I,P picture
+    /* Already handled before we began the decoding of the current picture. */ 
     break;
   case 0x3:
     // B-picture
     if(prev_ref_buf_id == -1) {
       fprintf(stderr, "decode: B-frame before reference frame\n");
     }
+    /* Send the just decoded picture to the display. */
     dpy_q_put(buf_id);
-    break;
-  default:
-    fprintf(stderr, "Invalid frame type halting...\n");
     break;
   }
 
@@ -1581,16 +1624,8 @@ void picture_data(void)
     picture_decode_num++;
   }
   */
-#endif
-
-
-
-#ifdef TIMESTAT
+  
   clock_gettime(CLOCK_REALTIME, &picture_display_start_time);
-#endif
-
-
-
 
 #if 0
   frame_done(current_image, cur_mbs, 
@@ -1598,12 +1633,9 @@ void picture_data(void)
 	     ref_image2, ref2_mbs,
 	     pic.header.picture_coding_type);
 #endif
-#ifdef TIMESTAT
+
   clock_gettime(CLOCK_REALTIME, &picture_display_end_time);
-#endif
 
-
-#ifdef TIMESTAT
   /*
   fprintf(stderr, "decodetime: %d.%09d  %.3f\n",
 	  picture_decode_time.tv_sec,
@@ -1691,135 +1723,19 @@ void picture_data(void)
 #endif
 
 
-  {
-    static int first = 1;
-    static int frame_nr = 0;
-    static struct timeval tv;
-    static struct timeval otv;
-    static struct timeval tva;
-    static struct timeval otva;
-
-#ifdef STATS
-    static unsigned long long bits_read_old = 0;
-    static unsigned long long bits_read_new = 0;
-#endif
-
-    double diff;
-    
-    otv.tv_sec = tv.tv_sec;
-    otv.tv_usec = tv.tv_usec;
-    
-    gettimeofday(&tv, NULL);
-#ifdef HAVE_MMX
-  emms();
-#endif
-  
-    diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
-	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
-    
-    if(first) {
-      first = 0;
-            gettimeofday(&tva, NULL);
-      frame_nr = 25;
-    } else {
-      switch(pic.header.picture_coding_type) {
-      case 0x1:
-	time_pic[0] += diff;
-	num_pic[0]++;
-	if(diff > time_max[0]) {
-	  time_max[0] = diff;
-	}
-	if(diff < time_min[0]) {
-	  time_min[0] = diff;
-	}
-	break;
-      case 0x2:
-	time_pic[1] += diff;
-	num_pic[1]++;
-	if(diff > time_max[1]) {
-	  time_max[1] = diff;
-	}
-	if(diff < time_min[1]) {
-	  time_min[1] = diff;
-	}
-	break;
-      case 0x3:
-	time_pic[2] += diff;
-	num_pic[2]++;
-	if(diff > time_max[2]) {
-	  time_max[2] = diff;
-	}
-	if(diff < time_min[2]) {
-	  time_min[2] = diff;
-	}
-	break;
-      }
-      time_pic[3] += diff;
-      num_pic[3]++;
-      if(diff > time_max[3]) {
-	time_max[3] = diff;
-      }
-      if(diff < time_min[3]) {
-	time_min[3] = diff;
-      }
-
-      
-      if(frame_nr == 0) {
-	
-	frame_nr = 25;
-	otva.tv_sec = tva.tv_sec;
-	otva.tv_usec = tva.tv_usec;
-		gettimeofday(&tva, NULL);
-#ifdef STATS
-	bits_read_old = bits_read_new;
-	bits_read_new = stats_bits_read;
-#endif
-	
-	fprintf(stderr, "decode: frame rate: %f fps\t",
-		25.0/(((double)tva.tv_sec+
-		       (double)(tva.tv_usec)/1000000.0)-
-		      ((double)otva.tv_sec+
-		       (double)(otva.tv_usec)/1000000.0))
-		);
-
-#ifdef STATS
-	fprintf(stderr, "bit rate: %.2f Mb/s, (%.2f), ",
-		(((double)(bits_read_new-bits_read_old))/1000000.0)/
-		(((double)tva.tv_sec+
-		  (double)(tva.tv_usec)/1000000.0)-
-		 ((double)otva.tv_sec+
-		  (double)(otva.tv_usec)/1000000.0)),
-		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0*24.0);
-	
-	
-	fprintf(stderr, "(%.2f), %.2f Mb/f\n",
-		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0*30.0,
-		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0);
-#else
-       	fprintf(stderr, "\n");
-#endif
-      
-      }
-      frame_nr--;
-    }
-    
-  }
-
-    
   next_start_code();
 }
+
 
 /* 6.2.2.2.1 Extension data */
 void extension_data(unsigned int i)
 {
 
-  uint32_t extension_start_code;
-
-
   DPRINTF(3, "extension_data(%d)", i);
   
   while(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
-    extension_start_code = GETBITS(32, "extension_start_code");
+    GETBITS(32, "extension_start_code");
+    
     if(i == 0) {
       /* follows sequence_extension() */
       
@@ -1955,10 +1871,10 @@ void motion_comp()
       int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + (signed int)x * 8;
       int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + (signed int)y * 8;
       
-      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.horizontal_size-16)) ||
-	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.vertical_size-16)) ||
-	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.horizontal_size/2-8)) ||
-	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.vertical_size/2-8)) ) { 
+      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
+	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
+	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
+	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.mb_height - 1) * 8) ) { 
 	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
 		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
@@ -2110,15 +2026,14 @@ void motion_comp()
       pred_v =
 	&ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       
-      
-      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.horizontal_size-16)) ||
-	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.vertical_size-16)) ||
-	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.horizontal_size/2-8)) ||
-	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.vertical_size/2-8)) ) { 
+      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
+	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
+	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
+	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.mb_height - 1) * 8) ) { 
 	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
 		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
-      
+     
       
       if(mb.modes.macroblock_motion_forward) {
 	if (half_flag_y[0] && half_flag_y[1]) {
@@ -2377,17 +2292,16 @@ void motion_comp_add_coeff(unsigned int i)
 void quant_matrix_extension()
 {
   GETBITS(4, "extension_start_code_identifier");
-  seq.header.load_intra_quantiser_matrix = 
-    GETBITS(1, "load_intra_quantiser_matrix");
-  if(seq.header.load_intra_quantiser_matrix) {
+  
+  if(GETBITS(1, "load_intra_quantiser_matrix")) {
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
 #ifdef STATS
-    stats_intra_inverse_quantiser_matrix_loaded = 1;
+    stats_intra_inverse_quantiser_matrix_loaded_nr++;
 #endif
     for(n = 0; n < 64; n++) {
-      seq.header.intra_quantiser_matrix[n] = 
-        GETBITS(8, "intra_quantiser_matrix[n]");
+      seq.header.intra_quantiser_matrix[n] 
+	= GETBITS(8, "intra_quantiser_matrix[n]");
     }
     
     /* 7.3.1 Inverse scan for matrix download */
@@ -2401,19 +2315,19 @@ void quant_matrix_extension()
       }
     }
   }
-  seq.header.load_non_intra_quantiser_matrix = 
-    GETBITS(1, "load_non_intra_quantiser_matrix");
-  if(seq.header.load_non_intra_quantiser_matrix) {
+    
+  if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
 #ifdef STATS
-    stats_non_intra_inverse_quantiser_matrix_loaded = 1;
+    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
 #endif
     for(n = 0; n < 64; n++) {
-      seq.header.non_intra_quantiser_matrix[n] = GETBITS(8, "non_intra_quantiser_matrix[n]");
+      seq.header.non_intra_quantiser_matrix[n] 
+	= GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
    
-    /* inverse scan for matrix download */
+    /*  7.3.1 Inverse scan for matrix download */
     {
       int v, u;
       for (v=0; v<8; v++) {
@@ -2426,6 +2340,7 @@ void quant_matrix_extension()
   }
   GETBITS(1, "load_chroma_intra_quantiser_matrix (always 0 in 4:2:0)");
   GETBITS(1, "load_chroma_non_intra_quantiser_matrix (always 0 in 4:2:0)");
+  
   next_start_code();
 }
 
@@ -2451,7 +2366,8 @@ void picture_display_extension()
   }
   
   DPRINTF(2, "picture_display_extension()\n");
-  extension_start_code_identifier=GETBITS(4,"extension_start_code_identifier");
+  extension_start_code_identifier 
+    = GETBITS(4,"extension_start_code_identifier");
 
   for(i = 0; i < number_of_frame_centre_offsets; i++) {
     frame_centre_horizontal_offset = GETBITS(16, "frame_centre_horizontal_offset");
@@ -2462,7 +2378,6 @@ void picture_display_extension()
   }
   
   next_start_code();
-  
 }
 
 
@@ -2489,7 +2404,6 @@ void sequence_scalable_extension()
 
 void sequence_display_extension()
 {
-
   uint8_t extension_start_code_identifier;
   uint8_t video_format;
   uint8_t colour_description;
@@ -2503,7 +2417,8 @@ void sequence_display_extension()
   
   
   DPRINTF(2, "sequence_display_extension()\n");
-  extension_start_code_identifier=GETBITS(4,"extension_start_code_identifier");
+  extension_start_code_identifier 
+    = GETBITS(4,"extension_start_code_identifier");
   video_format = GETBITS(3, "video_format");
   colour_description = GETBITS(1, "colour_description");
 
@@ -2534,7 +2449,6 @@ void sequence_display_extension()
     break;
   }
 #endif
-
 
 
   if(colour_description) {
@@ -2646,8 +2560,6 @@ void sequence_display_extension()
       break;
     }
 #endif
-
-
   }
 
   display_horizontal_size = GETBITS(14, "display_horizontal_size");
@@ -2657,16 +2569,12 @@ void sequence_display_extension()
   DPRINTF(2, "display_horizontal_size: %d\n", display_horizontal_size);
   DPRINTF(2, "display_vertical_size: %d\n", display_vertical_size);
   
-
   next_start_code();
-
 }
 
 
 void exit_program(int exitcode)
 {
-  //  display_exit();
-
   // Detach the shared memory segments from this process
   
   shmdt(picture_buffers_shmaddr);
@@ -2680,15 +2588,6 @@ void exit_program(int exitcode)
 #endif
   {
     int n;
-    /*
-      double percent = 0.0;
-    
-      for(n = 0; n < 128; n++) {
-      fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
-      percent+=(double)dctstat[n]/(double)total_calls);
-      }
-
-    */
     for(n=0; n<4; n++) {
       fprintf(stderr,"frames: %.0f\n", num_pic[n]);
       fprintf(stderr,"max time: %.4f\n", time_max[n]);
@@ -2702,8 +2601,6 @@ void exit_program(int exitcode)
 #endif
 
 #ifdef STATS 
-  
-  
   fprintf(stderr, "intra_mtrx_chg_possible: %d\n",
 	  stats_intra_inverse_quantiser_matrix_changes_possible);
   fprintf(stderr, "intra_mtrx_loaded: %d\n",
@@ -2752,26 +2649,12 @@ void exit_program(int exitcode)
 	  stats_f_intra_compute_first_nr);
   fprintf(stderr, "stats_f_intra_compute_subseq_nr: %d\n",
 	  stats_f_intra_compute_subseq_nr);
-
-
-  
-
-
 #endif
   
   fprintf(stderr, "\nCompiled with:\n");
-#ifdef DEBUG
-  fprintf(stderr, "\t#define DEBUG\n");
-#endif
-
-#ifdef STATS
-  fprintf(stderr, "\t#define STATS\n");
-#endif
-
 #ifdef DCFLAGS
   fprintf(stderr, "\tCFLAGS = %s\n", DCFLAGS);
 #endif
-
 #ifdef DLDFLAGS
   fprintf(stderr, "\tLDFLAGS = %s\n", DLDFLAGS);
 #endif

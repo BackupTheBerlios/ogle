@@ -503,31 +503,6 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 	  snprintf(text, 32, "motion_vector_count: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vector_count);
 	  XDrawImageString(mydisplay, window_stat, statgc, 10, 15*13, text, strlen(text));
 
-
-	  snprintf(text, 32, "delta[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 16*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 17*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 18*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 19*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 20*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 21*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 22*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 23*13, text, strlen(text));
-
 	  snprintf(text, 32, "skipped: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].skipped);
 	  XDrawImageString(mydisplay, window_stat, statgc, 10, 24*13, text, strlen(text));
 
@@ -588,6 +563,7 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 	  nextframe = 1;
 	  break;
 	case 'q':
+	  display_exit();
 	  exit_program(0);
 	  break;
 	default:
@@ -729,30 +705,6 @@ void user_control(macroblock_t *cur_mbs,
 	  snprintf(text, 32, "motion_vector_count: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vector_count);
 	  XDrawImageString(mydisplay, window_stat, statgc, 10, 15*13, text, strlen(text));
 
-
-	  snprintf(text, 32, "delta[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 16*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 17*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 18*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 19*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 20*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 21*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][0]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 22*13, text, strlen(text));
-
-	  snprintf(text, 32, "delta[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][1]);
-	  XDrawImageString(mydisplay, window_stat, statgc, 10, 23*13, text, strlen(text));
 
 	  snprintf(text, 32, "skipped: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].skipped);
 	  XDrawImageString(mydisplay, window_stat, statgc, 10, 24*13, text, strlen(text));

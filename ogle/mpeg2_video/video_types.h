@@ -150,12 +150,11 @@ typedef struct {
 
 
 typedef struct {
-  uint16_t macroblock_escape;
+  uint16_t dummy1; //macroblock_escape
   uint16_t macroblock_address_increment;
-  //  uint8_t quantiser_scale_code; // in slice_data
   macroblock_modes_t modes; 
   
-  uint8_t pattern_code[12];
+  uint8_t dummy2[12]; //pattern_code[12];
   uint8_t cbp;
   uint8_t coded_block_pattern_1;
   uint8_t coded_block_pattern_2;
@@ -166,14 +165,14 @@ typedef struct {
   int16_t prediction_type;
   
   int16_t dmvector[2];
-  int16_t motion_code[2][2][2];
-  int16_t motion_residual[2][2][2];
+  int16_t dummy3[2][2][2]; //motion_code[2][2][2];
+  int16_t dummy4[2][2][2]; //motion_residual[2][2][2];
   int16_t vector[2][2][2];
 
   int8_t motion_vector_count;
   int8_t motion_vertical_field_select[2][2];
 
-  int16_t delta[2][2][2];
+  int16_t dummy5[2][2][2]; //delta[2][2][2];
 
   int8_t skipped;
 

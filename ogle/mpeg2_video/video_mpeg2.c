@@ -61,15 +61,13 @@ extern uint32_t stats_non_intra_quantiser_scale_possible;
 extern uint32_t stats_non_intra_quantiser_scale_nr;
 
 extern uint32_t stats_block_non_intra_nr;
-extern uint32_t stats_f_non_intra_compute_first_nr;
-extern uint32_t stats_f_non_intra_compute_subseq_nr;
+extern uint32_t stats_f_non_intra_compute_nr;
 
 extern uint32_t stats_block_intra_nr;
 extern uint32_t stats_f_intra_compute_subseq_nr;
 extern uint32_t stats_f_intra_compute_first_nr;
 
-extern uint32_t stats_f_non_intra_subseq_escaped_run_nr;
-extern uint32_t stats_f_non_intra_first_escaped_run_nr;
+extern uint32_t stats_f_non_intra_escaped_run_nr;
 
 extern uint8_t new_scaled;
 #endif
@@ -467,6 +465,7 @@ void get_dct_intra_vlcformat_1(runlevel_t *runlevel, char *func)
 
 #endif
 
+#if 0
 static inline
 void get_dct_non_intra_first(runlevel_t *runlevel, char *func) 
 {
@@ -532,7 +531,7 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
   runlevel->level = val;
 }
 
-#if 0
+
 static
 void get_dct_non_intra_subseq(runlevel_t *runlevel, char *func) 
 {
@@ -616,14 +615,12 @@ void inverse_quantisation_final(int sum)
 static
 void block_intra(unsigned int i)
 {
-  uint16_t dct_dc_size;
-  uint16_t dct_dc_differential = 0;
-  int n = 0;
+  unsigned int dct_dc_size;
+  int dct_diff;
   
-  int16_t dct_diff;
-  int16_t half_range;
-  runlevel_t runlevel;
-    
+  unsigned int n;
+  
+  runlevel_t runlevel;    
   int inverse_quantisation_sum;
     
 #ifdef STATS
@@ -631,13 +628,18 @@ void block_intra(unsigned int i)
 #endif
   
   DPRINTF(3, "pattern_code(%d) set\n", i);
-    
-  // Reset all coefficients to 0.
-  {
+  
+  { // Reset all coefficients to 0.
     int m;
     for(m=0; m<16; m++)
       memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
   }
+    
+  /* DC - component */
+
+#ifdef STATS
+  stats_f_intra_compute_first_nr++;
+#endif
     
   if(i < 4) {
     dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
@@ -648,15 +650,15 @@ void block_intra(unsigned int i)
   } 
     
   if(dct_dc_size != 0) {
-    dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+    int half_range = 1<<(dct_dc_size-1);
+    int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+    
     DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
       
-    half_range = 1<<(dct_dc_size-1);
-      
     if(dct_dc_differential >= half_range) {
-      dct_diff = (int16_t) dct_dc_differential;
+      dct_diff = dct_dc_differential;
     } else {
-      dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
+      dct_diff = (dct_dc_differential+1)-(2*half_range);
     }
     DPRINTF(4, "%d\n", dct_diff);  
 	
@@ -673,9 +675,9 @@ void block_intra(unsigned int i)
     if(i < 4)
       cc = 0;
     else
-      cc = (i%2)+1;
+      cc = (i%2) + 1;
       
-    qfs = mb.dc_dct_pred[cc]+dct_diff;
+    qfs = mb.dc_dct_pred[cc] + dct_diff;
     mb.dc_dct_pred[cc] = qfs;
     DPRINTF(4, "QFS[0]: %d\n", qfs);
       
@@ -685,20 +687,18 @@ void block_intra(unsigned int i)
       unsigned int f = mb.intra_dc_mult * qfs;
 #if 0
       if(f > 2047) {
-	fprintf(stderr, "Clipp !@!\n");
+	fprintf(stderr, "Clipp (block_intra first)\n");
 	f = 2047;
       } 
 #endif
       mb.QFS[0] = f;
       inverse_quantisation_sum = f;
     }
-#ifdef STATS
-    stats_f_intra_compute_first_nr++;
-#endif
-    n++;
+    n = 1;
   }
     
-  /* 7.2.2.4 Summary */
+  
+  /* AC - components */
 
 #ifdef DCT_INTRA_SPLIT
   if(pic.coding_ext.intra_vlc_format) {
@@ -714,7 +714,7 @@ void block_intra(unsigned int i)
 		runlevel.run, runlevel.level);
       }
 #endif
-	
+      
       if(runlevel.run == VLC_END_OF_BLOCK) {
 	break;
       } else {
@@ -846,11 +846,7 @@ void block_intra(unsigned int i)
 static
 void block_non_intra(unsigned int b)
 {
-  unsigned int i, n;
-  int f;
-  
-  runlevel_t runlevel;
-  
+  unsigned int n = 0;
   int inverse_quantisation_sum = 0;
   
 #ifdef STATS
@@ -862,65 +858,34 @@ void block_non_intra(unsigned int b)
   // Reset all coefficients to 0.
   {
     int m;
-    for(m=0; m<16; m+=4)
-      memset( ((uint64_t *)mb.QFS) + m, 0, 4*sizeof(uint64_t) );
+    for(m = 0; m < 16; m++)
+      memset(((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t));
   }
-  
-  /* 7.2.2.4 Summary */
-  
-  get_dct_non_intra_first(&runlevel, "dct_dc_subsequent");
-  n = runlevel.run;
-  
-  /* inverse quantisation */
-  i = inverse_scan[pic.coding_ext.alternate_scan][n];
-  
-  f = ( mb.quantiser_scale 
-	* seq.header.non_intra_inverse_quantiser_matrix[i]
-	* ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1)) )/32;
-
-#ifdef STATS
-  stats_f_non_intra_compute_first_nr++;
-#endif
-  
-#if 0    
-  if(f > 2047) {
-    fprintf(stderr ," **clipped 1\n");
-    f = 2047;
-  } else if(f < -2048) {
-    fprintf(stderr ," **clipped 2\n");
-    f = -2048;
-  }
-#endif
-  
-  mb.QFS[i] = f;
-  inverse_quantisation_sum += f;
-  
-  n++;
-  
   
   while(1) {
-    //      get_dct_non_intra_subseq(&runlevel, "dct_dc_subsequent");
-    int code;
+    //      get_dct_non_intra(&runlevel, "dct_dc_subsequent");
     const DCTtab *tab;
+    const unsigned int code = nextbits(16);
     
-    code = nextbits(16);
-    
-    if (code>=16384)
-      tab = &DCTtabnext[(code>>12)-4];  // 14 
-    else if(code>=1024)
-      tab = &DCTtab0[(code>>8)-4];   // 14
-    else if(code>=512)
-      tab = &DCTtab1[(code>>6)-8];  // 14
-    else if(code>=256)
-      tab = &DCTtab2[(code>>4)-16];
-    else if(code>=128)
-      tab = &DCTtab3[(code>>3)-16];
-    else if(code>=64)
-      tab = &DCTtab4[(code>>2)-16];
-    else if(code>=32)
-      tab = &DCTtab5[(code>>1)-16];
-    else if(code>=16)
-      tab = &DCTtab6[code-16];
+    if(code >= 16384)
+      if(n == 0)
+	tab = &DCTtabfirst[(code >> 12) - 4];
+      else
+	tab = &DCTtabnext[(code >> 12) - 4];
+    else if(code >= 1024)
+      tab = &DCTtab0[(code >> 8) - 4];
+    else if(code >= 512)
+      tab = &DCTtab1[(code >> 6) - 8];
+    else if(code >= 256)
+      tab = &DCTtab2[(code >> 4) - 16];
+    else if(code >= 128)
+      tab = &DCTtab3[(code >> 3) - 16];
+    else if(code >= 64)
+      tab = &DCTtab4[(code >> 2) - 16];
+    else if(code >= 32)
+      tab = &DCTtab5[(code >> 1) - 16];
+    else if(code >= 16)
+      tab = &DCTtab6[code - 16];
     else {
       fprintf(stderr,
 	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
@@ -935,43 +900,38 @@ void block_non_intra(unsigned int b)
     }
 #endif
    
-    if (tab->run == 64) { // end_of_block 
-      //	run = VLC_END_OF_BLOCK;
-      //	val = VLC_END_OF_BLOCK;
+    if(tab->run == 64 /*VLC_END_OF_BLOCK*/) { // end_of_block 
       dropbits( 2 ); // tab->len, end of block always = 2bits
       break;
     } 
     else {
-      unsigned int run, val, sgn;
+      unsigned int i, f, run, val, sgn;
 
-      if (tab->run == 65) { /* escape */
-	
+      if(tab->run == 65) { /* escape */
 #ifdef STATS
-	stats_f_non_intra_subseq_escaped_run_nr++;
+	stats_f_non_intra_escaped_run_nr++;
 #endif
-	
+	//	  dropbits(tab->len); escape always = 6 bits
 	//	  run = GETBITS(6, "(get_dct escape - run )");
 	//	  val = GETBITS(12, "(get_dct escape - level )");
-	//	  dropbits(tab->len); escape always = 6 bits
-	val = GETBITS(6+12+6, "(escape run + val)" );
+	val = GETBITS(6 + 12 + 6, "(escape run + val)" );
 	run = (val >> 12) & 0x3f;
 	val &= 0xfff;
 	
-	if ((val&2047)==0) {
+	if((val & 2047) == 0) {
 	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
 	
 	sgn = (val >= 2048);
-	if( val >= 2048 )                // !!!! ?sgn? 
+	if(val >= 2048)                // !!!! ?sgn? 
 	  val =  4096 - val;// - 4096;
       }
       else {
 	//	  dropbits(tab->len);
 	run = tab->run;
 	val = tab->level; 
-	sgn = 0x1 & GETBITS(tab->len+1, "(get_dct sign )"); //sign bit
-	//	    val = -val;
+	sgn = 0x1 & GETBITS(tab->len + 1, "(get_dct sign )"); //sign bit
       }
       
       n += run;
@@ -984,18 +944,22 @@ void block_non_intra(unsigned int b)
 	    * mb.quantiser_scale
 	    * seq.header.non_intra_inverse_quantiser_matrix[i])/32;
 #ifdef STATS
-      stats_f_non_intra_compute_subseq_nr++;
+      stats_f_non_intra_compute_nr++;
 #endif
       
-      f = sgn ? -f : f;
 #if 0
-      if(f > 2047)
-	f = 2047;
-      else if(f < -2048)
-	f = -2048;
+      if(!sgn) {
+	if(f > 2047)
+	  f = 2047;
+      }
+      else {
+	if(f > 2048)
+	  f = 2048;
+      }
 #endif
-      mb.QFS[i] = f;
-      inverse_quantisation_sum += f;
+      
+      mb.QFS[i] = sgn ? -f : f;
+      inverse_quantisation_sum += f; // The last bit is the same in f and -f.
       
       n++;      
     }
@@ -1043,6 +1007,8 @@ void coded_block_pattern(void)
 static
 void motion_vector(int r, int s)
 {
+  int16_t motion_code[2];
+  int16_t motion_residual[2];
   int16_t r_size;
   int16_t f;
   int16_t high;
@@ -1054,20 +1020,20 @@ void motion_vector(int r, int s)
   
   DPRINTF(2, "motion_vector(%d, %d)\n", r, s);
 
-  mb.motion_code[r][s][0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
-  if((pic.coding_ext.f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
+  motion_code[0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
+  if((pic.coding_ext.f_code[s][0] != 1) && (motion_code[0] != 0)) {
     r_size = pic.coding_ext.f_code[s][0] - 1;
-    mb.motion_residual[r][s][0] = GETBITS(r_size, "motion_residual[r][s][0]");
+    motion_residual[0] = GETBITS(r_size, "motion_residual[r][s][0]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[0] = get_vlc(table_b11, "dmvector[0] (b11)");
   }
   
-  mb.motion_code[r][s][1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
+  motion_code[1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
   // The reference code has f_code[s][0] here, that is probably wrong....
-  if((pic.coding_ext.f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {
+  if((pic.coding_ext.f_code[s][1] != 1) && (motion_code[1] != 0)) {
     r_size = pic.coding_ext.f_code[s][1] - 1;
-    mb.motion_residual[r][s][1] = GETBITS(r_size, "motion_residual_[r][s][1]");
+    motion_residual[1] = GETBITS(r_size, "motion_residual_[r][s][1]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[1] = get_vlc(table_b11, "dmvector[1] (b11)");
@@ -1082,12 +1048,11 @@ void motion_vector(int r, int s)
     low = ((-16) * f);
     range = (32 * f);
     
-    if((f == 1) || (mb.motion_code[r][s][t] == 0)) { 
-      delta = mb.motion_code[r][s][t];
+    if((f == 1) || (motion_code[t] == 0)) { 
+      delta = motion_code[t];
     } else { 
-      delta = ((abs(mb.motion_code[r][s][t]) - 1) * f) +
-	mb.motion_residual[r][s][t] + 1;
-      if(mb.motion_code[r][s][t] < 0) {
+      delta = ((abs(motion_code[t]) - 1) * f) + motion_residual[t] + 1;
+      if(motion_code[t] < 0) {
 	delta = - delta;
       }
     }
@@ -1098,9 +1063,6 @@ void motion_vector(int r, int s)
       prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
     }
     
-    /** test **/
-    mb.delta[r][s][t] = delta;
-    /***/
     mb.vector[r][s][t] = prediction + delta;
     if(mb.vector[r][s][t] < low) {
       mb.vector[r][s][t] = mb.vector[r][s][t] + range;
@@ -1213,13 +1175,16 @@ void motion_vectors(unsigned int s)
 
   if(mb.motion_vector_count == 1) {
     if((mb.mv_format == MV_FORMAT_FIELD) && (mb.dmv != 1)) {
-      mb.motion_vertical_field_select[0][s] = GETBITS(1, "motion_vertical_field_select[0][s]");
+      mb.motion_vertical_field_select[0][s] 
+	= GETBITS(1, "motion_vertical_field_select[0][s]");
     }
     motion_vector(0, s);
   } else {
-    mb.motion_vertical_field_select[0][s] = GETBITS(1, "motion_vertical_field_select[0][s]");
+    mb.motion_vertical_field_select[0][s] 
+      = GETBITS(1, "motion_vertical_field_select[0][s]");
     motion_vector(0, s);
-    mb.motion_vertical_field_select[1][s] = GETBITS(1, "motion_vertical_field_select[1][s]");
+    mb.motion_vertical_field_select[1][s] 
+      = GETBITS(1, "motion_vertical_field_select[1][s]");
     motion_vector(1, s);
   }
 }
@@ -1243,11 +1208,11 @@ void macroblock_modes(void)
 
   } else if(pic.header.picture_coding_type == 0x03) {
     /* B-picture */
-
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
   } else {
-    fprintf(stderr, "*** Unsupported picture type %02x\n", pic.header.picture_coding_type);
+    fprintf(stderr, "*** Unsupported picture type %02x\n", 
+	    pic.header.picture_coding_type);
     exit_program(-1);
   }
   
@@ -1261,7 +1226,8 @@ void macroblock_modes(void)
   mb.modes.spatial_temporal_weight_code_flag =
     mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG;
   
-  DPRINTF(5, "spatial_temporal_weight_code_flag: %01x\n", mb.modes.spatial_temporal_weight_code_flag);
+  DPRINTF(5, "spatial_temporal_weight_code_flag: %01x\n", 
+	  mb.modes.spatial_temporal_weight_code_flag);
 
   if((mb.modes.spatial_temporal_weight_code_flag == 1) &&
      ( 1 /*spatial_temporal_weight_code_table_index != 0*/)) {
@@ -1309,22 +1275,24 @@ void macroblock(void)
   DPRINTF(3, "macroblock()\n");
 
   while(nextbits(11) == 0x008) {
-    mb.macroblock_escape = GETBITS(11, "macroblock_escape");
-    inc_add+=33;
+    GETBITS(11, "macroblock_escape");
+    inc_add += 33;
   }
 
-  mb.macroblock_address_increment = get_vlc(table_b1, "macroblock_address_increment");
+  mb.macroblock_address_increment 
+    = get_vlc(table_b1, "macroblock_address_increment");
 
-  mb.macroblock_address_increment+= inc_add;
+  mb.macroblock_address_increment += inc_add;
   
-  seq.macroblock_address =  mb.macroblock_address_increment + seq.previous_macroblock_address;
+  seq.macroblock_address 
+    = mb.macroblock_address_increment + seq.previous_macroblock_address;
   
   seq.previous_macroblock_address = seq.macroblock_address;
 
 
-
-
+  /* In MPEG-2 a slice never span two or more rows. */
   seq.mb_column = seq.macroblock_address % seq.mb_width;
+  
   DPRINTF(2, " Macroblock: %d, row: %d, col: %d\n",
 	  seq.macroblock_address,
 	  seq.mb_row,
@@ -1338,7 +1306,7 @@ void macroblock(void)
 #endif
   
   
-  if(pic.header.picture_coding_type == 0x2) {
+  if(pic.header.picture_coding_type == 0x02) {
     /* In a P-picture when a macroblock is skipped */
     if(mb.macroblock_address_increment > 1) {
       reset_PMV();
@@ -1349,7 +1317,6 @@ void macroblock(void)
   
   
   if(mb.macroblock_address_increment > 1) {
-    
     int x,y;
     int old_col = seq.mb_column;
     int old_address = seq.macroblock_address;
@@ -1372,9 +1339,8 @@ void macroblock(void)
       }
     }
     
-    /* Skipped blocks never have any DCT-coefficients */
+    /* Skipped blocks never have any DCT coefficients (pattern). */
     // mb.cbp = 0;
-    
     switch(pic.header.picture_coding_type) {
     
     case 0x2:
@@ -1408,14 +1374,15 @@ void macroblock(void)
       if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
 	/* 7.6.6.4  B frame picture */
 	mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	mb.motion_vector_count = 1;
+	//mb.motion_vector_count = 1;
 	mb.mv_format = MV_FORMAT_FRAME;
 	mb.dmv = 0;
       }
       else {
-	fprintf(stderr, "*** Skipped macroblock in B-picture (no-frame)\n");
+	fprintf(stderr, "***ni Skipped macroblock in B-picture (no-frame)\n");
 	exit_program(1);
       }
+      
       for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
 	  seq.mb_column < old_col; seq.mb_column++) {
 	motion_comp();
@@ -1453,11 +1420,8 @@ void macroblock(void)
 
 
   if(mb.modes.macroblock_quant) {
-    slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
-    /** opt4 **/
-    mb.quantiser_scale =
-      q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
-    /**/
+    mb.quantiser_scale = 
+      q_scale[pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
 #ifdef STATS
     new_scaled = 1;
 #endif
@@ -1705,7 +1669,7 @@ void macroblock(void)
   } 
   else {
     
-    motion_comp(); // Only motion compensate don't add coefficients
+    motion_comp(); // Only motion compensate don't add coefficients.
 
     if(mb.modes.macroblock_pattern) {
       unsigned int i;
@@ -1732,7 +1696,6 @@ void macroblock(void)
       if(seq.ext.chroma_format == 0x03) {
 	for(i = 6; i < 12; i++) {
 	  if(mb.coded_block_pattern_2 & (1<<(11-i))) {
-	    mb.pattern_code[i] = 1;
 	    //block_non_intra(i);
 	    fprintf(stderr, "ni seq.ext.chroma_format == 0x03\n");
 	    exit_program(-1);
@@ -1791,17 +1754,16 @@ void mpeg2_slice(void)
     }
   }
   
-  slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
-  mb.quantiser_scale =
-    q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+  mb.quantiser_scale
+    = q_scale[pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
 #ifdef STATS
   new_scaled = 1;
 #endif
 
   if(nextbits(1) == 1) {
     slice_data.intra_slice_flag = GETBITS(1, "intra_slice_flag");
-    slice_data.intra_slice      = GETBITS(1, "intra_slice");
-    slice_data.reserved_bits    = GETBITS(7, "reserved_bits");
+    slice_data.intra_slice = GETBITS(1, "intra_slice");
+    slice_data.reserved_bits = GETBITS(7, "reserved_bits");
     while(nextbits(1) == 1) {
       slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
       slice_data.extra_information_slice = GETBITS(8, "extra_information_slice");

@@ -37,13 +37,12 @@
 
 
 extern int show_stat;
-extern yuv_image_t *ref_image1;
-//extern yuv_image_t *ref_image2;
 extern yuv_image_t *dst_image;
 
 extern macroblock_t *cur_mbs;
 //extern macroblock_t *ref1_mbs;
 extern macroblock_t *ref2_mbs;
+
 extern void next_start_code(void);
 extern void exit_program(int exitcode) __attribute__ ((noreturn));
 extern void motion_comp();
@@ -74,6 +73,7 @@ extern uint32_t stats_f_non_intra_first_escaped_run_nr;
 extern uint8_t new_scaled;
 #endif
 
+
 /*
 void macroblock(void);
 void macroblock_modes(void);
@@ -84,7 +84,6 @@ void reset_vectors();
 void motion_vectors(unsigned int s);
 void motion_vector(int r, int s);
 */
-
 
 
 
@@ -340,21 +339,17 @@ static
 void block_intra(unsigned int i)
 {
   unsigned int dct_dc_size;
-  unsigned int dct_dc_differential;
   int dct_diff;
-  int half_range;
   
   int n;
   
   DPRINTF(3, "pattern_code(%d) set\n", i);
-    
-  // Reset all coefficients to 0.
-  {
+  
+  { // Reset all coefficients to 0.
     int m;
     for(m=0; m<16; m++)
       memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
   }
-  
   
   /* DC - component */
   if(i < 4) {
@@ -366,15 +361,15 @@ void block_intra(unsigned int i)
   } 
     
   if(dct_dc_size != 0) {
-    dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+    int half_range = 1<<(dct_dc_size-1);
+    int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+    
     DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
       
-    half_range = 1<<(dct_dc_size-1);
-      
     if(dct_dc_differential >= half_range) {
-      dct_diff = (int16_t) dct_dc_differential;
+      dct_diff = dct_dc_differential;
     } else {
-      dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
+      dct_diff = (dct_dc_differential+1)-(2*half_range);
     }
     DPRINTF(4, "%d\n", dct_diff);  
 	
@@ -391,7 +386,7 @@ void block_intra(unsigned int i)
     if(i < 4)
       cc = 0;
     else
-      cc = (i%2)+1;
+      cc = (i%2) + 1;
       
     qfs = mb.dc_dct_pred[cc] + dct_diff;
     mb.dc_dct_pred[cc] = qfs;
@@ -399,14 +394,14 @@ void block_intra(unsigned int i)
       
     /* inverse quantisation */
     {
-      // mb.intra_dc_mult is 8, i.e unsigned.
-      unsigned int f = /*mb.intra_dc_mult - MPEG-1*/ 8 * qfs;
-//#if 0
+      // mb.intra_dc_mult is 8 in MPEG-1, i.e unsigned.
+      unsigned int f = 8 * qfs;
+#if 0
       if(f > 2047) {
 	fprintf(stderr, "Clipp (block_intra first)\n");
 	f = 2047;
       }
-//#endif
+#endif
       mb.QFS[0] = f;
     }
     n = 1;
@@ -417,29 +412,26 @@ void block_intra(unsigned int i)
   
   while( 1 ) {
     /* Manually inlined and optimized get_dct(..) */
-    //      get_dct_intra(&runlevel, "dct_dc_subsequent");
-    
     unsigned int code;
     const DCTtab *tab;
       
     code = nextbits(16);
-    
-    if(code>=16384)
-      tab = &DCTtabnext[(code>>12)-4];  // 14 
-    else if(code>=1024)
-      tab = &DCTtab0[(code>>8)-4];      // 14
-    else if(code>=512)
-      tab = &DCTtab1[(code>>6)-8];      // 14
-    else if(code>=256)
-      tab = &DCTtab2[(code>>4)-16];
-    else if(code>=128)
-      tab = &DCTtab3[(code>>3)-16];
-    else if(code>=64)
-      tab = &DCTtab4[(code>>2)-16];
-    else if(code>=32)
-      tab = &DCTtab5[(code>>1)-16];
-    else if(code>=16)
-      tab = &DCTtab6[code-16];
+    if(code >= 16384)
+      tab = &DCTtabnext[(code >> 12) - 4];
+    else if(code >= 1024)
+      tab = &DCTtab0[(code >> 8) - 4];
+    else if(code >= 512)
+      tab = &DCTtab1[(code >> 6) - 8];
+    else if(code >= 256)
+      tab = &DCTtab2[(code >> 4) - 16];
+    else if(code >= 128)
+      tab = &DCTtab3[(code >> 3) - 16];
+    else if(code >= 64)
+      tab = &DCTtab4[(code >> 2) - 16];
+    else if(code >= 32)
+      tab = &DCTtab5[(code >> 1) - 16];
+    else if(code >= 16)
+      tab = &DCTtab6[code - 16];
     else {
       fprintf(stderr,
 	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
@@ -676,6 +668,8 @@ void coded_block_pattern(void)
 static
 void motion_vector(int r, int s)
 {
+  int16_t motion_code[2];
+  int16_t motion_residual[2];
   int16_t r_size;
   int16_t f;
   int16_t high;
@@ -687,20 +681,20 @@ void motion_vector(int r, int s)
   
   DPRINTF(2, "motion_vector(%d, %d)\n", r, s);
 
-  mb.motion_code[r][s][0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
-  if((pic.coding_ext.f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
+  motion_code[0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
+  if((pic.coding_ext.f_code[s][0] != 1) && (motion_code[0] != 0)) {
     r_size = pic.coding_ext.f_code[s][0] - 1;
-    mb.motion_residual[r][s][0] = GETBITS(r_size, "motion_residual[r][s][0]");
+    motion_residual[0] = GETBITS(r_size, "motion_residual[r][s][0]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[0] = get_vlc(table_b11, "dmvector[0] (b11)");
   }
   
-  mb.motion_code[r][s][1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
+  motion_code[1] = get_vlc(table_b10, "motion_code[r][s][1] (b10)");
   // The reference code has f_code[s][0] here, that is probably wrong....
-  if((pic.coding_ext.f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {
+  if((pic.coding_ext.f_code[s][1] != 1) && (motion_code[1] != 0)) {
     r_size = pic.coding_ext.f_code[s][1] - 1;
-    mb.motion_residual[r][s][1] = GETBITS(r_size, "motion_residual_[r][s][1]");
+    motion_residual[1] = GETBITS(r_size, "motion_residual_[r][s][1]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[1] = get_vlc(table_b11, "dmvector[1] (b11)");
@@ -715,12 +709,11 @@ void motion_vector(int r, int s)
     low = ((-16) * f);
     range = (32 * f);
     
-    if((f == 1) || (mb.motion_code[r][s][t] == 0)) { 
-      delta = mb.motion_code[r][s][t];
+    if((f == 1) || (motion_code[t] == 0)) { 
+      delta = motion_code[t];
     } else { 
-      delta = ((abs(mb.motion_code[r][s][t]) - 1) * f) +
-	mb.motion_residual[r][s][t] + 1;
-      if(mb.motion_code[r][s][t] < 0) {
+      delta = ((abs(motion_code[t]) - 1) * f) + motion_residual[t] + 1;
+      if(motion_code[t] < 0) {
 	delta = - delta;
       }
     }
@@ -731,9 +724,6 @@ void motion_vector(int r, int s)
       prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
     }
     
-    /** test **/
-    mb.delta[r][s][t] = delta;
-    /***/
     mb.vector[r][s][t] = prediction + delta;
     if(mb.vector[r][s][t] < low) {
       mb.vector[r][s][t] = mb.vector[r][s][t] + range;
@@ -763,7 +753,7 @@ void motion_vectors(unsigned int s)
   DPRINTF(3, "motion_vectors(%u)\n", s);
   
   /* This does not differ from MPEG-2 if:
-     motion_vector_count == 1 && MV_FORMAT_FRAME 
+     motion_vector_count == 1 && mv_format == MV_FORMAT_FRAME
      but this is shorter. */
   
   motion_vector(0, s);
@@ -855,22 +845,22 @@ void macroblock(void)
   // MPEG-1 start   (this does not occur in an MPEG-2 stream)
   //                 (not a valid macroblock_escape code)
   while(nextbits(11) == 0x00F) {
-    mb.macroblock_escape = GETBITS(11, "macroblock_stuffing");
+    GETBITS(11, "macroblock_stuffing");
   }
   // MPEG-1 end
 
 
   while(nextbits(11) == 0x008) {
-    mb.macroblock_escape = GETBITS(11, "macroblock_escape");
-    inc_add+=33;
+    GETBITS(11, "macroblock_escape");
+    inc_add += 33;
   }
 
-  mb.macroblock_address_increment 
+  mb.macroblock_address_increment
     = get_vlc(table_b1, "macroblock_address_increment");
 
-  mb.macroblock_address_increment+= inc_add;
+  mb.macroblock_address_increment += inc_add;
   
-  seq.macroblock_address 
+  seq.macroblock_address
     =  mb.macroblock_address_increment + seq.previous_macroblock_address;
   
   seq.previous_macroblock_address = seq.macroblock_address;
@@ -989,8 +979,7 @@ void macroblock(void)
 
 
   if(mb.modes.macroblock_quant) {
-    slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
-    mb.quantiser_scale = slice_data.quantiser_scale_code; // MPEG-1
+    mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
 #ifdef STATS
     new_scaled = 1;
 #endif
@@ -1163,8 +1152,7 @@ void mpeg1_slice(void)
   seq.mb_row = slice_data.slice_vertical_position - 1;
   seq.previous_macroblock_address = (seq.mb_row * seq.mb_width) - 1;
 
-  slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
-  mb.quantiser_scale = slice_data.quantiser_scale_code; // MPEG-1
+  mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
 #ifdef STATS
   new_scaled = 1;
 #endif
@@ -1183,6 +1171,7 @@ void mpeg1_slice(void)
   do {
     macroblock();
   } while(nextbits(23) != 0);
+  
   next_start_code();
 }
 

@@ -65,7 +65,7 @@ extern const uint8_t scan[2][8][8];
 extern const uint8_t inverse_scan[2][64];
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */
-extern const uint8_t q_scale[32][2];
+extern const uint8_t q_scale[2][32];
 
 
 
