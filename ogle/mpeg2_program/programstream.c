@@ -928,7 +928,7 @@ void push_stream_data(uint8_t stream_id, int len,
 	    p[2]<<8 | p[3] is the starting index of the frame for which 
 		           the PTS value corresponds
 	  */
-	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
+	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
 		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else if((subtype >= 0x88) && (subtype < 0x90)) {
 	  // dts
