@@ -5,7 +5,7 @@
 #include <inttypes.h>
 
 #include "dvd.h"
-
+#include "dvdevents.h"
 #if 0 /* One message queue for every listener */
 
 typedef struct {
@@ -36,17 +36,6 @@ typedef enum {
   PlayCtrlCmdPause
 } MsgQPlayCtrlCmd_t;
 
-typedef enum {
-  InputCmdButtonUp,
-  InputCmdButtonDown,
-  InputCmdButtonLeft,
-  InputCmdButtonRight,
-  InputCmdButtonActivate,
-  InputCmdButtonActivateNr,
-  InputCmdButtonSelectNr,
-  InputCmdMouseActivate,
-  InputCmdMouseMove //???
-} MsgQInputCmd_t;
 
 typedef enum {
   MsgEventQNone = 0,
@@ -69,33 +58,33 @@ typedef enum {
   MsgEventQAttachQ,
   MsgEventQSPUPalette,
   MsgEventQSPUHighlight,
-  MsgEventQUserInput,
   MsgEventQSpeed,
-  MsgEventQDVDMenuCall,
-  MsgEventQDVDAudioStreamChange
+  MsgEventQDVDCtrl,
+  MsgEventQFlow
 } MsgEventType_t;
 
 
-/* DVD control */
 
 typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  DVDMenuID_t menuid;
-} MsgQDVDMenuCallEvent_t;
+  DVDCtrlEvent_t cmd;
+} MsgQDVDCtrlEvent_t;
+
+
+
+typedef enum {
+  QCmdFlushTo
+} QCmd_t;
 
 typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  DVDAudioStream_t streamnr;
-} MsgQDVDAudioStreamChangeEvent_t;
-
-/* end DVD control */
-
-/* DVD info */
-/* end DVD info */
+  QCmd_t cmd;
+  int reference;
+} MsgQFlowEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -104,15 +93,6 @@ typedef struct {
   double speed;
 } MsgQSpeedEvent_t;
 
-typedef struct {
-  MsgEventType_t type;
-  MsgEventQ_t *q;
-  MsgEventClient_t client;
-  MsgQInputCmd_t cmd;
-  int button_nr;
-  int mouse_x;
-  int mouse_y;
-} MsgQUserInputEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -294,10 +274,9 @@ typedef union {
   MsgQAttachQEvent_t attachq;
   MsgQSPUPaletteEvent_t spupalette;
   MsgQSPUHighlightEvent_t spuhighlight;
-  MsgQUserInputEvent_t userinput;
   MsgQSpeedEvent_t speed;
-  MsgQDVDMenuCallEvent_t menucall;
-  MsgQDVDAudioStreamChangeEvent_t audiostreamchange;
+  MsgQFlowEvent_t flow;
+  MsgQDVDCtrlEvent_t dvdctrl;
 } MsgEvent_t;
 
 typedef struct {

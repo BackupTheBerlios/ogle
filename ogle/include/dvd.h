@@ -64,6 +64,15 @@ typedef DVDRegister_t DVDSPRMArray_t[24];
 //typedef int DVDStream_t;
 typedef int DVDAngle_t;
 
+typedef int DVDPTT_t;
+typedef int DVDTitle_t;
+typedef struct {
+  uint8_t Hours;
+  uint8_t Minutes;
+  uint8_t Seconds;
+  uint8_t Frames;
+} DVDTimecode_t;
+
 /** 
  * Audio stream number (0-7)
  */
