@@ -189,6 +189,7 @@ typedef struct {
   MsgQPlayCtrlCmd_t cmd;
   int from;
   int to;
+  int extra_cmd;
 } MsgQPlayCtrlEvent_t;
 
 typedef struct {

@@ -76,7 +76,7 @@ char *id_qaddr(uint8_t id, uint8_t subtype);
 FILE *id_file(uint8_t id, uint8_t subtype);
 void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid, char *shmaddr, FILE *file);
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS, int is_new_file);
+	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd);
 int attach_buffer(int shmid, int size);
 //int chk_for_msg(void);
 void loadinputfile(char *infilename);
@@ -119,6 +119,7 @@ char *data_buf_addr;
 
 int off_from;
 int off_to;
+int demux_cmd;
 
 extern char *optarg;
 extern int   optind, opterr, optopt;
@@ -357,6 +358,9 @@ void get_next_demux_q(void)
 {
   MsgEvent_t ev;
   int new_demux_range = 0;
+  if(demux_cmd == 1) {
+    put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, 1);
+  }
   while(!new_demux_range) {
     while(!demux_q_len) {
       MsgNextEvent(msgq, &ev);
@@ -385,6 +389,7 @@ void get_next_demux_q(void)
     case MsgEventQPlayCtrl:
       off_from = demux_q[demux_q_start].cmd.ctrl.from;
       off_to = demux_q[demux_q_start].cmd.ctrl.to;
+      demux_cmd = demux_q[demux_q_start].cmd.ctrl.extra_cmd;
       new_demux_range = 1;
       break;
     case MsgEventQChangeFile:
@@ -714,17 +719,17 @@ void push_stream_data(uint8_t stream_id, int len,
 	
 	if((subtype >= 0x80) && (subtype < 0x90)) {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
-		   PTS_DTS_flags, PTS, DTS, is_newfile);
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS, is_newfile);
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		   PTS_DTS_flags, PTS, DTS, is_newfile);
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	}
       } else {
 	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		 PTS_DTS_flags, PTS, DTS, is_newfile);
+		 PTS_DTS_flags, PTS, DTS, is_newfile, 0);
       }
     } else {
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
@@ -1934,7 +1939,7 @@ int send_msg(mq_msg_t *msg, int mtext_size)
 
 
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS, int is_new_file)
+	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd)
 {
   q_head_t *q_head = NULL;
   q_elem_t *q_elem;
@@ -2038,6 +2043,9 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   } else {
     data_elems[data_elem_nr].filename[0] = '\0';
   }
+
+  data_elems[data_elem_nr].cmd = extra_cmd;
+
   if(scr_discontinuity) {
     scr_discontinuity = 0;
     scr_nr = (scr_nr+1)%16;
@@ -2104,3 +2112,4 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   
   return 0;
 }
+

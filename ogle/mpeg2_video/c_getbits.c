@@ -420,7 +420,8 @@ int get_q()
   int off;
   int len;
   static int have_buf = 0;
-
+  static uint8_t *tmp_base;
+  static uint8_t dummy_buf[8] = {0, 0, 0, 0, 0, 0, 0, 0};
 
   //fprintf(stderr, "video_dec: get_q()\n");
   
@@ -499,6 +500,22 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
   
+  switch(data_elem->cmd) {
+  case 1:
+    if(mmap_base != dummy_buf) {
+      tmp_base = mmap_base;
+      mmap_base = dummy_buf;
+      off = 0;
+      len = 8;
+    }
+    break;
+  case 0:
+  default:
+    if(mmap_base == dummy_buf) {
+      mmap_base = tmp_base;
+    } 
+    break;
+  }
   packet.offset = off;
   packet.length = len;
   /*

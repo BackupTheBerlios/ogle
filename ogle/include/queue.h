@@ -17,6 +17,7 @@ typedef struct {
   int len;
   char *q_addr;
   char filename[PATH_MAX+1]; // hack for mmap
+  int cmd;
 } data_elem_t;
 
 
