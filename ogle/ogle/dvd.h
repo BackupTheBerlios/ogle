@@ -124,7 +124,7 @@ typedef struct {
 } DVDTimecode_t;
 
 /** 
- * Subpicture stream number (0-31,63)
+ * Subpicture stream number (0-31,62,63)
  */
 typedef int DVDSubpictureStream_t;  
 
@@ -171,6 +171,23 @@ typedef enum {
 } DVDAudioLangExt_t;
 
 /**
+ * Subpicture language extension
+ */
+typedef enum {
+  DVD_SUBPICTURE_LANG_EXT_NotSpecified  = 0,
+  DVD_SUBPICTURE_LANG_EXT_NormalCaptions  = 1,
+  DVD_SUBPICTURE_LANG_EXT_BigCaptions  = 2,
+  DVD_SUBPICTURE_LANG_EXT_ChildrensCaptions  = 3,
+  DVD_SUBPICTURE_LANG_EXT_NormalCC  = 5,
+  DVD_SUBPICTURE_LANG_EXT_BigCC  = 6,
+  DVD_SUBPICTURE_LANG_EXT_ChildrensCC  = 7,
+  DVD_SUBPICTURE_LANG_EXT_Forced  = 9,
+  DVD_SUBPICTURE_LANG_EXT_NormalDirectorsComments  = 13,
+  DVD_SUBPICTURE_LANG_EXT_BigDirectorsComments  = 14,
+  DVD_SUBPICTURE_LANG_EXT_ChildrensDirectorsComments  = 15,
+} DVDSubpictureLangExt_t;  
+
+/**
  * Karaoke Downmix mode
  */
 typedef enum {
@@ -215,6 +232,24 @@ typedef struct {
   DVDChannelNumber_t    NumberOfChannels;
 } DVDAudioAttributes_t;
 
+typedef enum {
+  DVD_SUBPICTURE_TYPE_NotSpecified = 0,
+  DVD_SUBPICTURE_TYPE_Language     = 1,
+  DVD_SUBPICTURE_TYPE_Other        = 2
+} DVDSubpictureType_t;
+
+typedef enum {
+  DVD_SUBPICTURE_CODING_RunLength = 0,
+  DVD_SUBPICTURE_CODING_Extended  = 1,
+  DVD_SUBPICTURE_CODING_Other     = 2
+} DVDSubpictureCoding_t;
+
+typedef struct {
+  DVDSubpictureType_t    Type;
+  DVDSubpictureCoding_t  CodingMode;
+  DVDLangID_t            Language;
+  DVDSubpictureLangExt_t LanguageExtension;
+} DVDSubpictureAttributes_t;
 
 typedef int DVDVideoCompression_t; /**< TBD */
 

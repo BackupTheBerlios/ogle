@@ -58,7 +58,17 @@ typedef enum {
   DVDCtrlAudioStreamEnabled,
   
   DVDCtrlGetAudioAttributes,
-  DVDCtrlAudioAttributes
+  DVDCtrlAudioAttributes,
+
+
+  DVDCtrlGetCurrentSubpicture,
+  DVDCtrlCurrentSubpicture,
+
+  DVDCtrlIsSubpictureStreamEnabled,
+  DVDCtrlSubpictureStreamEnabled,
+  
+  DVDCtrlGetSubpictureAttributes,
+  DVDCtrlSubpictureAttributes
 
 } DVDCtrlEventType_t;
 
@@ -222,6 +232,31 @@ typedef struct {
 } DVDCtrlAudioAttributesEvent_t;
 
 
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDSubpictureStream_t streamnr;
+} DVDCtrlSubpictureStreamChangeEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int nrofstreams;
+  DVDSubpictureStream_t currentstream;
+  DVDBool_t enabled;
+} DVDCtrlCurrentSubpictureEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDSubpictureStream_t streamnr;
+  DVDBool_t enabled;
+} DVDCtrlSubpictureStreamEnabledEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDSubpictureStream_t streamnr;
+  DVDSubpictureAttributes_t attr;
+} DVDCtrlSubpictureAttributesEvent_t;
+
+
 typedef union {
   DVDCtrlEventType_t type;
 
@@ -285,6 +320,10 @@ typedef union {
   DVDCtrlCurrentAudioEvent_t currentaudio;
   DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;
   DVDCtrlAudioAttributesEvent_t audioattributes;
+
+  DVDCtrlCurrentSubpictureEvent_t currentsubpicture;
+  DVDCtrlSubpictureStreamEnabledEvent_t subpicturestreamenabled;
+  DVDCtrlSubpictureAttributesEvent_t subpictureattributes;
 
   /* end infocmd */
 

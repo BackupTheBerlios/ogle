@@ -345,6 +345,156 @@ DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
   return DVD_E_NotImplemented;
 }
 
+
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
+				    int *const StreamsAvailable,
+				    DVDSubpictureStream_t *const CurrentStream,
+				    DVDBool_t *const Enabled)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetCurrentSubpicture;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentSubpicture)) {
+      *StreamsAvailable = ev.dvdctrl.cmd.currentsubpicture.nrofstreams;
+      *CurrentStream = ev.dvdctrl.cmd.currentsubpicture.currentstream;
+      *Enabled = ev.dvdctrl.cmd.currentsubpicture.enabled;
+      return DVD_E_Ok;
+    }
+  } 
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
+					 DVDSubpictureStream_t StreamNr,
+					 DVDBool_t *const Enabled)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlIsSubpictureStreamEnabled;
+  ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = StreamNr;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlSubpictureStreamEnabled)) {
+      if(ev.dvdctrl.cmd.subpicturestreamenabled.streamnr == StreamNr) {
+	*Enabled = ev.dvdctrl.cmd.subpicturestreamenabled.enabled;
+	return DVD_E_Ok;
+      }
+    }
+  } 
+}
+
+/**
+ * Get the attributes of the specified subpicture stream.
+ * @todo Implement function.
+ * 
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies the subpicture stream which attributes
+ * will be retrieved.
+ * @param Attr Points to where the attributes of the specified
+ * subpicture stream will be written.
+ *
+ * @return If successful DVD_E_Ok is returned and the attributes
+ * pointed to by Attr have been updated. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented. 
+ */
+DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
+				       DVDSubpictureStream_t StreamNr,
+				       const DVDSubpictureAttributes_t *Attr)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetSubpictureAttributes;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlSubpictureAttributes)) {
+      if(ev.dvdctrl.cmd.subpictureattributes.streamnr == StreamNr) {
+	memcpy((void *)Attr,
+	       (void *)&(ev.dvdctrl.cmd.subpictureattributes.attr),
+	       sizeof(DVDSubpictureAttributes_t));
+	return DVD_E_Ok;
+      }
+    }
+  } 
+}
+
+
+/** 
+ * Get the language of an subpicture stream.
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies the subpicture stream which laguage code
+ * will be retrieved.
+ * @param Language Points to where the language code of the
+ * specified subpicture stream will be written.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetSubpictureLanguage(DVDNav_t *nav,
+				     DVDSubpictureStream_t StreamNr,
+				     const DVDLangID_t *Language)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
+					    const DVDLangID_t *Language,
+					    const DVDSubpictureLangExt_t *SubpictureExtension)
+{
+  return DVD_E_NotImplemented;
+}
+
 /** @} end of dvdinfo */
 
 
@@ -1138,6 +1288,7 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
 {
   return DVD_E_NotImplemented;
 }
+
 
 /**
  * @todo Implement function

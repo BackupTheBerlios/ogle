@@ -65,7 +65,8 @@ typedef enum {
   MsgEventQFlow,
   MsgEventQFlushData,
   MsgEventQDemuxStream,
-  MsgEventQDemuxStreamChange
+  MsgEventQDemuxStreamChange,
+  MsgEventQDemuxDefault
 } MsgEventType_t;
 
 
@@ -199,6 +200,13 @@ typedef struct {
   int subtype;
 } MsgQDemuxStreamEvent_t;
 
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  int state; // 0 - not registered, 1 - discard
+} MsgQDemuxDefaultEvent_t;
+
 
 typedef struct {
   MsgEventType_t type;
@@ -314,6 +322,7 @@ typedef union {
   MsgQFlushDataEvent_t flushdata;
   MsgQDemuxStreamEvent_t demuxstream;
   MsgQDemuxStreamChangeEvent_t demuxstreamchange;
+  MsgQDemuxDefaultEvent_t demuxdefault;
 } MsgEvent_t;
 
 typedef struct {
