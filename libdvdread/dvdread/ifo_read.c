@@ -1151,9 +1151,16 @@ static int ifoRead_C_ADT_internal(ifo_handle_t *ifofile,
      Magic Knight Rayearth Daybreak is mastered very strange and has 
      Titles with a VOBS that has no cells. */
   assert(info_length % sizeof(cell_adr_t) == 0);
-  assert(info_length / sizeof(cell_adr_t) >= c_adt->nr_of_vobs);
   
-  c_adt->cell_adr_table = (cell_adr_t *)malloc(info_length); 
+  /* assert(info_length / sizeof(cell_adr_t) >= c_adt->nr_of_vobs);
+     Enemy of the State region 2 (de) has Titles where nr_of_vobs field
+     is to high, they high ones are never referenced though.
+  if(info_length / sizeof(cell_adr_t) < c_adt->nr_of_vobs) {
+    fprintf(stderr, "libdvdread: *C_ADT nr_of_vobs > avaiable info entries\n");
+    c_adt->nr_of_vobs = info_length / sizeof(cell_adr_t);
+  }
+  
+  c_adt->cell_adr_table = (cell_adr_t *)malloc(info_length);
   if(!c_adt->cell_adr_table)
     return 0;
 
@@ -1173,7 +1180,7 @@ static int ifoRead_C_ADT_internal(ifo_handle_t *ifofile,
     assert(c_adt->cell_adr_table[i].vob_id <= c_adt->nr_of_vobs);
     assert(c_adt->cell_adr_table[i].cell_id > 0);
     assert(c_adt->cell_adr_table[i].start_sector < 
-           c_adt->cell_adr_table[i].last_sector);
+	   c_adt->cell_adr_table[i].last_sector);
   }
 
   return 1;

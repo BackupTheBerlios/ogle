@@ -821,6 +821,7 @@ void ifoPrint_C_ADT(c_adt_t *c_adt) {
   int i, entries;
   
   printf("Number of VOBs in this VOBS: %i\n", c_adt->nr_of_vobs);
+  //entries = c_adt->nr_of_vobs;
   entries = (c_adt->last_byte + 1 - C_ADT_SIZE)/sizeof(c_adt_t);
   
   for(i = 0; i < entries; i++) {
