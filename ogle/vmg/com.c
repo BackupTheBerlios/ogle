@@ -71,6 +71,8 @@ static MsgEventClient_t spu_client = 0;
 static char *dvdroot;
 //MsgEventClient_t ui_client;
 
+extern MsgEvent_t dvdroot_return_ev;
+extern MsgEventClient_t dvdroot_return_client;
 
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   return MsgSendEvent(msgq, demux_client, ev, 0);
@@ -162,6 +164,12 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       if(dvdroot)
 	free(dvdroot);
       dvdroot = strdup(ev->dvdctrllong.cmd.dvdroot.path);
+      dvdroot_return_ev.type = MsgEventQDVDCtrl;
+      dvdroot_return_ev.dvdctrl.cmd.type = DVDCtrlRetVal;
+      dvdroot_return_ev.dvdctrl.cmd.retval.serial =
+	ev->dvdctrllong.cmd.dvdroot.serial;
+      dvdroot_return_client = ev->any.client;
+      
       break;
     }
     break;

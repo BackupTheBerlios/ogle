@@ -46,6 +46,9 @@ extern char *get_dvdroot(void);
 extern dvd_state_t state;
 extern unsigned char discid[16];
 
+MsgEvent_t dvdroot_return_ev;
+MsgEventClient_t dvdroot_return_client;
+
 static void do_run(void);
 static int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 			     cell_playback_t *cell, 
@@ -140,6 +143,10 @@ int main(int argc, char *argv[])
     if(vm_init(get_dvdroot()) == -1)
       exit(1);
 
+    // send ok 
+    dvdroot_return_ev.dvdctrl.cmd.retval.val = DVD_E_Ok;
+    MsgSendEvent(msgq, dvdroot_return_client, &dvdroot_return_ev, 0);
+    
     ev.type = MsgEventQDemuxDVDRoot;
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
     ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
