@@ -96,6 +96,9 @@ static MsgEventQ_t *msgq;
 
 static int flush_to_scrnr = -1;
 
+static int prev_scr_nr = 0;
+
+
 void usage()
 {
   fprintf(stderr, "Usage: %s  [-m <msgid>]\n", 
@@ -186,6 +189,18 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQCtrlData:
     attach_ctrl_shm(ev->ctrldata.shmid);
     break;
+  case MsgEventQSpeed:
+    if(ev->speed.speed == 1.0) {
+      set_speed(&ctrl_time[prev_scr_nr].sync_point, ev->speed.speed);
+    } else {
+      if(ctrl_time[prev_scr_nr].sync_point.speed == 1.0) {
+	set_speed(&ctrl_time[prev_scr_nr].sync_point, ev->speed.speed);
+	if((ctrl_time[prev_scr_nr].sync_master == SYNC_AUDIO)) {
+	  ctrl_time[prev_scr_nr].sync_master = SYNC_NONE;
+	}
+      }
+    }
+    break;
   default:
     fprintf(stderr, "ac3wrap: unrecognized event type: %d\n", ev->type);
     break;
@@ -264,7 +279,6 @@ int get_q()
   int scr_nr;
   int off;
   int len;
-  static int prev_scr_nr = 0;
   static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
   
@@ -322,75 +336,92 @@ int get_q()
     }
   }
 
+#ifdef NEW_SYNC
+  if(ctrl_data.speed == 1.0) {
+    clocktime_t real_time, scr_time;
+#endif
+    if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
+      ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
       
-
-  if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
-    ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
-    
-    if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+      if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+	if(PTS_DTS_flags & 0x2) {
+	  // time_offset is our guess to how much is in the output q
+#ifdef NEW_SYNC
+	  fprintf(stderr, "ac3: set_sync_point()\n");
+	  
+	  PTS_TO_CLOCKTIME(scr_time, PTS),
+	    clocktime_get(&real_time);
+	  
+	  set_sync_point(&ctrl_time[scr_nr].sync_point,
+			 &real_time,
+			 &scr_time,
+			 ctrl_data->speed);
+#else
+	  fprintf(stderr, "ac3wrap: initializing offset\n");
+	  set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+	}
+#endif
+      }
       if(PTS_DTS_flags & 0x2) {
-	// time_offset is our guess to how much is in the output q
-	fprintf(stderr, "ac3wrap: initializing offset\n");
+	time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+      }
+      
+      /*
+       * primitive resync in case output buffer is emptied 
+       */
+      
+      if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
+	TIME_S(time_offset) = 0;
+	TIME_SS(time_offset) = 0;
+	fprintf(stderr, "ac3wrap: resetting offset\n");
 	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
       }
     }
     if(PTS_DTS_flags & 0x2) {
       time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+      if(TIME_S(time_offset) > 10) {
+	TIME_S(time_offset) = 0;
+	TIME_SS(time_offset) = 0;
+	//fprintf(stderr, "more than 10 secs in audio output buffer, somethings wrong?\n");
+      }
     }
-    prev_scr_nr = scr_nr;
-    
-    /*
-     * primitive resync in case output buffer is emptied 
-     */
-    
-    if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
-      TIME_S(time_offset) = 0;
-      TIME_SS(time_offset) = 0;
-      fprintf(stderr, "ac3wrap: resetting offset\n");
-      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
-    }
-  }
-  if(PTS_DTS_flags & 0x2) {
-    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
-    if(TIME_S(time_offset) > 10) {
-      TIME_S(time_offset) = 0;
-      TIME_SS(time_offset) = 0;
-      //fprintf(stderr, "more than 10 secs in audio output buffer, somethings wrong?\n");
-    }
-  }
-
-  /** TODO this is just so we don't buffer alot in the pipe **/
   
-  {
+    /** TODO this is just so we don't buffer alot in the pipe **/
+    
+    {
 #ifndef HAVE_CLOCK_GETTIME
-    struct timespec bepa;
-    clocktime_t apa = {0, 100000};
-    timesub(&apa, &time_offset, &apa);
-    bepa.tv_sec = apa.tv_sec;
-    bepa.tv_nsec = apa.tv_usec*1000;
-    
-    if(bepa.tv_nsec > 10000 || bepa.tv_sec > 0) {
-      nanosleep(&bepa, NULL);
-    }
+      struct timespec bepa;
+      clocktime_t apa = {0, 100000};
+      timesub(&apa, &time_offset, &apa);
+      bepa.tv_sec = apa.tv_sec;
+      bepa.tv_nsec = apa.tv_usec*1000;
+      
+      if(bepa.tv_nsec > 10000 || bepa.tv_sec > 0) {
+	nanosleep(&bepa, NULL);
+      }
 #else
-    
-    clocktime_t apa = {0, 100000000};
-    timesub(&apa, &time_offset, &apa);
-    
-    if(TIME_SS(apa) > 10000000 || TIME_S(apa) > 0) {
-      nanosleep(&apa, NULL);
-    }
-    
+      
+      clocktime_t apa = {0, 100000000};
+      timesub(&apa, &time_offset, &apa);
+      
+      if(TIME_SS(apa) > 10000000 || TIME_S(apa) > 0) {
+	nanosleep(&apa, NULL);
+      }
+      
 #endif 
+    }
+#ifdef NEW_SYNC
   }
+#endif
+  prev_scr_nr = scr_nr;
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
   
   //fwrite(mmap_base+off, len, 1, outfile);
-  
-  fwrite(data_buffer+off, len, 1, outfile);
-  
+  if(ctrl_data->speed == 1.0) {
+    fwrite(data_buffer+off, len, 1, outfile);
+  }
   // release elem
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;

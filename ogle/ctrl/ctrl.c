@@ -649,7 +649,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       } else {
 	ctrl_data->mode = MODE_SPEED;
       }
-
+      // send speed event to syncmasters
     }
     break;
   default:

@@ -79,6 +79,7 @@ MsgEventQ_t *msgq;
 
 
 static int flush_to_scrnr = -1;
+static int prev_scr_nr = 0;
 
 static picture_data_elem_t *picture_ctrl_data;
 static q_head_t *picture_q_head;
@@ -298,6 +299,11 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     input_mask = ev->reqinput.mask;
     input_client = ev->reqinput.client;
     break;
+  case MsgEventQSpeed:
+    if(ctrl_time[prev_scr_nr].sync_master <= SYNC_VIDEO) {
+      set_speed(&ctrl_time[prev_scr_nr].sync_point, ev->speed.speed);
+    }
+    break;
   default:
     //fprintf(stderr, "vo: unrecognized event type: %d\n", ev->type);
     return 0;
@@ -418,6 +424,7 @@ static void display_process()
   clocktime_t real_time, prefered_time, frame_interval;
   clocktime_t avg_time, oavg_time;
   clocktime_t calc_rt;
+  clocktime_t scrtime;
 #ifndef HAVE_CLOCK_GETTIME
   clocktime_t waittmp;
 #endif
@@ -428,9 +435,7 @@ static void display_process()
   int avg_nr = 23;
   int first = 1;
   picture_data_elem_t *pinfos;
-  static int prev_scr_nr = 0;
   static clocktime_t time_offset = { 0, 0 };
-
   TIME_S(prefered_time) = 0;
   
   pinfos = picture_ctrl_data;
@@ -465,9 +470,21 @@ static void display_process()
       
       if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
+#ifdef NEW_SYNC
+	  fprintf(stderr, "vo: set_sync_point()\n");
+
+	  PTS_TO_CLOCKTIME(scr_time, pinfos[buf_id].PTS),
+	  clocktime_get(&real_time);
+
+	  set_sync_point(&ctrl_time[pinfos[buf_id].scr_nr].sync_point,
+			 &real_time,
+			 &scr_time,
+			 ctrl_data->speed);
+#else
 	  fprintf(stderr, "vo: set_time_base()\n");
 	  set_time_base(pinfos[buf_id].PTS,
 			ctrl_time, pinfos[buf_id].scr_nr, time_offset);
+#endif
 	}
       }
       /*
@@ -492,17 +509,16 @@ static void display_process()
       /* Erhum test... */
       clocktime_get(&first_time);      
     }
+
     clocktime_get(&real_time);
+
+#ifdef NEW_SYNC
+    PTS_TO_CLOCKTIME(pts_time, pinfos[buf_id].PTS);
+
+    calc_realtime_from_scrtime(&prefered_time, &pts_time,
+			       &ctrl_time[pinfos[buf_id].scr_nr].sync_point);
     
-    if(ctrl_data->mode == MODE_SPEED) {
-      clocktime_t difftime;
-      
-      timesub(&difftime, &real_time, &(ctrl_data->rt_start));
-      timemul(&difftime, &difftime, ctrl_data->speed);
-      timeadd(&real_time, &(ctrl_data->rt_start), &difftime);
-      timesub(&real_time, &real_time, &ctrl_data->vt_offset);
-    }
-    
+#else
     if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
       prefered_time = real_time;
     } else if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
@@ -520,6 +536,8 @@ static void display_process()
       prefered_time = calc_rt;
       
     }
+#endif
+
 #ifndef HAVE_CLOCK_GETTIME
     timesub(&waittmp, &prefered_time, &real_time);
     wait_time.tv_sec = waittmp.tv_sec;

@@ -79,3 +79,39 @@ int set_time_base(uint64_t PTS,
   */
   return 0;
 }
+
+void calc_realtime_from_scrtime(clocktime_t *rt, clocktime_t *scrtime,
+				sync_point_t *sp)
+{
+
+  double inv_speed = 1.0/sp->speed;
+  timesub(rt, scrtime, &sp->scr);
+  timemul(rt, rt, inv_speed);
+  timeadd(rt, rt, &sp->rt);
+
+}
+
+void set_sync_point(sync_point_t *sp, clocktime_t *rt,
+		    clocktime_t *scrtime, double speed)
+{
+  sp->rt = *rt;
+  sp->scr = *scrtime;
+  sp->speed = speed;
+}
+
+void set_speed(sync_point_t *sp, double speed)
+{
+  clocktime_t cur_scrtime;
+  clocktime_t cur_rt;
+  
+  clocktime_get(&cur_rt);
+  timesub(&cur_scrtime, &cur_rt, &sp->rt); 
+  timemul(&cur_scrtime, &cur_scrtime, sp->speed);
+  timeadd(&cur_scrtime, &cur_scrtime, &sp->scr);
+
+  
+  sp->speed = speed;
+  sp->rt = cur_rt;
+  sp->scr = cur_scrtime;
+  
+}

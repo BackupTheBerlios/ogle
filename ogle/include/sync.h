@@ -31,4 +31,13 @@ int set_time_base(uint64_t PTS,
 		  int scr_nr,
 		  clocktime_t offset);
 
+void calc_realtime_from_scrtime(clocktime_t *rt, clocktime_t *scrtime,
+				sync_point_t *sp);
+
+void set_sync_point(sync_point_t *sp, clocktime_t *rt,
+		    clocktime_t *scrtime, double speed);
+
+void set_speed(sync_point_t *sp, double speed);
+
+
 #endif /* SYNC_H_INCLUDED */
