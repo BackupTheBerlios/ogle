@@ -329,7 +329,7 @@ int input() {
     } else if(strcmp(tok, "file") == 0) {
       sendev.type = MsgEventQChangeFile;
       
-      tok = strtok(NULL, " ");
+      tok = strtok(NULL, "\n");
 
       strncpy(sendev.changefile.filename, tok, PATH_MAX);
       sendev.changefile.filename[PATH_MAX] = '\0';
