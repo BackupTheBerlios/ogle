@@ -374,6 +374,7 @@ Window display_init(yuv_image_t *picture_data,
 		shmctl(shm_info.shmid, IPC_RMID, 0);
 		CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
 	      }
+	      use_xv = 1;
 	      return; /* All set up! */
             } else {
               xv_port = 0;

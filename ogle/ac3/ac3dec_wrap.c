@@ -422,11 +422,26 @@ int get_q()
   /** TODO this is just so we don't buffer alot in the pipe **/
   
   {
+#ifndef HAVE_CLOCK_GETTIME
+    struct timespec bepa;
+    clocktime_t apa = {0, 100000};
+    timesub(&apa, &time_offset, &apa);
+    bepa.tv_sec = apa.tv_sec;
+    bepa.tv_nsec = apa.tv_usec*1000;
+    
+    if(bepa.tv_nsec > 10000 || bepa.tv_sec > 0) {
+      nanosleep(&bepa, NULL);
+    }
+#else
+    
     clocktime_t apa = {0, 100000000};
     timesub(&apa, &time_offset, &apa);
+    
     if(TIME_SS(apa) > 10000000 || TIME_S(apa) > 0) {
       nanosleep(&apa, NULL);
     }
+    
+#endif 
   }
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
