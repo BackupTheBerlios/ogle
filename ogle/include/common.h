@@ -22,3 +22,16 @@ struct load_file_packet {
                          char     filename[200];   // HACK ALERT!
                         };
 
+
+/* Imgaretype. */
+
+typedef struct {
+  uint8_t *y; //[480][720];  //y-component image
+  uint8_t *u; //[480/2][720/2]; //u-component
+  uint8_t *v; //[480/2][720/2]; //v-component
+  
+  //timecode_t time;
+
+  uint8_t lock;
+} yuv_image_t;
+
