@@ -74,27 +74,50 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
 
   nr_configs = get_channel_configs(&configs);
   
+  DNOTE("Searching <speakers> for\n");
+  if(chtypemask_wanted & ChannelTypeMask_Channels) {
+    for(n = 0; n <= 0x100; n = n << 1) {
+      if(n & chtypemask_wanted) {
+	fprintf(stderr, " '%s'", channeltype_str(n));
+      }
+    }
+    if(chtypemask_wanted & ChannelTypeMask_Streams) {
+      fprintf(stderr, "\n or for\n");
+    }
+  }
+
+  if(chtypemask_wanted & ChannelTypeMask_Streams) {
+    fprintf(stderr, " '%s'",
+	    channeltype_str(chtypemask_wanted & ChannelTypeMask_Streams));
+  }
+  fprintf(stderr, "\n");
+  
   for(n = 0; n < nr_configs; n++) {
     int m;
     int nr_ch;
     
     chtypemask_avail = 0;
     nr_ch = configs[n].nr_ch;
+    DNOTE("<channel_config>\n");
     for(m = 0; m < nr_ch; m++) {
       chtypemask_avail |= configs[n].chtype[m];
+      DNOTE("  <chtype>%s</chtype>\n", channeltype_str(configs[n].chtype[m]));
     }
+    DNOTE("</channel_config>\n");
     if(((chtypemask_avail & chtypemask_wanted)
 	== (chtypemask_wanted & ChannelTypeMask_Channels)) ||
        ((chtypemask_avail & chtypemask_wanted)
 	== (chtypemask_wanted & ChannelTypeMask_Streams))) {
       chconf = &configs[n];
+      DNOTE("Found matching channel_config\n");
       break;
     }
   }
   if((!chconf) && (nr_configs > 0)) {
     chconf = &configs[nr_configs-1];
+    DNOTE("Didn't find matching channel_config, using the last one\n");
   }
-
+  
   return chconf;
 }
 

@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/* if you change this don't forget to change channeltype_str() */
+
 typedef enum {
   ChannelType_Unspecified = -1,
   ChannelType_Null = 0,

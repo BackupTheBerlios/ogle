@@ -37,6 +37,18 @@ char *channeltype_str(ChannelType_t chtype)
   case ChannelType_Mono:
     str = "Mono";
     break;
+  case ChannelType_AC3:
+    str = "AC3";
+    break;
+  case ChannelType_DTS:
+    str = "DTS";
+    break;
+  case ChannelType_MPEG:
+    str = "MPEG";
+    break;
+  case ChannelType_LPCM:
+    str = "LPCM";
+    break;
   default:
     str = "(unknown)";
     break;
