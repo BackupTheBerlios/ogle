@@ -26,8 +26,8 @@ AC_PATH_XTRA
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $X_CFLAGS"
 AC_CHECK_HEADER(X11/extensions/XShm.h, 
-		[AC_DEFINE([HAVE_XSHM], 1, [X11 supports MIT-XShm])],
-		X11/Xlib.h)
+		[AC_DEFINE([HAVE_XSHM], 1, [X11 supports MIT-XShm])],,
+		[#include <X11/Xlib.h>])
 CPPFLAGS=$saved_CPPFLAGS
 AC_CHECK_LIB(Xext, XShmQueryExtension, 
 	     XEXT_LIB=-lXext, 
@@ -357,7 +357,10 @@ AC_ARG_ENABLE(xf86vidmode,
 if test x$use_xf86vidmode = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
-  AC_CHECK_HEADER(X11/extensions/xf86vmode.h, xf86vidmode_header=yes, xf86vidmode_header=no)
+  AC_CHECK_HEADER(X11/extensions/xf86vmode.h, 
+                  xf86vidmode_header=yes, 
+                  xf86vidmode_header=no,
+                  [#include <X11/Xlib.h>])
   CPPFLAGS=$saved_CPPFLAGS
   AC_CHECK_LIB(Xxf86vm, XF86VidModeQueryExtension, 
 	       [ AC_DEFINE([HAVE_XF86VIDMODE], 1, [X11 supports XF86VidMode])
