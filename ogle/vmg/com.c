@@ -212,8 +212,9 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 void wait_for_init(MsgEventQ_t *msgq) {
   while(!demux_client || !spu_client || !dvdroot) {
     MsgEvent_t t_ev;
-    MsgNextEvent(msgq, &t_ev);
-    handle_events(msgq, &t_ev);
+    if(MsgNextEvent(msgq, &t_ev) != -1) {
+      handle_events(msgq, &t_ev);
+    }
   }
 }
 
@@ -333,7 +334,7 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   int elem;
   
   if(stream_shmaddr == NULL) {
-    MsgNextEvent(msgq, ev);
+    while(MsgNextEvent(msgq, ev) == -1);
     return 0;
   }
   
@@ -346,10 +347,11 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
     
     while(!q_elems[elem].in_use) {
       //DPRINTF(1, "vmg: waiting for notification\n");
-      MsgNextEvent(msgq, ev);
-      if(ev->type == MsgEventQNotify) // Is this OK?
-	continue;
-      return 0;
+      if(MsgNextEvent(msgq, ev) != -1) {
+	if(ev->type == MsgEventQNotify) // Is this OK?
+	  continue;
+	return 0;
+      }
     }
   }
   
@@ -384,8 +386,9 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   /* Should never hapen if you call wait_q first */
   while(stream_shmaddr == NULL) {
     MsgEvent_t t_ev;
-    MsgNextEvent(msgq, &t_ev);
-    handle_events(msgq, &t_ev);
+    if(MsgNextEvent(msgq, &t_ev) != -1) {
+      handle_events(msgq, &t_ev);
+    }
   }
   
   q_head = (q_head_t *)stream_shmaddr;
@@ -398,8 +401,9 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
     
     while(!q_elems[elem].in_use) {
       //DPRINTF(1, "vmg: waiting for notification\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(msgq, &ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(msgq, &ev);
+      }
     }
   }
 
