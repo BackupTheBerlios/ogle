@@ -336,7 +336,7 @@ dnl ---------------------------------------------------------
 dnl libxml
 dnl ---------------------------------------------------------
 
-AM_PATH_XML2(2.4.5, AC_DEFINE(HAVE_XML, 1, [libxml found]),
+AM_PATH_XML2(2.0.0, AC_DEFINE(HAVE_XML, 1, [libxml found]),
   [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
 
 dnl ---------------------------------------------------------
