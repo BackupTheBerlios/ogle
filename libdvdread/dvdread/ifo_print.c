@@ -23,20 +23,21 @@
 #include <inttypes.h>
 #include <string.h>
 #include <ctype.h>
-#include <assert.h>
 
 #include "config.h" // Needed for WORDS_BIGENDIAN
 #include "ifo_types.h"
 #include "ifo_read.h"
 #include "ifo_print.h"
 
+#include "dvdread_internal.h"
+
 /* Put this in some other file / package?  It's used in nav_print too. */
 static void ifoPrint_time(int level, dvd_time_t *dtime) {
   const char *rate;
-  assert((dtime->hour>>4) < 0xa && (dtime->hour&0xf) < 0xa);
-  assert((dtime->minute>>4) < 0x7 && (dtime->minute&0xf) < 0xa);
-  assert((dtime->second>>4) < 0x7 && (dtime->second&0xf) < 0xa);
-  assert((dtime->frame_u&0xf) < 0xa);
+  CHECK_VALUE((dtime->hour>>4) < 0xa && (dtime->hour&0xf) < 0xa);
+  CHECK_VALUE((dtime->minute>>4) < 0x7 && (dtime->minute&0xf) < 0xa);
+  CHECK_VALUE((dtime->second>>4) < 0x7 && (dtime->second&0xf) < 0xa);
+  CHECK_VALUE((dtime->frame_u&0xf) < 0xa);
   
   printf("%02x:%02x:%02x.%02x", 
 	 dtime->hour,
@@ -145,7 +146,7 @@ static void ifoPrint_video_attributes(int level, video_attr_t *attr) {
   }
   
   printf("U%x ", attr->unknown1);
-  assert(!attr->unknown1);
+  CHECK_VALUE(!attr->unknown1);
   
   if(attr->line21_cc_1 || attr->line21_cc_2) {
     printf("NTSC CC ");
@@ -236,7 +237,7 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   switch(attr->lang_type) {
   case 0:
     // not specified
-    assert(attr->lang_code == 0 || attr->lang_code == 0xffff);
+    CHECK_VALUE(attr->lang_code == 0 || attr->lang_code == 0xffff);
     break;
   case 1:
     printf("%c%c ", attr->lang_code>>8, attr->lang_code & 0xff);

@@ -11,7 +11,7 @@ AC_STDC_HEADERS
 dnl
 dnl  Check the operating system
 dnl
-case x"${target_os}" in
+case x"$target_os" in
   xdarwin*)
     CFLAGS="${CFLAGS} -no-cpp-precomp"
     AC_DEFINE(__DARWIN__, 1, Have a Mac OS X system)
@@ -26,9 +26,14 @@ dnl
 if test x"$GCC" != x"yes"; then
     case x"$target" in
     xsparc-sun-solaris*)
+dnl #pragma pack(1) doesn't seem to change Fortes oppinion about what it
+dnl can assume about packing when accessing things of the types that where
+dnl declared within region of #pragma pack(1), so we are forced to use the
+dnl *big hammer* and tell it that it can't make any assumptions at all for
+dnl anyting anywhere... to bad really.  Even worse, code using the libdvdread
+dnl headers for ifo and/or nav structures must be compiled in the same way ;(
         OPT_CFLAGS="$CFLAGS -xCC -xmemalign"
         AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
-dnl Dueto assumption on how bitfields are packing (see nav_types.h)
 dnl      AC_MSG_ERROR(You must use GCC to compile this code)
 	;;
     esac
