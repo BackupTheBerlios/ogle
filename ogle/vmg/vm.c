@@ -113,16 +113,26 @@ int vm_reset(char *dvdroot) // , register_t regs)
     return -1;
   
   if(vmgi = ifoOpenVMGI(dvd)) {
-    if(!ifoRead_FP_PGC(vmgi))
+    if(!ifoRead_FP_PGC(vmgi)) {
+      fprintf(stderr, "vm: ifoRead_FP_PGC faild\n");
       return -1;
-    if(!ifoRead_TT_SRPT(vmgi))
+    }
+    if(!ifoRead_TT_SRPT(vmgi)) {
+      fprintf(stderr, "vm: ifoRead_TT_SRPT faild\n");
       return -1;
-    if(!ifoRead_PGCI_UT(vmgi))
+    }
+    if(!ifoRead_PGCI_UT(vmgi)) {
+      fprintf(stderr, "vm: ifoRead_PGCI_UT faild\n");
       return -1;
-    if(!ifoRead_PTL_MAIT(vmgi))
+    }
+    if(!ifoRead_PTL_MAIT(vmgi)) {
+      fprintf(stderr, "vm: ifoRead_PTL_MAIT faild\n");
       return -1;
-    if(!ifoRead_VTS_ATRT(vmgi))
+    }
+    if(!ifoRead_VTS_ATRT(vmgi)) {
+      fprintf(stderr, "vm: ifoRead_VTS_ATRT faild\n");
       return -1;
+    }
     //ifoRead_TXTDT_MGI(vmgi);
   }
   return 0;
@@ -556,7 +566,11 @@ static link_t play_PGC(void)
 {    
   link_t link_values;
   
-  fprintf(stderr, "play_PGC:\n"); // state.pgcN (%i)\n", state.pgcN);
+  fprintf(stderr, "vm: play_PGC:");
+  if(state.domain != FP_DOMAIN)
+    fprintf(stderr, " state.pgcN (%i)\n", get_PGCN());
+  else
+    fprintf(stderr, " first_play_pgc\n");
 
   // This must be set before the pre-commands are executed because they
   // might contain a CallSS that will save resume state
@@ -763,9 +777,11 @@ static link_t process_command(link_t link_values)
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
-    fprintf(stderr, "%i %i %i %i\n", link_values.command, link_values.data1, 
-	    link_values.data2, link_values.data3);
-    
+    vmPrint_LINK(link_values);
+    /*
+    fprintf(stderr, "%i %i %i %i\n", link_values.command, 
+	    link_values.data1, link_values.data2, link_values.data3);
+    */
     switch(link_values.command) {
     case LinkNoLink:
       if(link_values.data1 != 0)
@@ -1129,7 +1145,7 @@ static int get_PGC(int pgcN)
   
   if(state.domain == VTS_DOMAIN)
     state.TT_PGCN_REG = pgcN;
-
+  
   return 0;
 }
 
@@ -1137,7 +1153,7 @@ static int get_PGCN()
 {
   pgcit_t *pgcit;
   int pgcN = 1;
-
+  
   pgcit = get_PGCIT();
   
   assert(pgcit != NULL);
@@ -1178,7 +1194,6 @@ static int get_video_aspect(void)
 static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN) 
 {
   if(state.vtsN == vtsN) {
-    fprintf(stderr, "*** APA ***\n");
     return; // We alread have it
   }
   
@@ -1186,10 +1201,22 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
     ifoClose(vtsi);
   
   vtsi = ifoOpenVTSI(dvd, vtsN);
-  ifoRead_VTS_PTT_SRPT(vtsi);
-  ifoRead_PGCIT(vtsi);
-  ifoRead_PGCI_UT(vtsi);
-
+  if(vtsi == NULL) {
+    fprintf(stderr, "ifoOpenVTSI failed\n");
+    exit(1);
+  }
+  if(!ifoRead_VTS_PTT_SRPT(vtsi)) {
+    fprintf(stderr, "ifoRead_VTS_PTT_SRPT failed\n");
+    exit(1);
+  }
+  if(!ifoRead_PGCIT(vtsi)) {
+    fprintf(stderr, "ifoRead_PGCIT failed\n");
+    exit(1);
+  }
+  if(!ifoRead_PGCI_UT(vtsi)) {
+    fprintf(stderr, "ifoRead_PGCI_UT failed\n");
+    exit(1);
+  }
   state.vtsN = vtsN;
 }
 

@@ -118,12 +118,12 @@ static void print_ifo(char *path, int title) {
       
     if(verbose) {
       
-      printf("\nCell Adress table\n");
+      printf("\nCell Address table\n");
       printf(  "-----------------\n");
       if(h->vmgi_mat->vmgm_c_adt != 0) {
 	ifoPrint_C_ADT(h->menu_c_adt);
       } else
-	printf("No Cell Adress table present\n");
+	printf("No Cell Address table present\n");
       
       printf("\nVideo Title set Menu VOBU address map\n");
       printf(  "-----------------\n");
@@ -156,12 +156,12 @@ static void print_ifo(char *path, int title) {
       
     if(verbose) {
       
-      printf("\nMenu Cell Adress table\n");
+      printf("\nMenu Cell Address table\n");
       printf(  "-----------------\n");
       if(h->vtsi_mat->vtsm_c_adt != 0) {
 	ifoPrint_C_ADT(h->menu_c_adt);
       } else
-	printf("No Cell Adress table present\n");
+	printf("No Cell Address table present\n");
       
       printf("\nVideo Title Set Menu VOBU address map\n");
       printf(  "-----------------\n");
@@ -170,7 +170,7 @@ static void print_ifo(char *path, int title) {
       } else
 	printf("No Menu VOBU address map present\n");
       
-      printf("\nCell Adress table\n");
+      printf("\nCell Address table\n");
       printf(  "-----------------\n");
       ifoPrint_C_ADT(h->vts_c_adt);
       

@@ -515,7 +515,8 @@ static void do_run(void) {
       }
       
       /* The next vobu is where... (make this a function?) */
-      
+      /* angle change points are at next ILVU, not sure if 
+	 one VOBU = one ILVU */ 
       if(0 /*angle && change_angle*/) {
 	/* if( seamless )
 	   else // non seamless
@@ -849,7 +850,7 @@ static void do_run(void) {
 	//fprintf(stdout, "nav: Got PCI packet\n");
 	/*
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
-	  fprintf(stdout, "Menu detected\n");
+	  fprintf(stdout, "nav: Menu detected\n");
 	  navPrint_PCI(&pci);
 	}
 	*/

@@ -572,3 +572,126 @@ int vmEval_CMD(vm_cmd_t commands[], int num_commands,
   memset(return_values, 0, sizeof(link_t));
   return 0;
 }
+
+
+static char *linkcmd2str(link_cmd_t cmd) {
+  switch(cmd) {
+  case LinkNoLink:
+    return "LinkNoLink";
+  case LinkTopC:
+    return "LinkTopC";
+  case LinkNextC:
+    return "LinkNextC";
+  case LinkPrevC:
+    return "LinkPrevC";
+  case LinkTopPG:
+    return "LinkTopPG";
+  case LinkNextPG:
+    return "LinkNextPG";
+  case LinkPrevPG:
+    return "LinkPrevPG";
+  case LinkTopPGC:
+    return "LinkTopPGC";
+  case LinkNextPGC:
+    return "LinkNextPGC";
+  case LinkPrevPGC:
+    return "LinkPrevPGC";
+  case LinkGoUpPGC:
+    return "LinkGoUpPGC";
+  case LinkTailPGC:
+    return "LinkTailPGC";
+  case LinkRSM:
+    return "LinkRSM";
+  case LinkPGCN:
+    return "LinkPGCN";
+  case LinkPTTN:
+    return "LinkPTTN";
+  case LinkPGN:
+    return "LinkPGN";
+  case LinkCN:
+    return "LinkCN";
+  case Exit:
+    return "Exit";
+  case JumpTT:
+    return "JumpTT";
+  case JumpVTS_TT:
+    return "JumpVTS_TT";
+  case JumpVTS_PTT:
+    return "JumpVTS_PTT";
+  case JumpSS_FP:
+    return "JumpSS_FP";
+  case JumpSS_VMGM_MENU:
+    return "JumpSS_VMGM_MENU";
+  case JumpSS_VTSM:
+    return "JumpSS_VTSM";
+  case JumpSS_VMGM_PGC:
+    return "JumpSS_VMGM_PGC";
+  case CallSS_FP:
+    return "CallSS_FP";
+  case CallSS_VMGM_MENU:
+    return "CallSS_VMGM_MENU";
+  case CallSS_VTSM:
+    return "CallSS_VTSM";
+  case CallSS_VMGM_PGC:
+    return "CallSS_VMGM_PGC";
+  case PlayThis:
+    return "PlayThis";
+  }
+  return "*** (bug)";
+}
+
+void vmPrint_LINK(link_t value) {
+  char *cmd = linkcmd2str(value.command);
+    
+  switch(value.command) {
+  case LinkNoLink:
+  case LinkTopC:
+  case LinkNextC:
+  case LinkPrevC:
+  case LinkTopPG:
+  case LinkNextPG:
+  case LinkPrevPG:
+  case LinkTopPGC:
+  case LinkNextPGC:
+  case LinkPrevPGC:
+  case LinkGoUpPGC:
+  case LinkTailPGC:
+  case LinkRSM:
+    fprintf(stderr, "%s (button %d)\n", cmd, value.data1);
+    break;
+  case LinkPGCN:
+  case JumpTT:
+  case JumpVTS_TT:
+  case JumpSS_VMGM_MENU: // == 2 -> Title Menu
+  case JumpSS_VMGM_PGC:
+    fprintf(stderr, "%s %d\n", cmd, value.data1);
+    break;
+  case LinkPTTN:
+  case LinkPGN:
+  case LinkCN:
+    fprintf(stderr, "%s %d (button %d)\n", cmd, value.data1, value.data2);
+    break;
+  case Exit:
+  case JumpSS_FP:
+  case PlayThis: // Humm.. should we have this at all..
+    fprintf(stderr, "%s\n", cmd);
+    break;
+  case JumpVTS_PTT:
+    fprintf(stderr, "%s %d:%d\n", cmd, value.data1, value.data2);
+    break;
+  case JumpSS_VTSM:
+    fprintf(stderr, "%s vts %d title %d menu %d\n", 
+	    cmd, value.data1, value.data2, value.data3);
+    break;
+  case CallSS_FP:
+    fprintf(stderr, "%s resume cell %d\n", cmd, value.data1);
+    break;
+  case CallSS_VMGM_MENU: // == 2 -> Title Menu
+  case CallSS_VTSM:
+    fprintf(stderr, "%s %d resume cell %d\n", cmd, value.data1, value.data2);
+    break;
+  case CallSS_VMGM_PGC:
+    fprintf(stderr, "%s %d resume cell %d\n", cmd, value.data1, value.data2);
+    break;
+  }
+}

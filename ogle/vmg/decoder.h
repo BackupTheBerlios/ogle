@@ -82,4 +82,6 @@ typedef struct {
 int vmEval_CMD(vm_cmd_t commands[], int num_commands, 
 	       registers_t *registers, link_t *return_values);
 
+void vmPrint_LINK(link_t value);
+
 #endif /* DECODER_H_INCLUDED */
