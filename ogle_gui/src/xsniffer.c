@@ -170,7 +170,6 @@ void* xsniff_mouse(void* args) {
 	case XK_f:
 	  // fullscreen
 	  {
-	    extern GtkWidget *app;
 	    GtkWidget *w;
 	    gboolean val;
 	    

@@ -500,6 +500,7 @@ char* language_name(DVDLangID_t lang) {
   }
   fprintf(stderr, "language.language_name() Unknown language: %c%c\n",
 	  lang_code[0], lang_code[1]);
+  /* Unknown language */
   return N_("Unknown");
 }
 

@@ -65,6 +65,7 @@ void subpicture_menu_update(void) {
 
   GtkWidget *selecteditem;
   GtkWidget *menu_item;
+  GSList *menu_group = NULL;
 
   int stream=0;
   
@@ -97,14 +98,12 @@ void subpicture_menu_update(void) {
 	return;
       }
       
-      stringlength = strlen(language_name(Attr.Language)) + 10;
-      label = (char*) malloc(stringlength  * sizeof(char));
-      
-      snprintf(label, stringlength-1, "%s", 
-	       language_name(Attr.Language));
       //DVDSubpictureFormat(Attr.SubpictureFormat) );
       
-      menu_item = gtk_check_menu_item_new_with_label(label);
+      menu_item = gtk_radio_menu_item_new_with_label
+                    (menu_group, language_name(Attr.Language));
+      menu_group = gtk_radio_menu_item_group(GTK_RADIO_MENU_ITEM(menu_item));
+
       if((stream == CurrentStream) && Shown) {
         gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
         selecteditem = menu_item;
@@ -115,7 +114,7 @@ void subpicture_menu_update(void) {
     }
     stream++;
   }
-  menu_item = gtk_check_menu_item_new_with_label(_("None"));
+  menu_item = gtk_radio_menu_item_new_with_label(menu_group, _("None"));
   if (selecteditem == NULL) {
     gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
   }

@@ -55,9 +55,9 @@ char* guiDVDAudioFormat(DVDAudioFormat_t format) {
   case DVD_AUDIO_FORMAT_SDDS:
     return "SDDS";
   case DVD_AUDIO_FORMAT_Other:
-    return N_("Other");
+    return _("Other");
   default:
-    return N_("Unknown format");
+    return _("Unknown format");
   }
 } 
 
@@ -90,11 +90,9 @@ void audio_menu_update(void) {
 
   GtkWidget *selecteditem;
   GtkWidget *menu_item;
+  GSList *menu_group = NULL;
 
   int stream=0;
-
-  char *strlangname;
-  char *straudioformat;
 
   res = DVDGetCurrentAudio(nav, &StreamsAvailable, &CurrentStream);
   if(res != DVD_E_Ok) {
@@ -115,7 +113,6 @@ void audio_menu_update(void) {
 
     if(Enabled) { 
       DVDAudioAttributes_t Attr;
-      int stringlength;
       char *label;
       
       res = DVDGetAudioAttributes(nav, (DVDStream_t)stream , &Attr);
@@ -124,16 +121,15 @@ void audio_menu_update(void) {
 	return;
       }
       
-      strlangname    = language_name(Attr.Language);
-      straudioformat = _(guiDVDAudioFormat(Attr.AudioFormat));      
-      stringlength = strlen(strlangname) + strlen(straudioformat) +10;
+      /* Language name followed by audio format in parenthesis 
+         for use in the audio choice menu */
+      label = g_strdup_printf(_("%s (%s)"), 
+                              language_name(Attr.Language),
+                              guiDVDAudioFormat(Attr.AudioFormat));
+      menu_item = gtk_radio_menu_item_new_with_label (menu_group, label);
+      g_free(label);
+      menu_group = gtk_radio_menu_item_group(GTK_RADIO_MENU_ITEM(menu_item));
 
-      label = (char*) malloc(stringlength  * sizeof(char));
-      
-      snprintf(label, stringlength-1, "%s (%s)",
-	       strlangname, straudioformat);
-
-      menu_item = gtk_check_menu_item_new_with_label(label);
       if(stream == CurrentStream) {
         gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
         selecteditem = menu_item;
@@ -146,7 +142,7 @@ void audio_menu_update(void) {
     stream++;
   }
   
-  menu_item = gtk_check_menu_item_new_with_label(_("None"));
+  menu_item = gtk_radio_menu_item_new_with_label(menu_group, _("None"));
   if (selecteditem == NULL) {
     gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
   }

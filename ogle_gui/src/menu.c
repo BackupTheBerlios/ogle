@@ -30,7 +30,6 @@
 extern DVDNav_t *nav;
 
 static GtkWidget *menu;
-static GtkWidget *button;
 
 struct item_s {
   GtkWidget *item;

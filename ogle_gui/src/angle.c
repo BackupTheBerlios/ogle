@@ -63,6 +63,7 @@ void angle_menu_update(void) {
 
   GtkWidget *selecteditem;
   GtkWidget *menu_item;
+  GSList *menu_group = NULL;
 
   int stream=1;
   
@@ -74,15 +75,14 @@ void angle_menu_update(void) {
   }
 
   while(stream <= StreamsAvailable) {
-    int stringlength;
     char *label;
     
-    stringlength = strlen(_("angle"))+5;
-    label = (char*) malloc(stringlength  * sizeof(char));
-    
-    snprintf(label, stringlength-1, "%s %d", _("angle"), (int)stream);
-    
-    menu_item = gtk_check_menu_item_new_with_label(label);
+    /* The name of the angle choice in the angle popup menu */
+    label = g_strdup_printf(_("Angle %d"), stream);
+    menu_item = gtk_radio_menu_item_new_with_label(menu_group, label);
+    g_free(label);
+    menu_group = gtk_radio_menu_item_group(GTK_RADIO_MENU_ITEM(menu_item));
+
     if(stream == CurrentStream) {
       gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
       selecteditem = menu_item;
@@ -98,7 +98,6 @@ void angle_menu_update(void) {
 
 void angle_item_activate( GtkRadioMenuItem *item,
 			  gpointer         user_data) {
-  DVDResult_t res;
   int stream = GPOINTER_TO_INT(user_data);
   
   if(GTK_CHECK_MENU_ITEM(item)->active) {
