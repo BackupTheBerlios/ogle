@@ -470,8 +470,12 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 static
 void alsa_close(ogle_ao_instance_t *_instance)
 {
+  char *name;
   alsa_instance_t *i = (alsa_instance_t *)_instance;
   
+  name = snd_pcm_name(i->alsa_pcm);
+  DNOTE("Closing alsa pcm device: %s\n", name ? name : "");
+
   snd_pcm_close(i->alsa_pcm);
 }
 
