@@ -971,8 +971,8 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
+#if 0
 	//TODO this is just for testing, should be done from vm/ui
-	//#ifdef NEW_SYNC
 	if(keysym >= XK_1 && keysym <= XK_9) {
 	  m_ev.type = MsgEventQSpeed;
 	  switch(keysym) {
@@ -1026,7 +1026,7 @@ void check_x_events(yuv_image_t *current_image)
 	
 	
 	}
-	//#endif
+#endif
 	// hack
 	if(keysym == XK_i) {
 	  screenshot = 1;

@@ -59,7 +59,7 @@ int video_scr_nr;
 
 int process_interrupted = 0;
 
-
+static int end_of_wait;
 
 AspectModeSrc_t aspect_mode;
 AspectModeSrc_t aspect_sender;
@@ -313,6 +313,108 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   return 1;
 }
 
+void wait_until_handler(int sig) 
+{
+  end_of_wait = 1;
+  return;
+}
+
+
+void alarm_handler(int sig) 
+{
+  end_of_wait = 1;
+  display_poll(last_image_buf);
+}
+
+static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
+{
+  
+  struct itimerval timer;
+  clocktime_t time_left;
+  clocktime_t real_time;
+  struct sigaction act;
+  struct sigaction oact;
+  int timeout = 0;
+  
+  
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_usec = 0;
+
+  
+  while(!timeout) {
+    
+    end_of_wait = 0;
+   
+    clocktime_get(&real_time);
+
+    calc_realtime_left_to_scrtime(&time_left, &real_time,
+				  scr, sp);
+    
+
+    if((TIME_S(time_left) > 0) || (TIME_SS(time_left) > (CT_FRACTION/10))) {
+      // more then 100 ms left, lets wait and check x events every 100ms
+      timer.it_value.tv_sec = 0;
+      timer.it_value.tv_usec = 100000;
+
+      act.sa_handler = alarm_handler;
+      act.sa_flags = 0;
+
+      sigaction(SIGALRM, &act, &oact);
+      setitimer(ITIMER_REAL, &timer, NULL);
+
+    } else if(TIME_SS(time_left) > (15*(CT_FRACTION/1000))) {
+      // less than 100ms but more than 15 ms left, lets wait
+      timer.it_value.tv_sec = 0;
+      timer.it_value.tv_usec = TIME_SS(time_left)/(CT_FRACTION/1000000);
+      
+      act.sa_handler = wait_until_handler;
+      act.sa_flags = 0;
+      
+      sigaction(SIGALRM, &act, &oact);
+      setitimer(ITIMER_REAL, &timer, NULL);
+      
+    } else {
+      // less than 15 ms left or negative time left, we cant sleep
+      // a shorter period than 10 ms so we return
+
+      return time_left;
+    }
+  
+    while(!end_of_wait) {
+      MsgEvent_t ev;
+      
+      // check any events that arrives 
+      if(MsgNextEvent(msgq, &ev) == -1) {
+	switch(errno) {
+	case EINTR:
+	  end_of_wait = 1;
+	  break;
+	default:
+	  perror("vo: waiting for notification");
+	  display_exit(); //clean up and exit
+	  break;
+	}
+      } else {
+	timer.it_value.tv_sec = 0; // disable timer
+	timer.it_value.tv_usec = 0; // disable timer
+	setitimer(ITIMER_REAL, &timer, NULL);
+
+	event_handler(msgq, &ev);
+	if(redraw_needed) {
+	  redraw_screen();
+	}
+	break;
+      }
+    }
+    timer.it_value.tv_sec = 0; // disable timer
+    timer.it_value.tv_usec = 0; // disable timer
+    setitimer(ITIMER_REAL, &timer, NULL);
+    
+    sigaction(SIGALRM, &oact, NULL);
+    
+
+  }
+}
 
 
 
@@ -408,10 +510,8 @@ static void release_picture_buf(int id)
 
 }
 
-void alarm_handler(int sig) 
-{
-  display_poll(last_image_buf);
-}
+
+
 
 /* Erhum test... */
 clocktime_t first_time;
@@ -430,7 +530,7 @@ static void display_process()
 #ifndef HAVE_CLOCK_GETTIME
   clocktime_t waittmp;
 #endif
-  struct timespec wait_time;
+  clocktime_t wait_time;
   struct sigaction sig;
   int buf_id, prev_buf_id;
   int drop = 0;
@@ -509,18 +609,38 @@ static void display_process()
 
     clocktime_get(&real_time);
 
-    if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
-      prefered_time = real_time;
-    } else if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
-      prefered_time = real_time;
-    } else /* if(TIME_S(pinfos[buf_id].pts_time) != -1) */ { 
-      clocktime_t pts_time;
-      PTS_TO_CLOCKTIME(pts_time, pinfos[buf_id].PTS);
-      
-      calc_realtime_from_scrtime(&prefered_time, &pts_time,
-				 &ctrl_time[pinfos[buf_id].scr_nr].sync_point);
+    TIME_S(wait_time) = 0;
+    TIME_SS(wait_time) = 0;
+
+    if(flush_to_scrnr != -1) {
+      if(flush_to_scrnr == video_scr_nr) {
+	flush_to_scrnr = -1;
+      }
+    }
+    
+    if(flush_to_scrnr == -1) {
+      if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
+	prefered_time = real_time;
+      } else if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
+	prefered_time = real_time;
+      } else /* if(TIME_S(pinfos[buf_id].pts_time) != -1) */ { 
+	clocktime_t pts_time;
+	PTS_TO_CLOCKTIME(pts_time, pinfos[buf_id].PTS);
+	
+	/*
+	calc_realtime_from_scrtime(&prefered_time, &pts_time,
+				   &ctrl_time[pinfos[buf_id].scr_nr].sync_point);
+	*/
+
+	wait_time =
+	  wait_until(&pts_time, &ctrl_time[pinfos[buf_id].scr_nr].sync_point);
+
+	
+      }
     }
 
+    
+#if 0
 #ifndef HAVE_CLOCK_GETTIME
     timesub(&waittmp, &prefered_time, &real_time);
     wait_time.tv_sec = waittmp.tv_sec;
@@ -540,6 +660,9 @@ static void display_process()
 	    wait_time.tv_sec, wait_time.tv_nsec);
     */
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
+
+
+
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
       if(wait_time.tv_sec > 0) {
 	fprintf(stderr, "*vo: waittime > 1 sec: %ld.%09ld\n",
@@ -575,7 +698,13 @@ static void display_process()
       }
       //fprintf(stderr, "---less than 0.005 s\n");
     }
+#endif
 
+    if(TIME_SS(wait_time) < -300*(CT_FRACTION/1000)) {
+      // more than 300 ms late
+      drop = 1;
+    }
+    
     if(!drop) {
       frame_nr++;
       avg_nr++;
