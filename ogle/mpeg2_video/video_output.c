@@ -95,6 +95,8 @@ yuv_image_t *reserv_image = NULL;
 
 static MsgEventClient_t gui_client = 0;
 
+MsgEventClient_t input_client = 0;
+InputMask_t input_mask = INPUT_MASK_None;
 
 typedef struct _event_handler_t {
   int(*eh)(MsgEventQ_t *, MsgEvent_t *);
@@ -258,6 +260,10 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQSetZoomMode:
     zoom_mode = ev->setzoommode.mode;
     break;
+  case MsgEventQReqInput:
+    input_mask = ev->reqinput.mask;
+    input_client = ev->reqinput.client;
+    break;
   default:
     //fprintf(stderr, "vo: unrecognized event type: %d\n", ev->type);
     return 0;
@@ -319,7 +325,7 @@ static int get_next_picture_buf_id()
       if(process_interrupted) {
 	display_exit();
       }
-      timer.it_value.tv_usec = 200000; //0.2 sec
+      timer.it_value.tv_usec = 100000; //0.1 sec
       setitimer(ITIMER_REAL, &timer, NULL);
       //fprintf(stderr, "vo: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) == -1) {

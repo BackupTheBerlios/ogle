@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include <errno.h>
 
 #ifdef HAVE_MLIB
 #include <mlib_types.h>
@@ -78,9 +79,20 @@ extern int XShmGetEventBase(Display *dpy);
 static int CompletionType;
 
 typedef struct {
+  int x;
+  int y;
+  unsigned int width;
+  unsigned int height;
+} area_t;
+
+typedef struct {
   Window win;
   XImage *ximage;
   yuv_image_t *image;
+  area_t video_area;
+  area_t window_area;
+  int video_area_resize_allowed;
+  WindowState_t win_state;
 } window_info;
 
 static window_info window;
@@ -96,23 +108,19 @@ static int color_depth, pixel_stride, mode;
 
 static int screenshot = 0;
 
-/* Display (i.e. monitor) aspect. (set in display_init) */
-static int dpy_sar_frac_n;
-static int dpy_sar_frac_d;
+
+static int dpy_sar_frac_n;  /* Display (i.e. monitor) aspect. */
+static int dpy_sar_frac_d;  /*(set in display_init) */
+
 static struct {
-  /* Zoom factor. */
-  int zoom_n;
+  int zoom_n;              /* Zoom factor. */
   int zoom_d;
-  /* Lock aspect. */
-  int preserve_aspect;
-  /* Never change the size of the window. */
-  int lock_window_size;
-  /* Fullscreen mode. */
-  int fullscreen;
-  /* Current destination size. (set in display_change_size) */
-  int image_width;
-  int image_height;
-} scale = { 1, 1, 1, 0, 0, 720, 480 };
+  int preserve_aspect;     /* Lock aspect. */
+  int lock_window_size;    /* Never change the size of the window. */
+  int image_width;         /* Current destination size. */
+  int image_height;        /* (set in display_change_size) */
+} scale = { 1, 1, 1, 0, 720, 480 };
+
 #ifdef HAVE_MLIB
 static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */
@@ -128,6 +136,11 @@ extern yuv_image_t *image_bufs;
 extern void display_process_exit(void);
 
 extern ZoomMode_t zoom_mode;
+
+extern MsgEventQ_t *msgq;
+extern MsgEventClient_t input_client;
+extern InputMask_t input_mask;
+
 
 static void draw_win_xv(window_info *dwin);
 static void draw_win_x11(window_info *dwin);
@@ -489,7 +502,9 @@ Window display_init(yuv_image_t *picture_data,
   xswa.border_pixel     = 1;
   xswa.colormap         = theCmap;
   xswamask = CWBackPixel | CWBorderPixel | CWColormap;
-  
+
+  window.win_state = WINDOW_STATE_NORMAL;
+
   window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 			     hint.x, hint.y, hint.width, hint.height, 
 			     4, color_depth, CopyFromParent, vinfo.visual, 
@@ -708,28 +723,27 @@ void display_adjust_size(yuv_image_t *current_image,
   //fprintf(stderr, "vo: base %d x %d\n", base_width, base_height);
   
   /* Do we have a predetermined size for the window? */ 
-  if(given_width != -1 && given_height != -1 && !scale.fullscreen) {
+  if(given_width != -1 && given_height != -1 &&
+     (window.win_state != WINDOW_STATE_FULLSCREEN)) {
     max_width  = given_width;
     max_height = given_height;
   } else {
-    if(scale.fullscreen || !scale.lock_window_size) {
+    if(!scale.lock_window_size) {
       /* Never make the window bigger than the screen. */
       max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
       max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
     } else {
-      // This isn't great for when we just are about to leave fullscreen mode
-      XWindowAttributes xattr;
-      XGetWindowAttributes(mydisplay, window.win, &xattr);
-      max_width  = xattr.width;
-      max_height = xattr.height;
+      max_width = window.window_area.width;
+      max_height = window.window_area.height;
     }
   }
   //fprintf(stderr, "vo: max %d x %d\n", max_width, max_height);
   
   /* Fill the given area or keep the image at the same zoom level? */
-  if(scale.fullscreen || (given_width != -1 && given_height != -1)) {
+  if((window.win_state == WINDOW_STATE_FULLSCREEN) 
+     || (given_width != -1 && given_height != -1)) {
     /* Zoom so that the image fill the width. */
-    /* If the height gets to large it's adjusted/fixed bellow. */
+    /* If the height gets to large it's adjusted/fixed below. */
     new_width  = max_width;
     new_height = (base_height * max_width) / base_width;
   } else {
@@ -752,7 +766,7 @@ void display_adjust_size(yuv_image_t *current_image,
   //fprintf(stderr, "vo: new2 %d x %d\n", new_width, new_height);
   
   /* Remeber what zoom level we ended up with. */
-  if(!scale.fullscreen) {
+  if(window.win_state != WINDOW_STATE_FULLSCREEN) {
     /* Update zoom values. Use the smalles one. */
     if((new_width * base_height) < (new_height * base_width)) {
       scale.zoom_n = new_width;
@@ -765,12 +779,15 @@ void display_adjust_size(yuv_image_t *current_image,
   }
   
   /* Don't care about aspect and can't change the window size, use it all. */
-  if(!scale.preserve_aspect && (scale.lock_window_size || scale.fullscreen)) {
+  if(!scale.preserve_aspect &&
+     (scale.lock_window_size ||
+      (window.win_state == WINDOW_STATE_FULLSCREEN))) {
     new_width  = max_width;
     new_height = max_height;
   }
   
-  if((scale.lock_window_size || scale.fullscreen)
+  if((scale.lock_window_size ||
+      (window.win_state == WINDOW_STATE_FULLSCREEN))
      || (given_width != -1 && given_height != -1))
     display_change_size(current_image, new_width, new_height, False);
   else
@@ -789,15 +806,15 @@ typedef struct {
 } mwmhints_t;
 
 void display_toggle_fullscreen(yuv_image_t *current_image) {
-  int width, height;
-
-  /* Toggle the state of the fullscreen flag. */    
-  scale.fullscreen = !scale.fullscreen;
   
-  if(scale.fullscreen) {
+  if(window.win_state != WINDOW_STATE_FULLSCREEN) {
+    
     ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN);
+    window.win_state = WINDOW_STATE_FULLSCREEN;
   } else {
+ 
     ChangeWindowState(mydisplay, window.win, WINDOW_STATE_NORMAL);  
+    window.win_state = WINDOW_STATE_NORMAL;
   }
   
 }
@@ -815,15 +832,75 @@ void check_x_events(yuv_image_t *current_image)
   static clocktime_t prev_time;
   clocktime_t cur_time;
   static Bool cursor_visible = True;
+  static Time last_motion;
   
   while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
     
     switch(ev.type) {
     case KeyPress:
       // send keypress to whoever wants it
+      fprintf(stderr, "vo: key event, %d\n", input_mask);
+      if(input_mask & INPUT_MASK_KeyPress) {
+	MsgEvent_t m_ev;
+	KeySym keysym;
+	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
+	m_ev.type = MsgEventQInputKeyPress;
+	m_ev.input.x = ev.xkey.x;
+	m_ev.input.y = ev.xkey.y;
+	m_ev.input.x_root = ev.xkey.x_root;
+	m_ev.input.y_root = ev.xkey.y_root;
+	m_ev.input.mod_mask = ev.xkey.state;
+	m_ev.input.input = keysym;
+
+	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	  switch(errno) {
+	  case EAGAIN:
+	    // msgq full, drop message
+	    break;
+	  case EIDRM:
+	  case EINVAL:
+	    fprintf(stderr, "vo: keypress: no msgq\n");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  default:
+	    fprintf(stderr, "vo: keypress: couldn't send notification\n");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  }
+	}
+	fprintf(stderr, "vo: sent event to %d\n", input_client);
+      }
       break;
     case ButtonPress:
       // send buttonpress to whoever wants it
+      if(input_mask & INPUT_MASK_ButtonPress) {
+	MsgEvent_t m_ev;
+	
+	m_ev.type = MsgEventQInputButtonPress;
+	m_ev.input.x = ev.xbutton.x;
+	m_ev.input.y = ev.xbutton.y;
+	m_ev.input.x_root = ev.xbutton.x_root;
+	m_ev.input.y_root = ev.xbutton.y_root;
+	m_ev.input.mod_mask = ev.xbutton.state;
+	m_ev.input.input = ev.xbutton.button;
+
+	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	  switch(errno) {
+	  case EAGAIN:
+	    // msgq full, drop message
+	    break;
+	  case EIDRM:
+	  case EINVAL:
+	    fprintf(stderr, "vo: buttonpress: no msgq\n");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  default:
+	    fprintf(stderr, "vo: buttonpress: couldn't send notification\n");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  }
+	}
+      }
 
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
@@ -832,7 +909,39 @@ void check_x_events(yuv_image_t *current_image)
       clocktime_get(&prev_time);
       break;
     case MotionNotify:
-      // send motion notify to whoever wants it
+      if((ev.xmotion.time - last_motion) > 50) {
+	last_motion = ev.xmotion.time;
+	
+	// send motion notify to whoever wants it
+	if(input_mask & INPUT_MASK_PointerMotion) {
+	  MsgEvent_t m_ev;
+	  
+	  m_ev.type = MsgEventQInputPointerMotion;
+	  m_ev.input.x = ev.xmotion.x;
+	  m_ev.input.y = ev.xmotion.y;
+	  m_ev.input.x_root = ev.xmotion.x_root;
+	  m_ev.input.y_root = ev.xmotion.y_root;
+	  m_ev.input.mod_mask = ev.xmotion.state;
+	  m_ev.input.input = 0;
+
+	  if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	    switch(errno) {
+	    case EAGAIN:
+	      // msgq full, drop message
+	      break;
+	    case EIDRM:
+	    case EINVAL:
+	      fprintf(stderr, "vo: pointermotion: no msgq\n");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    default:
+	      fprintf(stderr, "vo: pointermotion: couldn't send notification\n");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    }
+	  }
+	}
+      }
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
 	cursor_visible = True;
@@ -856,6 +965,9 @@ void check_x_events(yuv_image_t *current_image)
       while(XCheckTypedEvent(mydisplay, ConfigureNotify, &ev) == True); 
       
       if(ev.xconfigure.window == window.win) {
+	window.window_area.width = ev.xconfigure.width;
+	window.window_area.height = ev.xconfigure.height;
+	
 	display_adjust_size(current_image, 
 			    ev.xconfigure.width, 
 			    ev.xconfigure.height);
@@ -891,35 +1003,17 @@ void display(yuv_image_t *current_image)
     display_adjust_size(current_image, -1, -1);
   }
   
-  if((scale.fullscreen && (zoom_mode == ZoomModeResizeAllowed)) ||
-     ((!scale.fullscreen) && (zoom_mode == ZoomModeFullScreen))) { 
+  if(((window.win_state == WINDOW_STATE_NORMAL) && 
+      (zoom_mode == ZoomModeFullScreen)) ||
+     ((window.win_state == WINDOW_STATE_FULLSCREEN) &&
+      (zoom_mode == ZoomModeResizeAllowed))) {
     display_toggle_fullscreen(current_image);
   }
   
   window.image = current_image;
-  
-  while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
-    
-    switch(ev.type) {
-    case Expose:
-      if(ev.xexpose.window == window.win)
-	; //draw_win(&window);
-      break;
-    case ConfigureNotify:
-      while(XCheckTypedWindowEvent(mydisplay, window.win, 
-				   ConfigureNotify, &ev) == True) 
-	; 
-      if(ev.xconfigure.window == window.win) {
-	display_adjust_size(current_image, 
-			    ev.xconfigure.width, 
-			    ev.xconfigure.height);
-      }
-      break;    
-    default:
-      break;
-    }
-  }
-  
+
+  check_x_events(current_image);
+
   if(use_xv)
     draw_win_xv(&window);
   else
@@ -1011,17 +1105,17 @@ static void draw_win_x11(window_info *dwin)
     screenshot_jpg(dwin->ximage->data, dwin->ximage);
   }
   
-  XGetWindowAttributes(mydisplay, window.win, &xattr);
+  //XGetWindowAttributes(mydisplay, window.win, &xattr);
   
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 
-		 (xattr.width  - scale.image_width )/2,
-		 (xattr.height - scale.image_height)/2, 
+		 (window.window_area.width  - scale.image_width )/2,
+		 (window.window_area.height - scale.image_height)/2, 
 		 scale.image_width, scale.image_height, True);
   } else {
     XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0,
-	      (xattr.width  - scale.image_width )/2,
-	      (xattr.height - scale.image_height)/2, 
+	      (window.window_area.width  - scale.image_width )/2,
+	      (window.window_area.height - scale.image_height)/2, 
 	      scale.image_width, scale.image_height);
   }
   
