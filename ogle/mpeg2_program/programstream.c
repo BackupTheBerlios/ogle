@@ -246,7 +246,7 @@ int dvd_open_root(char *path)
 {
   
   if((dvdroot = DVDOpen(path)) == NULL) {
-    fprintf(stderr, "demux: couldn't open dvd\n");
+    fprintf(stderr, "*demux: couldn't open dvd\n");
     exit(1);
   }
   
@@ -270,11 +270,11 @@ int dvd_change_file(int titlenum, dvd_read_domain_t domain)
     return 0;
   }
   if(dvdfile != NULL && dvdroot != NULL) {
-    fprintf(stderr, "demux: closing open file when opening new\n");
+    //fprintf(stderr, "demux: closing open file when opening new\n");
     DVDCloseFile(dvdfile);
   }
   if((dvdfile = DVDOpenFile(dvdroot, titlenum, domain)) == NULL) {
-    fprintf(stderr, "demux: couldn't open dvdfile\n");
+    fprintf(stderr, "*demux: couldn't open dvdfile\n");
     exit(1);
   }
   dvd_file_num = titlenum;
@@ -294,17 +294,19 @@ void dvd_close_file(void)
 int dvd_read_block(char *buf, int boffset, int nblocks)
 {
   int blocks_read;
-  
+  int tries = 0;
 
   do {
     blocks_read = DVDReadBlocks(dvdfile, boffset, nblocks, buf);
     
     switch(blocks_read) {
     case -1:
-      fprintf(stderr, "demux: dvdreadblocks failed\n");
+      fprintf(stderr, "*demux: dvdreadblocks failed\n");
       exit(1);
     case 0:
       fprintf(stderr, "demux: dvdreadblocks returned 0\n");
+      if(tries > 3) exit(1);
+      tries++;
       break;
     default:
       break;
@@ -339,7 +341,7 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
   
   data_buf_head = (data_buf_head_t *)data_buf_addr;
   if(data_buf_head == NULL) {
-    fprintf(stderr, "demux: fill_buffer, no buffer\n");
+    fprintf(stderr, "*demux: fill_buffer, no buffer\n");
     exit(1);
   }
   blocks_in_buf = data_buf_head->buffer_size/2048;
@@ -708,7 +710,7 @@ int pack_header()
     version = MPEG2;
   } else {
     version = -1;
-    fprintf(stderr, "unknown MPEG version\n");
+    fprintf(stderr, "demux: unknown MPEG version\n");
   }
   
   
@@ -905,6 +907,13 @@ void push_stream_data(uint8_t stream_id, int len,
 	
 	if((subtype >= 0x80) && (subtype < 0x88)) {
 	  // ac3
+	  /*
+	    p[0] is the substream id
+	    p[1] is the number of frames of audio which have a sync code 
+	         in this pack
+	    p[2]<<8 | p[3] is the starting index of the frame for which 
+		           the PTS value corresponds
+	  */
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
 		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else if((subtype >= 0x88) && (subtype < 0x90)) {
@@ -1413,7 +1422,7 @@ void pack()
 	switch(stream_id) {
 	case 0xBC:
 	  /* program stream map */
-	  fprintf(stderr, "Program Stream map\n");
+	  fprintf(stderr, "demux: Program Stream map\n");
 	case 0xBD:
 	  /* private stream 1 */
 	case 0xBE:
@@ -1428,7 +1437,7 @@ void pack()
 	  break;
 	default:
 	  is_PES = 0;
-	  fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
+	  fprintf(stderr, "demux: unknown stream_id: 0x%02x\n", stream_id);
 	  break;
 	}
       }
@@ -1489,7 +1498,7 @@ void MPEG2_program_stream()
 
 void segvhandler (int id)
 {
-  fprintf(stderr, "programstream: Segmentation fault\n");
+  fprintf(stderr, "*demux: Segmentation fault\n");
 
 #ifdef STATS
   printf("\n----------------------------------------------\n");
@@ -1619,19 +1628,19 @@ int main(int argc, char **argv)
 	  file = opt_value;
 	  break;
 	default:
-	  fprintf(stderr, "Unknown suboption\n");
+	  fprintf(stderr, "*demux: Unknown suboption\n");
 	  exit(1);
 	  break;
 	}
       }
       
       if((stream_nr == -1)) {
-	fprintf(stderr, "Missing suboptions\n");
+	fprintf(stderr, "*demux: Missing suboptions\n");
 	exit(1);
       } 
       
       if((stream_nr < 0) && (stream_nr > 0xf)) {
-	fprintf(stderr, "Invalid stream nr\n");
+	fprintf(stderr, "*demux: Invalid stream nr\n");
 	exit(1);
       }
       
@@ -1685,19 +1694,19 @@ int main(int argc, char **argv)
 	  file = opt_value;
 	  break;
 	default:
-	  fprintf(stderr, "Unknown suboption: %s\n", options);
+	  fprintf(stderr, "*demux: Unknown suboption: %s\n", options);
 	  exit(1);
 	  break;
 	}
       }
       
       if((stream_nr == -1)) {
-	fprintf(stderr, "Missing suboptions\n");
+	fprintf(stderr, "*demux: Missing suboptions\n");
 	exit(1);
       } 
       
       if((stream_nr < 0) && (stream_nr > 0x1f)) {
-	fprintf(stderr, "Invalid stream nr\n");
+	fprintf(stderr, "*demux: Invalid stream nr\n");
 	exit(1);
       }
       
@@ -1750,19 +1759,22 @@ int main(int argc, char **argv)
     init_id_reg(STREAM_DISCARD);
     // get a handle
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "demux: couldn't get message q\n");
+      fprintf(stderr, "*demux: couldn't get message q\n");
       exit(1);
     }
-    fprintf(stderr, "demux: msgq opened, clientnr: %ld\n",
-	    msgq->mtype);
-
+#if DEBUG
+    fprintf(stderr, "demux: msgq opened, clientnr: %ld\n", msgq->mtype);
+#endif
+    
     // register with the resource manager and tell what we can do
     regev.type = MsgEventQRegister;
     regev.registercaps.capabilities = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &regev, 0) == -1) {
       fprintf(stderr, "demux: register\n");
     }
+#if DEBUG
     fprintf(stderr, "demux: sent register\n");
+#endif
     
 
     /* wait for load_file command */
@@ -1772,16 +1784,22 @@ int main(int argc, char **argv)
       MsgNextEvent(msgq, &regev);
       switch(regev.type) {
       case MsgEventQChangeFile:
+#if DEBUG
 	fprintf(stderr, "demux: got changefile\n");
+#endif
 	loadinputfile(regev.changefile.filename);
 	fileopen = 1;
 	break;
       case MsgEventQCtrlData:
+#if DEBUG
 	fprintf(stderr, "demux: got ctrldata\n");
+#endif
 	attach_ctrl_shm(regev.ctrldata.shmid);
 	break;
       case MsgEventQDemuxDVDRoot:
+#if DEBUG
 	fprintf(stderr, "demux: got dvd root\n");
+#endif
 	handle_events(&regev);
 	fileopen = 1;
 	break;
@@ -1794,7 +1812,7 @@ int main(int argc, char **argv)
 	break;
       }
     }
-    fprintf(stderr, "demux: file open\n");
+    //fprintf(stderr, "demux: file opened\n");
     get_buffer(4*1024*1024);
 
   } else {
@@ -1807,12 +1825,13 @@ int main(int argc, char **argv)
   sig.sa_flags = 0;
   rv = sigaction(SIGSEGV, &sig, NULL);
   if(rv == -1) {
-    perror("sighandler");
+    perror("*demux: sighandler");
     exit(1);
   }
-  DPRINTF(1, "Signal handler installed!\n");
   
-  fprintf(stderr, "get next demux q\n");
+#if DEBUG
+  fprintf(stderr, "demux: get next demux q\n");
+#endif
   get_next_demux_q();
   
   if(off_from != -1) {
@@ -1823,7 +1842,8 @@ int main(int argc, char **argv)
       GETBITS(32, "skip1");
       GETBITS(32, "skip2");
   } else {
-    fprintf(stderr, "demux: argh apa\n");
+    fprintf(stderr, "*demux: internal error1\n");
+    exit(1);
   }
 
   while(1) {
@@ -1831,13 +1851,15 @@ int main(int argc, char **argv)
     if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
       if(!synced) {
 	synced = 1;
+#if DEBUG
 	fprintf(stderr, "demux: Found Program Stream\n");
+#endif
       }
       MPEG2_program_stream();
       lost_sync = 1;
     } else if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
-      fprintf(stderr, "demux: Found Video Sequence Header, seems to be an Elementary Stream (video)\n");
-      
+      fprintf(stderr, "demux: Found Video Sequence Header, "
+	      "seems to be an Elementary Stream (video)\n");
       lost_sync = 1;
     }
     GETBITS(8, "resync");
@@ -1893,7 +1915,9 @@ static void handle_events(MsgEvent_t *ev)
     add_to_demux_q(ev);
     break;
   default:
+#if DEBUG
     fprintf(stderr, "demux: unrecognized command: %d\n", ev->type);
+#endif
     break;
   }
 }
@@ -2265,11 +2289,12 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
 
+#if DEBUG
   fprintf(stderr, "demux: shmid: %d\n", shmid);
-  
+#endif
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_decoder_buffer(), shmat()");
+      perror("demux: attach_decoder_buffer(), shmat()");
       return -1;
     }
     id_add(stream_id, subtype, STREAM_DECODE, shmid, shmaddr, NULL);
@@ -2289,12 +2314,14 @@ int attach_buffer(int shmid, int size)
   data_elem_t *data_elems;
   int n;
   
+#if DEBUG
   fprintf(stderr, "demux: attach_buffer() shmid: %d\n", shmid);
+#endif
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("attach_buffer(), shmat()");
-      return -1;
+      perror("demux: attach_buffer(), shmat()");
+      exit(1);
     }
 
     data_buf_addr = shmaddr;
@@ -2311,7 +2338,9 @@ int attach_buffer(int shmid, int size)
     
     disk_buf = data_buf_addr + data_buf_head->buffer_start_offset;
     
+#if DEBUG
     fprintf(stderr, "demux: setup disk_buf: %lu\n", (unsigned long)disk_buf);
+#endif
     data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
     for(n = 0; n < data_buf_head->nr_of_dataelems; n++) {
       data_elems[n].in_use = 0;
@@ -2495,7 +2524,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     ctrl_time[scr_nr].scr_id = scr_id;
     ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
     ctrl_time[scr_nr].sync_master = SYNC_NONE;
-    fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
+    fprintf(stderr, "demux: changed to scr_nr: %d\n", scr_nr);
   }
   
   if(demux_cmd & FlowCtrlFlush) {
@@ -2509,7 +2538,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_buf_head->write_nr = 
     (data_buf_head->write_nr+1) % data_buf_head->nr_of_dataelems;
 
-  //  fprintf(stderr, "demux: put_in_q() off: %d, len %d\n", off, len);
+  //fprintf(stderr, "demux: put_in_q() off: %d, len %d\n", off, len);
   
   
   
