@@ -399,6 +399,7 @@ uint32_t getbits(unsigned int nr, char *func)
 uint32_t getbits(unsigned int nr)
 #endif
 #ifndef GETBITS32
+#ifdef GETBITSMMAP
 {
   uint32_t result;
 #ifdef STATS
@@ -417,6 +418,26 @@ uint32_t getbits(unsigned int nr)
   
   return result;
 }
+#else
+{
+  uint32_t result;
+#ifdef STATS
+  stats_bits_read+=nr;
+#endif
+  result = (cur_word << (64-bits_left)) >> 32;
+  result = result >> (32-nr);
+  bits_left -=nr;
+  if(bits_left <= 32) {
+    uint32_t new_word = buf[offs++];
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    cur_word = (cur_word << 32) | new_word;
+    bits_left = bits_left+32;
+  }
+  
+  return result;
+}
+#endif
 #else
 {
   uint32_t result;
