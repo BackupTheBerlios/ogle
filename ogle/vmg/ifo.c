@@ -522,12 +522,25 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   }  
 }  
 
+typedef struct
+{
+  uint32_t bit_position;
+  uint8_t bytes [2048];
+} buffer_t;
+
 void ifoPrint_COMMAND(uint8_t *command) {
+  buffer_t buffer;
   int i;
-  for(i=0;i<8;i++) {
-    PUT(5, "%02x ", command[i]);
-  }
-  PUT(5, "\n");
+
+  memcpy(buffer.bytes, command, 8);
+  buffer.bit_position = 0;
+
+  printf("OMS:  ");
+  ifoPrintVMOP (buffer.bytes);
+  printf("\n");
+  printf("VDMP: ");
+  dump_command(stdout, buffer);
+  printf("\n");
 }
 
 void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
