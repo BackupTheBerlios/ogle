@@ -112,6 +112,7 @@ double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
 double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
 
 
+int last_temporal_ref_to_dpy = -1;
 
 int MPEG2 = 0;
 
@@ -190,8 +191,8 @@ slice_t slice_data;
 macroblock_t mb;
 
 
-yuv_image_t *ref_image1;
-yuv_image_t *ref_image2;
+yuv_image_t *fwd_ref_image;
+yuv_image_t *bwd_ref_image;
 yuv_image_t *dst_image;
 
 
@@ -881,15 +882,15 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
     buf_ctrl_head->picture_infos[i].picture.start_y = 0;
     buf_ctrl_head->picture_infos[i].picture.padded_width = padded_width;
     buf_ctrl_head->picture_infos[i].picture.padded_height = padded_height;
-    buf_ctrl_head->picture_infos[i].in_use = 0;
+    buf_ctrl_head->picture_infos[i].is_ref = 0;
     buf_ctrl_head->picture_infos[i].displayed = 1;
     
     baseaddr += picture_buffer_size;
   }
 
   
-  ref_image1 = &buf_ctrl_head->picture_infos[0].picture;
-  ref_image2 = &buf_ctrl_head->picture_infos[1].picture;
+  fwd_ref_image = &buf_ctrl_head->picture_infos[0].picture;
+  bwd_ref_image = &buf_ctrl_head->picture_infos[1].picture;
   
   fprintf(stderr, "horizontal_size: %d, vertical_size: %d\n",
 	  seq.horizontal_size, seq.vertical_size);
@@ -1248,6 +1249,9 @@ void group_of_pictures_header(void)
   /* These need to be in seq or some thing like that */
   closed_gop = GETBITS(1, "closed_gop");
   broken_link = GETBITS(1, "broken_link");
+
+  last_temporal_ref_to_dpy = -1;
+  
   next_start_code();
 }
 
@@ -1362,12 +1366,12 @@ int get_picture_buf()
   
   //  search for empty buffer
   for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
-    /*    fprintf(stderr, "decode: BUF[%d]: in_use:%d, displayed: %d\n",
+    /*    fprintf(stderr, "decode: BUF[%d]: is_ref:%d, displayed: %d\n",
 	    n,
-	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].is_ref,
 	    buf_ctrl_head->picture_infos[n].displayed);
     */
-    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+    if((buf_ctrl_head->picture_infos[n].is_ref == 0) &&
        (buf_ctrl_head->picture_infos[n].displayed == 1)) {
       buf_ctrl_head->picture_infos[n].displayed = 0;
       return n;
@@ -1383,12 +1387,12 @@ int get_picture_buf()
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
 
   for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
-    /*    fprintf(stderr, "decode: buf[%d]: in_use:%d, displayed: %d\n",
+    /*    fprintf(stderr, "decode: buf[%d]: is_ref:%d, displayed: %d\n",
 	    n,
-	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].is_ref,
 	    buf_ctrl_head->picture_infos[n].displayed);
     */
-    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+    if((buf_ctrl_head->picture_infos[n].is_ref == 0) &&
        (buf_ctrl_head->picture_infos[n].displayed == 1)) {
       buf_ctrl_head->picture_infos[n].displayed = 0;
       return n;
@@ -1405,12 +1409,12 @@ int get_picture_buf()
   dpy_q_displayed_pos = (dpy_q_displayed_pos+1) % buf_ctrl_head->nr_of_buffers; 
 
   for(n = 0; n < buf_ctrl_head->nr_of_buffers; n++) {
-    /*    fprintf(stderr, "decode: buf[%d]: in_use:%d, displayed: %d\n",
+    /*    fprintf(stderr, "decode: buf[%d]: is_ref:%d, displayed: %d\n",
 	    n,
-	    buf_ctrl_head->picture_infos[n].in_use,
+	    buf_ctrl_head->picture_infos[n].is_ref,
 	    buf_ctrl_head->picture_infos[n].displayed);
     */
-    if((buf_ctrl_head->picture_infos[n].in_use == 0) &&
+    if((buf_ctrl_head->picture_infos[n].is_ref == 0) &&
        (buf_ctrl_head->picture_infos[n].displayed == 1)) {
       buf_ctrl_head->picture_infos[n].displayed = 0;
       // fprintf(stderr, " buf_id %d found empty\n", n);
@@ -1448,11 +1452,16 @@ void dpy_q_put(int id)
 /* 6.2.3.6 Picture data */
 void picture_data(void)
 {
-  int buf_id;
-  static int prev_ref_buf_id = -1;
-  static int old_ref_buf_id  = -1;
+  static int buf_id;
+  static int fwd_ref_buf_id = -1;
+  static int bwd_ref_buf_id  = -1;
+  uint64_t calc_pts;
   int err;
+  picture_info_t *pinfos;
   static int bepa = 0;
+  static int bwd_ref_temporal_reference = -1;
+  static int prev_coded_temp_ref = -2;
+  pinfos = buf_ctrl_head->picture_infos;
 
   //fprintf(stderr, ".");
   
@@ -1501,28 +1510,113 @@ void picture_data(void)
   }
   
   
-  /* If this is a I/P picture then we must release the reference 
-     frame that is going to be replace. (It might not have been 
-     displayed yet so it is not necessarily free to reuse.) */
-  switch(pic.header.picture_coding_type) {
-  case PIC_CODING_TYPE_I:
-  case PIC_CODING_TYPE_P:
-    if(old_ref_buf_id != -1) {
-      buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
+  if(prev_coded_temp_ref != pic.header.temporal_reference) {
+    
+    /* If this is a I/P picture then we must release the reference 
+       frame that is going to be replaced. (It might not have been 
+       displayed yet so it is not necessarily free for reuse.) */
+    
+    switch(pic.header.picture_coding_type) {
+    case PIC_CODING_TYPE_I:
+    case PIC_CODING_TYPE_P:
+      if(fwd_ref_buf_id != -1) {
+	/* current fwd_ref_image is not used as reference any more */
+	pinfos[fwd_ref_buf_id].is_ref = 0;
+      }
+      
+      /* get new buffer */
+      buf_id = get_picture_buf();
+      dst_image = &(pinfos[buf_id].picture);
+      
+      /* Age the reference frame */
+      fwd_ref_buf_id = bwd_ref_buf_id; 
+      fwd_ref_image = bwd_ref_image; 
+      
+      /* and add the new (to be decoded) frame */
+      bwd_ref_image = dst_image;
+      bwd_ref_buf_id = buf_id;
+      
+      bwd_ref_temporal_reference = pic.header.temporal_reference;
+      
+      /* this buffer is used as reference picture by the decoder */
+      pinfos[buf_id].is_ref = 1; 
+      
+      
+      break;
+    case PIC_CODING_TYPE_B:
+      
+      /* get new buffer */
+      buf_id = get_picture_buf();
+      dst_image = &(pinfos[buf_id].picture);
+      
+      break;
     }
-    break;
-  case PIC_CODING_TYPE_B:
-    break;
   }
-  
-  
-  buf_id = get_picture_buf();
-  
-  //fprintf(stderr, "decode: decode start buf %d\n", buf_id);
+  /*
+   * temporal reference is incremented by 1 for every frame.
+   * 
+   *  this can be used to keep track of the order in which the pictures
+   *  shall be displayed. 
+   *  it can not be used to calculate the time when a specific picture
+   *  should be displayed (one can make a guess, but
+   *  it isn't necessarily true that a frame with a temporal reference
+   *  1 greater than the previous picture should be displayed
+   *  1 frame interval later)
+   *
+   *
+   * time stamp
+   *
+   * this tells when a picture shall be displayed
+   * not all pictured have time stamps
+   *
+   *
+   */
+
+  /*
+   * Time stamps
+   *
+   * case 1:
+   *  The packet containing the picture header start code
+   *  had a time stamp.
+   *
+   *  In this case the time stamp is used for this picture.
+   *
+   * case 2:
+   *  The packet containing the picture header start code
+   *  didn't have a time stamp.
+   *
+   *  In this case the time stamp for this picture must be calculated.
+   *  
+   *  case 2.1:
+   *   There is a previously decoded picture with a time stamp
+   *   in the same temporal reference context (
+   *
+   *   If the temporal reference for the previous picture is lower
+   *   than the temp_ref for this picture then we take
+   *   the difference between the two temp_refs and multiply
+   *   with the frame interval time and then add this to
+   *   to the original time stamp to get the time stamp for this picture
+   *
+   *   timestamp = (this_temp_ref - timestamp_temp_ref)*
+   *                frame_interval+time_stamp_temp_ref
+   * 
+   *   todo: We must take into account that the temporal reference wraps
+   *   at 1024.
+   *
+   *
+   *   If the temporal reference for the previous picture is higher
+   *   than the current, we do the same.
+   *   
+   *   
+   *  case 2.2:
+   *   There is no previously decoded picture with a time stamp
+   */
+   
+#if 0  
   
   /* This is just a marker to later know if there is a real time 
      stamp for this picure. */
-  buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = -1;
+  pinfos[buf_id].pts_time.tv_sec = -1;
   
   /* If the packet containing the picture header start code hade 
      a time stamp, that time stamp used.
@@ -1533,13 +1627,13 @@ void picture_data(void)
      the same scr as the picure we predict from.
   */
   if(last_pts_valid) {
-    buf_ctrl_head->picture_infos[buf_id].PTS = last_pts;
-    buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = last_pts/90000;
-    buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
+    pinfos[buf_id].PTS = last_pts;
+    pinfos[buf_id].pts_time.tv_sec = last_pts/90000;
+    pinfos[buf_id].pts_time.tv_nsec =
       (last_pts%90000)*(1000000000/90000);
-    buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+    pinfos[buf_id].realtime_offset =
       ctrl_time[last_scr_nr].realtime_offset;
-    buf_ctrl_head->picture_infos[buf_id].scr_nr = last_scr_nr;
+    pinfos[buf_id].scr_nr = last_scr_nr;
   } else {
     uint64_t calc_pts;
     /* Predict if we don't already have a pts for the frame. */
@@ -1547,7 +1641,7 @@ void picture_data(void)
     case PIC_CODING_TYPE_I:
     case PIC_CODING_TYPE_P:
       /* TODO: Is this correct? */
-      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+      pinfos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr].realtime_offset;
       break;
     case PIC_CODING_TYPE_B:
@@ -1558,9 +1652,9 @@ void picture_data(void)
       buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
       buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
 	(calc_pts%90000)*(1000000000/90000);
-      buf_ctrl_head->picture_infos[buf_id].realtime_offset =
+      pinfos[buf_id].realtime_offset =
 	ctrl_time[last_scr_nr_to_dpy].realtime_offset;
-      buf_ctrl_head->picture_infos[buf_id].scr_nr = last_scr_nr_to_dpy;
+      pinfos[buf_id].scr_nr = last_scr_nr_to_dpy;
       /*
       fprintf(stderr, "\n\nB-picture: no valid pts\n");
       fprintf(stderr, "B-picture: calculatedpts %lld.%09lld\n\n",
@@ -1569,44 +1663,41 @@ void picture_data(void)
       break;
     }
   }
-  
-  /* If it's a I or P picture that we are about to decode then we can 
-     prepare the old picuture (prev_ref_buf_id) for output (viewing).
+#endif
+#if 0
+  /* 
+     If it's a I or P picture that we are about to decode then we can 
+     prepare the old picture (prev_ref_buf_id) for output (viewing).
      
      If it didn't get a pts from the stream, predict one like we do
      for B pictures above.
      
-     If it's a B picutre that we are about to decode then we must now
-     decide if we shall decode it or skipp it.
+     If it's a B picture that we are about to decode then we must now
+     decide if we shall decode it or skip it.
   */ 
   switch(pic.header.picture_coding_type) {
   case PIC_CODING_TYPE_I:
   case PIC_CODING_TYPE_P:
-    buf_ctrl_head->picture_infos[buf_id].in_use = 1;
+
+    bwd_ref_temporal_reference = pic.header.temporal_reference;
+    pinfos[buf_id].is_ref = 1;
     
-    /* Age the reference frame and add the reserved frame 
-       (still to be decoded) as the new forward reference. */
-    ref_image1 = ref_image2; 
-    ref_image2 = &(buf_ctrl_head->picture_infos[buf_id].picture); 
-    /* Decode into the new reference frame. */    
-    dst_image = ref_image2;
+    fwd_ref_image = bwd_ref_image; // Age the reference frame.
+    bwd_ref_image = dst_image; // and add the new (to be decoded) frame.
     
     /* Only if we have a prev_ref_buf. */
     if(prev_ref_buf_id != -1) {
       uint64_t calc_pts;
       /* Predict if we don't already have a pts for the frame. */
-      if(buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec == -1) {
-	calc_pts = last_pts_to_dpy + 
-	  90000/(1000000000/buf_ctrl_head->frame_interval);
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS = calc_pts;
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_sec = 
-	  calc_pts/90000;
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].pts_time.tv_nsec =
+      if(pinfos[prev_ref_buf_id].pts_time.tv_sec == -1) {
+	calc_pts = last_pts_to_dpy + 90000/(1000000000/buf_ctrl_head->frame_interval);
+	pinfos[prev_ref_buf_id].PTS = calc_pts;
+	pinfos[prev_ref_buf_id].pts_time.tv_sec = calc_pts/90000;
+	pinfos[prev_ref_buf_id].pts_time.tv_nsec =
 	  (calc_pts%90000)*(1000000000/90000);
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].realtime_offset =
+	pinfos[prev_ref_buf_id].realtime_offset =
 	  ctrl_time[last_scr_nr_to_dpy].realtime_offset;
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].scr_nr = 
-	  last_scr_nr_to_dpy;
+	pinfos[prev_ref_buf_id].scr_nr = last_scr_nr_to_dpy;
 	/*	
 	fprintf(stderr, "\n\nI/P-picture: no valid pts\n");
 	fprintf(stderr, "I/P-picture: calculatedpts %lld.%09lld\n\n",
@@ -1614,10 +1705,9 @@ void picture_data(void)
 	*/
       }
       
-      /* Put the picture in the display queue. */
-      last_pts_to_dpy = buf_ctrl_head->picture_infos[prev_ref_buf_id].PTS;
-      last_scr_nr_to_dpy =
-	buf_ctrl_head->picture_infos[prev_ref_buf_id].scr_nr;
+      /* Put it in the display queue. */
+      last_pts_to_dpy = pinfos[prev_ref_buf_id].PTS;
+      last_scr_nr_to_dpy = pinfos[prev_ref_buf_id].scr_nr;
       dpy_q_put(prev_ref_buf_id);
       old_ref_buf_id = prev_ref_buf_id;
     }
@@ -1625,8 +1715,6 @@ void picture_data(void)
     prev_ref_buf_id = buf_id;
     break;
   case PIC_CODING_TYPE_B:
-    /* Decode into the new (temporary) frame. */
-    dst_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
 
     /* Calculate the time remaining until this picutre shall be viewed. */
     {
@@ -1635,8 +1723,8 @@ void picture_data(void)
       clock_gettime(CLOCK_REALTIME, &realtime);
       
       timeadd(&calc_rt,
-	      &(buf_ctrl_head->picture_infos[buf_id].pts_time),
-	      &(buf_ctrl_head->picture_infos[buf_id].realtime_offset));
+	      &(pinfos[buf_id].pts_time),
+	      &(pinfos[buf_id].realtime_offset));
       timesub(&err_time, &calc_rt, &realtime);
 
       /* If the picture should already have been displayed then drop it. */
@@ -1647,10 +1735,10 @@ void picture_data(void)
 		err_time.tv_sec,
 		err_time.tv_nsec);
 	
-	buf_ctrl_head->picture_infos[buf_id].in_use = 0;
-	buf_ctrl_head->picture_infos[buf_id].displayed = 1;
-	last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
-	last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[buf_id].scr_nr;//?
+	pinfos[buf_id].is_ref = 0; // this is never set in a B picture ?
+	pinfos[buf_id].displayed = 1;
+	last_pts_to_dpy = pinfos[buf_id].PTS;
+	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
 	do {
 	  GETBITS(8, "drop");
 	  next_start_code();
@@ -1663,11 +1751,19 @@ void picture_data(void)
     }
     break;
   }
-  
+#endif
+
   /* Decode the slices. */
   if( MPEG2 )
     do {
+      int slice_nr;
+      slice_nr = nextbits(32) & 0xff;
       mpeg2_slice();
+      if(slice_nr >= seq.mb_height) {
+	break;
+      }
+      next_start_code();
+      
     } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   else {
@@ -1686,26 +1782,61 @@ void picture_data(void)
 #endif
   // Check 'err' here?
 
-  /* Picture decoded. */
-  switch(pic.header.picture_coding_type) {
-  case PIC_CODING_TYPE_I:
-  case PIC_CODING_TYPE_P:
-    break;
-  case PIC_CODING_TYPE_B:
-    if(prev_ref_buf_id == -1) {
-      fprintf(stderr, "decode: B-frame before any frame!!! (Error).\n");
-    }
-    if(old_ref_buf_id == -1) { // Test closed_gop too....
-      fprintf(stderr, "decode: B-frame before forward ref frame\n");
-    }
-    last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
-    last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[buf_id].scr_nr;//?
-    dpy_q_put(buf_id);
-    break;
-  }
-
+  // Picture decoded
+  fprintf(stderr, "end of picture tempref: %d\n",
+	  pic.header.temporal_reference);
   
-/* Temporarily broken :) */
+  if((prev_coded_temp_ref == pic.header.temporal_reference) ||
+     (pic.coding_ext.picture_structure == 0x3)) {
+    
+    if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
+      
+      if(pic.header.temporal_reference == (last_temporal_ref_to_dpy+1)%1024) {
+	
+	last_temporal_ref_to_dpy = pic.header.temporal_reference;
+	last_pts_to_dpy = pinfos[buf_id].PTS;
+	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
+	dpy_q_put(buf_id);
+	
+	if(bwd_ref_buf_id == -1) {
+	  fprintf(stderr, "decode: **B-frame before any reference frame!!!\n");
+	}
+	
+	if(fwd_ref_buf_id == -1) { // Test closed_gop too....
+	  fprintf(stderr, "decode: B-frame before forward ref frame\n");
+	}
+	
+      } else {
+	/* TODO: what should happen if the temporal reference is wrong */
+	fprintf(stderr, "** temporal reference for B-picture incorrect\n");
+      }
+    }
+    
+    if((bwd_ref_temporal_reference != -1) && 
+       (bwd_ref_temporal_reference == (last_temporal_ref_to_dpy+1)%1024)) {
+      
+      last_temporal_ref_to_dpy = bwd_ref_temporal_reference;
+      
+      /* bwd_ref should not be in the dpy_q more than one time */
+      bwd_ref_temporal_reference = -1;
+      
+      /* put bwd_ref in dpy_q */
+      
+      last_pts_to_dpy = pinfos[bwd_ref_buf_id].PTS;
+      last_scr_nr_to_dpy = pinfos[bwd_ref_buf_id].scr_nr;
+      dpy_q_put(bwd_ref_buf_id);
+      
+    } else if(bwd_ref_temporal_reference < (last_temporal_ref_to_dpy+1)%1024) {
+      
+      fprintf(stderr, "** temporal reference in I or P picture incorrect\n");
+      
+    }
+  }
+  
+  prev_coded_temp_ref = pic.header.temporal_reference;
+  
+  
+  /* Temporarily broken :) */
 #if 0  
 
   {
@@ -1864,7 +1995,6 @@ void reset_to_default_non_intra_quantiser_matrix()
 	 default_non_intra_inverse_quantiser_matrix,
 	 sizeof(seq.header.non_intra_inverse_quantiser_matrix));
 }
-
 
 
 

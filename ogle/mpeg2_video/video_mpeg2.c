@@ -54,7 +54,7 @@
 
 
 extern yuv_image_t *dst_image;
-extern yuv_image_t *ref_image1;
+extern yuv_image_t *fwd_ref_image;
 
 
 extern void next_start_code(void);
@@ -907,15 +907,15 @@ void macroblock(void)
 	int offs_y = x * 16 + y * 16 * seq.mb_width * 16;//seq.horizontal_size;
 	int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
 	mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
-				&ref_image1->y[offs_y], 
+				&fwd_ref_image->y[offs_y], 
 				(mb.macroblock_address_increment-1)*16, 
 				16, (seq.mb_width * 16));
 	mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
-				&ref_image1->u[offs_uv],
+				&fwd_ref_image->u[offs_uv],
 				(mb.macroblock_address_increment-1)*8,
 				8, (seq.mb_width * 16)/2);
 	mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
-				&ref_image1->v[offs_uv],
+				&fwd_ref_image->v[offs_uv],
 				(mb.macroblock_address_increment-1)*8,
 				8, (seq.mb_width * 16)/2);
       }
@@ -927,21 +927,21 @@ void macroblock(void)
 	      y = seq.mb_row*16;
 	    y < (seq.mb_row+1)*16; y++) {
 	  memcpy(&dst_image->y[y*(seq.mb_width*16)+x], 
-		 &ref_image1->y[y*(seq.mb_width*16)+x], 
+		 &fwd_ref_image->y[y*(seq.mb_width*16)+x], 
 		 (mb.macroblock_address_increment-1)*16);
 	}
 	for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, 
 	      y = seq.mb_row*8;
 	    y < (seq.mb_row+1)*8; y++) {
 	  memcpy(&dst_image->u[y*(seq.mb_width*16)/2+x], 
-		 &ref_image1->u[y*(seq.mb_width*16)/2+x], 
+		 &fwd_ref_image->u[y*(seq.mb_width*16)/2+x], 
 		 (mb.macroblock_address_increment-1)*8);
 	}
 	for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, 
 	      y = seq.mb_row*8;
 	    y < (seq.mb_row+1)*8; y++) {
 	  memcpy(&dst_image->v[y*(seq.mb_width*16)/2+x], 
-		 &ref_image1->v[y*(seq.mb_width*16)/2+x], 
+		 &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
 		 (mb.macroblock_address_increment-1)*8);
 	}
       }
@@ -1324,5 +1324,4 @@ void mpeg2_slice(void)
     macroblock();
   } while(nextbits(23) != 0);
   
-  next_start_code();
 }

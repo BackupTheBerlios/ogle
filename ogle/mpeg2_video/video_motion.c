@@ -24,8 +24,8 @@
 #include "../include/common.h"
 
 extern yuv_image_t *dst_image;
-extern yuv_image_t *ref_image1;
-extern yuv_image_t *ref_image2;
+extern yuv_image_t *fwd_ref_image;
+extern yuv_image_t *bwd_ref_image;
 
 
 /* This should be cleand up. */
@@ -108,9 +108,9 @@ void motion_comp()
 		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
       
-      pred_y = &ref_image1->y[int_vec_y[0] + int_vec_y[1] * stride];
-      pred_u = &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * stride/2];
-      pred_v = &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * stride/2];
+      pred_y = &fwd_ref_image->y[int_vec_y[0] + int_vec_y[1] * stride];
+      pred_u = &fwd_ref_image->u[int_vec_uv[0] + int_vec_uv[1] * stride/2];
+      pred_v = &fwd_ref_image->v[int_vec_uv[0] + int_vec_uv[1] * stride/2];
       
       DPRINTF(3, "x: %d, y: %d\n", x, y);
       
@@ -256,9 +256,9 @@ void motion_comp()
                int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
 
-      pred_y = &ref_image2->y[int_vec_y[0] + int_vec_y[1] * stride];
-      pred_u = &ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * stride/2];
-      pred_v = &ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * stride/2];
+      pred_y = &bwd_ref_image->y[int_vec_y[0] + int_vec_y[1] * stride];
+      pred_u = &bwd_ref_image->u[int_vec_uv[0] + int_vec_uv[1] * stride/2];
+      pred_v = &bwd_ref_image->v[int_vec_uv[0] + int_vec_uv[1] * stride/2];
       
  
       

@@ -39,5 +39,9 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 # Uncoment this to build for MLIB 
 video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
 
+
+# Uncoment this to build for MLIB DGA
+#video_stream: video_mpeg1.o video_mpeg2.o yuv2rgb_mlib.o c_getbits.o video_output_ffb.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
+
 clean:
 	rm -f video_stream *.o
