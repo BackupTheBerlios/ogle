@@ -125,15 +125,62 @@ if [ "$debug" = "1" ]; then
 		     elif [ -b "/dev/scd$scsi_nr" ]; then
 			 echo -n " /dev/scd$scsi_nr"
 		     else
-			 echo -n " **block device is missing: /dev/sr$scsi_nr**"
+			 echo -n " ** block device is missing: /dev/sr$scsi_nr **"
 		     fi
 		 else
-		     echo -n " /dev/$dev"
+		     dev="/dev/$dev"
+		     if ! [ -a $dev ]; then
+			 echo -n "** block device is missing: $dev **"
+		     elif ! [ -h $dev ]; then
+			 echo -n " $dev"
+		     fi
+		     while [ -h $dev ]; do
+			 nextdev=`ls -l $dev | cut -d'>' -f 2`
+			 nextdev="`echo $nextdev`"
+			 echo  " $dev -> $nextdev"
+			 abspath="`echo $nextdev | cut -b1`"
+			 if [ "$abspath" = "/" ]; then
+			     dev="`echo $nextdev`"
+			 else
+			     dev="`dirname $dev`/$nextdev"
+			 fi
+		     done
+		     
 		 fi
 	     done
 	     echo ""
 	     for dev in $ide_scsi_cd_dev; do
 		 echo "/dev/$dev is running ide-scsi (`cat /proc/ide/$dev/model`)"
+		 if ! [ -a /dev/$dev ]; then
+		     echo " ** block device is missing: $dev **"
+		     echo " This may be because you are running devfs,"
+		     echo " in this case to turn on/off dma with hdparm"
+		     echo " you should use the corresponding ide device node"
+		     echo " /dev/ide/hostX/busY/targetZ/lun0/generic,"
+		     echo " where you set X,Y,Z to the apropriate numbers."
+		     echo " /dev/hdb would be: /dev/ide/host0/bus0/target1/lun0/generic"
+		     echo " hdc: /dev/ide/host0/bus1/target0/..."
+		     echo " hdd: /dev/ide/host0/bus1/target1/..."
+		 fi
+		 
+		 if ! [ -a /proc/ide/$dev/settings ]; then
+		     echo "/proc/ide/$dev/settings does not exist"
+		 elif [ -r /proc/ide/$dev/settings ]; then
+		   dma_use="`cat /proc/ide/$dev/settings | grep using_dma`"
+		   dma_use="`echo $dma_use | cut -d ' ' -f 2`"
+
+		   if [ -z "$dma_use" ]; then
+		       echo "WARNING: Could not get DMA state for /dev/$dev"
+		   elif [ "$dma_use" = "1" ]; then
+		       echo "DMA is on for /dev/$dev"
+		   else
+		       echo ""
+		       echo "WARNING: DMA is OFF for /dev/$dev"
+		       echo ""
+		   fi
+		 else
+		     echo "WARNING: Cannot read /proc/ide/$dev/settings, need to be root to do that?"
+		 fi
 	     done
 	     
              #ide device information
