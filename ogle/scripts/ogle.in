@@ -1,18 +1,6 @@
 #!/bin/sh
 # @configure_input@
 
-create_pipe() { 
-    if [ ! -p $1 ]; then
-	rm -f $1;
-        # So any other user can start the program / rm the pipes
-        mkfifo $1; chmod 666 $1;
-    fi
-    # chgrp dvd $1;
-}
-
-create_pipe "/tmp/ac3"
-create_pipe "/tmp/audio"
-
 ostype=`uname`
 d_suf="_debug"
 debug="0"
