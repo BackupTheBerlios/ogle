@@ -203,6 +203,7 @@ void send_rle (unsigned int vlc) {
     length = vlc >> 2;
     colorid = vlc & 3;
   }
+  assert(length != 0);
   while (length-- && (x < width)) {
     DPRINTF(6, "pos: %d, %d, col: %d\n", x, y, color[colorid]);
     XPutPixel(subpicture_image, x, y, color[colorid]);
@@ -623,12 +624,6 @@ typedef struct {
   sleep(1);
   return 0;
 
-}
-
-void apa()
-{
-  //  XShapeCombineMask(display, win, ShapeBounding, 0, 0, shape_pixmap, ShapeSet);
-  
 }
 
 int create_shape(int w, int h)
