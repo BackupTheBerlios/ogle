@@ -645,7 +645,114 @@ void vm_get_video_res(int *width, int *height)
   }
 }
 
+static void time_add(dvd_time_t *acc, dvd_time_t *diff)
+{
+  int frame_rate, frames;
+  
+  assert((acc->frame_u & 0xc0) == (diff->frame_u & 0xc0));
+  
+  acc->hour   += diff->hour;
+  acc->minute += diff->minute;
+  acc->second += diff->second;
+  frames = (acc->frame_u & 0x3f) + (diff->frame_u & 0x3f);
 
+  switch(acc->frame_u >> 6) {
+  case 1:
+    frame_rate = 25;
+    break;
+  case 3:
+    frame_rate = 30; // 29.97
+    break;
+  default:
+    frame_rate = 30; // ??
+    break;
+  }
+   
+  // normalize time  
+  acc->second += frames / frame_rate;
+  acc->frame_u = (frames % frame_rate) | (acc->frame_u & 0xc0);
+  acc->minute += acc->second / 60;
+  acc->second %= 60;
+  acc->hour   += acc->minute / 60;
+  acc->minute %= 60;
+}
+
+void vm_get_total_time(dvd_time_t *current_time)
+{
+  *current_time = state.pgc->playback_time;
+  /* This should give the same time as well.... */
+  //vm_get_cell_stat_time(current_time, state.pgc->nr_of_cells);
+}
+
+void vm_get_current_time(dvd_time_t *current_time, pci_t *pci)
+{
+  vm_get_cell_stat_time(current_time, state.cellN);
+  /* Add the time within the cell. */
+  time_add(current_time, &(pci->pci_gi.e_eltm));
+}
+
+void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN)
+{
+  dvd_time_t angle_time;
+  playback_type_t *pb_ty;
+  int i;
+  
+  current_time->hour = 0;
+  current_time->minute = 0;
+  current_time->second = 0;
+  /* Frame code */
+  current_time->frame_u = state.pgc->playback_time.frame_u & 0xc0;
+  
+  
+  /* Should only be called for One_Sequential_PGC_Title PGCs. */
+  if(state.domain != VTS_DOMAIN) {
+    /* No time info */
+    return;
+  }
+  pb_ty = &vmgi->tt_srpt->title[state.TTN_REG - 1].pb_ty;
+  if(pb_ty->multi_or_random_pgc_title != /* One_Sequential_PGC_Title */ 0) {
+    /*No time info */
+    return;
+  }
+  
+  assert(cellN <= state.pgc->nr_of_cells);
+    
+  for(i = 1; i < cellN; i++) {
+    
+    /* Multi angle/Interleaved */
+    switch(state.pgc->cell_playback[i - 1].block_mode) {
+    case 0: // Normal
+      assert(state.pgc->cell_playback[i - 1].block_type == 0);
+      time_add(current_time, &state.pgc->cell_playback[i - 1].playback_time);
+      break;
+    case 1: // The first cell in the block
+      switch(state.pgc->cell_playback[i - 1].block_type) {
+      case 0: // Not part of a block
+	assert(0);
+      case 1: // Angle block
+	time_add(current_time, &state.pgc->cell_playback[i - 1].playback_time);
+	angle_time = state.pgc->cell_playback[i - 1].playback_time;
+	break;
+      case 2: // ??
+      case 3: // ??
+      default:
+	WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
+		state.pgc->cell_playback[i - 1].block_mode,
+		state.pgc->cell_playback[i - 1].block_type);
+      }
+      break;
+    case 2: // Cell in the block
+    case 3: // Last cell in the block
+      /* Check that the cells for each angle have equal duration. */
+      assert(!memcmp(&angle_time, 
+		     &state.pgc->cell_playback[i - 1].playback_time, 
+		     sizeof(dvd_time_t)));
+      break;
+    default:
+      WARNING("Cell is in block but did not enter at first cell!\n");
+    }
+  }
+}
 
 
 

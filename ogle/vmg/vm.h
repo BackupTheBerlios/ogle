@@ -19,6 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <dvdread/ifo_types.h>
+#include <dvdread/nav_types.h>
+#include <ogle/dvd.h>
 #include "decoder.h"
 
 
@@ -26,8 +29,7 @@ typedef enum {
   FP_DOMAIN = 1,
   VTS_DOMAIN = 2,
   VMGM_DOMAIN = 4,
-  VTSM_DOMAIN = 8,
-  STOP_DOMAIN = 16
+  VTSM_DOMAIN = 8
 } domain_t;  
 
 /**
@@ -61,7 +63,7 @@ typedef struct {
 // Angle number
 #define AGL_REG      registers.SPRM[3]
 // Title Track Number
-#define TTN_REG      registers.SPRM[4]
+#define TTN_REG     registers.SPRM[4]
 // VTS Title Track Number
 #define VTS_TTN_REG  registers.SPRM[5]
 // PGC Number for this Title Track
@@ -101,6 +103,9 @@ user_ops_t vm_get_uops(void);
 audio_attr_t vm_get_audio_attr(int streamN);
 video_attr_t vm_get_video_attr(void);
 void vm_get_video_res(int *width, int *height);
+void vm_get_total_time(dvd_time_t *current_time);
+void vm_get_current_time(dvd_time_t *current_time, pci_t *pci);
+void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN);
 
 #endif /* VM_HV_INCLUDED */
 
