@@ -1063,26 +1063,29 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   B2N_16(ptl_mait->nr_of_vtss);
   B2N_32(ptl_mait->last_byte);
   
-  info_length = ptl_mait->last_byte + 1 - PTL_MAIT_SIZE;
-  
   CHECK_VALUE(ptl_mait->nr_of_countries != 0);
   CHECK_VALUE(ptl_mait->nr_of_countries < 100); // ??
   CHECK_VALUE(ptl_mait->nr_of_vtss != 0);
   CHECK_VALUE(ptl_mait->nr_of_vtss < 100); // ??  
-  CHECK_VALUE(ptl_mait->nr_of_countries * PTL_MAIT_COUNTRY_SIZE <= info_length);
+  CHECK_VALUE(ptl_mait->nr_of_countries * PTL_MAIT_COUNTRY_SIZE 
+	      <= ptl_mait->last_byte + 1 - PTL_MAIT_SIZE);
   
-  /* Change this to read and 'translate' the tables too. 
-     I.e don't read so much here */
+  info_length = ptl_mait->nr_of_countries * sizeof(ptl_mait_country_t);
   ptl_mait->countries = (ptl_mait_country_t *)malloc(info_length);
   if(!ptl_mait->countries) {
     free(ptl_mait);
     ifofile->ptl_mait = 0;
     return 0;
   }
-  if(!(DVDReadBytes(ifofile->file, ptl_mait->countries, info_length))) {
-    fprintf(stderr, "libdvdread: Unable to read PTL_MAIT.\n");
-    ifoFree_PTL_MAIT(ifofile);
-    return 0;
+  
+  for(i = 0; i < ptl_mait->nr_of_countries; i++) {
+    if(!(DVDReadBytes(ifofile->file, &ptl_mait->countries[i], PTL_MAIT_COUNTRY_SIZE))) {
+      fprintf(stderr, "libdvdread: Unable to read PTL_MAIT.\n");
+      free(ptl_mait->countries);
+      free(ptl_mait);
+      ifofile->ptl_mait = 0;
+      return 0;
+    }
   }
 
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
@@ -1093,18 +1096,78 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
     CHECK_ZERO(ptl_mait->countries[i].zero_1);
     CHECK_ZERO(ptl_mait->countries[i].zero_2);    
-    CHECK_VALUE(ptl_mait->countries[i].pf_ptl_mai_start_byte + 
-           8 * (ptl_mait->nr_of_vtss + 1) * 2 <= ptl_mait->last_byte + 1);
+    CHECK_VALUE(ptl_mait->countries[i].pf_ptl_mai_start_byte
+		+ 8*2 * (ptl_mait->nr_of_vtss + 1) <= ptl_mait->last_byte + 1);
   }
 
+  for(i = 0; i < ptl_mait->nr_of_countries; i++) {
+    uint16_t *pf_temp;
+    
+    if(!DVDFileSeek_(ifofile->file, 
+		     ifofile->vmgi_mat->ptl_mait * DVD_BLOCK_LEN
+                     + ptl_mait->countries[i].pf_ptl_mai_start_byte)) {
+      fprintf(stderr, "libdvdread: Unable to seak PTL_MAIT table.\n");
+      free(ptl_mait->countries);
+      free(ptl_mait);
+      return 0;
+    }
+    info_length = (ptl_mait->nr_of_vtss + 1) * sizeof(pf_level_t);
+    pf_temp = (uint16_t *)malloc(info_length);
+    if(!pf_temp) {
+      for(j = 0; j < i ; j++) {
+         free(ptl_mait->countries[j].pf_ptl_mai);
+      }
+      free(ptl_mait->countries);
+      free(ptl_mait);
+      return 0;
+    }
+    if(!(DVDReadBytes(ifofile->file, pf_temp, info_length))) {
+       fprintf(stderr, "libdvdread: Unable to read PTL_MAIT table.\n");
+       free(pf_temp);
+       for(j = 0; j < i ; j++) {
+	  free(ptl_mait->countries[j].pf_ptl_mai);
+       }
+       free(ptl_mait->countries);
+       free(ptl_mait);
+       return 0;
+    }
+    for (j = 0; j < ((ptl_mait->nr_of_vtss + 1) * 8); j++) {
+        B2N_16(pf_temp[j]);
+    }
+    ptl_mait->countries[i].pf_ptl_mai = (pf_level_t *)malloc(info_length);
+    if(!ptl_mait->countries[i].pf_ptl_mai) {
+      free(pf_temp);
+      for(j = 0; j < i ; j++) {
+	free(ptl_mait->countries[j].pf_ptl_mai);
+      }
+      free(ptl_mait->countries);
+      free(ptl_mait);
+      return 0;
+    }
+    { /* Transpose the array so we can use C indexing. */
+      int level, vts;
+      for(level = 0; level < 8; level++) {
+	for(vts = 0; vts <= ptl_mait->nr_of_vtss; vts++) {
+	  ptl_mait->countries[i].pf_ptl_mai[vts][level] =
+	    pf_temp[level*(ptl_mait->nr_of_vtss+1) + vts];
+	}
+      }
+      free(pf_temp);
+    }
+  }
   return 1;
 }
 
 void ifoFree_PTL_MAIT(ifo_handle_t *ifofile) {
+  unsigned int i;
+  
   if(!ifofile)
     return;
   
   if(ifofile->ptl_mait) {
+    for(i = 0; i < ifofile->ptl_mait->nr_of_countries; i++) {
+       free(ifofile->ptl_mait->countries[i].pf_ptl_mai);
+    }
     free(ifofile->ptl_mait->countries);
     free(ifofile->ptl_mait);
     ifofile->ptl_mait = 0;

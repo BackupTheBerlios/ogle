@@ -836,35 +836,30 @@ void ifoPrint_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt) {
 }
 
 
-static void hexdump(uint8_t *ptr, int len) {
-  while(len--)
-    printf("%02x ", *ptr++);
-}
-
 void ifoPrint_PTL_MAIT(ptl_mait_t *ptl_mait) {
-  int i, j;
+  int i, level, vts;
   
   printf("Number of Countries: %i\n", ptl_mait->nr_of_countries);
   printf("Number of VTSs: %i\n", ptl_mait->nr_of_vtss);
-  //printf("Last byte: %i\n", ptl_mait->last_byte);
+  printf("Last byte: %i\n", ptl_mait->last_byte);
   
   for(i = 0; i < ptl_mait->nr_of_countries; i++) {
-    printf("Country code: %c%c\n", 
+    
+    printf("Start byte: %i\n", ptl_mait->countries[i].pf_ptl_mai_start_byte);
+    printf("Parental Masks for country: %c%c\n",
 	   ptl_mait->countries[i].country_code >> 8,
 	   ptl_mait->countries[i].country_code & 0xff);
-    /*
-      printf("Start byte: %04x %i\n", 
-      ptl_mait->countries[i].pf_ptl_mai_start_byte, 
-      ptl_mait->countries[i].pf_ptl_mai_start_byte);
-    */
-    /* This seems to be pointing at a array with 8 2byte fields per VTS
-       ? and one extra for the menu? always an odd number of VTSs on
-       all the dics I tested so it might be padding to even also.
-       If it is for the menu it probably the first entry.  */
-    for(j=0;j<8;j++) {
-      hexdump( (uint8_t *)ptl_mait->countries - PTL_MAIT_COUNTRY_SIZE 
-	       + ptl_mait->countries[i].pf_ptl_mai_start_byte
-	       + j*(ptl_mait->nr_of_vtss+1)*2, (ptl_mait->nr_of_vtss+1)*2);
+    
+    for(vts = 0; vts <= ptl_mait->nr_of_vtss; vts++) {
+      if( vts == 0 ) {
+	printf("VMG    "); 
+      } else {
+	printf("VTS %2d ", vts);
+      }
+      for(level = 0; level < 8; level++) {
+	printf("%d: %04x  ", level,
+	       ptl_mait->countries[i].pf_ptl_mai[vts][level] );
+      }
       printf("\n");
     }
   }
