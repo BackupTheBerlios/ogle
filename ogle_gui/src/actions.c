@@ -56,7 +56,16 @@ void actionRightButtonSelect(void *data)
 
 void actionButtonActivate(void *data)
 {
-  DVDButtonActivate(nav);
+  struct action_number *user = (struct action_number *)data;
+  
+  if(user != NULL && user->valid && (user->nr >= 0)) {
+    DVDButtonSelectAndActivate(nav, user->nr);
+  } else { 
+    DVDButtonActivate(nav);
+  }
+  if(user != NULL) {
+    user->valid = 0;
+  }
 }
 
 void actionMenuCallTitle(void *data)
@@ -452,7 +461,7 @@ static action_mapping_t actions[] = {
   { "LowerButton", actionLowerButtonSelect, NULL },
   { "LeftButton", actionLeftButtonSelect, NULL },
   { "RightButton", actionRightButtonSelect, NULL},
-  { "ButtonActivate", actionButtonActivate, NULL },
+  { "ButtonActivate", actionButtonActivate, &user_nr },
   { "TitleMenu", actionMenuCallTitle, NULL },
   { "RootMenu", actionMenuCallRoot, NULL },
   { "AudioMenu", actionMenuCallAudio, NULL },
