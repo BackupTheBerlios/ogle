@@ -7,7 +7,7 @@
 #include "callbacks.h"
 #include "interface.h"
 #include "support.h"
-#include <dvdcontrol.h>
+#include <ogle/dvdcontrol.h>
 
 #include "menu.h"
 

@@ -6,7 +6,7 @@
 #include <glib.h>
 #include <gnome.h>
 #include "audio.h"
-#include <dvdcontrol.h>
+#include <ogle/dvdcontrol.h>
 
 
 GtkWidget *menu;

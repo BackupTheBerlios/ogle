@@ -8,7 +8,7 @@
 #include <X11/Xutil.h>
 #include <X11/keysym.h>
 
-#include <dvdcontrol.h>
+#include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
 
 

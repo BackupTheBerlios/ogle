@@ -3,7 +3,7 @@
 
 #include <gnome.h>
 
-#include <dvdcontrol.h>
+#include <ogle/dvdcontrol.h>
 
 #include "menu.h"
 #include "interface.h"

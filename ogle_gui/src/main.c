@@ -8,7 +8,7 @@
 #include <gnome.h>
 #include <libgnomeui/gnome-init.h>
 
-#include <dvdcontrol.h>
+#include <ogle/dvdcontrol.h>
 #include "interface.h"
 #include "support.h"
 #include "xsniffer.h"
