@@ -239,7 +239,10 @@ static bool eval_link_subins(bool cond, link_t *return_values)
   return_values->data1 = button;
   if(cond && return_values->data1)
     state->SPRM[8] = return_values->data1 << 10;
-  return cond;
+  if(linkop == LinkNoLink) /* Obviously LinkNoLink isn't a link ;) */
+    return 0;
+  else
+    return cond;
 }
 
 
@@ -651,10 +654,10 @@ int vmEval_CMD(vm_cmd_t commands[], int num_commands,
     fprintf(stderr, "   #   ");
     for(i = 0; i < 24; i++)
     fprintf(stderr, " %2d |", i);
-    fprintf(stderr, "\nSRPMS: ");
+    fprintf(stderr, "\nSPRMS: ");
     for(i = 0; i < 24; i++)
       fprintf(stderr, "%04x|", state->SPRM[i]);
-    fprintf(stderr, "\nGRPMS: ");
+    fprintf(stderr, "\nGPRMS: ");
     for(i = 0; i < 16; i++)
       fprintf(stderr, "%04x|", state->GPRM[i]);
     fprintf(stderr, "\n");
