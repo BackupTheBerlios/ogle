@@ -259,6 +259,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQSetZoomMode:
     zoom_mode = ev->setzoommode.mode;
+    redraw_request();
     break;
   case MsgEventQReqInput:
     input_mask = ev->reqinput.mask;
@@ -339,7 +340,7 @@ static int get_next_picture_buf_id()
 	  break;
 	}
       }
-      timer.it_value.tv_usec = 0;
+      timer.it_value.tv_usec = 0; // disable timer
       setitimer(ITIMER_REAL, &timer, NULL);
       event_handler(msgq, &ev);
       if(redraw_needed) {
