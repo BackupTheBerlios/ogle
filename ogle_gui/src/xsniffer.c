@@ -27,7 +27,6 @@
 #include <X11/keysym.h>
 
 #include <gtk/gtk.h>
-#include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
