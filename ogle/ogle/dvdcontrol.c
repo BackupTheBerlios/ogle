@@ -21,7 +21,11 @@
 #include <unistd.h>
 #include <sys/msg.h>
 #include <string.h>
+
+#include "dvd.h"
+#include "dvdevents.h"
 #include "msgevents.h"
+#include "dvdbookmarks.h"
 #include "dvdcontrol.h"
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)

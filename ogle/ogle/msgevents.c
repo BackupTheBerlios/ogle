@@ -23,6 +23,9 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
+
+#include "dvd.h"
+#include "dvdevents.h"
 #include "msgevents.h"
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
