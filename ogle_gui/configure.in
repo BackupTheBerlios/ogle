@@ -37,7 +37,8 @@ ALL_LINGUAS="da de fr nl pt sv"
 AM_GNU_GETTEXT([use-libtool])
 
 AC_ARG_ENABLE(gtk2, 
-  [  --enable-gtk2		use gtk2 for the GUI, instead of gtk1],
+  AC_HELP_STRING([--enable-gtk2],
+                 [use gtk2 for the GUI, instead of gtk1]),
   dnl actions for gtk2
   [ PKG_CHECK_MODULES(GTK, gtk+-2.0)
     PKG_CHECK_MODULES(XML, libxml-2.0 >= 2.4.19)
@@ -72,7 +73,8 @@ AC_ARG_ENABLE(gtk2,
 
 dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
-  [  --with-dvdcontrol=DIR   Specify the install prefix to libdvdcontrol ], 
+  AC_HELP_STRING([--with-dvdcontrol=DIR],
+                 [Specify the install prefix to libdvdcontrol ]), 
   if test x$withval = xno; then
     [AC_MSG_ERROR([* You must use libdvdcontrol, it's a part of Ogle])]
   fi
@@ -101,7 +103,8 @@ AC_CHECK_LIB(dvdcontrol, DVDRequestInput,
 AC_SUBST(DVDLIBS)
 
 AC_ARG_WITH(dvd-includes, 
-  [  --with-dvd-includes=DIR Specify location of DVD headers ], 
+  AC_HELP_STRING([--with-dvd-includes=DIR],
+                 [Specify location of DVD headers ]), 
   DVD_INCLUDEDIR=-I$with_dvd_includes)
 
 dnl if test x"$DVD_INCLUDEDIR" = x"-I/usr/local/include"; then
