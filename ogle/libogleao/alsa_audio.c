@@ -176,13 +176,6 @@ int alsa_init(ogle_ao_instance_t *_instance,
   	/* Check that we actually got the requested nuber of channels,
 	 * the frequency and precision that we asked for?  */
   
-  	/* Stored as 8bit, 16bit, or 32bit */
-	single_sample_size = (audio_info->sample_resolution + 7) / 8;
-	if(single_sample_size > 2) {
-		single_sample_size = 4;
-	}
-	instance->sample_frame_size = single_sample_size*audio_info->channels;
-	instance->initialized = 1;
   
 	if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
 	  // do this only if we have requested specific channels in chtypes
@@ -204,6 +197,14 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	}
 
 	instance->channels = audio_info->channels;
+
+  	/* Stored as 8bit, 16bit, or 32bit */
+	single_sample_size = (audio_info->sample_resolution + 7) / 8;
+	if(single_sample_size > 2) {
+		single_sample_size = 4;
+	}
+	instance->sample_frame_size = single_sample_size*audio_info->channels;
+	instance->initialized = 1;
 
 	audio_info->sample_frame_size = instance->sample_frame_size;
 
