@@ -1,0 +1,55 @@
+#!/bin/sh
+
+DVDP_CMD=$0
+
+create_pipe() { 
+    if [ ! -p $1 ]; then
+	rm -f $1;
+        mknod $1 p;
+    fi
+    # chgrp dvd $1;
+    # So any other user can start the program / rm the pipes
+    chmod 666 $1;
+}
+
+create_pipe "/tmp/ac3"
+create_pipe "/tmp/audio"
+# create_pipe "/tmp/cmd"
+
+if [ -h "$DVDP_CMD" ]; then
+    if [ -x "`which readlink`" ]; then
+	while [ -h "$DVDP_CMD" ]; do
+	    DVDP_CMD=`readlink "$DVDP_CMD"`;
+	done;
+    else
+	echo "Warning didn't find 'readlink'";
+	while [ -h "$DVDP_CMD" ]; do
+	    # Don't use symlinks that contain '->' as part of the name!!
+	    DVDP_CMD=`ls -l "$DVDP_CMD" | sed -e 's/.*-> //1'`;
+	done;
+    fi;
+fi;
+
+DVDP_ROOT=`dirname "$DVDP_CMD"`
+export DVDP_ROOT
+DVDP_CTRL=$DVDP_ROOT/ctrl
+export DVDP_CTRL
+DVDP_DEMUX=$DVDP_ROOT/programstream
+export DVDP_DEMUX
+DVDP_UI=$DVDP_ROOT/ogle_gui
+export DVDP_UI
+DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
+export DVDP_AC3
+DVDP_MPEGAUDIO=$DVDP_ROOT/mpg123_wrap
+export DVDP_MPEGAUDIO
+DVDP_VIDEO=$DVDP_ROOT/video_stream
+export DVDP_VIDEO
+DVDP_VMG=$DVDP_ROOT/nav
+#DVDP_VMG=RUNNING
+export DVDP_VMG
+#DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
+DVDP_SPU=$DVDP_ROOT/video_output
+export DVDP_SPU
+DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
+export DVDP_VIDEO_OUT
+$DVDP_CTRL -u dvd $*
