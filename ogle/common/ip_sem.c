@@ -139,34 +139,14 @@ int ip_sem_getvalue(ip_sem_t *q_head, int sem_nr) {
 int ip_sem_trywait(ip_sem_t *q_head, int sem_nr) {
 
 #if defined USE_POSIX_SEM
-  if(sem_trywait(&q_head->bufs[sem_nr]) == -1) {
-    switch(errno) {
-    case EAGAIN:
-      return 0;
-    default:
-      perror("sem_trywait()");
-      return -1;
-    }
-  }
-  return 0;
+  return sem_trywait(&q_head->bufs[sem_nr]);
   
 #elif defined USE_SYSV_SEM
-  {
-    struct sembuf sops;
-    sops.sem_num = sem_nr;
-    sops.sem_op = -1;
-    sops.sem_flg = IPC_NOWAIT;
-    if(semop(q_head->semid_bufs, &sops, 1) == -1) {
-      switch(errno) {
-      case EAGAIN:
-	return 0;
-      default:
-	perror("semop() trywait");
-	return -1;
-      }
-    }
-  }
-  return 0;
+  struct sembuf sops;
+  sops.sem_num = sem_nr;
+  sops.sem_op = -1;
+  sops.sem_flg = IPC_NOWAIT;
+  return semop(q_head->semid_bufs, &sops, 1);
   
 #else
 #error No semaphore type set
