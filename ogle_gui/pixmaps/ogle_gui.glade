@@ -15,6 +15,11 @@
 <widget>
   <class>GtkWindow</class>
   <name>app</name>
+  <signal>
+    <name>delete_event</name>
+    <handler>on_exit_activate</handler>
+    <last_modification_time>Sun, 23 Jun 2002 10:17:07 GMT</last_modification_time>
+  </signal>
   <title>Ogle</title>
   <type>GTK_WINDOW_TOPLEVEL</type>
   <position>GTK_WIN_POS_NONE</position>
