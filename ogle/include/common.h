@@ -37,7 +37,7 @@ typedef struct {
 
 typedef struct {
   yuv_image_t picture;
-  int in_use;
+  int is_ref;
   int displayed;
   struct timespec pts_time;
   struct timespec realtime_offset;
