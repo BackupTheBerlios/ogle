@@ -1,7 +1,8 @@
 /*
  * IFO structure information
  *
- * Copyright (C) 1999, 2000  Björn Englund, Håkan Hjort, Martin Norbäck
+ * Copyright (C) 1999, 2000  Björn Englund <d4bjorn@dtek.chalmers.se>,
+ *                           Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
  * Disclaimer:
  * ----------
@@ -11,25 +12,65 @@
  *
  * We have never looked at any part of the DVD standards.
  * No information was obtained under non-disclosure agreement.
- */	
+ *
+ */
 
 
 Disc layout
 -------------------------------------------------------------------------------
+The files are stored in the following order on the DVD (increasing sector 
+number downwards). The entries in the ISO9660/UDF file sytems might list the 
+files in a different order, but this describes the physical sector layout on 
+the disc. All sectors that make up one file are are stored (in order) in one 
+continuous area. The offsets contained in VIDEO_TS.IFO for the VOBS (Start 
+sector of VMGM_VOBS) are counted from the start sector of VIDEO_TS.IFO itself.
+Likewise for the 'Last Sector of VMGI' and 'Last Sector of VMG'. The sectors 
+of VMG include all files that are named VIDEO_TS, these are ordered as 
+described below. The VOB part is optional.
+ 
 VIDEO_TS.IFO
 VIDEO_TS.VOB
 VIDEO_TS.BUP
+
+In the VMG_PTT_SRPT section of VIDEO_TS.IFO, the offsets to all VTS parts
+can be found. These are also made up of a collection of files, stored in
+the order shown below. Either one or both of the two VOB parts may be 
+present, (_0 is the menu VOBS and the others are the Title VOBS).
+
 VTS_01_0.IFO
 VTS_01_0.VOB
 VTS_01_1.VOB
+VTS_01_2.VOB
 ...
 VTS_01_1.BUP
 VTS_02_0.IFO
-VTS_02_0.VOB
 VTS_02_1.VOB
 ...
-VTS_02_1.BUP
-...
+VTS_02_0.BUP
+
+All the VTS_XX_[1-].VOB files should realy be considered one large file. 
+There is however a file system limit on 1Gb, so for this reason there are
+multiple names. The layout of the 'one large file' is continuous, i.e. 
+doing reading from the start sector of VTS_XX_1.VOB for the total size
+of all the part will yield the entire VOBs and no extra data.
+
+
+File structure overview
+-------------------------------------------------------------------------------
+The following is a description of how the information in the IFO files are
+structured. It only 'names' the different values that are contained within
+them. Some have self explanatory names and others might not. 
+This description does not attempt do define the meaning or structure of 
+any of the values. For example 'Video attributes' are a two byte value 
+that really is a bit structure that describe several different properties 
+of the associated VOBS/MPEG-stream. 
+The sector offsets are almost always given from the beginning of the 
+containing structure. The ones in VMGI_MAT are for the beginning of VIDEO_TS
+data and the ones that are Cell start/last sector offsets are given relative
+the beginning of that VOBS.
+The '* start byte' offsets are likewise almost allays offsets form their
+containing structure. For example in a PCG the 'PGC Program Map start byte'
+is an offset given from the first byte of of that PGC structure.
 
 
 VIDEO_TS.IFO
@@ -39,7 +80,7 @@ VIDEO_TS.IFO
     VMG_PTT_SRPTI:   Part of title search pointer table information
     VMGM_PGCI_UT:    Video Manager Menu PGCI Unit Table
     VMGM_LUI:        Video Manager Menu Language Unit Table
-    VMG_MAIT:        Parental Managenent Information Table
+    VMG_MAIT:        Parental Management Information Table
     VMG_ATRT:        Video Title Set Attribute Table
     VMG_TXTDT_MGI:   Text Data Manager information
     VMGM_C_ADT:      VMGM Cell Address Table information
@@ -66,115 +107,121 @@ VMG {
 	[96-103]     VMG POS Code
 	[104-127]    --
 	[128-131]    End byte of VMGI_MAT
-	[132-135]    Start byte of First Play PGC, FP_PGC
+	[132-135]    First Play PGC start byte (FP_PGC)
 	[136-191]    --
 	[192-195]    Start sector of VMGM_VOBS
 	[196-199]    Start sector of VMG_PTT_SRPT
 	[200-203]    Start sector of VMGM_PGCI_UT
 	[204-207]    Start sector of VMG_PTL_MAIT
 	[208-211]    Start sector of VMG_VTS_ATRT
-	[212-215]    Start sector of VMG_TXTDT_MG
+	[212-215]    Start sector of VMG_TXTDT_MGI
 	[216-219]    Start sector of VMGM_C_ADT
 	[220-223]    Start sector of VMGM_VOBU_ADMAP
 	[224-255]    --
 	[256-257]    Video attributes of VMGM_VOBS
-	[258]	     -
+	[258]	     --
 	[259]	     Number of audio streams in VMGM_VOBS
-	 [260-(260-1+number of audio streams in VMGM_VOBS)] audio attributes
-	[341]	     Number of Sub-picture streams in VMGM_VOBS
-	 [342-(342-1+number of subp streams)] subpicture attributes
+
+	for(n=0, m=260; n < nr audio streams in VMGM_VOBS; n++, m+=8) {
+	  [(m+0)-(m+7)]	    VMGM audio (n+1) attributes
+	}
+
+	[324-340]    --
+	[341]	     Number of Sub-picture streams in VTSM
+	for(n=0, m=342; n < nr subp streams in VMGM_VOBS; n++, m+=6) {
+	  [(m+0)-(m+5)]	    VMGM sub-picture stream (n+1) attributes
+	}
 
 
-
-	[Start byte of First Play PGC] VMG First Play PGC {
+	[First Play PGC start byte] PGC {
 	       [0-1]   --
-	       [2]     nr of programs
-	       [3]     nr of cells
+	       [2]     Number of Programs
+	       [3]     Number of Cells
 	       [4-7]   Playback time
-	       [8-11]  prohibited user operations
-	       [12-13] audio stream 1 status
-	       [14-15] audio stream 2 status
-	       [16-17] audio stream 3 status
-	       [18-19] audio stream 4 status
-	       [20-21] audio stream 5 status
-	       [22-23] audio stream 6 status
-	       [24-25] audio stream 7 status
-	       [26-27] audio stream 8 status
-	       [28-31] Sub-Picture stream 1 status
-	       [32-35] Sub-Picture stream 2 status
-	       [36-39] Sub-Picture stream 3 status
-	       [40-43] Sub-Picture stream 4 status
-	       [44-47] Sub-Picture stream 5 status
-	       [48-51] Sub-Picture stream 6 status
-	       [52-55] Sub-Picture stream 7 status
-	       [56-59] Sub-Picture stream 8 status
-	       [60-63] Sub-Picture stream 9 status
-	       [64-67] Sub-Picture stream 10 status
-	       [68-71] Sub-Picture stream 11 status
-	       [72-75] Sub-Picture stream 12 status
-	       [76-79] Sub-Picture stream 13 status
-	       [80-83] Sub-Picture stream 14 status
-	       [84-87] Sub-Picture stream 15 status
-	       [88-91] Sub-Picture stream 16 status
-	       [92-95] Sub-Picture stream 17 status
-	       [96-99] Sub-Picture stream 18 status
-	       [100-103] Sub-Picture stream 19 status
-	       [104-107] Sub-Picture stream 20 status
-	       [108-111] Sub-Picture stream 21 status
-	       [112-115] Sub-Picture stream 22 status
-	       [116-119] Sub-Picture stream 23 status
-	       [120-123] Sub-Picture stream 24 status
-	       [124-127] Sub-Picture stream 25 status
-	       [128-131] Sub-Picture stream 26 status
-	       [132-135] Sub-Picture stream 27 status
-	       [136-139] Sub-Picture stream 28 status
-	       [140-143] Sub-Picture stream 29 status
-	       [144-147] Sub-Picture stream 30 status
-	       [148-151] Sub-Picture stream 31 status
-	       [152-155] Sub-Picture stream 32 status
+	       [8-11]  Prohibited user operations
+	       [12-13] Audio stream 1 status
+	       [14-15] Audio stream 2 status
+	       [16-17] Audio stream 3 status
+	       [18-19] Audio stream 4 status
+	       [20-21] Audio stream 5 status
+	       [22-23] Audio stream 6 status
+	       [24-25] Audio stream 7 status
+	       [26-27] Audio stream 8 status
+	       [28-31] Sub-picture stream 1 status
+	       [32-35] Sub-picture stream 2 status
+	       [36-39] Sub-picture stream 3 status
+	       [40-43] Sub-picture stream 4 status
+	       [44-47] Sub-picture stream 5 status
+	       [48-51] Sub-picture stream 6 status
+	       [52-55] Sub-picture stream 7 status
+	       [56-59] Sub-picture stream 8 status
+	       [60-63] Sub-picture stream 9 status
+	       [64-67] Sub-picture stream 10 status
+	       [68-71] Sub-picture stream 11 status
+	       [72-75] Sub-picture stream 12 status
+	       [76-79] Sub-picture stream 13 status
+	       [80-83] Sub-picture stream 14 status
+	       [84-87] Sub-picture stream 15 status
+	       [88-91] Sub-picture stream 16 status
+	       [92-95] Sub-picture stream 17 status
+	       [96-99] Sub-picture stream 18 status
+	       [100-103] Sub-picture stream 19 status
+	       [104-107] Sub-picture stream 20 status
+	       [108-111] Sub-picture stream 21 status
+	       [112-115] Sub-picture stream 22 status
+	       [116-119] Sub-picture stream 23 status
+	       [120-123] Sub-picture stream 24 status
+	       [124-127] Sub-picture stream 25 status
+	       [128-131] Sub-picture stream 26 status
+	       [132-135] Sub-picture stream 27 status
+	       [136-139] Sub-picture stream 28 status
+	       [140-143] Sub-picture stream 29 status
+	       [144-147] Sub-picture stream 30 status
+	       [148-151] Sub-picture stream 31 status
+	       [152-155] Sub-picture stream 32 status
 	       [156-157] Next PGC number
 	       [158-159] Previous PGC number
 	       [160-161] Go Up PGC number
 	       [162]	 Still time in seconds
 	       [163]	 PG Playback mode
-	       [164]	 -
+	       [164]	 --
 	       [165-167] Color 0 YCrCB
-	       [168]	 -
+	       [168]	 --
 	       [169-171] Color 1 YCrCB
-	       [172]	 -
+	       [172]	 --
 	       [173-175] Color 2 YCrCB
-	       [176]	 -
+	       [176]	 --
 	       [177-179] Color 3 YCrCB
-	       [180]	 -
+	       [180]	 --
 	       [181-183] Color 4 YCrCB
-	       [184]	 -
+	       [184]	 --
 	       [185-187] Color 5 YCrCB
-	       [188]	 -
+	       [188]	 --
 	       [189-191] Color 6 YCrCB
-	       [192]	 -
+	       [192]	 --
 	       [193-195] Color 7 YCrCB
-	       [196]	 -
+	       [196]	 --
 	       [197-199] Color 8 YCrCB
-	       [200]	 -
+	       [200]	 --
 	       [201-203] Color 9 YCrCB
-	       [204]	 -
+	       [204]	 --
 	       [205-207] Color 10 YCrCB
-	       [208]	 -
+	       [208]	 --
 	       [209-211] Color 11 YCrCB
-	       [212]	 -
+	       [212]	 --
 	       [213-215] Color 12 YCrCB
-	       [216]	 -
+	       [216]	 --
 	       [217-219] Color 13 YCrCB
-	       [220]	 -
+	       [220]	 --
 	       [221-223] Color 14 YCrCB
-	       [224]	 -
+	       [224]	 --
 	       [225-227] Color 15 YCrCB
-	       [228-229] Memory offset of PGC Command Table
-	       [230-231] Memory offset of PGC Program Map
-	       [232-233] Memory offset of Cell Playback Information Table
-	       [234-235] Memory offset of Cell Position Information Table
+	       [228-229] PGC Command Table start byte 
+	       [230-231] PGC Program Map start byte
+	       [232-233] Cell Playback Information Table start byte
+	       [234-235] Cell Position Information Table start byte
 
-	       [mem offset PGC CT] PGC Command Table {
+	       [PGC CT start byte] PGC Command Table {
 	         [0-1]	   Number of Pre Commands
 		 [2-3]	   Number of Post Commands
 		 [4-5]	   Number of Cell Commands
@@ -184,13 +231,13 @@ VMG {
 		 [(8+nr_pre_cmd*8+nr_post_cmd*8)-(8+nr_pre_cmd*8+nr_post_cmd*8+nr_cell_cmd*8-1)] Cell Commands
 	       }
 
-	       [mem offset PGC PM] PGC Program Map {
+	       [PGC PM start byte] PGC Program Map {
 	         for(n = 0; n < nr_of_programs; n++) {
 		  [n] Entry cell number for Program (n+1)
 		 }
 	       }
 
-	       [mem offset Cell Playback IT] Cell Playback IT {
+	       [Cell Playback IT start byte] Cell Playback IT {
 	         for(n = 0, m = 0; n < nr_of_cells; n++, m+=24) {
 		  [(m+0)-(m+1)]   Cell (n+1) category
 		  [(m+2)]         Cell (n+1) still time (seconds, 0xff = Inf.)
@@ -203,11 +250,11 @@ VMG {
 		 }
 	       }
 
-	       [mem offset of Cell Position IT] Cell Position IT {
+	       [Cell Position IT start byte] Cell Position IT {
 	         for(n = 0, m=0; n < nr_of_cells; n++, m+=4) {
-		  [(m+0)-(m+1)] Cell (n+1) has VOB ID %d
-		  [m+2]		--
-		  [m+3]		Cell (n+1) has Cell ID %d
+		   [(m+0)-(m+1)] Cell (n+1) has VOB ID %d
+		   [m+2]	 --
+		   [m+3]	 Cell (n+1) has Cell ID %d
 		 }
 	       }
 	}
@@ -218,6 +265,7 @@ VMG {
 	       [0-1]  Number of Title Unit Search Pointers TTUs in the VTS
 	       [2-3]  --
 	       [4-7]  End byte of PTT_SRPT table
+
 	       for(n=0, m=8; n< number of TTUs; n++, m+=12) Title set (n+1) {
 	         [(m+0)]	Title playback type
 		 [(m+1)]	Number of angles
@@ -236,28 +284,29 @@ VMG {
 	       [2-3]  --
 	       [4-7]  End byte of VMGM_PGCI_LUs table
 	       
-	       for(n=0, m=8; n<Number of VMGM_PGCI_LUs; n++,m+=8) {
+	       for(n=0, m=8; n < Number of VMGM_PGCI_LUs; n++, m+=8) {
 	        [(m+0)-(m+1)]	Video Manager Menu Language Code (ISO-??)
 	        [(m+2)]		--
 	        [(m+3)]		Video Manager Menu Existence mask
 				(VMGM Ayyy yyyy, A == Title menu(2))
-	        [(m+4)-(m+7)]	Video Manager Menu Language Start byte
+	        [(m+4)-(m+7)]	Video Manager Menu Language start byte
 	       }
 (Note 2)	       
-	       [Video Manager Menu Language Start Byte] Video Manager Menu Language Unit Table {
+	       [VMGM LU start byte] Video Manager Menu Language Unit Table {
 	         [0-1]	      Number of VMGM_PGCI_SRP
 		 [2-3]	      --
 		 [4-7]	      End byte of VMGM_LU_EA table
-		 for(n=0,m=8; n< number of VMGM_PGCI_SRP; n++,m+=8) {
-		   [(m+0)]	 VMGM_PGC (n+1) Category Menu mask Xyyy yyyy
+
+		 for(n=0, m=8; n < number of VMGM_PGCI_SRP; n++, m+=8) {
+		  [(m+0)]	 VMGM_PGC (n+1) Category Menu mask Xyyy yyyy
 				 (X==Menu, yyy yyyy==Menu type (see Existence))
-		   [(m+1)]	 VMGM_PGC (n+1) Category
-		   [(m+2)-(m+3)] VMGM_PGC (n+1) Category Parental ID mask
-		   [(m+4)-(m+7)] VMGM_PGCI start byte (n+1)
+		  [(m+1)]	 VMGM_PGC (n+1) Category
+		  [(m+2)-(m+3)] VMGM_PGC (n+1) Category Parental ID mask
+		  [(m+4)-(m+7)] VMGM_PGCI start byte (n+1)
 		 }
 		 
 		 [VMG_PGCI start byte] PGC {
-		 see First Play PGC above
+		  see First Play PGC above
 		 }
 	       }
 	}
@@ -268,11 +317,20 @@ VMG {
 	       [0-1]  Number of Countries
 	       [2-3]  Number of Video Title Sets
 	       [4-7]  End Byte of PTL_MAIT table
-	       for(n=0,m=8; n<number of countries; n++,m+=8) {
-	        [(m+0)-(m+1)]   Country code  (ascii) 
+	       for(n=0, m=8; n < number of countries; n++, m+=8) {
+	        [(m+0)-(m+1)]	Country code (ascii) (ISO-???) 
 		[(m+2)-(m+3)]	--
-		[(m+4)-(m+5)]	Start byte pf PTL_MAI ?? where does this point
+		[(m+4)-(m+5)]	PTL_MAI start byte
 		[(m+6)-(m+7)]	--
+	       }
+
+	       [PTL_MAI start byte] Parental Management Information {
+		 for(n=1; n<=8; n++) {
+		   for(m=0; m<number of Video Title Sets + 1; m++) {
+		     [(m+0)-(m+1)] Parental mask for Parental Level n in VTS m
+				   (m == 0 is for the VMG)
+		   }
+		 }
 	       }
 	}
 
@@ -282,43 +340,43 @@ VMG {
 	       [0-1]   Number of Video Title Sets
 	       [2-3]   --
 	       [4-7]   End byte of VTS_ATR table
-	       for(n=0,m=8; n< number of video title sets; n++, m+=4) {
+	       for(n=0, m=8; n < number of video title sets; n++, m+=4) {
 	         [(m+0)-(m+3)] VTS (n+1) Attribute start byte
 	       }
 
 	       [VTS Attribute start byte] {
-	         [0-3]	      VTS Attribute end byte
-		 [4-7]	      VTS_CAT Application type
-		 [8-9]	      Attributes of VTSM_VOBS  
-		 [10]	      --
-		 [11]	      Number of audio streams in VTSM_VOBS
+	         [0-3]	VTS Attribute end byte
+		 [4-7]	VTS_CAT Application type
+		 [8-9]	Attributes of VTSM_VOBS  
+		 [10]	--
+		 [11]	Number of audio streams in VTSM_VOBS
 		 
 		 /* maybe only 1 loop allowed */
-		 for(n=0,m=12; n< number of audio streams; n++,m+=8) {
-		  [(m+0)-(m+7)]	      Audio (n+1) attributes
+		 for(n=0, m=12; n < number of audio streams; n++, m+=8) {
+		  [(m+0)-(m+7)]	 Audio (n+1) attributes
 		 }
 
-		 [92]	      --
-		 [93]	      Number of subpicture streams
+		 [92]	--
+		 [93]	Number of sub-picture streams
 		 
 		 /* maybe only 1 loop allowed */
-		 for(n=0,m=94; n<number of subpicture streams; n++,m+=6) {
-		  [(m+0)-(m+5)]	       Subpicture stream (n+1) attributes
+		 for(n=0, m=94; n < number of sub-picture streams; n++, m+=6) {
+		  [(m+0)-(m+5)]	 Sub-picture stream (n+1) attributes
 		 }
 
-		 [264-265]    Video Atributes of VTSTT_VOBS
+		 [264-265]    Video Attributes of VTSTT_VOBS
 		 [266]	      --
 		 [267]	      Number of audio streams in VTSTT_VOBS
 		 
-		 for(n=0,m=268; n<nr of audio in VTSTT_VOBS; n++,m+=8) {
-		   [(m+0)-(m+8)]     Audio (n+1) attributes
+		 for(n=0, m=268; n < nr of audio in VTSTT_VOBS; n++, m+=8) {
+		   [(m+0)-(m+8)] Audio (n+1) attributes
 		 }
 		 
 		 [348]	      --
-		 [349]	      Number of subpicture streams in VTSTT_VOBS
+		 [349]	      Number of sub-picture streams in VTSTT_VOBS
 		 
-		 for(n=0,m=350; n < nr of subp in VTSTT_VOBS; n++,m+=6) {
-		   [(m+0)]       Subpicture stream (n+1) attributes
+		 for(n=0, m=350; n < nr of subp in VTSTT_VOBS; n++, m+=6) {
+		   [(m+0)]	 Sub-picture stream (n+1) attributes
 		   [(m+1)-(m+5)] --
 		 }
 	       }
@@ -326,32 +384,33 @@ VMG {
 
 
 
-	[Start sector of VMGM_C_ADT] VMGM Cell Adress Table information {
+	[Start sector of VMGM_C_ADT] VMGM Cell Address Table information {
 	       [0-1]  Number of VOBs in VMGM_VOBS
 	       [2-3]  --
 	       [4-7]  End byte of VMGM_C_ADT table
 	       
-	       for(n=0,m=8; m< end byte of VMGM_C_ADT; n++,m+=12) {
+	       for(n=0, m=8; m < end byte of VMGM_C_ADT; n++, m+=12) {
 	         // table entry (n+1)
-	         [(m+0)-(m+1)] VOB ID
-		 [(m+2)]       Cell ID
-		 [(m+3)]       --
-		 [(m+4)-(m+7)] Start sector
-		 [(m+8)-(m+11)]End sector
+	         [(m+0)-(m+1)]	 VOB ID
+		 [(m+2)]	 Cell ID
+		 [(m+3)]	 --
+		 [(m+4)-(m+7)]	 Start sector
+		 [(m+8)-(m+11)]	 End sector
 	       }
 	}
 
 
 	
-	[Start sector of VMGM_VOBU_ADMAP] Video Title Set Menu VOBU address map table {
+	[Start sector of VMGM_VOBU_ADMAP] VMGM VOBU Address Map table {
 	       [0-3]  End byte of VMGM_VOBU_ADMAP
 
-	       for(n=0,m=4; m<end byte of VMGM_VOBU_ADMAP; n++,m+=4) {
-	        [(m+0)-(m+3)]	  VOBU (n+1) start sector
+	       for(n=0, m=4; m < end byte of VMGM_VOBU_ADMAP; n++, m+=4) {
+	        [(m+0)-(m+3)]	 VOBU (n+1) start sector
 	       }
 	}		 
     }
 }
+
 
 
 
@@ -371,7 +430,7 @@ VTS_XX_X.IFO
     VTS_VOBU_ADMAP:  Video Title Set Menu VOBU Address Map Table
 
 VTS {
-    [0] VTSI MAT: Video Title Set Information Management Table {
+    [0] VTSI_MAT: Video Title Set Information Management Table {
 	[0-11]	     VTS Identifier
 	[12-15]	     Last Sector of VTS
 	[16-27]	     --
@@ -388,14 +447,14 @@ VTS {
 	[96-103]     -- (VMG POS Code)
 	[104-127]    --
 	[128-131]    End byte of VTSI_MAT
-	[132-135]    -- (Start byte of First Play PGC FP PGC)
+	[132-135]    -- (First Play PGC start byte)
 	[136-191]    --
 	[192-195]    Start sector of VTSM_VOBS		(VMGM_VOBS)
 	[196-199]    Start sector of VTSTT_VOBS		(VMG_PTT_SRPT)
 	[200-203]    Start sector of VTS_PTT_SRPT	(VMGM_PGCI_UT)
 	[204-207]    Start sector of VTS_PGCIT		(VMG_PTL_MAIT)
 	[208-211]    Start sector of VTSM_PGCI_UT	(VMG_VTS_ATRT)
-	[212-215]    Start sector of VTS_TMAPT		(VMG_TXTDT_MG)
+	[212-215]    Start sector of VTS_TMAPT		(VMG_TXTDT_MGI)
 	[216-219]    Start sector of VTSM_C_ADT		(VMGM_C_ADT)
 	[220-223]    Start sector of VTSM_VOBU_ADMAP	(VMGM_VOBU_ADMAP)
 	[224-227]    Start sector of VTS_C_ADT		(--)
@@ -404,24 +463,31 @@ VTS {
 	[256-257]    Video attributes of VTSM_VOBS
 	[258]	     -
 	[259]	     Number of audio streams in VTSM_VOBS
-	[260-267]    VTSM audio attributes
-	[268-340]
+
+	for(n=0, m=260; n < nr audio streams in VTSM_VOBS; n++, m+=8) {
+	  [(m+0)-(m+7)]	    VTSM audio (n+1) attributes
+	}
+
+	[324-340]    --
 	[341]	     Number of Sub-picture streams in VTSM
-	[342-347 ?]  VTSM subpicture attributes
-	[348-511]    --
+	for(n=0, m=342; n < nr subp streams in VTSM_VOBS; n++, m+=6) {
+	  [(m+0)-(m+5)]	    VTSM sub-picture stream (n+1) attributes
+	}
+
+	[510-511]    --
 	[512-513]    Video attributes of VTSTT_VOBS
 	[514]	     --
 	[515]	     Number of audio streams in VTSTT_VOBS
-	
-	for(n=0,m=516; n<nr audio streams in VTSTT_VOBS; n++, m+=8) {
+
+	for(n=0, m=516; n < nr audio streams in VTSTT_VOBS; n++, m+=8) {
 	  [(m+0)-(m+7)]	    Audio (n+1) attributes
 	}
-	
+
 	[596]	     --
-	[597]	     Number of subpicture streams in VTSTT_VOBS
+	[597]	     Number of sub-picture streams in VTSTT_VOBS
 	
-	for(n=0,m=598; n <nr subp streams in VTSTT_VOBS; n++;m+=6) {
-	  [(m+0)-(m+5)]	    Subpicture stream (n+1) attributes
+	for(n=0, m=598; n < nr subp streams in VTSTT_VOBS; n++, m+=6) {
+	  [(m+0)-(m+5)]	    Sub-picture stream (n+1) attributes
 	}
 
 	
@@ -431,19 +497,19 @@ VTS {
 	       [2-3]  --
 	       [4-7]  End byte of PTT_SRPT table
 
-	       for(n=0, m=8; n< number of TTUs; n++, m+=4) {
+	       for(n=0, m=8; n < number of TTUs; n++, m+=4) {
 	         [(m+0)-(m+3)]	Starting byte of TTU (n+1)
 	       }
 
 	       [Starting byte of TTU] {
 #if variant
 	        for(m = start_byte_of_ttu;
-		    m < (start_next_ttu &&end_ptt_SRPT);	
+		    m < (start_next_ttu && end_ptt_SRPT);	
 		    m+=4) {
 #else
 	        for(n = 0, m = start_byte_of_ttu;
-		    n < nr of PTTs (from VMG_PTT_SRPTI videots);	
-		    n++,m+=4) {
+		    n < nr of PTTs (from VMG_PTT_SRPTI in VIDEO_TS.IFO);
+		    n++, m+=4) {
 #endif	    
 		    [(m+0)-(m+1)]  Program Chain number PGCN
 		    [(m+2)-(m+3)]  Program number PG
@@ -458,22 +524,22 @@ VTS {
 	       [2-3]  --
 	       [4-7]  End byte of VTSM_PGCI_LUs table
 	       
-	       for(n=0, m=8; n<Number of VTSM_PGCI_LUs; n++,m+=8) {
+	       for(n=0, m=8; n < Number of VTSM_PGCI_LUs; n++, m+=8) {
 	        [(m+0)-(m+1)]	Video Title Set Menu Language Code
 	        [(m+2)]		--
 	        [(m+3)]		Video Title Set Menu Existence mask
 				(VTSM ABCD Eyyy 
-				 A == Root menu(3) B == SubPicture menu(4)
+				 A == Root menu(3) B == Sub-picture menu(4)
 				 C == Audio menu(5) D == Angle menu(6)
 				 E == PTT menu(7) )
-	        [(m+4)-(m+7)]	Video Title Set Menu Language Start byte
+	        [(m+4)-(m+7)]	Video Title Set Menu Language start byte
 	       }
 (Note 2)	       
-	       [Video Title Set Menu Language Start Byte] Video Title Set Menu Language Unit Table {
+	       [VTSM LU start byte] Video Title Set Menu Language Unit {
 	         [0-1]	      Number of VTSM_PGCI_SRP
 		 [2-3]	      --
 		 [4-7]	      End byte of VTSM_LU_EA table
-		 for(n=0,m=8; n< number of VTSM_PGCI_SRP; n++,m+=8) {
+		 for(n=0, m=8; n < number of VTSM_PGCI_SRP; n++, m+=8) {
 		   [(m+0)]	 VTSM_PGC (n+1) Category Menu mask Xyyy yyyy
 				 (X==Menu, yyy yyyy==Menu type (see Existence))
 		   [(m+1)]	 VTSM_PGC (n+1) Category
@@ -482,7 +548,7 @@ VTS {
 		 }
 
 		 [VTSM_PGCI start byte] PGC {
-		 see First Play PGC above
+		  see First Play PGC above
 		 }
 	       }
 	}
@@ -490,7 +556,7 @@ VTS {
 
 
 (Note 2)
-	[Start sector of VTS_PGCITI] Video Title Set Program Chain info Table {
+	[Start sector of VTS_PGCITI] Video Title Set Program Chain Info Table {
 	       [0-1]  Number of VTS_PGCI_SRP
 	       [2-3]  --
 	       [4-7]  End byte of VTS_PGCI table
@@ -504,29 +570,28 @@ VTS {
 	       }
 
 		 [VTS_PGCI start byte] PGC {
-		 see First Play PGC above
+		  see First Play PGC above
 		 }
 	       }
 	}
 
 
 
-
-	[Start sector of VTS_TMAPTI]	Video title set Time Map Table {
+	[Start sector of VTS_TMAPTI] Video Title Set Time Map Table {
 	       [0-1]  Number of VTS_TMAPS
 	       [2-3]  --
 	       [4-7]  End byte of VTS_TMAPS
 
-	       for(n=0,m=8; n<nr_vts_tmaps; n++,m+=4) {
+	       for(n=0, m=8; n < nr_vts_tmaps; n++, m+=4) {
 	        [(m+0)-(m+3)] Time map (n+1) start byte
 	       }
 
-	       [Time map start byte] {
+	       [TMAP start byte] {
 	         [0]     time unit (in seconds)
 		 [1]     --	       
 		 [2-3]	 number of entries in time map
 		 
-		 for(n=0,m=4; n<nr_entries; n++,m+=4) {
+		 for(n=0, m=4; n < nr_entries; n++, m+=4) {
 		  [(m+0)-(m+3)]	   Entry (n+1) at sector
 		    /* Discontinuity if msb set ex: 0x80023c61 */
 		    /*                                ^        */
@@ -536,12 +601,12 @@ VTS {
 
 
 
-	[Start sector of VTSM_C_ADT] VTSM Cell Adress Table  {
+	[Start sector of VTSM_C_ADT] Video Title Set Menu Cell Address Table {
 	       [0-1]  Number of VOBs in VTSM_VOBS
 	       [2-3]  --
 	       [4-7]  End byte of VTSM_C_ADT table
 	       
-	       for(n=0,m=8; m< end byte of VTSM_C_ADT; n++,m+=12) {
+	       for(n=0, m=8; m < end byte of VTSM_C_ADT; n++, m+=12) {
 	         // table entry (n+1)
 	         [(m+0)-(m+1)]	VOB ID
 		 [(m+2)]	Cell ID
@@ -550,20 +615,20 @@ VTS {
 		 [(m+8)-(m+11)]	End sector
 	       }
 	}
-	
 
 
-	[Start sector of VTSM_VOBU_ADMAP] Video Title Set Menu VOBU address map table {
+
+	[Start sector of VTSM_VOBU_ADMAP] Video Title Set Menu VOBU Address Map table {
 	       [0-3]  End byte of VTSM_VOBU_ADMAP
 
-	       for(n=0, m=4; m<end byte of VTSM_VOBU_ADMAP; n++, m+=4) {
+	       for(n=0, m=4; m < end byte of VTSM_VOBU_ADMAP; n++, m+=4) {
 	        [(m+0)-(m+3)]	VOBU (n+1) start sector
 	       }
-	}		 
+	}
 
 
 
-	[Start sector of VTS_C_ADT] VTS Cell Adress Table  {
+	[Start sector of VTS_C_ADT] VTS Cell Address Table  {
 	       [0-1]  Number of VOBs in VTS_VOBS
 	       [2-3]  --
 	       [4-7]  End byte of VTS_C_ADT table
@@ -577,13 +642,13 @@ VTS {
 		 [(m+8)-(m+11)]	End sector
 	       }
 	}
-	
 
 
-	[Start sector of VTS_VOBU_ADMAP] Video Title Set VOBU address map table {
+
+	[Start sector of VTS_VOBU_ADMAP] Video Title Set VOBU Address Map table {
 	       [0-3]  End byte of VTS_VOBU_ADMAP
 
-	       for(n=0,m=4; m<end byte of VTS_VOBU_ADMAP; n++,m+=4) {
+	       for(n=0, m=4; m < end byte of VTS_VOBU_ADMAP; n++, m+=4) {
 	        [(m+0)-(m+3)]	VOBU (n+1) start sector
 	       }
 	}		 
