@@ -471,7 +471,10 @@ AP_maGiC_VALUE
               [
                 have_alsa_final=yes
                 AC_MSG_RESULT([found latest])
-              ])
+              ],
+	      [
+		AC_MSG_RESULT([no])	
+	      ])
           ])
         if test "x$have_alsa_final" = x"yes"; then
                     dnl which symbol should we check for? 
@@ -751,3 +754,63 @@ doc/man/oglerc.5
 doc/man/ogle.1
 dvd_cli/Makefile
 oglerc)
+
+echo "------------------------------------------------------"
+echo "Going to build with the following configuration:"
+
+if test "x$prefix" != xNONE; then
+  echo "  prefix: $prefix"
+else
+  echo "  prefix: $ac_default_prefix"
+fi  
+
+echo ""
+
+if test "x$BUILD_MMX" = x1; then
+   echo "  mmx:           Yes"
+else
+   echo "  mmx:           No"
+fi
+
+if test "x$BUILD_ALTIVEC" = x1; then
+   echo "  altivec:       Yes"
+else
+   echo "  altivec:       No"
+fi
+
+if test "x$BUILD_MLIB" = x1; then
+   echo "  mlib:          Yes"
+else
+   echo "  mlib:          No"
+fi
+
+if test "x$BUILD_XV" = x1; then
+   echo "  Xv:            Yes"
+else
+   echo "  Xv:            No"
+fi
+
+if test "x$BUILD_AUDIO_OSS" = x1; then
+   echo "  oss audio:     Yes"
+else
+   echo "  oss audio:     No"
+fi
+
+if test "x$BUILD_AUDIO_ALSA" = x1; then
+   echo "  alsa audio:    Yes"
+else
+   echo "  alsa audio:    No"
+fi
+
+if test "x$BUILD_AUDIO_SOLARIS" = x1; then
+   echo "  solaris audio: Yes"
+else
+   echo "  solaris audio: No"
+fi
+
+if test "x$BUILD_AUDIO_OBSD" = x1; then
+   echo "  obsd audio:    Yes"
+else
+   echo "  obsd audio:    No"
+fi
+
