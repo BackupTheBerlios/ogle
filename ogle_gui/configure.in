@@ -17,7 +17,7 @@ else
 fi
 
 AC_MSG_CHECKING(for ogle helper dir)
-if test ! -x ${ogle_pkglibdir}/ctrl; then
+if test ! -x ${ogle_pkglibdir}/ogle_ctrl; then
   AC_MSG_RESULT(no)
   AC_MSG_ERROR(You must install ogle and ogle_gui in the same prefix)
 fi
