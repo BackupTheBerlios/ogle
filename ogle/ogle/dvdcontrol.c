@@ -185,7 +185,8 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
 
 /**
  * Get the attributes of the specified audio stream.
- * @todo Implement function.
+ * @todo handle other return events.
+ * @todo add more return values.
  * 
  * @param nav Specifies the connection to the DVD navigator.
  * @param StreamNr Specifies the audio stream which attributes
@@ -245,8 +246,19 @@ DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 
 /** 
  * Get the number of available audio streams and the current
- * @todo handle other events returned.
+ * @todo handle more return events.
+ * @todo more return values.
+ *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamsAvailable Points to where the number of available 
+ * streams will be written.
+ * @param CurrentStream Points to where the current stream will be written.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 			       DVDAudioStream_t *const CurrentStream)
@@ -269,7 +281,17 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 /**
  * Check if an audio stream is enabled
  * @todo Handle other return events
+ * @todo more return values
+ *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specify the audio stream to retrieve information about.
+ * @param Enabled Specifies if the audio stream is enabled or disabled.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				    DVDBool_t *const Enabled)
@@ -350,9 +372,15 @@ DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
 
 
 /**
- * @todo Implement function
+ * Get the number of available subpicture streams and the current one.
+ * @todo handle more return events.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamsAvailable Points to where the number of available 
+ * streams will be written.
+ * @param CurrentStream Points to where the current stream will be written.
+ * @param Display Specifies if the subpicture display is on or off
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -383,9 +411,14 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 
 
 /**
- * @todo Implement function
+ * Checks if the specified subpicture stream is available.
+ * @todo handle other return events
+ * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies the subpicture stream to retrieve information
+ * for.
+ * @param Enabled Specifies if the subpicture stream is enabled or disabled.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -416,11 +449,12 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
 
 /**
  * Get the attributes of the specified subpicture stream.
- * @todo Implement function.
- * 
+ * @todo handle other return events.
+ * @todo more return values.
+ *
  * @param nav Specifies the connection to the DVD navigator.
- * @param StreamNr Specifies the subpicture stream which attributes
- * will be retrieved.
+ * @param StreamNr Specifies which subpicture stream attributes
+ * will be retrieved for.
  * @param Attr Points to where the attributes of the specified
  * subpicture stream will be written.
  *
@@ -871,7 +905,8 @@ DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
 
 
 /** 
- * @todo Implement function.
+ * Jump to the beginning of the next program
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -894,7 +929,8 @@ DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
 
 
 /** 
- * @todo Implement function.
+ * Jump to the beginning of the previous program
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -917,7 +953,8 @@ DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
 
 
 /** 
- * @todo Implement function.
+ * Jump to the beginning of the current PG.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -940,9 +977,11 @@ DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
 
 
 /** 
- * @todo Implement function.
+ * Jump to beginning of the specified ptt in the current title.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param PTT Specifies the PTT
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -964,9 +1003,12 @@ DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
 
 
 /** 
- * @todo Implement function.
+ * Jump to the beginning of the specified ptt in the specified title.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param Title Specifies the Title.
+ * @param PTT Specifies the PTT.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -989,7 +1031,8 @@ DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
 
 
 /** 
- * @todo Implement function.
+ * @todo more return values.
+ * @todo better description.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -1013,7 +1056,8 @@ DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
 
 
 /** 
- * @todo Implement function.
+ * @todo more return values.
+ * @todo better description.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -1037,7 +1081,8 @@ DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
 
 
 /** 
- * @todo Implement function.
+ * @todo more return values.
+ * @todo better description.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -1051,7 +1096,7 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
+  ev.dvdctrl.cmd.type = DVDCtrlTimePlay;
   ev.dvdctrl.cmd.timeplay.title = Title;
   ev.dvdctrl.cmd.timeplay.time = time;
 
@@ -1062,7 +1107,8 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
 
 
 /** 
- * @todo Implement function.
+ * Pause playback.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -1085,7 +1131,8 @@ DVDResult_t DVDPauseOn(DVDNav_t *nav)
 
 
 /** 
- * @todo Implement function.
+ * Resume playback if in pause mode.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
  *
@@ -1149,9 +1196,11 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 
 
 /** 
- * @todo Implement function.
+ * Change the audio stream
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies which audio stream to decode
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -1217,7 +1266,7 @@ DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask
  */
 DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
 {
-return DVD_E_NotImplemented;
+  return DVD_E_NotImplemented;
 }
 
 
@@ -1274,9 +1323,11 @@ DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 
 
 /**
- * @todo Implement function
+ * Change the subpicture stream.
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param SubpictureNr Specifies which subpicture stream to change to.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -1285,14 +1336,37 @@ DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
-				      DVDSubpictureStream_t SubpictureNr,
-				      DVDBool_t display)
+				      DVDSubpictureStream_t SubpictureNr)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamChange;
   ev.dvdctrl.cmd.subpicturestreamchange.streamnr = SubpictureNr;
-  ev.dvdctrl.cmd.subpicturestreamchange.display = display;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/**
+ * Set the display of subpictures on or off.
+ * @todo more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Display Specifies wheter to disaply or hide subpictures.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlSetSubpictureState;
+  ev.dvdctrl.cmd.subpicturestate.display = Display;
   MsgSendEvent(nav->msgq, nav->client, &ev);
   
   return DVD_E_Ok;

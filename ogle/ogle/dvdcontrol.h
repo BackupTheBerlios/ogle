@@ -106,8 +106,8 @@ DVDResult_t DVDVideoPresentationModeChange(DVDNav_t *nav,
 					   DVDDisplayMode_t mode);
 
 DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
-				      DVDSubpictureStream_t SubpictureNr,
-				      DVDBool_t display);
+				      DVDSubpictureStream_t SubpictureNr);
+DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display);
 DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav,
 					       DVDLangID_t Lang);
 
