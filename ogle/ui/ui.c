@@ -150,11 +150,12 @@ int input() {
   int time;
   
   sendcmd = (cmd_t *)&msg.mtext;
-  msg.mtype = MTYPE_CTL;
-  sendcmd->cmdtype = CMD_CTRL_CMD;
 
   fprintf(stderr, "****input()\n");
   while(!feof(infile)) {
+    msg.mtype = MTYPE_CTL;
+    sendcmd->cmdtype = CMD_CTRL_CMD;
+
     fgets(cmdstr, CMDSTR_LEN, infile);
     fprintf(stderr, "****input() got line\n");
     
@@ -204,17 +205,31 @@ int input() {
     } else if(strcmp(tok, "stop") == 0) {
       cmd = CTRLCMD_STOP;
       fprintf(stderr, "****input() stop\n");
+
+
+      /******** debug commands *********/
+
+    } else if(strcmp(tok, "palette") == 0) {
+      int n;
+      msg.mtype = MTYPE_SPU_DECODE;
+      sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
+      cmd = CTRLCMD_STOP;
+      
+      for(n = 0; n < 16; n++) {
+	tok = strtok(NULL, " ");
+	sendcmd->cmd.spu_palette.colors[n] = strtol(tok, NULL, 0);
+      }
       
     }
     
 
     fprintf(stderr, "****input() tok end\n");
-
+    
     if(cmd != CTRLCMD_NONE) {
       // send command
-      
-      sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd;
-      
+      if(msg.mtype == MTYPE_CTL) {
+	sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd;
+      }
       switch(cmd) {
       case CTRLCMD_PLAY:
 	break;
@@ -227,9 +242,11 @@ int input() {
       }
       
       fprintf(stderr, "****input() sent cmd\n");
-      
-      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
-      
+      if(cmd != CTRLCMD_STOP) {
+	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
+      } else {
+	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
+      }
     }
     
   }
