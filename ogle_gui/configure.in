@@ -46,8 +46,17 @@ AC_DEFINE_UNQUOTED(LIBGLADE_LIBDIR, "${LIBGLADE_PREFIX}/lib",
   [Prefix for libglade])
 dnl this should be something different for some bsd (libglade.so.4 i
 dnl think), but I don't know how to check for it properly
-AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.so.0",
-  [Name of the libglade lib (for dlopen)])
+
+case "$host_os" in
+     hpux*)
+	AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.sl.0",
+	[Name of the libglade lib (for dlopen)])
+	;;
+     *)
+	AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.so.0",
+	[Name of the libglade lib (for dlopen)])
+	;;
+esac
 
 AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
   [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
@@ -124,6 +133,9 @@ case "$host_os" in
 		;;
 	linux*)
 		AC_DEFINE(LINUX, 1, [This is a Linux system])
+		;;
+	hpux*)
+		AC_DEFINE(HPUX, 1, [This is a HPUX system])
 		;;
 	*)
 		;;
