@@ -39,9 +39,9 @@ void* xsniff_mouse(void* args) {
 
   while(1) {
     
-
-    DVDNextEvent(nav, &mev);
-
+    if(DVDNextEvent(nav, &mev) != DVD_E_Ok)
+      exit(1);
+    
     switch(mev.type) {
     
       
