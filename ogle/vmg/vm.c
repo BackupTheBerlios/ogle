@@ -55,6 +55,8 @@ dvd_state_t state;
 
 static void saveRSMinfo(int cellN, int blockN);
 static int update_PGN(void);
+static int next_PG(link_t *link_values);
+static int prev_PG(link_t *link_values);
 static link_t play_PGC(void);
 static link_t play_PG(void);
 static link_t play_Cell(void);
@@ -222,21 +224,30 @@ int vm_top_pg(void)
 
 int vm_next_pg(void)
 {
-  // Do we need to get a updated pgN value first?
-  state.pgN += 1; 
-  return vm_top_pg();
+  link_t link_values;
+  
+  if(next_PG(&link_values)) {
+    link_values = process_command(link_values);
+    assert(link_values.command == PlayThis);
+    state.blockN = link_values.data1;
+    return 1; // jump
+  }
+  
+  return 0; // do nothing 
 }
 
 int vm_prev_pg(void)
 {
-  // Do we need to get a updated pgN value first?
-  state.pgN -= 1;
-  if(state.pgN == 0) {
-    // Check for previous PGCN ? 
-    state.pgN = 1;
-    //return 0;
+  link_t link_values;
+
+  if(prev_PG(&link_values)) {
+     link_values = process_command(link_values);
+     assert(link_values.command == PlayThis);
+     state.blockN = link_values.data1;
+     return 1;
   }
-  return vm_top_pg();
+  
+  return 0;
 }
 
 int vm_jump_ptt(int pttN)
@@ -849,7 +860,37 @@ static int update_PGN(void) {
 }
 
 
+static int next_PG(link_t *link_values)
+{  
+  // TODO this is how Sequential PGCs work
+  //      we have to add Random/shuffle behaviour
+  // Does pgN always contain the current value?
+  if(state.pgN == state.pgc->nr_of_programs) {
+    if(get_PGC(state.pgc->next_pgc_nr))
+      return -1; // error / unable to..
+    *link_values = play_PGC();
+  } else {                                                                
+    state.pgN += 1;
+    *link_values = play_PG();
+  }
+  return 0; // ok
+}
 
+static int prev_PG(link_t *link_values)
+{  
+  // TODO this is how Sequential PGCs work
+  //      we have to add Random/shuffle behaviour
+  // Does pgN always contain the current value?  
+  if(state.pgN == 1) {
+    if(get_PGC(state.pgc->prev_pgc_nr))
+      return -1; // error / unable to..
+    *link_values = play_PGC();
+  } else {
+    state.pgN -= 1;
+    *link_values = play_PG();
+  }
+  return 0; // ok
+}
 
 
 static link_t play_PGC(void) 
@@ -1118,26 +1159,12 @@ static link_t process_command(link_t link_values)
       link_values = play_PG();
       break;
     case LinkNextPG:
-      // Does pgN always contain the current value?
-      if(state.pgN == state.pgc->nr_of_programs) {
-	if(get_PGC(state.pgc->prev_pgc_nr))
-	  return do_nothing; // it must do nothing, do not exit...
-	link_values = play_PGC();
-      } else {                                                                
-	state.pgN += 1;
-	link_values = play_PG();
-      }                                                                       
+      if(!next_PG(&link_values))
+	return do_nothing; // it must do nothing, do not exit...
       break;
     case LinkPrevPG:
-      // Does pgN always contain the current value?
-      if(state.pgN == 1) {
-	if(get_PGC(state.pgc->prev_pgc_nr))
-	  return do_nothing; // it must do nothing, do not exit...
-	link_values = play_PGC();
-      } else {                                                                
-	state.pgN -= 1;
-	link_values = play_PG();
-      }                                                                       
+      if(!prev_PG(&link_values))
+	return do_nothing; // it must do nothing, do not exit...
       break;
       
     case LinkTopPGC:
