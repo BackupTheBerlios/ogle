@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 
+#include "parse_config.h"
 #include "audio_config.h"
 
 audio_config_t *audio_config_init(void)
@@ -60,7 +61,14 @@ int audio_config(audio_config_t *aconf,
     fprintf(stderr, "ao_drivers passed\n");
     if(!aconf->adev_handle) {
       if(drivers[0].open != NULL) {
-	aconf->adev_handle = ogle_ao_open(drivers[0].open, "/dev/audio");
+	char *dev_string = get_audio_device();
+	fprintf(stderr, "trying audio driver %s\n", drivers[0].name);
+	aconf->adev_handle = ogle_ao_open(drivers[0].open, dev_string);
+	if(!aconf->adev_handle) {
+	  fprintf(stderr, "failed opening the %s audio driver at %s\n",
+		  drivers[0].name, dev_string);
+	  exit(1);
+	}
       } else {
 	fprintf(stderr, "ogle_ao_open not taken, no audio ouput driver!\n");
       }
