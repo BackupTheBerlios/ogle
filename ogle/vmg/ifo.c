@@ -79,10 +79,6 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
     fprintf(stdout, "\n\n");
 #endif
 
-void hexdump(uint8_t *ptr, int len) {
-  while(len--)
-    fprintf(stdout, "%02x ", *ptr++);
-}
 
 int debug = 10;
 uint8_t my_friendly_zeros[2048];
@@ -543,7 +539,7 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   PUT(5, "Number of Pre commands: %i\n", cmd_tbl->nr_of_pre);
   {
     int i;
-    for(i=0;i<cmd_tbl->nr_of_post;i++) {
+    for(i=0;i<cmd_tbl->nr_of_pre;i++) {
       ifoPrint_COMMAND(cmd_tbl->pre_commands[i]);
     }
   }
@@ -735,6 +731,11 @@ void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
   }
 }
 
+void hexdump(uint8_t *ptr, int len) {
+  while(len--)
+    PUT(5, "%02x ", *ptr++);
+}
+
 void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait) {
   
   PUT(5, "Number of Countries: %i\n", ptl_mait->nr_of_countries);
@@ -762,7 +763,7 @@ void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait) {
 	hexdump( (uint8_t *)ptl_mait->countries - 8 
 		 + ptl_mait->countries[i].start_byte_of_pf_ptl_mai
 		 + j*(ptl_mait->nr_of_vtss+1)*2, (ptl_mait->nr_of_vtss+1)*2);
-	fprintf(stdout,"\n");
+	PUT(5, "\n");
       }
     }
   }
@@ -894,7 +895,7 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
        b == 0x84 "Sub-Picture"
        c == 0x85 "Audio"
        d == 0x86 "Angle"
-       e == 0x87 "Part of Title"
+       e == 0x87 "PTT (Part of Title?)"
     */
     pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
     ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit,
