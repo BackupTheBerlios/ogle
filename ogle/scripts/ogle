@@ -40,7 +40,8 @@ DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
 export DVDP_CLI_UI
 DVDP_UI=$DVDP_ROOT/ogle_gui
 export DVDP_UI
-DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
+#DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
+DVDP_AC3=$DVDP_ROOT/a52_decoder
 export DVDP_AC3
 DVDP_MPEGAUDIO=$DVDP_ROOT/mpg123_wrap
 export DVDP_MPEGAUDIO
