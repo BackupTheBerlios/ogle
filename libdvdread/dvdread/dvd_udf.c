@@ -74,6 +74,7 @@ struct AD {
 		  | ((uint32_t)data[(p) + 1] << 8) \
 		  | ((uint32_t)data[(p) + 2] << 16) \
 		  | ((uint32_t)data[(p) + 3] << 24))
+/* This is wrong with regard to endianess */
 #define GETN(p, n, target) memcpy(target, &data[p], n)
 
 static int Unicodedecode( uint8_t *data, int len, char *target ) 
@@ -180,6 +181,13 @@ static int UDFFileEntry( uint8_t *data, uint8_t *FileType, struct AD *ad )
 
     UDFICB( &data[ 16 ], &filetype, &flags );
     *FileType = filetype;
+    
+    /* Init ad for an empty file (i.e. there isn't a AD, L_AD == 0 ) */
+    ad->Length = GETN4( 60 ); // Really 8 bytes a 56
+    ad->Flags = 0;
+    ad->Location = 0; // what should we put here? 
+    ad->Partition = partition.Number;  // use number of current partition
+
     L_EA = GETN4( 168 );
     L_AD = GETN4( 172 );
     p = 176 + L_EA;
@@ -447,6 +455,11 @@ unsigned long int UDFFindFile( dvd_reader_t *device, char *filename,
         token = strtok( NULL, "/" );
     }
     *filesize = File.Length;
-    return partition.Start + File.Location;
+    
+    /* Hack to not return partition.Start for empty files. */
+    if( !File.Location )
+      return 0;
+    else
+      return partition.Start + File.Location;
 }
 
