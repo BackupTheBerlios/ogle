@@ -25,11 +25,22 @@
 	<name>default</name>
       </alsa>
     </device>
+<!-- if you have a multichannel card, uncomment/edit this part 
     <speakers>
-      <front>2</front>
-      <rear>0</rear>
-      <sub>0</sub>
+      <channel_config>
+	<chtype>Left</chtype>
+	<chtype>Right</chtype>
+      </channel_config>	
+      <channel_config>
+	<chtype>Left</chtype>
+	<chtype>Right</chtype>
+	<chtype>RearLeft</chtype>
+	<chtype>RearRight</chtype>
+	<chtype>Center</chtype>
+	<chtype>LFE</chtype>
+      </channel_config>	
     </speakers>
+-->
     <liba52>
       <downmix_level>1.5</downmix_level>
       <drc>no</drc>

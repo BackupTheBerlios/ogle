@@ -38,6 +38,9 @@ typedef struct {
   int *channel_conf;
 } conversion_t;
 
+static ChannelType_t ch_transform[10];
+static int src_ch;
+static int dst_ch;
 static int conversion_routine = 0;
 
 void setup_channel_conf(int *ch_conf, int nr_ch, int *input_ch, int *output_ch)
@@ -55,16 +58,18 @@ void setup_channel_conf(int *ch_conf, int nr_ch, int *input_ch, int *output_ch)
   
 }
 
-int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
+int init_sample_conversion(adec_handle_t *h,
+			   audio_format_t *src_format,
 			   int nr_samples)
 {
   // nr samples, the max number of samples that will be converted
   // between each play
-  int size = h->config->format.nr_channels * h->config->format.sample_resolution;
-  //int size = h->config->format.sample_frame_size;
-  //fprintf(stderr, "size: %u\n", size);
-  if(h->output_buf_size < nr_samples * size) {
-    h->output_buf_size = nr_samples * size;
+  int m;
+  int n;
+  int output_frame_size = h->config->dst_format.sample_frame_size;
+
+  if(h->output_buf_size < nr_samples * output_frame_size) {
+    h->output_buf_size = nr_samples * output_frame_size;
     h->output_buf = realloc(h->output_buf, h->output_buf_size);
     if(h->output_buf == NULL) {
       FATAL("init_sample_conversion, realloc failed\n");
@@ -74,10 +79,29 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   //fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
   //fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
   h->output_buf_ptr = h->output_buf;
-  
+
+  dst_ch = h->config->dst_format.nr_channels;
+  src_ch = src_format->nr_channels;
+  if(dst_ch > 10) {
+    FATAL("*** more than 10 channels\n");
+    exit(1);
+  }
+  for(n = 0; n < h->config->dst_format.nr_channels; n++) {
+    for(m = 0; m < src_format->nr_channels; m++) {
+      if(h->config->dst_format.ch_array[n] == src_format->ch_array[m]) {
+	ch_transform[n] = m;
+	break;
+      }
+    }
+    if(m == src_format->nr_channels) {
+      //type not in src
+      ch_transform[n] = -1;
+    }
+  }
+
   // setup the conversion functions
   // from the sample buffer format to the output buffer format
-  switch(format->sample_format) {
+  switch(src_format->sample_format) {
   case SampleFormat_A52float:
     conversion_routine = 0;
     break;
@@ -90,7 +114,7 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   case SampleFormat_Unsigned:
   default:
     FATAL("init_conversion: SampleFormat %d not supported\n",
-	  format->sample_format);
+	  src_format->sample_format);
     break;
   }
   return 0;
@@ -112,16 +136,22 @@ static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
 				int nr_channels, int *channels)
 {
   int i;
+  int n;
   int32_t *f = (int32_t *)_f;
   
   // assert(nr_channels == 2);    
   // assert(nr_samples == 256);
 
   for (i = 0; i < nr_samples; i++) {
-    s16[2*i] = convert(f[i]);
-    s16[2*i+1] = convert(f[i+256]);
+    for(n = 0; n < dst_ch; n++) {
+      if(ch_transform[n] != -1) {
+	s16[dst_ch*i+n] = convert(f[i+ch_transform[n]*256]);
+      } else {
+	s16[dst_ch*i+n] = 0;
+      }
+    }
   }
-
+  
   
   return 0;
 }
@@ -192,7 +222,7 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
   case 0:
     convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
 			     nr_samples, 2, NULL);
-    h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
+    h->output_buf_ptr += 2*dst_ch*nr_samples; // 2byte per sample
     break;
   case 1:
     convert_s16be_to_s16ne(samples, (int16_t *)h->output_buf_ptr,

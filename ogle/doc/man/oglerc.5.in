@@ -63,9 +63,18 @@ DVD-ROM drive.
       </alsa>
     </device>
     <speakers>
-      <front>2</front>
-      <rear>0</rear>
-      <sub>0</sub>
+      <channel_config>
+	<chtype>Left</chtype>
+	<chtype>Right</chtype>
+      </channel_config>	
+      <channel_config>
+	<chtype>Left</chtype>
+	<chtype>Right</chtype>
+	<chtype>RearLeft</chtype>
+	<chtype>RearRight</chtype>
+	<chtype>Center</chtype>
+	<chtype>LFE</chtype>
+      </channel_config>	
     </speakers>
     <liba52>
       <downmix_level>1.5</downmix_level>
@@ -86,6 +95,26 @@ DVD-ROM drive.
 <alsa><name>
   The name of the alsa device when using alsa.
 
+<speakers>
+.RS 2
+Here you can define what audio channels should be played on your audio card.
+An empty speakers will try to get the info from the soundcard, not many cards that support this.
+.br
+<channel_config>
+.RS 4
+Defines a set of channels (number and types)
+Several channel_configs can be used in which case the first matching will
+be chosen. If none matches the last config will be used.
+.br
+<chtype>
+.RS 2
+Defines the type of the channel. Can be one of:
+.br
+Left, Right, Center, LFE, RearLeft, RearRight, RearCenter, 0.
+.br
+Where 0 represents a channel that should be written just silence to.
+The order of the chtypes is the order of the channels on the soundcard.
+.RE
 <liba52>
 .RS 2
 Contains liba52 specific settings (for ac3 audio)

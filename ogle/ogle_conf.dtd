@@ -23,11 +23,9 @@
 <!ELEMENT offset (#PCDATA)>
 <!ELEMENT sync (type|resample|offset)*>
 
-<!ELEMENT front (#PCDATA)>
-<!ELEMENT rear (#PCDATA)>
-<!ELEMENT sub (#PCDATA)>
-<!ELEMENT dolby (#PCDATA)>
-<!ELEMENT speakers (front | rear | sub | dolby)*>
+<!ELEMENT chtype (#PCDATA)>
+<!ELEMENT channel_config (chtype)*>
+<!ELEMENT speakers (channel_config)*>
 <!ELEMENT audio (device | speakers | liba52 | sync)*>
 
 <!ELEMENT name (#PCDATA)>

@@ -40,11 +40,14 @@ static
 int null_init(ogle_ao_instance_t *_instance,
 	      ogle_ao_audio_info_t *audio_info)
 {
+  int single_sample_size;
   null_instance_t *instance = (null_instance_t *)_instance;
   
+#if 0
   if(instance->initialized) {
     return -1;  // for now we must close and open the device for reinit
   }
+#endif
 
   switch(audio_info->encoding) {
   case OGLE_AO_ENCODING_LINEAR:
@@ -54,16 +57,39 @@ int null_init(ogle_ao_instance_t *_instance,
     /* not supported */
     return -1;
   }
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    // do this only if we have requested specific channels in chtypes
+    // otherwise trust the nr channels
+    
+    audio_info->chtypes = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+    audio_info->channels = 2;
+  }
+  if(audio_info->chlist) {
+    free(audio_info->chlist);
+  }
+  audio_info->chlist = NULL;
   
-  instance->sample_rate = audio_info->sample_rate;
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    audio_info->channels = 2;
+    audio_info->chlist = malloc(audio_info->channels *
+				sizeof(ogle_ao_chtype_t));
+    
+    audio_info->chlist[0] = OGLE_AO_CHTYPE_LEFT;
+    audio_info->chlist[1] = OGLE_AO_CHTYPE_RIGHT;
+  }
 
-  instance->sample_frame_size =
-     audio_info->channels * (audio_info->sample_resolution + 7) / 8;
+  instance->sample_rate = audio_info->sample_rate;
+  
+  single_sample_size = (audio_info->sample_resolution + 7) / 8;
+  if(single_sample_size > 2) {
+    single_sample_size = 4;
+  }
+  instance->sample_frame_size = 
+    audio_info->channels * single_sample_size;
 
   audio_info->sample_frame_size = instance->sample_frame_size;
 
   instance->initialized = 1;
-
   
   return 0;
 }
@@ -81,7 +107,7 @@ int null_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
 static
 int null_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 {
-  null_instance_t *instance = (null_instance_t *)_instance;
+  //null_instance_t *instance = (null_instance_t *)_instance;
   
   /* We'll get strange sync if we do it like this.  We'd have to take
    * a time stamp and then calculate from the current time and sample
@@ -98,13 +124,13 @@ int null_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 static
 void null_close(ogle_ao_instance_t *_instance)
 {
-  null_instance_t *instance = (null_instance_t *)_instance;
+  //null_instance_t *instance = (null_instance_t *)_instance;
 }
 
 static
 int null_flush(ogle_ao_instance_t *_instance)
 {
-  null_instance_t *instance = (null_instance_t *)_instance;
+  //null_instance_t *instance = (null_instance_t *)_instance;
   
   return 0;
 }
@@ -112,7 +138,7 @@ int null_flush(ogle_ao_instance_t *_instance)
 static
 int null_drain(ogle_ao_instance_t *_instance)
 {
-  null_instance_t *instance = (null_instance_t *)_instance;
+  //null_instance_t *instance = (null_instance_t *)_instance;
   
   return 0;
 }

@@ -60,6 +60,19 @@ int obsd_init(ogle_ao_instance_t *_instance,
   AUDIO_INITINFO(&info);
   info.play.sample_rate = audio_info->sample_rate;
   info.play.precision   = audio_info->sample_resolution;
+
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    // do this only if we have requested specific channels in chtypes
+    // otherwise trust the nr channels
+    
+    audio_info->chtype = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+    audio_info->channels = 2;
+  }
+  if(audio_info->chlist) {
+    free(audio_info->chlist);
+  }
+  audio_info->chlist = NULL;
+
   info.play.channels = audio_info->channels;
   info.lowat = 5;
   switch(audio_info->encoding) {
@@ -77,6 +90,13 @@ int obsd_init(ogle_ao_instance_t *_instance,
   
   /* Check that we actually got the requested nuber of channles,
    * the frequency and precision that we asked for?  */
+
+  if(audio_info->chtype != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    audio_info->chlist = malloc(info.play.channels * sizeof(ogle_ao_chtype_t));
+    
+    audio_info->chlist[0] = OGLE_AO_CHTYPE_LEFT;
+    audio_info->chlist[1] = OGLE_AO_CHTYPE_RIGHT;
+  }
   
   /* Stored as 8bit, 16bit, or 32bit */
   single_sample_size = (info.play.precision + 7) / 8;

@@ -37,6 +37,20 @@ typedef enum {
 #endif
 } ogle_ao_byteorder_t;
 
+typedef enum {
+  OGLE_AO_CHTYPE_UNSPECIFIED = 0x0,
+  OGLE_AO_CHTYPE_NULL        = 0x1,
+  OGLE_AO_CHTYPE_MONO        = 0x2,
+  OGLE_AO_CHTYPE_LEFT        = 0x4,
+  OGLE_AO_CHTYPE_RIGHT       = 0x8,
+  OGLE_AO_CHTYPE_CENTER      = 0x10,
+  OGLE_AO_CHTYPE_REARLEFT    = 0x20,
+  OGLE_AO_CHTYPE_REARCENTER  = 0x40,
+  OGLE_AO_CHTYPE_REARRIGHT   = 0x80,
+  OGLE_AO_CHTYPE_REARMONO    = 0x100,  //mono surround
+  OGLE_AO_CHTYPE_LFE         = 0x200
+} ogle_ao_chtype_t;
+
 /* A sample is a number representing the sound at a specific time.
  * The sample_resolution is the number of bits that encode information
  * in the sample.
@@ -54,6 +68,8 @@ typedef struct {
   int32_t sample_rate;        // samples per second
   int32_t sample_resolution;  // bits per sample
   int32_t channels;           // number of channels (1 = mono, 2 = stereo,...)
+  ogle_ao_chtype_t chtypes;   // the combined types of channels
+  ogle_ao_chtype_t *chlist;    // gives the position and type of each channel
   ogle_ao_encoding_t encoding; // ( linear, ulaw, ac3, mpeg, ... )
   uint32_t sample_frame_size;  // the size in bytes of one sample frame
   ogle_ao_byteorder_t byteorder;  // the endianess of the samples

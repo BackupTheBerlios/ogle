@@ -60,62 +60,62 @@ typedef struct {
 static
 int a52flags_to_channels(int flags)
 {
-  int ch = 0;
+  ChannelType_t chtypemask = 0;
   
   switch(flags & A52_CHANNEL_MASK) {
   case A52_CHANNEL:
     //TODO ???
-    ch = ChannelType_Left | ChannelType_Right;
+    chtypemask = ChannelType_Left | ChannelType_Right;
     break;
   case A52_MONO:
-    ch = ChannelType_Center;
+    chtypemask = ChannelType_Center;
     break;
   case A52_STEREO:
   case A52_DOLBY:
-    ch = ChannelType_Left | ChannelType_Right;
+    chtypemask = ChannelType_Left | ChannelType_Right;
     break;
   case A52_3F:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right;
+    chtypemask = ChannelType_Left | ChannelType_Center | ChannelType_Right;
     break;
   case A52_2F1R:
-    ch = ChannelType_Left | ChannelType_Right | ChannelType_Surround;
+    chtypemask = ChannelType_Left | ChannelType_Right | ChannelType_Surround;
     break;
   case A52_3F1R:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right | 
+    chtypemask = ChannelType_Left | ChannelType_Center | ChannelType_Right | 
       ChannelType_Surround;
     break;
   case A52_2F2R:
-    ch = ChannelType_Left | ChannelType_Right | 
+    chtypemask = ChannelType_Left | ChannelType_Right | 
       ChannelType_LeftSurround | ChannelType_RightSurround;
     break;
   case A52_3F2R:
-    ch = ChannelType_Left | ChannelType_Center | ChannelType_Right |
+    chtypemask = ChannelType_Left | ChannelType_Center | ChannelType_Right |
       ChannelType_LeftSurround | ChannelType_RightSurround;
     break;
     
   }
   
   if(flags & A52_LFE) {
-    ch |= ChannelType_LFE;
+    chtypemask |= ChannelType_LFE;
   }
   
-  return ch;
+  return chtypemask;
 }
 
 static
 int config_to_a52flags(audio_config_t *conf)
 {
   int i;
-  int ch = 0;
+  ChannelType_t chtypemask = 0;
   int hasLFE = 0;
 
-  for(i = 0; i < conf->format.nr_channels; i++) {
-    if(conf->format.ch_array[i] == ChannelType_LFE)
+  for(i = 0; i < conf->dst_format.nr_channels; i++) {
+    if(conf->dst_format.ch_array[i] == ChannelType_LFE)
       hasLFE = A52_LFE;
     else
-      ch |= conf->format.ch_array[i];
+      chtypemask |= conf->dst_format.ch_array[i];
   }
-  switch(ch) {
+  switch(chtypemask) {
   case ChannelType_Center:
     return A52_MONO | hasLFE;
   case ChannelType_Left | ChannelType_Right:
@@ -255,7 +255,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	handle->bytes_needed = frame_len - 7;
 	if((new_availflags != handle->availflags) || 
 	   (new_sample_rate != handle->sample_rate)) {
-	  int ch;
+	  ChannelType_t chtypemask;
 	  
 	  //fprintf(stderr, "new flags\n");
 
@@ -264,8 +264,9 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	  
 	  //change a52 flags to generic channel flags
 	  
-	  ch = a52flags_to_channels(handle->availflags);
-	  audio_config(handle->handle.config, ch, handle->sample_rate, 16);
+	  chtypemask = a52flags_to_channels(handle->availflags);
+	  audio_config(handle->handle.config, chtypemask,
+		       handle->sample_rate, 16);
 	  //change config into a52dec flags
 	  handle->output_flags = config_to_a52flags(handle->handle.config);
 	}
@@ -314,7 +315,8 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	
 	a52flags_to_format(flags, &new_format.nr_channels,
 			   &new_format.ch_array);
-      
+	fprintf(stderr, "nr_ch: %d\n",
+		new_format.nr_channels);
 	new_format.sample_rate = handle->sample_rate;
 	new_format.sample_resolution = 16;
 	new_format.sample_format = SampleFormat_A52float;

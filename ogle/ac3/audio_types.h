@@ -1,8 +1,8 @@
-#ifndef PARSE_CONFIG_H
-#define PARSE_CONFIG_H
+#ifndef AUDIO_TYPES_H
+#define AUDIO_TYPES_H
 
 /* Ogle - A video player
- * Copyright (C) 2000, 2001, 2002 Björn Englund, Håkan Hjort
+ * Copyright (C) 2002 Björn Englund
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -19,26 +19,18 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include "audio_types.h"
+typedef enum {
+  ChannelType_Unspecified = -1,
+  ChannelType_Null = 0,
+  ChannelType_Left = 1,
+  ChannelType_Right = 2,
+  ChannelType_Center = 4,
+  ChannelType_LeftSurround = 8,
+  ChannelType_RightSurround = 16,
+  ChannelType_LFE = 64,
+  ChannelType_Surround = 32,
+  ChannelType_CenterSurround = 128,
+  ChannelType_Mono = 256
+} ChannelType_t;
 
-typedef struct {
-  int nr_ch;
-  ChannelType_t *chtype;
-} channel_config_t;
-
-int parse_config(void);
-
-char *get_audio_device(void);
-char *get_audio_driver(void);
-char *get_audio_alsa_name(void);
-
-int get_channel_configs(channel_config_t **conf);
-
-double get_a52_level(void);
-int get_a52_drc(void);
-
-char *get_sync_type(void);
-int get_sync_resample(void);
-int get_sync_offset(void);
-
-#endif /* PARSE_CONFIG_H */
+#endif /* AUDIO_TYPES_H */

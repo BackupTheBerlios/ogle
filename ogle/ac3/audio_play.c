@@ -345,8 +345,8 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 		  TIME_S(t2), TIME_SS(t2));
 	  } else { 
 	    //fprintf(stderr, "(%d)", delay);
-	    if(TIME_S(t2) == 0 || TIME_SS(t2) > 0) {
-	      fprintf(stderr, "+");
+	    if(TIME_SS(t2) > 0) {
+	      fprintf(stderr, "/");
 	    } else {
 	      fprintf(stderr, "-");
 	    }
@@ -387,7 +387,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
       bytes_to_write = h->output_buf_ptr - h->output_buf;
       ogle_ao_play(h->config->adev_handle, h->output_buf,
 		   bytes_to_write);  
-      
+
       TIME_S(in_outputbuf) =
 	((int64_t)(bytes_to_write / h->config->ainfo->sample_frame_size) * 
 	 (int64_t)CT_FRACTION / h->config->ainfo->sample_rate) /

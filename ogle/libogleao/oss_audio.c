@@ -154,12 +154,73 @@ int oss_init(ogle_ao_instance_t *_instance,
       break;
     }
   }
+  
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    // do this only if we have requested specific channels in chtypes
+    // otherwise trust the nr channels
+    int chmask;
+    if(ioctl(instance->fd, SNDCTL_DSP_GETCHANNELMASK, &chmask) == -1) {
+      //driver doesn't support this, assume it does 2ch stereo
+      perror("SNDCTL_DSP_GETCHANNELMASK");
+      audio_info->chtypes = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+      audio_info->channels = 2;
+    } else {
+      ogle_ao_chtype_t chtypes = 0;
+      int nr_ch = 0;
+
+      audio_info->channels = 0;
+
+      if(chmask & DSP_BIND_FRONT) {
+	nr_ch += 2;
+	chtypes |= OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+      }
+      if((audio_info->chtypes & chtypes) == audio_info->chtypes) {
+	//we don't have all needed types
+	if(chmask & DSP_BIND_SURR) {
+	  nr_ch += 2;
+	  chtypes |= OGLE_AO_CHTYPE_REARLEFT | OGLE_AO_CHTYPE_REARRIGHT;
+	}
+	
+	if((audio_info->chtypes & chtypes) != audio_info->chtypes) {
+	  //we don't have all needed types
+	  if(chmask & DSP_BIND_CENTER_LFE) {
+	    nr_ch += 2;
+	    chtypes |= OGLE_AO_CHTYPE_CENTER | OGLE_AO_CHTYPE_LFE;
+	  }
+	}
+      }
+      audio_info->chtypes = chtypes;
+      audio_info->channels = nr_ch;
+    }
+  }
+  if(audio_info->chlist) {
+    free(audio_info->chlist);
+    audio_info->chlist = NULL;
+  }
 
   number_of_channels = audio_info->channels;
   if(ioctl(instance->fd, SNDCTL_DSP_CHANNELS, &number_of_channels) == -1) {
     perror("SNDCTL_DSP_CHANNELS");
     audio_info->channels = -1;
     return -1;
+  }
+
+  if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
+    audio_info->chlist = malloc(number_of_channels * sizeof(ogle_ao_chtype_t));
+    if(number_of_channels > 0) {
+      audio_info->chlist[0] = OGLE_AO_CHTYPE_LEFT;
+      if(number_of_channels > 1) {
+	audio_info->chlist[1] = OGLE_AO_CHTYPE_RIGHT;
+	if(number_of_channels > 2) {
+	  audio_info->chlist[2] = OGLE_AO_CHTYPE_REARLEFT;
+	  audio_info->chlist[3] = OGLE_AO_CHTYPE_REARRIGHT;
+	  if(number_of_channels > 4) {
+	    audio_info->chlist[4] = OGLE_AO_CHTYPE_CENTER;
+	    audio_info->chlist[5] = OGLE_AO_CHTYPE_LFE;
+	  }
+	}
+      }
+    }
   }
   instance->channels = number_of_channels;
 

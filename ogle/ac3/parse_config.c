@@ -29,14 +29,16 @@
 #include <libxml/parser.h>
 
 #include "debug_print.h"
-
+#include "audio_types.h"
+#include "parse_config.h"
 
 /* Put all of these in a struct that is returned instead */
 static char *audio_device = NULL;
-/* number of speakers */
-static int front = 2;
-static int rear = 0;
-static int sub = 0;
+
+/* speaker config */
+
+static channel_config_t *ch_conf = NULL;
+static int nr_ch_conf = 0;
 
 /* liba52 specific config */
 static double a52_level = 1;
@@ -130,22 +132,15 @@ static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
   }
 }
 
-int get_num_front_speakers(void)
+int get_channel_configs(channel_config_t **conf)
 {
-  return front;
+  *conf = ch_conf;
+  return nr_ch_conf;
 }
 
-int get_num_rear_speakers(void)
-{
-  return rear;
-}
 
-int get_num_sub_speakers(void)
-{
-  return sub;
-}
-
-static void parse_speakers(xmlDocPtr doc, xmlNodePtr cur)
+static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
+				 channel_config_t *conf)
 {
   xmlChar *s = NULL;
   
@@ -154,17 +149,38 @@ static void parse_speakers(xmlDocPtr doc, xmlNodePtr cur)
   while(cur != NULL) {
     
     if(!xmlIsBlankNode(cur)) {
-      if(!strcmp("front", cur->name)) {
+      if(!strcmp("chtype", cur->name)) {	
 	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-          front = atoi(s);
-	}
-      } else if(!strcmp("rear", cur->name)) {
-	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-          rear = atoi(s);
-	}
-      } else if(!strcmp("sub", cur->name)) {
-	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-          sub = atoi(s);
+	  ChannelType_t ct;
+          if(!strcmp("Left", s)) {
+	    ct = ChannelType_Left;
+	  } else if(!strcmp("Right", s)) {
+	    ct = ChannelType_Right;
+	  } else if(!strcmp("Center", s)) {
+	    ct = ChannelType_Center;
+	  } else if(!strcmp("RearRight", s)) {
+	    ct = ChannelType_RightSurround;
+	  } else if(!strcmp("RearLeft", s)) {
+	    ct = ChannelType_LeftSurround;
+	  } else if(!strcmp("LFE", s)) {
+	    ct = ChannelType_LFE;
+	  } else if(!strcmp("RearCenter", s)) {
+	    ct = ChannelType_CenterSurround;
+	  } else if(!strcmp("0", s)) {
+	    ct = ChannelType_Null;
+	  } else {
+	    ct = ChannelType_Unspecified;
+	    WARNING("'%s' is not a valid <chtype>\n", s); 
+	  }
+	  
+	  if(ct != ChannelType_Unspecified) {
+	    conf->nr_ch++;
+	    conf->chtype = realloc(conf->chtype,
+				   sizeof(ChannelType_t) * conf->nr_ch);
+	    conf->chtype[conf->nr_ch-1] = ct;
+	  }
+	} else {
+	  WARNING("<chtype> is empty\n"); 
 	}
       }
       if(s) {
@@ -175,6 +191,40 @@ static void parse_speakers(xmlDocPtr doc, xmlNodePtr cur)
   }
 }
 
+
+static void parse_speakers(xmlDocPtr doc, xmlNodePtr cur)
+{
+  cur = cur->xmlChildrenNode;
+  
+  //override old information
+  if(ch_conf) {
+    int n;
+    for(n = 0; n < nr_ch_conf; n++) {
+      if(ch_conf[n].chtype) {
+	free(ch_conf[n].chtype);
+	ch_conf[n].chtype = NULL;
+	ch_conf[n].nr_ch = 0;
+      }
+    }
+    free(ch_conf);
+    ch_conf = NULL;
+    nr_ch_conf = 0;
+  }
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("channel_config", cur->name)) {
+	nr_ch_conf++;
+	ch_conf = realloc(ch_conf, sizeof(channel_config_t) * nr_ch_conf);
+	ch_conf[nr_ch_conf-1].nr_ch = 0;
+	ch_conf[nr_ch_conf-1].chtype = NULL;
+	parse_channel_config(doc, cur, &ch_conf[nr_ch_conf-1]);
+      }
+    }
+    cur = cur->next;
+  }
+}
 
 
 double get_a52_level(void)

@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "audio_types.h"
 #include "parse_config.h"
 #include "audio_config.h"
 
@@ -34,8 +35,8 @@ audio_config_t *audio_config_init(void)
   conf = malloc(sizeof(audio_config_t));
   memset(conf, 0, sizeof(audio_config_t));
   
-  conf->format.nr_channels = 0;
-  conf->format.ch_array = NULL;
+  conf->dst_format.nr_channels = -1;
+  conf->dst_format.ch_array = NULL;
   conf->adev_handle = NULL;
   conf->ainfo = NULL;
   
@@ -62,27 +63,81 @@ audio_config_t *audio_config_init(void)
   return conf;
 }
 
-int audio_config(audio_config_t *aconf,
-		 int channels, int sample_rate, int sample_resolution)
+
+channel_config_t *get_config(ChannelType_t chtypemask_wanted)
 {
+  channel_config_t *configs;
+  int nr_configs;
+  channel_config_t *chconf = NULL;
+  int n;
+  ChannelType_t chtypemask_avail = 0;
+
+  nr_configs = get_channel_configs(&configs);
+  
+  for(n = 0; n < nr_configs; n++) {
+    int m;
+    int nr_ch;
+    
+    chtypemask_avail = 0;
+    nr_ch = configs[n].nr_ch;
+    for(m = 0; m < nr_ch; m++) {
+      chtypemask_avail |= configs[n].chtype[m];
+    }
+    if((chtypemask_avail & chtypemask_wanted) == chtypemask_wanted) {
+      chconf = &configs[n];
+      break;
+    }
+  }
+  if((!chconf) && (nr_configs > 0)) {
+    chconf = &configs[nr_configs-1];
+  }
+
+  return chconf;
+}
+
+void free_config(channel_config_t *conf)
+{
+  return;
+
+  if(conf) {
+    if(conf->chtype) {
+      free(conf->chtype);
+    }
+    free(conf);
+  }
+
+  return;
+}
+
+
+int audio_config(audio_config_t *aconf,
+		 ChannelType_t src_chtypemask,
+		 int sample_rate, int sample_resolution)
+{
+  int n;
   int output_channels;
   int frag_size = 4096;
 
-  switch(channels) {
-  default:
-    // TODO get the following info from the config file
-    output_channels = 2;
-    if(aconf->format.nr_channels != output_channels) {
-      aconf->format.ch_array = realloc(aconf->format.ch_array,
-				sizeof(ChannelType_t)*output_channels);
+  channel_config_t *config = NULL;
+  // returns NULL if no config
+  // returns first config covering the requested chtypemask
+  // returns last config if no covering config found
+  // free_config should be called when config not needed more
+  config = get_config(src_chtypemask);
+  if(config) {
+    output_channels = config->nr_ch;
+    if(aconf->dst_format.nr_channels != output_channels) {
+      aconf->dst_format.ch_array = 
+	realloc(aconf->dst_format.ch_array, 
+		sizeof(ChannelType_t) * output_channels);
     }
-    aconf->format.sample_resolution = 2;
-    aconf->format.nr_channels = output_channels;
-    aconf->format.ch_array[0] = ChannelType_Left;
-    aconf->format.ch_array[1] = ChannelType_Right;
-
-    break;
+    aconf->dst_format.sample_resolution = 2;
+    aconf->dst_format.nr_channels = output_channels;
+    for(n = 0; n < output_channels; n++) {
+      aconf->dst_format.ch_array[n] = config->chtype[n];
+    }
   }
+  
   {
     ao_driver_t *drivers;
     
@@ -128,16 +183,50 @@ int audio_config(audio_config_t *aconf,
   }
   if(!aconf->ainfo) {
     aconf->ainfo = malloc(sizeof(ogle_ao_audio_info_t));
+    aconf->ainfo->chlist = NULL;
   }
   
   aconf->ainfo->sample_rate = sample_rate;
   aconf->ainfo->sample_resolution = sample_resolution;
   aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
-  aconf->ainfo->channels = aconf->format.nr_channels;
+  aconf->ainfo->channels = aconf->dst_format.nr_channels;
   aconf->ainfo->encoding = OGLE_AO_ENCODING_LINEAR;
   aconf->ainfo->fragment_size = frag_size;
   aconf->ainfo->fragments = -1;  // don't limit
+  if(config) {
+    aconf->ainfo->chtypes = OGLE_AO_CHTYPE_UNSPECIFIED;
+  } else {
+    ogle_ao_chtype_t ao_chmask = 0;
+    if(src_chtypemask & ChannelType_Left) {
+      ao_chmask |= OGLE_AO_CHTYPE_LEFT;
+    }
+    if(src_chtypemask & ChannelType_Right) {
+      ao_chmask |= OGLE_AO_CHTYPE_RIGHT;
+    }
+    if(src_chtypemask & ChannelType_Center) {
+      ao_chmask |= OGLE_AO_CHTYPE_CENTER;
+    }
+    if(src_chtypemask & ChannelType_LeftSurround) {
+      ao_chmask |= OGLE_AO_CHTYPE_REARLEFT;
+    }
+    if(src_chtypemask & ChannelType_RightSurround) {
+      ao_chmask |= OGLE_AO_CHTYPE_REARRIGHT;
+    }
+    if(src_chtypemask & ChannelType_LFE) {
+      ao_chmask |= OGLE_AO_CHTYPE_LFE;
+    }
+    if(src_chtypemask & ChannelType_Mono) {
+      ao_chmask |= OGLE_AO_CHTYPE_MONO;
+    }
+    if(src_chtypemask & ChannelType_Surround) {
+      ao_chmask |= OGLE_AO_CHTYPE_REARMONO;
+    }
+    if(src_chtypemask & ChannelType_CenterSurround) {
+      ao_chmask |= OGLE_AO_CHTYPE_REARCENTER;
+    }
 
+    aconf->ainfo->chtypes = ao_chmask;
+  }
   // check return value
   if(ogle_ao_init(aconf->adev_handle, aconf->ainfo) == -1) {
 
@@ -150,7 +239,7 @@ int audio_config(audio_config_t *aconf,
       FATAL("encoding %d, resolution %d, byte order %d failed\n",
 	    OGLE_AO_ENCODING_LINEAR, sample_resolution, OGLE_AO_BYTEORDER_NE);
     } else if(aconf->ainfo->channels == -1) {
-      FATAL("channels %d failed\n", aconf->format.nr_channels);
+      FATAL("channels %d failed\n", aconf->dst_format.nr_channels);
     } 
   } else {
     if(aconf->ainfo->sample_rate != sample_rate) {
@@ -167,10 +256,11 @@ int audio_config(audio_config_t *aconf,
       ERROR("wanted byte order %d, got %d\n",
 	    OGLE_AO_BYTEORDER_NE, aconf->ainfo->byteorder);
     }
-    if(aconf->ainfo->channels != aconf->format.nr_channels) {
-      ERROR("wanted channels %d, got %d\n",
-	    aconf->format.nr_channels,
-	    aconf->ainfo->channels); 
+    if(aconf->ainfo->channels != aconf->dst_format.nr_channels &&
+       aconf->dst_format.nr_channels != -1) {
+      NOTE("wanted %d channels, got %d\n",
+	   aconf->dst_format.nr_channels,
+	   aconf->ainfo->channels); 
     }
     if(aconf->ainfo->encoding != OGLE_AO_ENCODING_LINEAR) {
       ERROR("wanted encoding %d, got %d\n",
@@ -183,16 +273,70 @@ int audio_config(audio_config_t *aconf,
 	   aconf->ainfo->fragment_size);
     }
 
-    DNOTE("encoding %d, resolution %d, byte order %d, rate %d\n",
+    DNOTE("channels %d, encoding %d, resolution %d\n", 
+	  aconf->ainfo->channels,
 	  aconf->ainfo->encoding,
-	  aconf->ainfo->sample_resolution,
+	  aconf->ainfo->sample_resolution);
+    DNOTE("byte order %d, rate %d\n",
 	  aconf->ainfo->byteorder,
 	  aconf->ainfo->sample_rate);
     DNOTE("fragments %d, size %d\n",
 	  aconf->ainfo->fragments,
 	  aconf->ainfo->fragment_size);
+    if(!config) {
+      aconf->dst_format.nr_channels = aconf->ainfo->channels;
+      aconf->dst_format.ch_array = 
+	realloc(aconf->dst_format.ch_array, 
+		sizeof(ChannelType_t)*aconf->dst_format.nr_channels);
+
+      for(n = 0; n < aconf->dst_format.nr_channels; n++) {
+	ChannelType_t ct;
+	switch(aconf->ainfo->chlist[n]) {
+	case OGLE_AO_CHTYPE_LEFT:
+	  ct = ChannelType_Left;
+	  break;
+	case OGLE_AO_CHTYPE_RIGHT:
+	  ct = ChannelType_Right;
+	  break;
+	case OGLE_AO_CHTYPE_CENTER:
+	  ct = ChannelType_Center;
+	  break;
+	case OGLE_AO_CHTYPE_REARLEFT:
+	  ct = ChannelType_LeftSurround;
+	  break;
+	case OGLE_AO_CHTYPE_REARRIGHT:
+	  ct = ChannelType_RightSurround;
+	  break;
+	case OGLE_AO_CHTYPE_LFE:
+	  ct = ChannelType_LFE;
+	  break;
+	case OGLE_AO_CHTYPE_MONO:
+	  ct = ChannelType_Mono;
+	  break;
+	case OGLE_AO_CHTYPE_REARCENTER:
+	  ct = ChannelType_CenterSurround;
+	  break;
+	case OGLE_AO_CHTYPE_REARMONO:
+	  ct = ChannelType_Surround;
+	  break;
+	default:
+	  DNOTE("unkown chtype: %d\n", aconf->ainfo->chlist[n]);
+	  ct = -1;
+	  break;
+	}
+	aconf->dst_format.ch_array[n] = ct;
+      }
+    }
   }
-  
+
+  if(config) {
+    free_config(config);
+    config = NULL;
+  }
+
+  aconf->dst_format.sample_frame_size = aconf->ainfo->sample_frame_size;
+
+
   aconf->sync.delay_resolution = aconf->ainfo->sample_rate / 10;
   aconf->sync.delay_resolution_set = 0;
   aconf->sync.max_sync_diff = 2 * aconf->sync.delay_resolution *
@@ -213,9 +357,9 @@ void audio_config_close(audio_config_t *aconf)
       aconf->adev_handle = NULL;
     }
     
-    if(aconf->format.ch_array != NULL) {
-      free(aconf->format.ch_array);
-      aconf->format.ch_array = NULL;
+    if(aconf->dst_format.ch_array != NULL) {
+      free(aconf->dst_format.ch_array);
+      aconf->dst_format.ch_array = NULL;
     }
     
     free(aconf);

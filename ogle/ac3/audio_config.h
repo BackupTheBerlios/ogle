@@ -23,16 +23,7 @@
 
 #include <libogleao/ogle_ao.h>
 #include "timemath.h"
-
-typedef enum {
-  ChannelType_Left = 1,
-  ChannelType_Right = 2,
-  ChannelType_Center = 4,
-  ChannelType_LeftSurround = 8,
-  ChannelType_RightSurround = 16,
-  ChannelType_Surround = 32,
-  ChannelType_LFE = 64
-} ChannelType_t;
+#include "audio_types.h"
 
 typedef enum {
   SampleFormat_Unsigned,
@@ -46,11 +37,11 @@ typedef struct {
   int nr_channels;
   ChannelType_t *ch_array;
   int interleaved; //the samples for the different channels are interleaved
-  int sample_rate;
+  int sample_rate; // in Hz
   int sample_resolution; //bits per sample (used)
   int sample_size;       //bytes per sample (including padding)
-  int sample_frame_size; 
-  int sample_byte_order;
+  int sample_frame_size; //bytes per sample frame (samples for all channels)
+  int sample_byte_order; //endianess
 } audio_format_t;
 
 typedef enum {
@@ -70,7 +61,8 @@ typedef struct {
 } audio_sync_t;
 
 typedef struct {
-  audio_format_t format;  //the audio format we have
+  audio_format_t src_format;  //the source audio format
+  audio_format_t dst_format;  //the destination audio format
   ogle_ao_instance_t *adev_handle;
   ogle_ao_audio_info_t *ainfo; //the audio format of the sound driver
   audio_sync_t sync;
@@ -79,7 +71,8 @@ typedef struct {
 
 audio_config_t *audio_config_init(void);
 int audio_config(audio_config_t *aconf,
-		 int availflags, int sample_rate, int sample_resolution);
+		 ChannelType_t channels,
+		 int sample_rate, int sample_resolution);
 void audio_config_close(audio_config_t *aconf);
 
 #endif /* AUDIO_CONFIG_H */

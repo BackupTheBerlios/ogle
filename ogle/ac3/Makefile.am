@@ -30,7 +30,8 @@ ogle_ac3_p_LDADD = $(top_builddir)/common/libcommon.a \
 #	@A52_LIBS@ \
 #	@XML_LIBS@
 
-ogle_audio_SOURCES = audio_out.c parse_config.h parse_config.c \
+ogle_audio_SOURCES = audio_out.c audio_types.h \
+	parse_config.h parse_config.c \
 	audio_config.h audio_config.c conversion.h conversion.c \
 	audio_play.h audio_play.c \
 	decode.h decode_private.h decode.c decode.h \
