@@ -22,8 +22,8 @@ pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h dvdbookmarks.h
 AM_CPPFLAGS = @TOP_INCLUDES@ @XML_CFLAGS@
 
 libmsgevents_la_SOURCES = msgevents.c
-libmsgevents_la_LDFLAGS = -version-info 5:0:1
+libmsgevents_la_LDFLAGS = -version-info 6:0:0
 
 libdvdcontrol_la_SOURCES = dvdcontrol.c dvdbookmarks.c
 libdvdcontrol_la_LIBADD = libmsgevents.la @XML_LIBS@
-libdvdcontrol_la_LDFLAGS = -version-info 8:0:0
+libdvdcontrol_la_LDFLAGS = -version-info 9:0:0
