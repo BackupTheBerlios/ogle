@@ -1,0 +1,107 @@
+<?xml version="1.0"?>
+
+<!DOCTYPE ogle_conf [
+<!ELEMENT DefaultMenuLanguage (#PCDATA)>
+<!ELEMENT DefaultAudioLanguage (#PCDATA)>
+<!ELEMENT DefaultSubpictureLanguage (#PCDATA)>
+<!ELEMENT ParentalCountry (#PCDATA)>
+<!ELEMENT ParentalLevel (#PCDATA)>
+<!ELEMENT defaults (DefaultMenuLanguage|DefaultAudioLanguage |
+	DefaultSubpictureLanguage | ParentalCountry | ParentalLevel)*>
+
+<!ELEMENT nav (defaults)?>
+<!ELEMENT dvd (nav)?>
+
+<!ELEMENT action (#PCDATA)>
+<!ELEMENT key (#PCDATA)>
+<!ELEMENT b (action, key*)>
+<!ELEMENT bindings (b)*>
+<!ELEMENT user_interface (bindings)?>
+<!ELEMENT ogle_conf (dvd|user_interface)*>
+]>
+
+<ogle_conf>
+  <dvd>
+    <nav>
+      <defaults>
+	<DefaultMenuLanguage>en</DefaultMenuLanguage>
+	<DefaultAudioLanguage>en</DefaultAudioLanguage>
+	<DefaultSubpictureLanguage>en</DefaultSubpictureLanguage>
+	<ParentalCountry>US</ParentalCountry>
+	<ParentalLevel>15</ParentalLevel>
+      </defaults>
+    </nav>
+  </dvd>
+  <user_interface>
+    <bindings>
+	<b>	
+	  <action>Play</action>
+	  <key>p</key>
+          <key>P</key>
+  	</b>
+	<b>	
+	  <action>Pause</action>
+	  <key>space</key>
+  	</b>
+	<b>	
+	  <action>Stop</action>
+	  <key></key>
+  	</b>
+	<b>	
+	  <action>FastForward</action>
+	  <key></key>
+  	</b>
+	<b>	
+	  <action>SlowMotion</action>
+	  <key></key>
+  	</b>
+	<b>	
+	  <action>NextPG</action>
+	  <key>greater</key>
+  	</b>
+	<b>	
+	  <action>PrevPG</action>
+	  <key>less</key>
+  	</b>
+	<b>	
+	  <action>FullScreen</action>
+	  <key>f</key>
+	  <key>F</key>
+  	</b>
+	<b>	
+	  <action>UpperButton</action>
+	  <key>Up</key>
+  	</b>
+	<b>	
+	  <action>LowerButton</action>
+	  <key>Down</key>
+  	</b>
+	<b>	
+	  <action>RightButton</action>
+	  <key>Right</key>
+  	</b>
+	<b>	
+	  <action>LeftButton</action>
+	  <key>Left</key>
+  	</b>
+	<b>	
+	  <action>ButtonActivate</action>
+	  <key>Return</key>
+	  <key>KP_Enter</key>
+  	</b>
+	<b>	
+	  <action>TitleMenu</action>
+	  <key>t</key>
+  	</b>
+	<b>	
+	  <action>RootMenu</action>
+	  <key>r</key>
+  	</b>
+	<b>	
+	  <action>Quit</action>
+	  <key>q</key>
+	  <key>Q</key>
+  	</b>
+    </bindings>
+  </user_interface>
+</ogle_conf>
