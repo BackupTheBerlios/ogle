@@ -1,6 +1,11 @@
 # List of source files containing translatable strings.
 
-src/main.c
-src/interface.c
+src/audio.c
 src/callbacks.c
+src/interface.c
+src/language.c
+src/main.c
+src/subpicture.c
 src/support.c
+
+

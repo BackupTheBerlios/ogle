@@ -12,6 +12,7 @@
 #include "menu.h"
 #include "audio.h"
 #include "subpicture.h"
+#include "fileselector.h"
 
 extern DVDNav_t *nav;
 
@@ -83,7 +84,7 @@ void
 on_open_activate                      (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+  file_selector_new();
 }
 
 
