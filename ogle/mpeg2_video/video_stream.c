@@ -471,7 +471,7 @@ int get_vlc(const vlc_table_t *table, char *func) {
 }
 
 
-void sighandler(void)
+void sighandler(int dummy)
 {
   exit_program(0);
 }
@@ -491,19 +491,6 @@ void init_program()
   timestat_init();
 #endif
   
-  // init values for MPEG-1
-  pic.coding_ext.picture_structure = PIC_STRUCT_FRAME_PICTURE;
-  pic.coding_ext.frame_pred_frame_dct = 1;
-  pic.coding_ext.intra_vlc_format = 0;
-  pic.coding_ext.concealment_motion_vectors = 0;
-  //mb.modes.frame_motion_type = 0x2; // This implies the ones below..
-  //mb.prediction_type = PRED_TYPE_FRAME_BASED;
-  //mb.motion_vector_count = 1;
-  //mb.mv_format = MV_FORMAT_FRAME;
-  //mb.dmv = 0;
-  mb.motion_vector_count = 1;
-  seq.ext.chroma_format = 0x1;
-
 }
 
 int msgqid = -1;
@@ -695,6 +682,18 @@ void video_sequence(void) {
     /* No extension code following the sequence header implies MPEG-1 */
     MPEG2 = 0;
     
+    // init values for MPEG-1
+    pic.coding_ext.picture_structure = PIC_STRUCT_FRAME_PICTURE;
+    pic.coding_ext.frame_pred_frame_dct = 1;
+    pic.coding_ext.intra_vlc_format = 0;
+    pic.coding_ext.concealment_motion_vectors = 0;
+    //mb.modes.frame_motion_type = 0x2; // This implies the ones below..
+    mb.prediction_type = PRED_TYPE_FRAME_BASED;
+    mb.motion_vector_count = 1;
+    mb.mv_format = MV_FORMAT_FRAME;
+    mb.dmv = 0;
+    seq.ext.chroma_format = 0x1;
+    
     /* Display init */
     if(!shm_ready) {
       setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
@@ -745,9 +744,9 @@ void sequence_header(void)
 {
   uint32_t sequence_header_code;
 #ifdef HAVE_CLOCK_GETTIME
-  long int frame_interval_nsec;
+  long int frame_interval_nsec = 0;
 #else
-    long int frame_interval_usec;
+  long int frame_interval_usec = 0;
 #endif
 
   DPRINTF(0, "sequence_header\n");
@@ -1068,7 +1067,9 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
   
   fwd_ref_image = &buf_ctrl_head->picture_infos[0].picture;
   bwd_ref_image = &buf_ctrl_head->picture_infos[1].picture;
-  
+
+
+  /* this should not be here */
   fprintf(stderr, "horizontal_size: %d, vertical_size: %d\n",
 	  seq.horizontal_size, seq.vertical_size);
   fprintf(stderr, "padded_width: %d, padded_height: %d\n",
@@ -1116,9 +1117,9 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
 #ifdef HAVE_CLOCK_GETTIME
-  long int frame_interval_nsec;
+  long int frame_interval_nsec = 0;
 #else
-  long int frame_interval_usec;
+  long int frame_interval_usec = 0;
 #endif
   uint32_t extension_start_code;
   

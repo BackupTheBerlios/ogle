@@ -830,6 +830,8 @@ int macroblock_modes(void)
        else dct_type is unused, either field picture or mb not coded */
     mb.modes.dct_type = 0;
   }
+
+  return 0;
 }
 
 

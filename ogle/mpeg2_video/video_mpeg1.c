@@ -531,12 +531,14 @@ void motion_vectors(unsigned int s)
   /* This does not differ from MPEG-2 if:
      pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE &&
      pic.coding_ext.frame_pred_frame_dct == 1
-     but this is shorter. */
-  mb.prediction_type = PRED_TYPE_FRAME_BASED;
-  mb.motion_vector_count = 1;
-  mb.mv_format = MV_FORMAT_FRAME;
-  mb.dmv = 0;
+     but these are all constant in MPEG1 so we set the following once
+     at the start if the video sequence. 
   
+     mb.prediction_type = PRED_TYPE_FRAME_BASED;
+     mb.motion_vector_count = 1;
+     mb.mv_format = MV_FORMAT_FRAME;
+     mb.dmv = 0;
+  */
   motion_vector(0, s);
 }
 
@@ -620,7 +622,7 @@ int macroblock_modes(void)
 
 /* 6.2.5 Macroblock */
 static
-int macroblock(void)
+int macroblock(int new_slice)
 {
   uint16_t inc_add = 0;
   
@@ -649,6 +651,9 @@ int macroblock(void)
 
   seq.mb_column = seq.macroblock_address % seq.mb_width;
   seq.mb_row = seq.macroblock_address / seq.mb_width;
+
+  if(new_slice) /* There are never any skipped blocks at start of a slice */
+    mb.macroblock_address_increment = 1;
 
   DPRINTF(2, " Macroblock: %d, row: %d, col: %d\n",
 	  seq.macroblock_address,
@@ -847,6 +852,7 @@ int macroblock(void)
 int mpeg1_slice(void)
 {
   uint32_t slice_start_code;
+  int new_slice = 1;
   
   DPRINTF(3, "slice\n");
   reset_dc_dct_pred();
@@ -876,10 +882,11 @@ int mpeg1_slice(void)
   slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
 
   do {
-    if( macroblock() ) {
+    if( macroblock(new_slice) ) {
       //break;
       return -1;
     }
+    new_slice = 0;
   } while(nextbits(23) != 0);
 
   next_start_code();
