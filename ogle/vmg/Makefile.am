@@ -21,7 +21,9 @@ noinst_PROGRAMS =  vmg_dump dump
 
 AM_CPPFLAGS = @TOP_INCLUDES@ @DVDREAD_CPPFLAGS@ @XML_CFLAGS@
  
-AM_CFLAGS = @O_CFLAGS@ @DVDREAD_ALIGN_CFLAGS@
+AM_CFLAGS = @O_CFLAGS@
+
+CFLAGS = @CFLAGS@ @DVDREAD_ALIGN_CFLAGS@
 
 #vmg_LDADD = $(top_builddir)/common/libcommon.a \
 #	$(top_builddir)/ogle/libmsgevents.la
