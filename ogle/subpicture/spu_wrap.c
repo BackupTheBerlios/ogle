@@ -16,6 +16,9 @@
 #include "queue.h"
 #include "ip_sem.h"
 
+#ifndef SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
 
 int wait_for_msg(cmdtype_t cmdtype);
 int eval_msg(cmd_t *cmd);

@@ -126,9 +126,6 @@ unsigned int nextbits(unsigned int nr_of_bits);
 int synced = 0;
 
 int audio       = 0;
-int video       = 0;
-int subtitle    = 0;
-int subtitle_id = 0;
 int debug       = 0;
 
 char *program_name;
@@ -626,8 +623,10 @@ void push_stream_data(uint8_t stream_id, int len,
 	  fwrite(&buf[offs-(bits_left/8)+4], len-4, 1,
 		 id_file(stream_id, subtype));
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
+	  fprintf(stderr, "FILE: %d\n",	 id_file(stream_id, subtype));
 	  fwrite(&buf[offs-(bits_left/8)+1], len-1, 1,
 		 id_file(stream_id, subtype));
+	  fflush(id_file(stream_id, subtype));
 	} else {
 	  fwrite(&buf[offs-(bits_left/8)], len, 1,
 		 id_file(stream_id, subtype));
@@ -1233,23 +1232,6 @@ void loadinputfile(char *infilename)
   }
 #endif
   DPRINTF(1, "All mmap systems ok!\n");
-#if 0
-  //Sending "load-this-file" packet to listeners
-  
-  lf_pack.type        = PACK_TYPE_LOAD_FILE;
-  lf_pack.body.length = strlen(infilename);
-  strcpy((char *)&(lf_pack.body.filename), infilename);
-  
-  if(video)
-    fwrite(&lf_pack, lf_pack.body.length+8, 1, video_file);
-
-  if(audio)
-    fwrite(&lf_pack, lf_pack.body.length+8, 1, audio_file);
-
-  if(subtitle)
-    fwrite(&lf_pack, lf_pack.body.length+8, 1, subtitle_file); 
-
-#endif
 
 }
 
@@ -1325,7 +1307,7 @@ int main(int argc, char **argv)
 	  perror(optarg);
 	  exit(1);
 	}
-	video=1;
+
 	id_add(stream_id, 0, STREAM_DECODE, 0, NULL, video_file);
 	
       } else {
@@ -1346,19 +1328,61 @@ int main(int argc, char **argv)
       audio=1;
       break;
     case 's':
-      subtitle_file = fopen(optarg,"w");
-      if(!subtitle_file) {
+
+      stream_nr = -1;
+      file = NULL;
+      options = optarg;
+      while (*options != '\0') {
+	switch(getsubopt(&options, stream_opts, &opt_value)) {
+	case OPT_STREAM_NR:
+	  if(opt_value == NULL) {
+	    exit(-1);
+	  }
+	  
+	  stream_nr = atoi(opt_value);
+	  break;
+	case OPT_FILE:
+	  if(opt_value == NULL) {
+	    exit(-1);
+	  }
+	  
+	  file = opt_value;
+	  break;
+	default:
+	  fprintf(stderr, "Unknown suboption: %s\n", options);
+	  exit(-1);
+	  break;
+	}
+      }
+      
+      if((stream_nr == -1)) {
+	fprintf(stderr, "Missing suboptions\n");
+	exit(-1);
+      } 
+      
+      if((stream_nr < 0) && (stream_nr > 0x1f)) {
+	fprintf(stderr, "Invalid stream nr\n");
+	exit(-1);
+      }
+      
+      stream_id = (0x20 | stream_nr);
+      
+      if(file != NULL) {
+	subtitle_file = fopen(file,"w");
+	if(!subtitle_file) {
 	  perror(optarg);
 	  exit(1);
 	}
-      subtitle=1;
-      break;
-    case 'i':
-      subtitle_id = atoi(optarg);
-      if(! (subtitle_id>=0x20 && subtitle_id<=0x3f)) {
-	fprintf(stderr, "Invalid subtitle_id range.\n");
-	exit(1);
-      } 
+
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DECODE, 0, NULL, subtitle_file);
+	
+      } else {
+	fprintf(stderr, "Subtitle stream %d disabled\n", stream_nr);
+	
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DISCARD, 0, NULL, NULL);
+      }
+
+
       break;
     case 'd':
       debug = atoi(optarg);
@@ -1402,14 +1426,6 @@ int main(int argc, char **argv)
   }
   DPRINTF(1, "Signal handler installed!\n");
   
-  if(subtitle ^ !!subtitle_id) {  // both arguments needed.
-    if(!subtitle) {
-      fprintf(stderr, "No subtitle filename given.\n");
-    } else { 
-      fprintf(stderr, "No subtitle_id given.\n");
-    }
-    exit(1);
-  }
   
   GETBITS(32, "skip");
   GETBITS(32, "skip");
@@ -1545,7 +1561,7 @@ void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid,
       id_reg_ps1[subtype].shmid = shmid;
       id_reg_ps1[subtype].shmaddr = shmaddr;
       id_reg_ps1[subtype].state = state;
-      id_reg[stream_id].file = file;
+      id_reg_ps1[subtype].file = file;
       
     }
 }
