@@ -65,16 +65,17 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 		       int pts_offset, uint64_t new_PTS, int scr_nr)
 {
   int bytes_left;
-  int first = 1;
-  int pts_valid = 0;
+  int pts_valid;
+  static int prev_scr_nr;
   static uint64_t prev_PTS;
   static int prev_pts_valid = 0;
   uint8_t *packet_start = NULL;
+  int first = 1;
 
   bytes_left = len;
   
   if(pts_offset == -1) {
-    fprintf(stderr, "*** NO PTS ***\n"); 
+    pts_valid = 0;
   } else {
     pts_valid = 1;
   }
@@ -85,8 +86,10 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
     if(avail_buf <= 0) {
       FATAL("mpeg coded buf full: %d\n", avail_buf);
     }
+    /*
     fprintf(stderr, "avail: %d, len: %d, ptr: %d\n",
 	    avail_buf, bytes_left, h->buf_ptr - h->coded_buf);
+    */
 
     if(avail_buf >= bytes_left) { 
       memcpy(h->buf_ptr, start, bytes_left);
@@ -114,12 +117,17 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
     while(1) {
       if(mad_frame_decode(&h->frame, &h->stream)) {
 	if(MAD_RECOVERABLE(h->stream.error)) {
-	  fprintf(stderr, "recoverable: %d\n", h->stream.error);
+	  if(h->stream.error == MAD_ERROR_LOSTSYNC) {
+	    NOTE("mpeg lost sync\n");
+	  } else {
+	    DNOTE("mpeg recoverable: %d\n", h->stream.error);
+	  }
 	} else {
+	  /*
 	  fprintf(stderr, "unrec curframe: %u, nextframe: %u\n",
 		  h->stream.this_frame - h->coded_buf,
 		  h->stream.next_frame - h->coded_buf);
-
+	  */
 	  if(h->stream.error == MAD_ERROR_BUFLEN) {
 	    memmove(h->coded_buf, h->stream.next_frame,
 		    h->buf_ptr - h->stream.next_frame);
@@ -128,34 +136,73 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 	    if(pts_valid) {
 	      prev_pts_valid = 1;
 	      prev_PTS = new_PTS;
+	      prev_scr_nr = scr_nr;
 	    } else {
 	      prev_pts_valid = 0;
 	    }
 	    break;
 	  } else {
-	    fprintf(stderr, "*unrecoverable: %d\n", h->stream.error);
+	    FATAL("mpeg unrecoverable error: %d\n", h->stream.error);
 	  }
 	}
       } else {
+	int frame_pts_valid;
+	uint64_t frame_PTS;
+	int frame_scr_nr;
+	mad_synth_frame(&h->synth, &h->frame);
+	
+	if(h->frame.header.samplerate != h->sample_rate) {
+	  audio_format_t new_format;
+	  
+	  h->sample_rate = h->frame.header.samplerate;
+	  audio_config(h->handle.config, 2, h->sample_rate, 16);
+	  
+	  new_format.ch_array = malloc(2 * sizeof(ChannelType_t));
+	  new_format.ch_array[0] = ChannelType_Left;
+	  new_format.ch_array[1] = ChannelType_Right;
+	  
+	  new_format.sample_rate = h->sample_rate;
+	  new_format.sample_resolution = 16;
+	  new_format.sample_format = SampleFormat_MadFixed;
+	  init_sample_conversion((adec_handle_t *)h, &new_format, 1152);
+	  
+	  free(new_format.ch_array);
+	}
+	convert_samples_start((adec_handle_t *)h);
+	convert_samples((adec_handle_t *)h, h->synth.pcm.samples,
+			h->synth.pcm.length);
 	if(h->stream.this_frame >= packet_start) {
 	  if(pts_valid) {
-	    fprintf(stderr, "PTS: %llu\n", new_PTS);
+	    frame_pts_valid = 1;
+	    frame_PTS = new_PTS;
+	    frame_scr_nr = scr_nr;
+	    //fprintf(stderr, "PTS: %llu\n", new_PTS);
 	    pts_valid = 0;
 	  } else {
-	    fprintf(stderr, "no PTS:\n");
+	    frame_pts_valid = 0;
+	    frame_scr_nr = scr_nr;
+	    //fprintf(stderr, "no PTS:\n");
 	  }
 	} else {
 	  if(prev_pts_valid) {
-	    fprintf(stderr, "prev PTS: %llu\n", new_PTS);
+	    frame_pts_valid = 1;
+	    frame_PTS = prev_PTS;
+	    frame_scr_nr = prev_scr_nr;
+	    // fprintf(stderr, "prev PTS: %llu\n", prev_PTS);
 	    prev_pts_valid = 0;
 	  } else {
-	    fprintf(stderr, "no prev PTS:\n");
+	    frame_pts_valid = 0;
+	    frame_scr_nr = scr_nr;
+	    //fprintf(stderr, "no prev PTS:\n");
 	  }
 	}
-	fprintf(stderr, "curframe: %u, nextframe: %u\n",
-		h->stream.this_frame - h->coded_buf,
-		h->stream.next_frame - h->coded_buf);
-	mad_synth_frame(&h->synth, &h->frame);
+	play_samples((adec_handle_t *)h, frame_scr_nr, 
+		     frame_PTS, frame_pts_valid);
+	/*
+	  fprintf(stderr, "curframe: %u, nextframe: %u\n",
+	  h->stream.this_frame - h->coded_buf,
+	  h->stream.next_frame - h->coded_buf);
+	*/
 	
       }
     }
@@ -173,7 +220,7 @@ int flush_mpeg(adec_mpeg_handle_t *handle)
   handle->bytes_needed = 7;
   
   // Fix this.. not the right way to do things I belive.
-  //  ogle_ao_flush(handle->handle.config->adev_handle);
+  ogle_ao_flush(handle->handle.config->adev_handle);
   return 0;
 }
 
@@ -181,6 +228,10 @@ int flush_mpeg(adec_mpeg_handle_t *handle)
 static
 void free_mpeg(adec_mpeg_handle_t *handle)
 {
+  mad_synth_finish(&handle->synth);
+  mad_frame_finish(&handle->frame);
+  mad_stream_finish(&handle->stream);
+
   audio_config_close(handle->handle.config);
   free(handle->coded_buf);
   free(handle);

@@ -18,6 +18,8 @@
 
 #include <stdio.h>
 
+#include <mad.h>
+
 #include "debug_print.h"
 #include "conversion.h"
 #include "decode_private.h" // Fixme
@@ -83,6 +85,8 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
     conversion_routine = 1;
     break;
   case SampleFormat_MadFixed:
+    conversion_routine = 2;
+    break;
   case SampleFormat_Unsigned:
   default:
     FATAL("init_conversion: SampleFormat %d not supported\n",
@@ -116,6 +120,40 @@ static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
   for (i = 0; i < nr_samples; i++) {
     s16[2*i] = convert(f[i]);
     s16[2*i+1] = convert(f[i+256]);
+  }
+
+  
+  return 0;
+}
+
+
+/** code borrowed from vlc **/
+static inline int16_t convert_mad(mad_fixed_t fixed)
+{
+  /* round */
+  fixed += (1L << (MAD_F_FRACBITS - 16));
+  
+  /* clip */
+  if (fixed >= MAD_F_ONE)
+    fixed = MAD_F_ONE - 1;
+  else if (fixed < -MAD_F_ONE)
+    fixed = -MAD_F_ONE;
+  
+  /* quantize */
+  return (int16_t)(fixed >> (MAD_F_FRACBITS + 1 - 16));
+}
+
+static int convert_mad_fixed_to_s16(mad_fixed_t *m, int16_t *s16,
+				    int nr_samples,
+				    int nr_channels, int *channels)
+{
+  int i;
+  
+  // assert(nr_channels == 2);    
+  
+  for (i = 0; i < nr_samples; i++) {
+    s16[2*i] = convert_mad(m[i]);
+    s16[2*i+1] = convert_mad(m[i+1152]);
   }
 
   
@@ -160,6 +198,12 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
     convert_s16be_to_s16ne(samples, (int16_t *)h->output_buf_ptr,
 			   nr_samples, 2, NULL);
     h->output_buf_ptr += 2*2*nr_samples;
+    break;
+  case 2:
+    convert_mad_fixed_to_s16((mad_fixed_t *)samples,
+			     (int16_t *)h->output_buf_ptr, 
+			     nr_samples, 2, NULL);
+    h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
     break;
   }
    return 0;

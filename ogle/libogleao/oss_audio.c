@@ -47,6 +47,11 @@ typedef struct oss_instance_s {
   ogle_ao_instance_t ao;
   int fd;
   int sample_frame_size;
+  int fragment_size;
+  int nr_fragments;
+  int fmt;
+  int channels;
+  int speed;
   int initialized;
 } oss_instance_t;
 
@@ -136,7 +141,9 @@ int oss_init(ogle_ao_instance_t *_instance,
     perror("SNDCTL_DSP_SETFMT");
     return -1;
   }
-
+  
+  instance->fmt = sample_format;
+  
   // Test if we got the right format
   if (sample_format != original_sample_format) {
     switch(sample_format) {
@@ -162,6 +169,8 @@ int oss_init(ogle_ao_instance_t *_instance,
     audio_info->channels = -1;
     return -1;
   }
+  instance->channels = number_of_channels;
+
   // report back (maybe we can't do stereo or something...)
   audio_info->channels = number_of_channels;
 
@@ -171,6 +180,7 @@ int oss_init(ogle_ao_instance_t *_instance,
     audio_info->sample_rate = -1;
     return -1;
   }
+  instance->speed = sample_speed;
   // report back the actual speed used
   audio_info->sample_rate = sample_speed;
 
@@ -187,9 +197,13 @@ int oss_init(ogle_ao_instance_t *_instance,
     perror("SNDCTL_DSP_GETOSPACE");
     audio_info->fragment_size = -1;
     audio_info->fragments = -1;
+    instance->fragment_size = -1;
+    instance->nr_fragments = -1;
   } else {
     audio_info->fragment_size = info.fragsize;
     audio_info->fragments = info.fragstotal;
+    instance->fragment_size = info.fragsize;
+    instance->nr_fragments = info.fragstotal;
   }
   
   
@@ -197,6 +211,66 @@ int oss_init(ogle_ao_instance_t *_instance,
   
   return 0;
 }
+
+/*
+ * Only to be called after a SNDCTL_DSP_RESET or SNDCTL_DSP_SYNC
+ * and after init
+ */
+static int oss_reinit(oss_instance_t *instance)
+{
+  int sample_format;
+  int nr_channels;
+  int sample_speed;
+  audio_buf_info info;
+  
+  if(!instance->initialized) {
+    return -1;
+  }
+
+  sample_format = instance->fmt;
+  if(ioctl(instance->fd, SNDCTL_DSP_SETFMT, &sample_format) == -1) {
+    perror("SNDCTL_DSP_SETFMT");
+    return -1;
+  }
+  if(sample_format != instance->fmt) {
+    fprintf(stderr, "oss_audio: couldn't reinit sample_format\n");
+    return -1;
+  }
+  
+  nr_channels = instance->channels;
+  if(ioctl(instance->fd, SNDCTL_DSP_CHANNELS, &nr_channels) == -1) {
+    perror("SNDCTL_DSP_CHANNELS");
+    return -1;
+  }
+  if(nr_channels != instance->channels) {
+    fprintf(stderr, "oss_audio: couldn't reinit nr_channels\n");
+    return -1;
+  }
+
+  sample_speed = instance->speed;
+  if(ioctl(instance->fd, SNDCTL_DSP_SPEED, &sample_speed) == -1) {
+    perror("SNDCTL_DSP_SPEED");
+    return -1;
+  }
+  if(sample_speed != instance->speed) {
+    fprintf(stderr, "oss_audio: couldn't reinit speed\n");
+    return -1;
+  }
+  
+  if(ioctl(instance->fd, SNDCTL_DSP_GETOSPACE, &info) == -1) {
+    perror("SNDCTL_DSP_GETOSPACE");
+  } else {
+    if(instance->fragment_size != info.fragsize) {
+      fprintf(stderr, "oss_audio: fragment size differs after reinit\n");
+    }
+    if(instance->nr_fragments != info.fragstotal) {
+      fprintf(stderr, "oss_audio: nr_fragments size differs after reinit\n");
+    }
+  }
+  
+  return 0;
+}
+
 
 static
 int oss_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
@@ -245,7 +319,9 @@ int oss_flush(ogle_ao_instance_t *_instance)
   oss_instance_t *instance = (oss_instance_t *)_instance;
   
   ioctl(instance->fd, SNDCTL_DSP_RESET, 0);
-  //TODO do we need to reinitialize after the reset?
+
+  //Some cards need a reinit after DSP_RESET, maybe all do?
+  oss_reinit(instance);
 
   return 0;
 }
