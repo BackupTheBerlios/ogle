@@ -1023,7 +1023,7 @@ void display_process()
       oavg_time = avg_time;
       clock_gettime(CLOCK_REALTIME, &avg_time);
       
-      fprintf(stderr, "display: frame rate: %.3f fps\t",
+      fprintf(stderr, "display: frame rate: %.3f fps\n",
 	      24.0/(((double)avg_time.tv_sec+
 		     (double)(avg_time.tv_nsec)/1000000000.0)-
 		    ((double)oavg_time.tv_sec+

@@ -121,7 +121,7 @@ void reset_vectors()
 
 /* 6.2.6 Block */
 static
-void block_intra(unsigned int i)
+int block_intra(unsigned int i)
 {
   unsigned int dct_dc_size;
   int dct_diff;
@@ -221,7 +221,8 @@ void block_intra(unsigned int i)
       fprintf(stderr,
 	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	      code);
-      exit_program(1);
+      //exit_program(1);
+      return -1;
     }
 
 #if 0    //#ifdef DEBUG
@@ -256,6 +257,7 @@ void block_intra(unsigned int i)
 	  val = sgn ? (0x100 - val) : val;
 	  if(val < 128) {
 	    fprintf(stderr, "invalid extended dct escape MPEG-1\n");
+	    return -1;
 	  }
 	}
       }
@@ -291,8 +293,8 @@ void block_intra(unsigned int i)
       n++;
     }
   }
-
   DPRINTF(4, "nr of coeffs: %d\n", n);
+  return 0;
 }
 
 
@@ -301,7 +303,7 @@ void block_intra(unsigned int i)
 
 /* 6.2.6 Block */
 static
-void block_non_intra(unsigned int b)
+int block_non_intra(unsigned int b)
 {
   unsigned int n = 0;
     
@@ -347,7 +349,8 @@ void block_non_intra(unsigned int b)
       fprintf(stderr,
 	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	      code);
-      exit_program(1);
+      //exit_program(1);
+      return -1;
     }
     
 #ifdef DEBUG
@@ -380,6 +383,7 @@ void block_non_intra(unsigned int b)
 	  val = sgn ? (0x100 - val) : val;
 	  if(val < 128) {
 	    fprintf(stderr, "invalid extended dct escape MPEG-1\n");
+	    return -1;
 	  }
 	}
       }
@@ -417,8 +421,8 @@ void block_non_intra(unsigned int b)
       n++;      
     }
   }
-  
   DPRINTF(4, "nr of coeffs: %d\n", n);
+  return 0;
 }
 
 
@@ -426,21 +430,22 @@ void block_non_intra(unsigned int b)
 
 /* 6.2.5.3 Coded block pattern */
 static
-void coded_block_pattern(void)
+int coded_block_pattern(void)
 {
   uint8_t cbp = 0;
   
   DPRINTF(3, "coded_block_pattern\n");
 
-  cbp = get_vlc(table_b9, "cbp (b9)");
+  mb.cbp = get_vlc(table_b9, "cbp (b9)");
   
-  if(cbp == 0) {
+  if(mb.cbp == 0) {
     fprintf(stderr, "** shall not be used with 4:2:0 chrominance\n");
-    exit_program(-1);
+    //exit_program(-1);
+    return -1;
   }
-  mb.cbp = cbp;
+  DPRINTF(4, "cpb = %u\n", cbp);
   
-  DPRINTF(4, "cpb = %u\n", mb.cbp);
+  return 0;;
 }
 
 
@@ -529,25 +534,24 @@ void motion_vectors(unsigned int s)
 
 /* 6.2.5.1 Macroblock modes */
 static
-void macroblock_modes(void)
+int macroblock_modes(void)
 {
   DPRINTF(3, "macroblock_modes\n");
 
-  if(pic.header.picture_coding_type == 0x01) {
-    /* I-picture */
+  if(pic.header.picture_coding_type == 0x01) {           /* I-picture */
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
 
-  } else if(pic.header.picture_coding_type == 0x02) {
-    /* P-picture */
+  } else if(pic.header.picture_coding_type == 0x02) {    /* P-picture */
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
 
-  } else if(pic.header.picture_coding_type == 0x03) {
-    /* B-picture */
+  } else if(pic.header.picture_coding_type == 0x03) {    /* B-picture */
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
   } else {
-    fprintf(stderr, "*** Unsupported picture type %02x\n", pic.header.picture_coding_type);
-    exit_program(-1);
+    fprintf(stderr, "*** Unsupported picture type %02x\n", 
+	    pic.header.picture_coding_type);
+    return -1;
+    //exit_program(-1);
   }
   
   mb.modes.macroblock_quant = mb.modes.macroblock_type & MACROBLOCK_QUANT;
@@ -597,13 +601,14 @@ void macroblock_modes(void)
     /* else dct_type is unused, either field picture or mb not coded */
   }
 #endif
-
+  
+  return 0;
 }
 
 
 /* 6.2.5 Macroblock */
 static
-void macroblock(void)
+int macroblock(void)
 {
   uint16_t inc_add = 0;
   
@@ -643,82 +648,71 @@ void macroblock(void)
   
 #ifdef DEBUG
   if(mb.macroblock_address_increment > 1) {
-    DPRINTF(3, "Skipped %d macroblocks\n",
+    DPRINTF(3, "Skipped %d macroblocks ",
 	    mb.macroblock_address_increment);
   }
 #endif
   
   
-  /* In a P-picture when a macroblock is skipped */
-  if(pic.header.picture_coding_type == 0x2) {
-    if(mb.macroblock_address_increment > 1) {
-      reset_PMV();
-    }
-  }
-  
-  
+  /* Process all block that are skipped. (Do motion compensation) */
   if(mb.macroblock_address_increment > 1) {    
-    int i;
-    
-    /* Skipped blocks never have any DCT-coefficients */
-    // mb.cbp = 0;
+    int i;    
     
     /* There is plenty of room to optimize this */
     switch(pic.header.picture_coding_type) {
     
+    case 0x1:
+      fprintf(stderr, "*** skipped blocks in I-picture\n");
+      return -1; // Error parsing bitstream
+    
     case 0x2:
-      DPRINTF(3,"skipped in P-picture\n");
-      
+      DPRINTF(3,"in P-picture\n");
       /* Assume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
-      reset_vectors();
-      
-      i = mb.macroblock_address_increment;
-      while( --i > 0 ) {
-	seq.mb_column = (seq.macroblock_address - i) % seq.mb_width;
-	seq.mb_row    = (seq.macroblock_address - i) / seq.mb_width;
-	motion_comp();
-      }
-      seq.mb_column = seq.macroblock_address % seq.mb_width;
-      seq.mb_row    = seq.macroblock_address / seq.mb_width;
+      mb.modes.macroblock_motion_backward = 0;
+      reset_vectors(); // Instead of explicit set to zero.
       break;
     
     case 0x3:
-      DPRINTF(3,"skipped in B-frame\n");
-      
-      i = mb.macroblock_address_increment;
-      while( --i > 0 ) {
-	seq.mb_column = (seq.macroblock_address - i) % seq.mb_width;
-	seq.mb_row    = (seq.macroblock_address - i) / seq.mb_width;
-	motion_comp();
-      }
-      seq.mb_column = seq.macroblock_address % seq.mb_width;
-      seq.mb_row    = seq.macroblock_address / seq.mb_width;
-      break;
-    
-    default:
-      fprintf(stderr, "*** skipped blocks in I-picture\n");
+      DPRINTF(3,"in B-frame\n");
       break;
     }
+    
+    /* We only get here for P or B picutes. */
+    i = mb.macroblock_address_increment;
+    while( --i > 0 ) {
+      seq.mb_column = (seq.macroblock_address - i) % seq.mb_width;
+      seq.mb_row    = (seq.macroblock_address - i) / seq.mb_width;
+      /* Skipped blocks never have any DCT-coefficients,
+	 so there is no call to motion_comp_add_coeff */
+      motion_comp();
+    }
+    seq.mb_column = seq.macroblock_address % seq.mb_width;
+    seq.mb_row    = seq.macroblock_address / seq.mb_width;
   }
 
-
-  macroblock_modes();
-
+  
+  /* What kind of macroblock is this. */
+  if(macroblock_modes() == -1)
+    return -1; // Error parsing bitstream
+  
+  if(mb.modes.macroblock_quant) {
+    mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
+  }
   
   if(mb.modes.macroblock_intra == 0) {
     reset_dc_dct_pred();
     DPRINTF(3, "non_intra macroblock\n");
   }
-
+  
+  
+  /* Decoding of motion vectors. */
+  
+  // Reset predictors: when a macroblock is skipped in a P-picture. */
   if(mb.macroblock_address_increment > 1) {
-    reset_dc_dct_pred();
-    DPRINTF(3, "skipped block\n");
-  }
-
-
-  if(mb.modes.macroblock_quant) {
-    mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
+    reset_dc_dct_pred(); // Could be moved but fitts fine here
+    if(pic.header.picture_coding_type == 0x2)
+      reset_PMV();
   }
   
   if(mb.modes.macroblock_motion_forward)
@@ -726,13 +720,10 @@ void macroblock(void)
   if(mb.modes.macroblock_motion_backward)
     motion_vectors(1);
   
-  
-  /* All motion vectors for the block has been decoded. Update predictors. */
-  
-  // Is this correct?
-  if ((mb.modes.macroblock_motion_forward == 0) &&
-      (mb.modes.macroblock_motion_backward == 0)) {
-    reset_PMV ();
+  // Update predictors.
+  if((mb.modes.macroblock_motion_forward == 0) &&
+     (mb.modes.macroblock_motion_backward == 0)) {  // Is this correct?
+    reset_PMV();
   }
  
   switch (pic.header.picture_coding_type) {
@@ -743,20 +734,21 @@ void macroblock(void)
   case 0x02: /* P-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
-      reset_vectors ();
+      reset_vectors();
     }
     if((!mb.modes.macroblock_intra) && (!mb.modes.macroblock_motion_forward)) {
       reset_PMV();
       /* Asume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
-      reset_vectors ();
+      mb.modes.macroblock_motion_backward = 0;
+      reset_vectors();
     }
     break;
   
   case 0x03: /* B-picture */
     if(mb.modes.macroblock_intra) {
-      reset_PMV ();
-      reset_vectors ();
+      reset_PMV();
+      reset_vectors();
     }
     break;
   }
@@ -773,12 +765,13 @@ void macroblock(void)
   if(mb.modes.macroblock_intra) {
     unsigned int i;
     
-    /* Intra blocks always have pattern coded for all sub blocks and 
-       are writen directly to the output buffers by this code. */
+    /* Intra blocks always have pattern coded for all sub blocks. 
+       The IDCT function writes directly to the output buffers. */
     
     for(i = 0; i < 6; i++) {  
       DPRINTF(4, "cbpindex: %d assumed\n", i);
-      block_intra(i);
+      if(block_intra(i) == -1)
+	return -1; // Error parsing bitstream
       
       /* Shortcut: write the IDCT data directly into the picture buffer */
       {
@@ -815,30 +808,31 @@ void macroblock(void)
   } 
   else { /* Non-intra block */
     
-    motion_comp(); // Only motion compensate don't add coefficients   
-
+    motion_comp();
     if(mb.modes.macroblock_pattern) {
       int i;
 
-      coded_block_pattern();
+      if(coded_block_pattern() == -1)
+	return -1; // Error parsing bitstream
       
       for(i = 0; i < 6; i++) {
 	if(mb.cbp & (1<<(5-i))) {
 	  DPRINTF(4, "cbpindex: %d set\n", i);
-	  block_non_intra(i);
+	  if(block_non_intra(i) == -1)
+	    return -1; // Error parsing bitstream
 	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
 	  motion_comp_add_coeff(i); // Add coefficients here
 	}
       }
     }
-  
   }
-    
+  
+  return 0;
 }
 
 
 /* 6.2.4 Slice */
-void mpeg1_slice(void)
+int mpeg1_slice(void)
 {
   uint32_t slice_start_code;
   
@@ -870,11 +864,13 @@ void mpeg1_slice(void)
     }
   }
   slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
-  
+
   do {
-    macroblock();
+    if( macroblock() )
+      return -1;
   } while(nextbits(23) != 0);
-  
+
   next_start_code();
+  return 0;
 }
 

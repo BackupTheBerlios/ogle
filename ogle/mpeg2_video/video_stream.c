@@ -206,6 +206,7 @@ macroblock_t *ref2_mbs;
 int bytealigned(void);
 void next_start_code(void);
 void resync(void);
+void drop_to_next_picture(void);
 void video_sequence(void);
 void marker_bit(void);
 void sequence_header(void);
@@ -217,7 +218,7 @@ void user_data(void);
 void group_of_pictures_header(void);
 void picture_header(void);
 void picture_data(void);
-void mpeg1_slice(void);
+int  mpeg1_slice(void);
 void mpeg2_slice(void);
 
 void reset_to_default_intra_quantiser_matrix();
@@ -379,7 +380,6 @@ int main(int argc, char **argv)
   read_buf(); // Read first data packet and fill 'curent_word'.
   while( 1 ) {
     DPRINTF(1, "Looking for new Video Sequence\n");
-    fprintf(stderr, "*** NEW SEQ\n");
     video_sequence();
   }  
 #else
@@ -422,6 +422,17 @@ void next_start_code(void)
 void resync(void) {
   DPRINTF(1, "Resyncing\n");
   GETBITS(8, "resync");
+}
+
+void drop_to_next_picture(void) {
+  int n;
+  do {
+    GETBITS(8, "drop");
+    next_start_code();
+    fprintf(stderr, "%08x\n", nextbits(32));
+  } while(nextbits(32) != MPEG2_VS_PICTURE_START_CODE &&
+	  nextbits(32) != MPEG2_VS_GROUP_START_CODE);
+  fprintf(stderr, "Blaha!\n");
 }
 
 
@@ -1361,6 +1372,7 @@ void picture_data(void)
   static int prev_ref_buf_id = -1;
   static int old_ref_buf_id  = -1;
   uint64_t calc_pts;
+  int err;
   
   DPRINTF(3, "picture_data\n");
 
@@ -1527,11 +1539,16 @@ void picture_data(void)
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   else {
     do {
-      mpeg1_slice();
+      err = mpeg1_slice();
+      if(err == -1) {
+	drop_to_next_picture();
+	break;
+      }
     } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   }
   
+  // Check 'err' here?
 
   // Picture decoded
   switch(pic.header.picture_coding_type) {
@@ -1549,9 +1566,6 @@ void picture_data(void)
     last_pts_to_dpy = buf_ctrl_head->picture_infos[buf_id].PTS;
     last_scr_nr_to_dpy = buf_ctrl_head->picture_infos[buf_id].scr_nr;//?
     dpy_q_put(buf_id);
-    break;
-  default:
-    fprintf(stderr, "Invalid frame type halting...\n");
     break;
   }
 
