@@ -60,7 +60,7 @@ char *stream_shmaddr;
 int data_buf_shmid = -1;
 char *data_buf_shmaddr;
 
-int flush_to_scrnr = -1;
+int flush_to_scrid = -1;
 
 int get_q();
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
@@ -356,7 +356,7 @@ void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQFlushData:
     DPRINTF(1, "vs: got flush\n");
-    flush_to_scrnr = ev->flushdata.to_scrnr;
+    flush_to_scrid = ev->flushdata.to_scrid;
     break;
   case MsgEventQDecodeStreamBuf:
     DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
@@ -552,10 +552,10 @@ int get_q()
   }
 
   if(PTS_DTS_flags & 0x2) {
-    if(flush_to_scrnr != -1) {
-      if(flush_to_scrnr != scr_nr) {
+    if(flush_to_scrid != -1) {
+      if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {
       } else {
-	flush_to_scrnr = -1;
+	flush_to_scrid = -1;
       }
     }
   }

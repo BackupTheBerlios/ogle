@@ -332,7 +332,7 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  int to_scrnr;
+  int to_scrid;
 } MsgQFlushDataEvent_t;
 
 typedef struct {
