@@ -151,13 +151,26 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	instance->sample_rate = audio_info->sample_rate;
 	
 	switch(audio_info->encoding) {
-		case OGLE_AO_ENCODING_LINEAR:
-			instance->format = SND_PCM_FORMAT_S16_LE;			 
-			/* ok */
-			break;
+	    case OGLE_AO_ENCODING_LINEAR:
+		switch(audio_info->sample_resolution) {
+		   case 16:
+		       if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
+			   instance->format = SND_PCM_FORMAT_S16_BE;
+		       } else {
+			   instance->format = SND_PCM_FORMAT_S16_LE;
+		       }
+		       /* ok */
+		       break;
 		default:
-			/* not supported */
+		    /* not supported */
+		    return -1;
+		    break;
+		}
+		break;
+	    default:
+		/* not supported */
 		return -1;
+		break;
 	}
   
   	/* Check that we actually got the requested nuber of channels,
