@@ -203,7 +203,6 @@ static inline void float_to_int235 (float * _f, int16_t * s16, int flags)
 
 static inline int float_to_int48_44 (float * _f, int16_t * s16, int flags)
 {
-  int i;
   int32_t * f = (int32_t *) _f;
   static int m = 0;
   int d, s;
