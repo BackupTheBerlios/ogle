@@ -46,6 +46,8 @@ extern char *get_dvdroot(void);
 extern dvd_state_t state;
 
 static void do_run(void);
+static int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
+			     int block, int *still_time);
 
 static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
 {
@@ -545,15 +547,377 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
 }
 
 
+/* Do user input processing. Like audio change, 
+ * subpicture change and answer attribute query requests.
+ * access menus, pause, play, jump forward/backward...
+ */
+int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
+		      int block, int *still_time)
+{
+  int res = 0;
+      
+  //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
+  
+  switch(ev.dvdctrl.cmd.type) {
+  case DVDCtrlLeftButtonSelect:
+  case DVDCtrlRightButtonSelect:
+  case DVDCtrlUpperButtonSelect:
+  case DVDCtrlLowerButtonSelect:
+  case DVDCtrlButtonActivate:
+  case DVDCtrlButtonSelect:
+  case DVDCtrlButtonSelectAndActivate:
+  case DVDCtrlMouseSelect:
+  case DVDCtrlMouseActivate:
+    
+    // A button has already been activated, discard this event??
+    
+    if(cell->first_sector <= pci->pci_gi.nv_pck_lbn
+       && cell->last_vobu_start_sector >= pci->pci_gi.nv_pck_lbn) {
+      /* Update selected/activated button, send highlight info to spu */
+      /* Returns true if a button is activated */
+      if(process_button(&ev.dvdctrl.cmd, pci, &state.HL_BTNN_REG)) {
+	int button_nr = state.HL_BTNN_REG >> 10;
+	res = vm_eval_cmd(&pci->hli.btnit[button_nr - 1].cmd);
+      }
+    }
+    break;
+	  
+  case DVDCtrlMenuCall:
+    NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
+    res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
+    if(!res)
+      NOTE("%s", "No such menu!\n");
+    break;
+	  
+  case DVDCtrlResume:
+    res = vm_resume();
+    break;
+	  
+  case DVDCtrlGoUp:
+    res = vm_goup_pgc();
+    break;
+	  
+  case DVDCtrlBackwardScan:
+    DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+	  ev.dvdctrl.cmd.type);
+    break;
+	
+  case DVDCtrlPauseOn:
+  case DVDCtrlPauseOff:
+  case DVDCtrlForwardScan:  
+    {
+      MsgEvent_t send_ev;
+      static double last_speed = 1.0;
+      send_ev.type = MsgEventQSpeed;
+      if(ev.dvdctrl.cmd.type == DVDCtrlForwardScan) {
+	send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
+	last_speed = ev.dvdctrl.cmd.scan.speed;
+      }
+      /* Perhaps we should remeber the speed before the pause. */
+      else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOn)
+	send_ev.speed.speed = 0.000000001;
+      else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOff)
+	send_ev.speed.speed = last_speed;
+	    
+      /* Hack to exit STILL_MODE if we're in it. */
+      if(cell->first_sector + block > cell->last_vobu_start_sector &&
+	 *still_time > 0) {
+	*still_time = 0;
+      }
+      MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
+    }
+    break;
+	  
+  case DVDCtrlNextPGSearch:
+    res = vm_next_pg();
+    break;
+  case DVDCtrlPrevPGSearch:
+    res = vm_prev_pg();
+    break;
+  case DVDCtrlTopPGSearch:
+    res = vm_top_pg();
+    break;
+	  
+  case DVDCtrlPTTSearch:
+    res = vm_jump_ptt(ev.dvdctrl.cmd.pttsearch.ptt);
+    break;
+  case DVDCtrlPTTPlay:
+    res = vm_jump_title_ptt(ev.dvdctrl.cmd.pttplay.title,
+			    ev.dvdctrl.cmd.pttplay.ptt);
+    break;	
+  case DVDCtrlTitlePlay:
+    res = vm_jump_title(ev.dvdctrl.cmd.titleplay.title);
+    break;
+  case DVDCtrlTimeSearch:
+    //dsi.dsi_gi.c_eltm; /* Current 'nav' time */
+    //ev.dvdctrl.cmd.timesearch.time; /* wanted time */
+    //dsi.vobu_sri.[FWDA|BWDA]; /* Table for small searches */
+    break;
+  case DVDCtrlTimePlay:
+    DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+	  ev.dvdctrl.cmd.type);
+    break;
+	  
+	  
+  case DVDCtrlStop:
+    DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+	  ev.dvdctrl.cmd.type);
+    break;
+	  
+  case DVDCtrlAngleChange:
+    /* FIXME $$$ need to actually change the playback angle too, no? */
+    state.AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
+    break;
+  case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
+    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
+    break;
+  case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
+    state.SPST_REG &= 0x40; // Keep the on/off bit.
+    state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+    NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
+    break;
+  case DVDCtrlSetSubpictureState:
+    if(ev.dvdctrl.cmd.subpicturestate.display == DVDTrue)
+      state.SPST_REG |= 0x40; // Turn it on
+    else
+      state.SPST_REG &= ~0x40; // Turn it off
+    NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
+    break;
+  case DVDCtrlGetCurrentDomain:
+    {
+      MsgEvent_t send_ev;
+      int domain;
+      domain = vm_get_domain();
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlCurrentDomain;
+      send_ev.dvdctrl.cmd.domain.domain = domain;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlGetCurrentLocation:
+    {
+      MsgEvent_t send_ev;
+      dvd_time_t current_time;
+      dvd_time_t total_time;
+      DVDLocation_t *location;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlCurrentLocation;
+      /* should not return when domain is wrong( /= title). */
+      /* how to get current time for searches in menu/system space? */
+      /* a bit of a hack */
+      location = &send_ev.dvdctrl.cmd.location.location;
+      location->title = state.TTN_REG;
+      location->ptt = state.PTTN_REG;
+      vm_get_total_time(&total_time);
+      time_convert(&location->title_total, &total_time);
+      vm_get_current_time(&current_time, pci);
+      time_convert(&location->title_current, &current_time);
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlGetTitles:
+    {
+      MsgEvent_t send_ev;
+      int titles;
+      titles = vm_get_titles();
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlTitles;
+      send_ev.dvdctrl.cmd.titles.titles = titles;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlGetNumberOfPTTs:
+    {
+      MsgEvent_t send_ev;
+      int ptts, title;
+      title = ev.dvdctrl.cmd.parts.title;
+      ptts = vm_get_ptts_for_title(title);
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlNumberOfPTTs;
+      send_ev.dvdctrl.cmd.parts.title = title;
+      send_ev.dvdctrl.cmd.parts.ptts = ptts;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlGetCurrentAudio:
+    {
+      MsgEvent_t send_ev;
+      int nS, cS;
+      vm_get_audio_info(&nS, &cS);
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
+      send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
+      send_ev.dvdctrl.cmd.currentaudio.currentstream = cS;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlIsAudioStreamEnabled:
+    {
+      MsgEvent_t send_ev;
+      int streamN = ev.dvdctrl.cmd.audiostreamenabled.streamnr;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
+      send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
+      send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
+	(vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
+    }
+    break;
+  case DVDCtrlGetCurrentUOPS: // FIXME XXX $$$ Not done
+    {
+      DVDUOP_t res = 0;
+      MsgEvent_t send_ev;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.currentuops.type = DVDCtrlCurrentUOPS;
+      {
+	user_ops_t p_uops = vm_get_uops();
+	/* This mess is needed...
+	 * becuse we didn't do a endian swap in libdvdread */
+	res |= (p_uops.title_or_time_play ? 0 : UOP_FLAG_TitleOrTimePlay);
+	res |= (p_uops.chapter_search_or_play ? 0 : UOP_FLAG_ChapterSearchOrPlay);
+	res |= (p_uops.title_play ? 0 : UOP_FLAG_TitlePlay);
+	res |= (p_uops.stop ? 0 : UOP_FLAG_Stop);
+	res |= (p_uops.go_up ? 0 : UOP_FLAG_PauseOn);
+	res |= (p_uops.time_or_chapter_search ? 0 : UOP_FLAG_TimeOrChapterSearch);
+	res |= (p_uops.prev_or_top_pg_search ? 0 : UOP_FLAG_PrevOrTopPGSearch);
+	res |= (p_uops.next_pg_search ? 0 : UOP_FLAG_NextPGSearch);
+
+	res |= (p_uops.title_menu_call ? 0 : UOP_FLAG_TitleMenuCall);
+	res |= (p_uops.root_menu_call ? 0 : UOP_FLAG_RootMenuCall);
+	res |= (p_uops.subpic_menu_call ? 0 : UOP_FLAG_SubPicMenuCall);
+	res |= (p_uops.audio_menu_call ? 0 : UOP_FLAG_AudioMenuCall);
+	res |= (p_uops.angle_menu_call ? 0 : UOP_FLAG_AngleMenuCall);
+	res |= (p_uops.chapter_menu_call ? 0 : UOP_FLAG_ChapterMenuCall);
+	     
+	res |= (p_uops.resume ? 0 : UOP_FLAG_Resume);
+	res |= (p_uops.button_select_or_activate ? 0 : UOP_FLAG_ButtonSelectOrActivate);
+	res |= (p_uops.still_off ? 0 : UOP_FLAG_StillOff);
+	res |= (p_uops.pause_on ? 0 : UOP_FLAG_PauseOn);
+	res |= (p_uops.audio_stream_change ? 0 : UOP_FLAG_AudioStreamChange);
+	res |= (p_uops.subpic_stream_change ? 0 : UOP_FLAG_SubPicStreamChange);
+	res |= (p_uops.angle_change ? 0 : UOP_FLAG_AngleChange);
+	res |= (p_uops.karaoke_audio_pres_mode_change ? 0 : UOP_FLAG_KaraokeAudioPresModeChange);
+	res |= (p_uops.video_pres_mode_change ? 0 : UOP_FLAG_VideoPresModeChange);
+      }
+      send_ev.dvdctrl.cmd.currentuops.uops = res;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
+    {
+      MsgEvent_t send_ev;
+      int streamN = ev.dvdctrl.cmd.audioattributes.streamnr;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
+      send_ev.dvdctrl.cmd.audioattributes.streamnr = streamN;
+      {
+	DVDAudioFormat_t af = DVD_AUDIO_FORMAT_Other;
+	audio_attr_t attr = vm_get_audio_attr(streamN);
+	memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
+	       sizeof(DVDAudioAttributes_t)); //TBD
+	switch(attr.audio_format) {
+	case 0:
+	  af = DVD_AUDIO_FORMAT_AC3;
+	  break;
+	case 2:
+	  af = DVD_AUDIO_FORMAT_MPEG1;
+	  break;
+	case 3:
+	  af = DVD_AUDIO_FORMAT_MPEG2;
+	  break;
+	case 4:
+	  af = DVD_AUDIO_FORMAT_LPCM;
+	  break;
+	case 6:
+	  af = DVD_AUDIO_FORMAT_DTS;
+	  break;
+	default:
+	  NOTE("please send a bug report, unknown Audio format %d!", 
+	       attr.audio_format);
+	  break;
+	}
+	send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
+	  = af;
+	send_ev.dvdctrl.cmd.audioattributes.attr.AppMode 
+	  = attr.application_mode;
+	send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
+	  = attr.lang_extension;
+	send_ev.dvdctrl.cmd.audioattributes.attr.Language 
+	  = attr.lang_code;
+      }
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
+    }
+    break;
+  case DVDCtrlGetCurrentSubpicture:
+    {
+      MsgEvent_t send_ev;
+      int nS, cS;
+      vm_get_subp_info(&nS, &cS);
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
+      send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
+      send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS & ~0x40;
+      send_ev.dvdctrl.cmd.currentsubpicture.display 
+	= (cS & 0x40) ? DVDTrue : DVDFalse;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  case DVDCtrlIsSubpictureStreamEnabled:
+    {
+      MsgEvent_t send_ev;
+      int streamN = ev.dvdctrl.cmd.subpicturestreamenabled.streamnr;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
+      send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
+      send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
+	(vm_get_subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
+    }
+    break;
+  case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
+    {
+      MsgEvent_t send_ev;
+      int streamN = ev.dvdctrl.cmd.subpictureattributes.streamnr;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureAttributes;
+      send_ev.dvdctrl.cmd.subpictureattributes.streamnr = streamN;
+      {
+	subp_attr_t attr = vm_get_subp_attr(streamN);
+	memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
+	       sizeof(DVDSubpictureAttributes_t)); //TBD
+	send_ev.dvdctrl.cmd.subpictureattributes.attr.Language 
+	  = attr.lang_code;
+      }
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }	  
+    break;
+  case DVDCtrlGetCurrentAngle:
+    {
+      MsgEvent_t send_ev;
+      int nS, cS;
+      vm_get_angle_info(&nS, &cS);
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAngle;
+      send_ev.dvdctrl.cmd.currentangle.anglesavailable = nS;
+      send_ev.dvdctrl.cmd.currentangle.anglenr = cS;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
+  default:
+    DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
+	  ev.dvdctrl.cmd.type);
+    break;
+  }
+  return res;
+}
 
 
 
-
-
-static int pending_lbn;
 static int block;
 static int still_time;
 static cell_playback_t *cell;
+
+static int pending_lbn;
 
 #define INF_STILL_TIME (10 * 0xff)
 
@@ -580,7 +944,6 @@ static void do_init_cell(int flush) {
 }
 
 
-
 static void do_run(void) {
   pci_t pci;
   dsi_t dsi;
@@ -589,7 +952,6 @@ static void do_run(void) {
   do_init_cell(0);
   pci.pci_gi.nv_pck_lbn = -1;
   dsi.dsi_gi.nv_pck_lbn = -1;
-  
   
   while(1) {
     MsgEvent_t ev;
@@ -617,6 +979,12 @@ static void do_run(void) {
 			   dsi.dsi_gi.vobu_ea, complete_video);
       }
       
+      /* VOBU still ? */
+      /* if(cell->playback_mode) .. */
+      /* need to defer the playing of the next VOBU untill the still
+       * is interrupted.  */
+	 
+/* start - get_next_vobu() */     	 
       /* The next vobu is where... (make this a function?) */
       /* angle change points are at next ILVU, not sure if 
 	 one VOBU = one ILVU */ 
@@ -697,368 +1065,20 @@ static void do_run(void) {
     /* If we are here we either have a message or an available data packet */ 
     
     
-    
     /* User input events */
     if(!got_data) { // Then it must be a message (or error?)
       int res = 0;
       
-      //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
-          
-      /* Do user input processing. Like audio change, 
-       * subpicture change and answer attribute query requests.
-       * access menus, pause, play, jump forward/backward...
-       */
       switch(ev.type) {
       case MsgEventQDVDCtrl:
-	
-	switch(ev.dvdctrl.cmd.type) {
-	case DVDCtrlLeftButtonSelect:
-	case DVDCtrlRightButtonSelect:
-	case DVDCtrlUpperButtonSelect:
-	case DVDCtrlLowerButtonSelect:
-	case DVDCtrlButtonActivate:
-	case DVDCtrlButtonSelect:
-	case DVDCtrlButtonSelectAndActivate:
-	case DVDCtrlMouseSelect:
-	case DVDCtrlMouseActivate:
-	  
-	  // A button has already been activated, discard this event??
-	  
-	  if(cell->first_sector <= pci.pci_gi.nv_pck_lbn
-	     && cell->last_vobu_start_sector >= pci.pci_gi.nv_pck_lbn) {
-	    /* Update selected/activated button, send highlight info to spu */
-	    /* Returns true if a button is activated */
-	    if(process_button(&ev.dvdctrl.cmd, &pci, &state.HL_BTNN_REG)) {
-	      int button_nr = state.HL_BTNN_REG >> 10;
-	      res = vm_eval_cmd(&pci.hli.btnit[button_nr - 1].cmd);
-	    }
-	  }
-	  break;
-	  
-	case DVDCtrlMenuCall:
-	  NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
-	  res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
-	  if(!res)
-	    NOTE("%s", "No such menu!\n");
-	  break;
-	  
-	case DVDCtrlResume:
-	  res = vm_resume();
-	  break;
-	  
-	case DVDCtrlGoUp:
-	  res = vm_goup_pgc();
-	  break;
-	case DVDCtrlBackwardScan:
-	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
-		ev.dvdctrl.cmd.type);
-	  break;
-	
-	case DVDCtrlPauseOn:
-	case DVDCtrlPauseOff:
-	case DVDCtrlForwardScan:  
-	  {
-	    MsgEvent_t send_ev;
-	    static double last_speed = 1.0;
-	    send_ev.type = MsgEventQSpeed;
-	    if(ev.dvdctrl.cmd.type == DVDCtrlForwardScan) {
-	      send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
-	      last_speed = ev.dvdctrl.cmd.scan.speed;
-	    }
-	    /* Perhaps we should remeber the speed before the pause. */
-	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOn)
-	      send_ev.speed.speed = 0.000000001;
-	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOff)
-	      send_ev.speed.speed = last_speed;
-	    
-	    /* Hack to exit STILL_MODE if we're in it. */
-	    if(cell->first_sector + block > cell->last_vobu_start_sector &&
-	       still_time > 0) {
-	      still_time = 0;
-	    }
-	    MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
-          }
-	  break;
-	  
-	case DVDCtrlNextPGSearch:
-	  res = vm_next_pg();
-	  break;
-	case DVDCtrlPrevPGSearch:
-	  res = vm_prev_pg();
-	  break;
-	case DVDCtrlTopPGSearch:
-	  res = vm_top_pg();
-	  break;
-	  
-	case DVDCtrlPTTSearch:
-	  res = vm_jump_ptt(ev.dvdctrl.cmd.pttsearch.ptt);
-	  break;
-	case DVDCtrlPTTPlay:
-	  res = vm_jump_title_ptt(ev.dvdctrl.cmd.pttplay.title,
-				  ev.dvdctrl.cmd.pttplay.ptt);
-	  break;	
-	case DVDCtrlTitlePlay:
-	  res = vm_jump_title(ev.dvdctrl.cmd.titleplay.title);
-	  break;
-	case DVDCtrlTimeSearch:
-	  //dsi.dsi_gi.c_eltm; /* Current 'nav' time */
-	  //ev.dvdctrl.cmd.timesearch.time; /* wanted time */
-	  //dsi.vobu_sri.[FWDA|BWDA]; /* Table for small searches */
-	  break;
-	case DVDCtrlTimePlay:
-	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
-		ev.dvdctrl.cmd.type);
-	  break;
-	  
-	  
-	case DVDCtrlStop:
-	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
-		ev.dvdctrl.cmd.type);
-	  break;
-	  
-	case DVDCtrlAngleChange:
-	  state.AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
-	  break;
-	case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
-	  state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
-	  break;
-	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
-	  state.SPST_REG &= 0x40; // Keep the on/off bit.
-	  state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
-	  NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
-	  break;
-	case DVDCtrlSetSubpictureState:
-	  if(ev.dvdctrl.cmd.subpicturestate.display == DVDTrue)
-	    state.SPST_REG |= 0x40; // Turn it on
-	  else
-	    state.SPST_REG &= ~0x40; // Turn it off
-	  NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
-	  break;
-	case DVDCtrlGetCurrentDomain:
-	  {
-	    MsgEvent_t send_ev;
-	    int domain;
-	    domain = vm_get_domain();
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentDomain;
-	    send_ev.dvdctrl.cmd.domain.domain = domain;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlGetCurrentLocation:
-	  {
-	    MsgEvent_t send_ev;
-	    dvd_time_t current_time;
-	    dvd_time_t total_time;
-	    DVDLocation_t *location;
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentLocation;
-	    /* should not return when domain is wrong( /= title). */
-	    /* how to get current time for searches in menu/system space? */
-	    /* a bit of a hack */
-	    location = &send_ev.dvdctrl.cmd.location.location;
-	    location->title = state.TTN_REG;
-	    location->ptt = state.PTTN_REG;
-	    vm_get_total_time(&total_time);
-	    time_convert(&location->title_total, &total_time);
-	    vm_get_current_time(&current_time, &pci);
-	    time_convert(&location->title_current, &current_time);
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlGetTitles:
-	  {
-	    MsgEvent_t send_ev;
-	    int titles;
-	    titles = vm_get_titles();
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlTitles;
-	    send_ev.dvdctrl.cmd.titles.titles = titles;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlGetNumberOfPTTs:
-	  {
-	    MsgEvent_t send_ev;
-            int ptts, title;
-	    title = ev.dvdctrl.cmd.parts.title;
-            ptts = vm_get_ptts_for_title(title);
-            send_ev.type = MsgEventQDVDCtrl;
-            send_ev.dvdctrl.cmd.type = DVDCtrlNumberOfPTTs;
-	    send_ev.dvdctrl.cmd.parts.title = title;
-	    send_ev.dvdctrl.cmd.parts.ptts = ptts;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlGetCurrentAudio:
-	  {
-	    MsgEvent_t send_ev;
-	    int nS, cS;
-	    vm_get_audio_info(&nS, &cS);
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
-	    send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
-	    send_ev.dvdctrl.cmd.currentaudio.currentstream = cS;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlIsAudioStreamEnabled:
-	  {
-	    MsgEvent_t send_ev;
-	    int streamN = ev.dvdctrl.cmd.audiostreamenabled.streamnr;
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
-	    send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
-	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
-	      (vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
-	  }
-	  break;
-	case DVDCtrlGetCurrentUOPS: // FIXME XXX $$$ Not done
-	  {
-	   DVDUOP_t res = 0;
-	   MsgEvent_t send_ev;
-	   send_ev.type = MsgEventQDVDCtrl;
-	   send_ev.dvdctrl.cmd.currentuops.type = DVDCtrlCurrentUOPS;
-	   {
-	     user_ops_t p_uops = vm_get_uops();
-	     /* This mess is needed...
-	      * becuse we didn't do a endian swap in libdvdread */
-	     res |= (p_uops.title_or_time_play ? 0 : UOP_FLAG_TitleOrTimePlay);
-	     res |= (p_uops.chapter_search_or_play ? 0 : UOP_FLAG_ChapterSearchOrPlay);
-	     res |= (p_uops.title_play ? 0 : UOP_FLAG_TitlePlay);
-	     res |= (p_uops.stop ? 0 : UOP_FLAG_Stop);
-	     res |= (p_uops.go_up ? 0 : UOP_FLAG_PauseOn);
-	     res |= (p_uops.time_or_chapter_search ? 0 : UOP_FLAG_TimeOrChapterSearch);
-	     res |= (p_uops.prev_or_top_pg_search ? 0 : UOP_FLAG_PrevOrTopPGSearch);
-	     res |= (p_uops.next_pg_search ? 0 : UOP_FLAG_NextPGSearch);
+	/* Do user input processing. Like audio change, 
+	 * subpicture change and answer attribute query requests.
+	 * access menus, pause, play, jump forward/backward...
+	 */
 
-	     res |= (p_uops.title_menu_call ? 0 : UOP_FLAG_TitleMenuCall);
-	     res |= (p_uops.root_menu_call ? 0 : UOP_FLAG_RootMenuCall);
-	     res |= (p_uops.subpic_menu_call ? 0 : UOP_FLAG_SubPicMenuCall);
-	     res |= (p_uops.audio_menu_call ? 0 : UOP_FLAG_AudioMenuCall);
-	     res |= (p_uops.angle_menu_call ? 0 : UOP_FLAG_AngleMenuCall);
-	     res |= (p_uops.chapter_menu_call ? 0 : UOP_FLAG_ChapterMenuCall);
-	     
-	     res |= (p_uops.resume ? 0 : UOP_FLAG_Resume);
-	     res |= (p_uops.button_select_or_activate ? 0 : UOP_FLAG_ButtonSelectOrActivate);
-	     res |= (p_uops.still_off ? 0 : UOP_FLAG_StillOff);
-	     res |= (p_uops.pause_on ? 0 : UOP_FLAG_PauseOn);
-	     res |= (p_uops.audio_stream_change ? 0 : UOP_FLAG_AudioStreamChange);
-	     res |= (p_uops.subpic_stream_change ? 0 : UOP_FLAG_SubPicStreamChange);
-	     res |= (p_uops.angle_change ? 0 : UOP_FLAG_AngleChange);
-	     res |= (p_uops.karaoke_audio_pres_mode_change ? 0 : UOP_FLAG_KaraokeAudioPresModeChange);
-	     res |= (p_uops.video_pres_mode_change ? 0 : UOP_FLAG_VideoPresModeChange);
-	   }
-	   send_ev.dvdctrl.cmd.currentuops.uops = res;
-	   MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
-	  {
-	    MsgEvent_t send_ev;
-	    int streamN = ev.dvdctrl.cmd.audioattributes.streamnr;
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
-	    send_ev.dvdctrl.cmd.audioattributes.streamnr = streamN;
-	    {
-	      DVDAudioFormat_t af = DVD_AUDIO_FORMAT_Other;
-	      audio_attr_t attr = vm_get_audio_attr(streamN);
-	      memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
-		     sizeof(DVDAudioAttributes_t)); //TBD
-	      switch(attr.audio_format) {
-	      case 0:
-		af = DVD_AUDIO_FORMAT_AC3;
-		break;
-	      case 2:
-		af = DVD_AUDIO_FORMAT_MPEG1;
-		break;
-	      case 3:
-		af = DVD_AUDIO_FORMAT_MPEG2;
-		break;
-	      case 4:
-		af = DVD_AUDIO_FORMAT_LPCM;
-		break;
-	      case 6:
-		af = DVD_AUDIO_FORMAT_DTS;
-		break;
-	      default:
-		NOTE("%s", "please send a bug report, unknown Audio format!");
-		break;
-	      }
-	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
-		= af;
-	      send_ev.dvdctrl.cmd.audioattributes.attr.AppMode 
-		= attr.application_mode;
-	      send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
-		= attr.lang_extension;
-	      send_ev.dvdctrl.cmd.audioattributes.attr.Language 
-		= attr.lang_code;
-	    }
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
-	  }
-	  break;
-	case DVDCtrlGetCurrentSubpicture:
-	  {
-	    MsgEvent_t send_ev;
-	    int nS, cS;
-	    vm_get_subp_info(&nS, &cS);
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentSubpicture;
-	    send_ev.dvdctrl.cmd.currentsubpicture.nrofstreams = nS;
-	    send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS & ~0x40;
-	    send_ev.dvdctrl.cmd.currentsubpicture.display 
-	      = (cS & 0x40) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	case DVDCtrlIsSubpictureStreamEnabled:
-	  {
-	    MsgEvent_t send_ev;
-	    int streamN = ev.dvdctrl.cmd.subpicturestreamenabled.streamnr;
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamEnabled;
-	    send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
-	    send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
-	      (vm_get_subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
-	  }
-	  break;
- 	case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
-	  {
-	    MsgEvent_t send_ev;
-	    int streamN = ev.dvdctrl.cmd.subpictureattributes.streamnr;
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureAttributes;
-	    send_ev.dvdctrl.cmd.subpictureattributes.streamnr = streamN;
-	    {
-	      subp_attr_t attr = vm_get_subp_attr(streamN);
-	      memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
-		     sizeof(DVDSubpictureAttributes_t)); //TBD
-	      send_ev.dvdctrl.cmd.subpictureattributes.attr.Language 
-		= attr.lang_code;
-	    }
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }	  
-	  break;
-	case DVDCtrlGetCurrentAngle:
-	  {
-	    MsgEvent_t send_ev;
-	    int nS, cS;
-	    vm_get_angle_info(&nS, &cS);
-	    send_ev.type = MsgEventQDVDCtrl;
-	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAngle;
-	    send_ev.dvdctrl.cmd.currentangle.anglesavailable = nS;
-	    send_ev.dvdctrl.cmd.currentangle.anglenr = cS;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
-	  }
-	  break;
-	default:
-	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
-		ev.dvdctrl.cmd.type);
-	  break;
-	}
+	res = process_user_data(ev, &pci, cell, block, &still_time);
 	break;
+	
       default:
 	handle_events(msgq, &ev);
 	/* If( new dvdroot ) {
@@ -1067,8 +1087,7 @@ static void do_run(void) {
 	   res = 1;
 	   }
 	*/
-      }
-      
+      }      
       if(res != 0) {/* a jump has occured */
 	do_init_cell(/* Flush streams */1);
 	dsi.dsi_gi.nv_pck_lbn = -1;
@@ -1118,3 +1137,4 @@ static void do_run(void) {
     
   }
 }
+

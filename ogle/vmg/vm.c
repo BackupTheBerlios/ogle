@@ -125,6 +125,8 @@ int vm_reset(void) // , register_t regs)
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
+  
+  state.mode = RESET_MODE;
 
   return 0;
 }  
@@ -573,7 +575,9 @@ void vm_get_subp_info(int *num_avail, int *current)
 
 int vm_get_domain(void)
 {
- return state.domain;
+  /* The enum for this domain the one in the dvdcontrol interface
+   * (ogle/dvd.h) are in sync, so no coversion is necessary.  */
+  return state.domain;
 }
 
 int vm_get_titles(void)
