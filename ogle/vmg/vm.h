@@ -19,6 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include <inttypes.h>
 #include <dvdread/ifo_types.h>
 #include <dvdread/nav_types.h>
 /* TODO: Remove the dependency on ogle/dvd.h */

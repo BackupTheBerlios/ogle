@@ -24,6 +24,7 @@
 #include <libxml/parser.h>
 
 #include "vm.h"
+#include "vm_serialize.h"
 
 
 static int serialize_registers (xmlNodePtr cur, registers_t *regs)

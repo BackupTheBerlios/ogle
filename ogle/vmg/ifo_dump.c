@@ -19,47 +19,32 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include <dvdread/ifo_types.h>
 #include <dvdread/ifo_read.h>
 #include <dvdread/ifo_print.h>
 
-static int verbose = 0;
 static char *program_name;
 
 static void print_ifo(char *path, int title);
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-d <level>] <dvd path> <title number>\n", 
+  fprintf(stderr, "Usage: %s <dvd path> <title number>\n", 
 	  program_name);
 }
 
 int main(int argc, char *argv[])
 {
-  int c;
   program_name = argv[0];
-  
-  /* Parse command line options */
-  while((c = getopt(argc, argv, "d:h?")) != EOF) {
-    switch (c) {
-    case 'd':
-      verbose = atoi(optarg);
-      break;
-    case 'h':
-    case '?':
-      usage();
-      return 1;
-    }
-  }
-  
-  if(argc - optind != 2){
+
+  if(argc != 3) {
     usage();
     return 1;
   }
   
-  print_ifo(argv[optind], atoi(argv[optind + 1]));
-
+  print_ifo(argv[1], atoi(argv[2]));
   exit(0);
 }
 
@@ -116,7 +101,7 @@ static void print_ifo(char *path, int title) {
     } else
       printf("No Text Data Manager Information present\n");
       
-    if(verbose) {
+    if(1) {
       
       printf("\nCell Address table\n");
       printf(  "-----------------\n");
@@ -154,7 +139,7 @@ static void print_ifo(char *path, int title) {
     } else
       printf("No Menu PGCI Unit table present\n");
       
-    if(verbose) {
+    if(1) {
       
       printf("\nTime Map table\n");
       printf(  "-----------------\n");
