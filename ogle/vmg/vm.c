@@ -46,7 +46,7 @@ dvd_state_t state;
 /* Local prototypes */
 
 static void saveRSMinfo(int cellN, int blockN);
-static int set_PGN(void);
+static int update_PGN(void);
 static link_t play_PGC(void);
 static link_t play_PG(void);
 static link_t play_Cell(void);
@@ -300,7 +300,7 @@ int vm_resume(void)
   
   state.domain = VTS_DOMAIN;
   ifoOpenNewVTSI(dvd, state.rsm_vtsN);
-  get_PGC(state.rsm_pgcN);
+  get_PGC(state.rsm_pgcN); // FIXME check return value
   
   /* These should never be set in SystemSpace and/or MenuSpace */ 
   // state.TTN_REG = state.rsm_tt;
@@ -321,7 +321,7 @@ int vm_resume(void)
     state.cellN = state.rsm_cellN;
     state.blockN = state.rsm_blockN;
     //state.pgN = ?? does this gets the righ value in play_Cell, no!
-    if(set_PGN()) {
+    if(update_PGN()) {
       ; /* Were at or past the end of the PGC, should not happen for a RSM */
       assert(0);
       play_PGC_post();
@@ -576,7 +576,7 @@ static void saveRSMinfo(int cellN, int blockN)
 
 
 /* Figure out the correct pgN from the cell and update state. */ 
-static int set_PGN(void) {
+static int update_PGN(void) {
   int new_pgN = 0;
   
   while(new_pgN < state.pgc->nr_of_programs 
@@ -622,10 +622,12 @@ static link_t play_PGC(void)
   else
     fprintf(stderr, " first_play_pgc\n");
 
-  // This must be set before the pre-commands are executed because they
-  // might contain a CallSS that will save resume state
-  state.pgN = 1;
-  state.cellN = 0;
+  // These should have been set before play_PGC is called.
+  // They won't be set automaticaly and the when the pre-commands are
+  // executed they might be used (for instance in a CallSS that will 
+  // save resume state)
+  // state.pgN, state.cellN
+  state.cellN = 0; // FIXME set cellN everytime pgN is set! ?!
 
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
@@ -709,7 +711,7 @@ static link_t play_Cell(void)
   }
   
   /* Updates state.pgN and PTTN_REG */
-  if(set_PGN()) {
+  if(update_PGN()) {
     /* Should not happen */
     link_t tmp = {LinkTailPGC, /* No Button */ 0, 0, 0};
     assert(0);
@@ -784,7 +786,7 @@ static link_t play_Cell_post(void)
   
   
   /* Figure out the correct pgN for the new cell */ 
-  if(set_PGN()) {
+  if(update_PGN()) {
     fprintf(stderr, "last cell in this PGC\n");
     return play_PGC_post();
   }
@@ -969,11 +971,11 @@ static link_t process_command(link_t link_values)
 	} else { 
 	  /* assert( time/block/vobu is _not_ 0 ); */
 	  /* play_Cell_at_time */
-	  //state.pgN = ?? this gets the righ value in play_Cell
+	  //state.pgN = ?? update_PGN() takes care of this
 	  state.cellN = state.rsm_cellN;
 	  link_values.command = PlayThis;
 	  link_values.data1 = state.rsm_blockN;
-	  if(set_PGN()) {
+	  if(update_PGN()) {
 	    /* Were at the end of the PGC, should not happen for a RSM */
 	    assert(0);
 	    link_values.command = LinkTailPGC;
@@ -993,7 +995,7 @@ static link_t process_command(link_t link_values)
 	state.HL_BTNN_REG = link_values.data2 << 10;
       if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, link_values.data1) == -1)
 	assert(0);
-      link_values = play_PG();
+      link_values = play_PGC(); // play_PG(); ?? I'd think PGC for symmetry
       break;
     case LinkPGN:
       if(link_values.data2 != 0)
@@ -1029,11 +1031,7 @@ static link_t process_command(link_t link_values)
       assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
       if(get_VTS_PTT(state.vtsN, link_values.data1, link_values.data2) == -1)
 	assert(0);
-      /* Need to look closer at how this should be handled. */
-      if(link_values.data2 == 1) // hack !! see the 'de' game DVDs
-	link_values = play_PGC();
-      else
-	link_values = play_PG();
+      link_values = play_PGC();
       break;
       
     case JumpSS_FP:
@@ -1169,7 +1167,7 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
 
 static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
 {
-  int pgcN, pgN;
+  int pgcN, pgN, res;
   
   state.domain = VTS_DOMAIN;
   if(vtsN != state.vtsN)
@@ -1187,9 +1185,9 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
   state.VTS_TTN_REG = vts_ttn;
   /* Any other registers? */
   
-  state.pgN = pgN; // ??
-  
-  return get_PGC(pgcN);
+  res = get_PGC(pgcN); // This clobbers state.pgN (sets it to 1).
+  state.pgN = pgN;
+  return res;
 }
 
 
@@ -1201,6 +1199,7 @@ static int get_FP_PGC(void)
   /* 'DVD Authoring & Production' claim that first_play_pgc is optional. */
   if(vmgi->first_play_pgc) {
     state.pgc = vmgi->first_play_pgc;
+    state.pgN = 1;
   } else {
     if(get_TT(1) == -1)
       assert(0);
@@ -1250,6 +1249,7 @@ static int get_PGC(int pgcN)
   
   //state.pgcN = pgcN;
   state.pgc = pgcit->pgci_srp[pgcN - 1].pgc;
+  state.pgN = 1;
   
   if(state.domain == VTS_DOMAIN)
     state.TT_PGCN_REG = pgcN;
