@@ -31,6 +31,10 @@
 #else
 #include <sys/soundcard.h>
 #endif
+/* AFMT_AC3 is really IEC61937 / IEC60958, mpeg/ac3/dts over spdif */
+#ifndef AFMT_AC3
+#define AFMT_AC3        0x00000400      /* Dolby Digital AC3 */
+#endif
 
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
