@@ -336,7 +336,8 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   q_head_t *q_head;
   q_elem_t *q_elems;
   int elem;
-  
+  volatile int *in_use;
+
   if(stream_shmaddr == NULL) {
     while(MsgNextEvent(msgq, ev) == -1);
     return 0;
@@ -346,10 +347,11 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
-  if(!q_elems[elem].in_use) {
+  in_use = &(q_elems[elem].in_use);
+  if(!*in_use) {
     q_head->reader_requests_notification = 1;
     
-    while(!q_elems[elem].in_use) {
+    while(!*in_use) {
       //DPRINTF(1, "vmg: waiting for notification\n");
       if(MsgNextEvent(msgq, ev) != -1) {
 	if(ev->type == MsgEventQNotify) // Is this OK?
@@ -386,7 +388,8 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   //static int packnr = 0;
   //static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
-  
+  volatile int *in_use;
+
   /* Should never hapen if you call wait_q first */
   while(stream_shmaddr == NULL) {
     MsgEvent_t t_ev;
@@ -399,11 +402,12 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
+  in_use = &(q_elems[elem].in_use);
   /* Should never hapen if you call wait_q first */
-  if(!q_elems[elem].in_use) {
+  if(!*in_use) {
     q_head->reader_requests_notification = 1;
     
-    while(!q_elems[elem].in_use) {
+    while(!*in_use) {
       //DPRINTF(1, "vmg: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(msgq, &ev);
@@ -477,8 +481,10 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   
   
   // release elem
-  data_elem->in_use = 0;
-  q_elems[elem].in_use = 0;
+  in_use = &(data_elem->in_use);
+  *in_use = 0;
+  in_use = &(q_elems[elem].in_use);
+  *in_use = 0;
 
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 

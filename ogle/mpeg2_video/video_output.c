@@ -658,6 +658,7 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
 {
   int elem;
   MsgEvent_t ev;
+  volatile int *in_use;
   struct itimerval timer;
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = 0;
@@ -669,11 +670,12 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
   data_q->q_head->read_nr =
     (data_q->q_head->read_nr+1)%data_q->q_head->nr_of_qelems;
 
-  if(!data_q->q_elems[elem].in_use) {
+  in_use = &(data_q->q_elems[elem].in_use); 
+  if(!*in_use) {
     data_q->q_head->reader_requests_notification = 1;
     //DNOTE("elem not in use, setting notification req\n");
 
-    while(!data_q->q_elems[elem].in_use) {
+    while(!*in_use) {
       if(process_interrupted) {
 	// might never have had dispay_init called
 	display_exit();
@@ -834,7 +836,7 @@ static void display_process()
   int avg_nr = 23;
   picture_data_elem_t *pinfos;
   data_q_t *old_data_q = NULL;
-  
+
   TIME_S(prefered_time) = 0;
   
   sig.sa_handler = int_handler;

@@ -860,10 +860,10 @@ int get_output_buffer(data_q_t *data_q,
   picture_data_elem_t *data_elems = NULL;
   yuv_image_t *image_bufs = NULL;
 
-
+  DNOTE("y_size: %d, uv_size: %d, yuv_size: %d\n", y_size, uv_size, yuv_size);
   DNOTE("%s", "get ouput buffer\n");
   picture_size = ((yuv_size + (pagesize-1))/pagesize*pagesize);
-  
+  DNOTE("psize: %d, nr_bufs: %d\n", picture_size, nr_of_bufs);
   /* Mlib reads ?8? bytes beyond the last pel (in the v-picture), 
      if that pel just before a page boundary then *boom*!! */
   
@@ -884,7 +884,7 @@ int get_output_buffer(data_q_t *data_q,
   picture_ctrl_size = INC_8b_ALIGNMENT(picture_ctrl_size);
 
   buf_size = picture_ctrl_size + picture_bufs_size;
-  
+  DNOTE("pcs: %d, pbs: %d\n", picture_ctrl_size, picture_bufs_size);
   // Get shared memory buffer
   
   
@@ -1672,17 +1672,18 @@ void dpy_q_put(int id, data_q_t *data_q)
 {
   MsgEvent_t ev;
   int elem;
-  
+  volatile int *in_use;
   elem = data_q->q_head->write_nr;
   /*
   fprintf(stderr, "DEBUG[vs]: try put picture in q, elem: @%d, bufid: @%d\n",
 	  elem, id);
   */
-  if(data_q->q_elems[elem].in_use) {
+  in_use = &(data_q->q_elems[elem].in_use);
+  if(*in_use) {
     data_q->q_head->writer_requests_notification = 1;
     //fprintf(stderr, "vs:  elem in use, setting notification\n");
     
-    while(data_q->q_elems[elem].in_use) {
+    while(*in_use) {
       //fprintf(stderr, "video_decode: waiting for notification2\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(msgq, &ev);
@@ -1693,7 +1694,7 @@ void dpy_q_put(int id, data_q_t *data_q)
   //fprintf(stderr, "vs:  elem free to fill\n");  
   
   data_q->q_elems[elem].data_elem_index = id;
-  data_q->q_elems[elem].in_use = 1;
+  *in_use = 1;
   
   data_q->q_head->write_nr =
     (data_q->q_head->write_nr + 1) % data_q->q_head->nr_of_qelems;

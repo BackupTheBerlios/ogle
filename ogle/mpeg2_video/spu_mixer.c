@@ -303,16 +303,18 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
   static int read_offset = 0;
   //  clocktime_t pts_time;
   int cpy_len;
+  volatile int *in_use;
 
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
-  
+
+  in_use = &(q_elems[elem].in_use); 
   if(!read_offset) {    
-    if(!q_elems[elem].in_use) {
+    if(!*in_use) {
       q_head->reader_requests_notification = 1;
       
-      if(!q_elems[elem].in_use) {
+      if(!*in_use) {
 	return 0;
       }
     }

@@ -434,6 +434,8 @@ int get_q()
   static int have_buf = 0;
   static uint8_t *tmp_base;
   static uint8_t dummy_buf[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+  
+  volatile int *in_use;
 
   //fprintf(stderr, "video_dec: get_q()\n");
   
@@ -482,11 +484,13 @@ int get_q()
     q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
     elem = q_head->read_nr;  
   }
+
+  in_use = &(q_elems[elem].in_use);
   // wait for buffer
-  if(!q_elems[elem].in_use) {
+  if(!*in_use) {
     q_head->reader_requests_notification = 1;
     
-    while(!q_elems[elem].in_use) {
+    while(!*in_use) {
       //fprintf(stderr, "video_decode: waiting for notification1\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(msgq, &ev);
