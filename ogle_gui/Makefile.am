@@ -2,8 +2,6 @@
 
 SUBDIRS = intl src po
 
-EXTRA_DIST = ogle_gui.glade
-
 install-data-local:
 	@$(NORMAL_INSTALL)
 	if test -d $(srcdir)/pixmaps; then \
@@ -14,7 +12,6 @@ install-data-local:
 	    fi \
 	  done \
 	fi
-	$(INSTALL_DATA) ogle_gui.glade $(DESTDIR)$(datadir)/$(PACKAGE)
 
 dist-hook:
 	if test -d pixmaps; then \
