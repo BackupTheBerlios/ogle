@@ -1187,9 +1187,9 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
   if(!ifofile->vtsi_mat)
     return 0;
 
-  if(ifofile->vtsi_mat->vts_tmapt == 0) { /* optional(?) */
+   /* Seems to be optional, at least when there are no OneSequencial Titles */
+  if(ifofile->vtsi_mat->vts_tmapt == 0) {
     ifofile->vts_tmapt = NULL;
-    fprintf(stderr,"Please send bug report - no VTS_TMAPT ?? \n");
     return 1;
   }
   
