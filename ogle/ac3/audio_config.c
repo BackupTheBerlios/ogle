@@ -176,7 +176,7 @@ int audio_config(audio_config_t *aconf,
 	    OGLE_AO_ENCODING_LINEAR,
 	    aconf->ainfo->encoding);
     }
-    if(aconf->ainfo->fragment_size != frag_size) {
+    if(frag_size != -1 && aconf->ainfo->fragment_size != frag_size) {
       NOTE("wanted fragment size %d, got %d\n",
 	   frag_size,
 	   aconf->ainfo->fragment_size);
