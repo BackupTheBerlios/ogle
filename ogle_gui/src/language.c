@@ -20,6 +20,8 @@
 #include <ogle/dvdcontrol.h>
 #include "language.h"
 
+// http://lcweb.loc.gov/standards/iso639-2/iso639jac.html
+
 langcodes_t language[] = {
   { N_("Abkhazian"), "abk", "abk", "ab"},
   { N_("Achinese"), "ace", "ace", ""},
@@ -175,11 +177,12 @@ langcodes_t language[] = {
   { N_("Greek, Modern (1453-)"), "gre", "ell", "el"},
   { N_("Guarani"), "grn", "grn", "gn"},
   { N_("Gujarati"), "guj", "guj", "gu"},
-  { N_("Gwich&#180;in"), "gwi", "gwi", ""},
+  { N_("Gwich'in"), "gwi", "gwi", ""},
   { N_("Haida"), "hai", "hai", ""},
   { N_("Hausa"), "hau", "hau", "ha"},
   { N_("Hawaiian"), "haw", "haw", ""},
   { N_("Hebrew"), "heb", "heb", "he"},
+  { N_("Hebrew"), "heb", "heb", "iw"},  // Withdrawn in 1989. Still used!!!
   { N_("Herero"), "her", "her", "hz"},
   { N_("Hiligaynon"), "hil", "hil", ""},
   { N_("Himachali"), "him", "him", ""},
@@ -197,7 +200,9 @@ langcodes_t language[] = {
   { N_("Indic (Other)"), "inc", "inc", ""},
   { N_("Indo-European (Other)"), "ine", "ine", ""},
   { N_("Indonesian"), "ind", "ind", "id"},
-  { N_("Interlingua (International Auxiliary Language Association)"), "ina", "ina", "ia"},
+  { N_("Indonesian"), "ind", "ind", "in"}, // Withdrawn in 1989. Still used?
+  { N_("Interlingua (International Auxiliary Language Association)"),
+    "ina", "ina", "ia"},
   { N_("Interlingue"), "ile", "ile", "ie"},
   { N_("Inuktitut"), "iku", "iku", "iu"},
   { N_("Inupiaq"), "ipk", "ipk", "ik"},
@@ -208,7 +213,8 @@ langcodes_t language[] = {
   { N_("Iroquoian languages"), "iro", "iro", ""},
   { N_("Italian"), "ita", "ita", "it"},
   { N_("Japanese"), "jpn", "jpn", "ja"},
-  { N_("Javanese"), "jav", "jaw", "jw"},
+  { N_("Javanese"), "jav", "jaw", "jv"},
+  { N_("Javanese"), "jav", "jaw", "jw"}, // Withdrawn 2001-07-27
   { N_("Judeo-Arabic"), "jrb", "jrb", ""},
   { N_("Judeo-Persian"), "jpr", "jpr", ""},
   { N_("Kabyle"), "kab", "kab", ""},
@@ -311,7 +317,7 @@ langcodes_t language[] = {
   { N_("North American Indian (Other)"), "nai", "nai", ""},
   { N_("Northern Sami"), "sme", "sme", "se"},
   { N_("Norwegian"), "nor", "nor", "no"},
-  { N_("Norwegian Bokm&aring;l"), "nob", "nob", "nb"},
+  { N_("Norwegian Bokmål"), "nob", "nob", "nb"},
   { N_("Norwegian Nynorsk"), "nno", "nno", "nn"},
   { N_("Nubian languages"), "nub", "nub", ""},
   { N_("Nyamwezi"), "nym", "nym", ""},
@@ -319,13 +325,12 @@ langcodes_t language[] = {
   { N_("Nyankole"), "nyn", "nyn", ""},
   { N_("Nyoro"), "nyo", "nyo", ""},
   { N_("Nzima"), "nzi", "nzi", ""},
-  { N_("Occitan (post 1500); Proven&ccedil;al"), "oci", "oci", "oc"},
+  { N_("Occitan (post 1500); Provençal"), "oci", "oci", "oc"},
   { N_("Ojibwa"), "oji", "oji", ""},
   { N_("Oriya"), "ori", "ori", "or"},
   { N_("Oromo"), "orm", "orm", "om"},
   { N_("Osage"), "osa", "osa", ""},
   { N_("Ossetian; Ossetic"), "oss", "oss", "os"},
-  { N_("Ossetic; Ossetian"), "oss", "oss", "os"},
   { N_("Otomian languages"), "oto", "oto", ""},
   { N_("Pahlavi"), "pal", "pal", ""},
   { N_("Palauan"), "pau", "pau", ""},
@@ -343,8 +348,8 @@ langcodes_t language[] = {
   { N_("Polish"), "pol", "pol", "pl"},
   { N_("Portuguese"), "por", "por", "pt"},
   { N_("Prakrit languages"), "pra", "pra", ""},
-  { N_("Proven&#231;al; Occitan (post 1500) "), "oci", "oci", "oc"},
-  { N_("Proven&#231;al, Old (to 1500)"), "pro", "pro", ""},
+  { N_("Provençal; Occitan (post 1500) "), "oci", "oci", "oc"},
+  { N_("Provençal, Old (to 1500)"), "pro", "pro", ""},
   { N_("Pushto"), "pus", "pus", "ps"},
   { N_("Quechua"), "que", "que", "qu"},
   { N_("Raeto-Romance"), "roh", "roh", "rm"},
@@ -372,6 +377,7 @@ langcodes_t language[] = {
   { N_("Selkup"), "sel", "sel", ""},
   { N_("Semitic (Other)"), "sem", "sem", ""},
   { N_("Serbian"), "scc", "srp", "sr"},
+  { N_("Serbo-Croatian"), "","", "sh"}, // Withdrawn 2000-02-18. Still used?
   { N_("Serer"), "srr", "srr", ""},
   { N_("Shan"), "shn", "shn", ""},
   { N_("Shona"), "sna", "sna", "sn"},
@@ -444,7 +450,7 @@ langcodes_t language[] = {
   { N_("Vai"), "vai", "vai", ""},
   { N_("Venda"), "ven", "ven", ""},
   { N_("Vietnamese"), "vie", "vie", "vi"},
-  { N_("Volap&#252;k"), "vol", "vol", "vo"},
+  { N_("Volapük"), "vol", "vol", "vo"},
   { N_("Votic"), "vot", "vot", ""},
   { N_("Wakashan languages"), "wak", "wak", ""},
   { N_("Walamo"), "wal", "wal", ""},
@@ -457,6 +463,7 @@ langcodes_t language[] = {
   { N_("Yao"), "yao", "yao", ""},
   { N_("Yapese"), "yap", "yap", ""},
   { N_("Yiddish"), "yid", "yid", "yi"},
+  { N_("Yiddish"), "yid", "yid", "ji"}, // // Withdrawn in 1989. Still used?
   { N_("Yoruba"), "yor", "yor", "yo"},
   { N_("Yupik languages"), "ypk", "ypk", ""},
   { N_("Zande"), "znd", "znd", ""},
@@ -484,6 +491,8 @@ char* language_name(DVDLangID_t lang) {
       return _(language[i].name);
     i++;
   }
+  fprintf(stderr, "language.language_name() Unknown language: %c%c\n",
+	  lang_code[0], lang_code[1]);
   return N_("Unknown");
 }
 
