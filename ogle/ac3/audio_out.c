@@ -454,8 +454,16 @@ int get_q()
       }
 
     } else if((stream_id & MPEG_AUDIO_STREAM_MASK) == MPEG_AUDIO_STREAM) {
+      static int first = 1;
       new_audio_type = AudioType_MPEG;
-      WARNING("MPEG Audio not implemented\n");
+      if(first) {
+	WARNING("MPEG Audio not implemented\n");
+	first = 0;
+      }
+      decode_offset = packet_data_offset;
+      decode_len = packet_data_len;
+      
+      pts_offset = 0;
     } else {
       ERROR("Unhandled stream_id: %02x\n", stream_id);
     }

@@ -23,6 +23,7 @@
 
 
 #include <libogleao/ogle_ao.h> // Remove me
+#include <mad.h>
 
 #include "decode.h"
 #include "decode_private.h"
@@ -188,7 +189,6 @@ int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
   int bit_rate;
   int n;
   int bytes_to_get;
-  static int frame_len = 0;
   
   indata_ptr = start;
   bytes_left = len;
@@ -204,155 +204,26 @@ int decode_mpeg(adec_mpeg_handle_t *handle, uint8_t *start, int len,
   
   while(mad_frame_decode(&handle->frame, &handle->stream) == 0) {
     // one frame decoded ok
-    
-    //convert to pcm samples
-    mad_synth_frame(&handle->synth, &handle->frame);
-    
-    
-  }
+    fprintf(stderr, "curframe: %u, nextframe: %u\n",
+	    handle->stream.this_frame,
+	    handle->stream.next_frame);
+      /*
+	//convert to pcm samples
+	mad_synth_frame(&handle->synth, &handle->frame);
+      */
+      
+      }
+  fprintf(stderr, "end curframe: %u, nextframe: %u\n",
+	  handle->stream.this_frame,
+	  handle->stream.next_frame);
   
-  frame_len = handle->frame.next_frame - handle->frame.this_frame;
-  
+  frame_len = handle->stream.next_frame - handle->stream.this_frame;
+  /*
   if(handle->frame.next_frame - start
-    
+  */
   /***/
   
-  while(bytes_left > 0) {
-    if(handle->bytes_needed > bytes_left) {
-      bytes_to_get = bytes_left;
-      memcpy(handle->buf_ptr, indata_ptr, bytes_to_get);
-      bytes_left -= bytes_to_get;
-      handle->buf_ptr += bytes_to_get;
-      indata_ptr += bytes_to_get;
-      handle->bytes_needed -= bytes_to_get;
-      
-      //fprintf(stderr, "bytes_needed: %d > bytes_left: %d\n",
-      //      handle->bytes_needed, bytes_left);
-      return handle->bytes_needed;
-    } else {
-      bytes_to_get = handle->bytes_needed;
-      memcpy(handle->buf_ptr, indata_ptr, bytes_to_get);
-      bytes_left -= bytes_to_get;
-      handle->buf_ptr += bytes_to_get;
-      indata_ptr += bytes_to_get;
-      handle->bytes_needed -= bytes_to_get;
-    }
-    
-    // when we come here we have all data we want
-    // either the 7 header bytes or the whole frame
-    
-    if(handle->buf_ptr - handle->coded_buf == 7) {
-      // 7 bytes header data to test
-      int new_availflags;
-      
-      frame_len = a52_syncinfo(handle->coded_buf,
-			       &new_availflags, &new_sample_rate, &bit_rate);
-      if(frame_len == 0) {
-	//this is not the start of a frame
-	fprintf(stderr, "*** a52 lost sync\n");
-	for(n = 0; n < 6; n++) {
-	  handle->coded_buf[n] = handle->coded_buf[n+1];
-	}
-	handle->buf_ptr--;
-	handle->bytes_needed = 1;
-      } else {
-
-	// we have the start of a frame
-	if((int)(indata_ptr-7-start) == pts_offset) {
-	  // this frame has a pts
-	  //fprintf(stderr, "frame with pts\n");
-	  handle->PTS = new_PTS;
-	  handle->pts_valid = 1;
-	  handle->scr_nr = scr_nr;
-	} else {
-	  //fprintf(stderr, "frame with no pts\n");
-	}
-
-	handle->bytes_needed = frame_len - 7;
-	if((new_availflags != handle->availflags) || 
-	   (new_sample_rate != handle->sample_rate)) {
-	  int ch;
-	  
-	  //fprintf(stderr, "new flags\n");
-
-	  handle->availflags = new_availflags;
-	  handle->sample_rate = new_sample_rate;
-	  
-	  //change a52 flags to generic channel flags
-	  
-	  ch = a52flags_to_channels(handle->availflags);
-	  audio_config(handle->handle.config, ch, handle->sample_rate, 16);
-	  //change config into a52dec flags
-	  handle->output_flags = config_to_a52flags(handle->handle.config);
-	}
-	
-      }
-    } else {
-      int i;
-      int flags;
-      sample_t level = 1;  // Hack for the float_to_int function
-      int bias = 384;
-      //we have a whole frame to decode
-      //fprintf(stderr, "decode frame\n");
-      //decode
-      flags = handle->output_flags;
-      if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
-	fprintf(stderr, "a52_frame error\n");
-	//DNOTE("a52_frame() error\n");
-	goto error;
-      }
-
-      if(handle->decoding_flags != flags) {
-	//new set of channels decoded
-	//change into config format
-	audio_format_t new_format;
-
-	handle->decoding_flags = flags;
-	
-	a52flags_to_format(flags, &new_format.nr_channels,
-			   &new_format.ch_array);
-      
-	new_format.sample_rate = handle->sample_rate;
-	new_format.sample_resolution = 16;
-
-	init_sample_conversion((adec_handle_t *)handle, &new_format, 256*6);
-
-	free(new_format.ch_array);
-      }
-
-      convert_samples_start((adec_handle_t *)handle);
-
-	
-      if(handle->disable_dynrng) {
-	a52_dynrng(handle->state, NULL, NULL);
-      }
-      for(i = 0; i < 6; i++) {
-
-	if(a52_block(handle->state)) {
-	  fprintf(stderr, "a52_block error\n");
-	  //DNOTE("a52_block() error\n");
-	  goto error;
-	}
-	convert_samples((adec_handle_t *)handle, handle->samples, 256);
-      }
-
-
-      //output, look over how the pts/scr is handle for sync here 
-      play_samples((adec_handle_t *)handle, handle->scr_nr, 
-		   handle->PTS, handle->pts_valid);
-      handle->pts_valid = 0;
-
-    error:
-
-      //make space for next frame
-      handle->buf_ptr = handle->coded_buf;
-      handle->bytes_needed = 7;
-    }
-    
-    //fprintf(stderr, "bytes_left: %d\n", bytes_left);
-  }
-  //fprintf(stderr, "bytes_needed: %d\n", handle->bytes_needed);
-  return handle->bytes_needed;
+  return 0;
 }
 
 
