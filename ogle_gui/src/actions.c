@@ -24,6 +24,7 @@ int digit_timeout = 0;
 int number_timeout = 0;
 int default_skip_seconds = 15;
 int skip_seconds = 15;
+int prevpg_timeout = 1;
 
 static DVDNav_t *nav;
 
@@ -155,14 +156,33 @@ void actionSubpictureToggle(void *data)
   }
 }
 
+struct timeval pg_timestamp = {0, 0};
+
 void actionNextPG(void *data)
 {
+  struct timeval curtime;
+
+  gettimeofday(&curtime, NULL);
+  pg_timestamp = curtime;
+
   DVDNextPGSearch(nav);
 }
 
 void actionPrevPG(void *data)
 {
-  DVDPrevPGSearch(nav);
+  struct timeval curtime;
+
+  long diff;
+  
+  gettimeofday(&curtime, NULL);
+  diff = curtime.tv_sec - pg_timestamp.tv_sec;
+  pg_timestamp = curtime;  
+
+  if((prevpg_timeout && (diff > prevpg_timeout))) {
+    DVDTopPGSearch(nav);
+  } else {
+    DVDPrevPGSearch(nav);
+  }
 }
 
 void actionQuit(void *data)

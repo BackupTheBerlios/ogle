@@ -18,6 +18,7 @@ extern int bookmarks_autosave;
 extern int bookmarks_autoload;
 extern int digit_timeout;
 extern int number_timeout;
+extern int prevpg_timeout;
 extern int default_skip_seconds;
 extern int skip_seconds;
 
@@ -158,6 +159,14 @@ static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
 	    default_skip_seconds = 0;
 	  }
 	  skip_seconds = default_skip_seconds;
+	  free(s);
+	}
+      } else if(!strcmp("prevpg_timeout", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  prevpg_timeout = atoi(s);
+	  if(prevpg_timeout < 0 ) {
+	    prevpg_timeout = 0;
+	  }
 	  free(s);
 	}
       }

@@ -46,6 +46,8 @@ extern char *dvd_path;
 int isPaused = 0;
 double speed = 1.0;
 
+extern int prevpg_timeout;
+extern struct timeval pg_timestamp;
 
 // keypad
 int keypad_memory = 0;
@@ -285,7 +287,19 @@ void
 on_skip_backwards_button_clicked       (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDPrevPGSearch(nav);
+  struct timeval curtime;
+
+  long diff;
+  
+  gettimeofday(&curtime, NULL);
+  diff = curtime.tv_sec - pg_timestamp.tv_sec;
+  pg_timestamp = curtime;  
+
+  if((prevpg_timeout && (diff > prevpg_timeout))) {
+    DVDTopPGSearch(nav);
+  } else {
+    DVDPrevPGSearch(nav);
+  }
 }
 
 
@@ -348,6 +362,11 @@ void
 on_skip_forwards_button_clicked        (GtkButton       *button,
                                         gpointer         user_data)
 {
+  struct timeval curtime;
+
+  gettimeofday(&curtime, NULL);
+  pg_timestamp = curtime;
+
   DVDNextPGSearch(nav);
 }
 
