@@ -71,7 +71,7 @@ typedef struct {
   int y_start;
   int y_end;
   int display_start;
-  int menu;
+  int has_highlight;
   uint8_t color[4];
   uint8_t contrast[4];
 } spu_t;
@@ -229,6 +229,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQSPUPalette:
     {
       int n;
+      /* Should have PTS or SCR I think */
       for(n = 0; n < 16; n++) {
 	palette_yuv[n] = ev->spupalette.colors[n];
 	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
@@ -239,6 +240,9 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQSPUHighlight:
     {
       int n;
+      
+      /* Enable the highlight, should have PTS or scr I think */
+      spu_info.has_highlight = 1;
       
       highlight.x_start = ev->spuhighlight.x_start;
       highlight.y_start = ev->spuhighlight.y_start;
@@ -385,7 +389,8 @@ int init_spu(void)
 
 
 
-int get_data(uint8_t *databuf, int bufsize, uint64_t *dtime, int *scr_nr)
+static int get_data(uint8_t *databuf, int bufsize, 
+		    uint64_t *dtime, int *scr_nr)
 {
   int r;
   static int bytes_to_read = 0;
@@ -511,12 +516,13 @@ static inline uint8_t get_nibble (void)
 
 
 
-void decode_dcsqt(spu_t *spu_info) {
+static void decode_dcsqt(spu_t *spu_info)
+{
   // init start position
   set_byte(spu_info->buffer);
   
   /* Reset state  */
-  spu_info->menu = 0;
+  //spu_info->menu = 0;
   spu_info->display_start = 0;
   // Maybe some other...
   
@@ -535,7 +541,8 @@ void decode_dcsqt(spu_t *spu_info) {
 }
 
 
-void decode_dcsq(spu_t *spu_info) { 
+static void decode_dcsq(spu_t *spu_info)
+{ 
   uint8_t command;
   uint32_t dummy;
   
@@ -557,9 +564,9 @@ void decode_dcsq(spu_t *spu_info) {
     DPRINTF(3, "\t\t\tDisplay Control Command: 0x%02x\n", command);
       
     switch (command) {
-    case 0x00: /* Menu (forced display start) */
-      DPRINTF(3, "\t\t\t\tMenu...\n");
-      spu_info->menu = 1;
+    case 0x00: /* forced display start (often a menu) */
+      DPRINTF(3, "\t\t\t\tforced display start\n");
+      spu_info->display_start = 1; // spu_info->menu = 1;
       break;
     case 0x01: /* display start */
       DPRINTF(3, "\t\t\t\tdisplay start\n");
@@ -699,8 +706,9 @@ void decode_dcsq(spu_t *spu_info) {
   }
 }
 
-void display_mix_function_bgr16(uint32_t color, uint32_t contrast, 
-				unsigned int length, uint16_t *pixel) {
+static void display_mix_function_bgr16(uint32_t color, uint32_t contrast, 
+				       unsigned int length, uint16_t *pixel)
+{
   uint32_t invcontrast = 256 - contrast;
   int n;
   
@@ -735,8 +743,9 @@ void display_mix_function_bgr16(uint32_t color, uint32_t contrast,
   }
 }
 
-void display_mix_function_bgr24(uint32_t color, uint32_t contrast, 
-				unsigned int length, uint8_t *pixel) {
+static void display_mix_function_bgr24(uint32_t color, uint32_t contrast, 
+				       unsigned int length, uint8_t *pixel)
+{
   uint32_t invcontrast = 256 - contrast;
   int n;
   
@@ -771,8 +780,9 @@ void display_mix_function_bgr24(uint32_t color, uint32_t contrast,
   }
 }
 
-void display_mix_function_bgr32(uint32_t color, uint32_t contrast, 
-				unsigned int length, uint32_t *pixel) {
+static void display_mix_function_bgr32(uint32_t color, uint32_t contrast, 
+				       unsigned int length, uint32_t *pixel)
+{
   uint32_t invcontrast = 256 - contrast;
   int n;
   
@@ -807,9 +817,11 @@ void display_mix_function_bgr32(uint32_t color, uint32_t contrast,
 }
 
 /* Mixing function for YV12 mode */
-void display_mix_function_yuv(uint32_t color, uint32_t contrast, 
-			      unsigned int length, uint8_t *y_pixel, 
-			      int field, uint8_t *u_pixel, uint8_t *v_pixel) {
+static void display_mix_function_yuv(uint32_t color, uint32_t contrast, 
+				     unsigned int length, uint8_t *y_pixel, 
+				     int field, 
+				     uint8_t *u_pixel, uint8_t *v_pixel)
+{
   uint32_t invcontrast = 256 - contrast;
   int n;
   
@@ -877,9 +889,10 @@ void display_mix_function_yuv(uint32_t color, uint32_t contrast,
 }
 
 
-void decode_display_data(spu_t *spu_info, char *data, 
-			 int pixel_stride, int line_stride,
-			 int blendyuv, int image_stride) {
+static void decode_display_data(spu_t *spu_info, char *data, 
+				int pixel_stride, int line_stride,
+				int blendyuv, int image_stride) 
+{
   unsigned int x;
   unsigned int y;
 
@@ -952,7 +965,7 @@ void decode_display_data(spu_t *spu_info, char *data,
     
     colorid = vlc & 3;
     
-    if(spu_info->menu /* Test for 'has highlight' instead */ 
+    if(spu_info->has_highlight
        && (y+spu_info->y_start >= highlight.y_start &&
 	   y+spu_info->y_start <= highlight.y_end &&
 	   x+spu_info->x_start + length >= highlight.x_start &&
@@ -994,15 +1007,14 @@ void decode_display_data(spu_t *spu_info, char *data,
 	  break;
 	}
       } else {
-	char *addr_uv, *addr_u, *addr_v;
+	char *addr_u, *addr_v;
 	// bpp == 1
-	// line_uv == line_y/4 ??
+	// line_uv == line_y/4 ?
 	// yes if we make sure to only use the info for even lines..
-	addr_uv = data + line_y/4 + (x + spu_info->x_start) / 2;
 	// data_u = data + (width * bpp) * height;
 	// data_v = data + (width * bpp) * height * 5/4;
 	// (width * bpp) == yuv_line_stride
-	addr_u = addr_uv + image_stride;
+	addr_u = data + image_stride + line_y/4 + (x + spu_info->x_start) / 2;
 	addr_v = addr_u + image_stride / 4;
 	// sinc bpp==1 addr1 will be even/odd for even/odd pixels..
 	// for even/odd lines we still need the field variable
@@ -1035,7 +1047,8 @@ void decode_display_data(spu_t *spu_info, char *data,
  *
  *
  */
-int next_spu_cmd_pending(spu_t *spu_info) {
+static int next_spu_cmd_pending(spu_t *spu_info)
+{
   int start_time, offset;
   clocktime_t realtime, errtime, next_time;
 
@@ -1045,9 +1058,18 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       
       if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
-		   &spu_info->base_time, &spu_info->scr_nr))
+		   &spu_info->base_time, &spu_info->scr_nr)) {
+	if(flush_to_scrnr != -1) {
+	  // FIXME: assumes order of src_nr
+	  if(flush_to_scrnr > spu_info->scr_nr) {
+	    /* Reset state  */
+	    //spu_info->menu = 0;
+	    spu_info->display_start = 0;
+	    spu_info->has_highlight = 0;
+	  }
+	}
 	return 0;
-      
+      }
       /* The offset to the first DCSQ */
       offset = ((spu_info->next_buffer[2] << 8) | (spu_info->next_buffer[3]));
       
@@ -1061,9 +1083,9 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     }
     /* starttime measured in 1024/90000 seconds */
     //   PTS_TO_CLOCKTIME(spu_info->next_time, 1024 * start_time);
-    spu_info->next_time = start_time*1024;
+    spu_info->next_time = start_time * 1024;
     spu_info->next_time = spu_info->base_time + spu_info->next_time;
-    //    timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
+    //   timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
   
   PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
@@ -1078,15 +1100,15 @@ int next_spu_cmd_pending(spu_t *spu_info) {
     return 1;
   }
   
-
   if(flush_to_scrnr != -1) {
     if(flush_to_scrnr > spu_info->scr_nr) { // FIXME: assumes order of src_nr
-      fprintf(stderr, "spu: flush\n");
+      //fprintf(stderr, "spu: flush 2\n");
       
       /* Reset state  */
-      spu_info->menu = 0;
+      //spu_info->menu = 0;
       spu_info->display_start = 0;
-  
+      spu_info->has_highlight = 0;
+      
       return 1;
     } else {
       flush_to_scrnr = -1;
@@ -1130,7 +1152,7 @@ void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
   }
 
 
-  if(spu_info.display_start || spu_info.menu) {
+  if(spu_info.display_start /* || spu_info.menu */) {
     decode_display_data(&spu_info, data, pixel_stride, pixel_stride*width, 
 			0, pixel_stride*width*height);
   }
@@ -1170,7 +1192,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
   }
 
 
-  if(spu_info.display_start || spu_info.menu) {
+  if(spu_info.display_start /* || spu_info.menu */) {
     int width = img->info->picture.padded_width;
     int height = img->info->picture.padded_height;
     //fprintf(stderr, "decoding data\n");
@@ -1204,6 +1226,7 @@ void flush_subpicture(int scr_nr)
     return;
   }
   
+  //fprintf(stderr, "spu: flush 1\n");
   flush_to_scrnr = scr_nr;
 
   while(next_spu_cmd_pending(&spu_info)) {
