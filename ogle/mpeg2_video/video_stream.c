@@ -1934,9 +1934,15 @@ void picture_data(void)
       //double sar = 1.0;
       uint16_t hsize,vsize;
     
-    if(seq.dpy_ext.display_horizontal_size) {      
+
+      
+      //wrong on some dvd's ?
+    if(seq.dpy_ext.display_horizontal_size) { 
       hsize = seq.dpy_ext.display_horizontal_size;
       vsize = seq.dpy_ext.display_vertical_size;
+      /*      fprintf(stderr, "*****bepa %d, %d\n",
+	      hsize, vsize);
+      */
     } else {
       hsize = seq.horizontal_size;
       vsize = seq.vertical_size;
@@ -1959,6 +1965,13 @@ void picture_data(void)
       break;
     case 0x3:
       DPRINTF(2, "DAR = 9/16\n");
+      if(seq.dpy_ext.display_horizontal_size) { 
+	if(seq.dpy_ext.display_horizontal_size != seq.horizontal_size) {
+	  // DVD with wrong mpeg display_extension
+	  hsize = seq.horizontal_size;
+	  vsize = seq.vertical_size;
+	}
+      }
       sar_frac_n = 9 * hsize;
       sar_frac_d = 16 * vsize;
       //sar = 9.0/16.0*(double)hsize/(double)vsize;

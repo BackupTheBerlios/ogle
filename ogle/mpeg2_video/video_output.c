@@ -399,7 +399,7 @@ static void display_process()
       
       if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
-	  fprintf(stderr, "vo: setting timebase\n");
+	  //fprintf(stderr, "vo: set_time_base()\n");
 	  set_time_base(pinfos[buf_id].PTS,
 			ctrl_time, pinfos[buf_id].scr_nr, time_offset);
 	}
@@ -473,7 +473,9 @@ static void display_process()
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
       if(wait_time.tv_sec > 0) {
-	fprintf(stderr, "*vo: waittime > 1 sec\n");
+	fprintf(stderr, "*vo: waittime > 1 sec: %d.%09ld\n",
+		wait_time.tv_sec, wait_time.tv_nsec);
+	
       }
       nanosleep(&wait_time, NULL);
     } else {
