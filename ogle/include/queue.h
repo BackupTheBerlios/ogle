@@ -64,6 +64,8 @@ typedef struct {
   int nr_of_dataelems;
   int write_nr;
   int read_nr;
+  int buffer_start_offset;
+  int buffer_size;
 } data_buf_head_t;
 
 typedef struct {
