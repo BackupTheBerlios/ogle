@@ -58,7 +58,10 @@ extern yuv_image_t *fwd_ref_image;
 
 
 extern void next_start_code(void);
-extern void exit_program(int exitcode) __attribute__ ((noreturn));
+extern void exit_program(int exitcode) ATTRIBUTE_NORETURN;
+#if PRAGMA_NORETURN
+#pragma does_not_return (exit_program) 
+#endif
 extern void motion_comp();
 extern void motion_comp_add_coeff(unsigned int i);
 extern int get_vlc(const vlc_table_t *table, char *func);

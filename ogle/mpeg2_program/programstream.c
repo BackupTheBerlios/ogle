@@ -158,13 +158,13 @@ int new_file;
 // #define DEBUG
 
 #ifdef DEBUG
-#define DPRINTF(level, text...) \
+#define DPRINTF(level, ...) \
 if(debug > level) \
 { \
-    fprintf(stderr, ## text); \
+    fprintf(stderr, __VA_ARGS__); \
 }
 #else
-#define DPRINTF(level, text...)
+#define DPRINTF(level, ...)
 #endif
 
 #ifdef DEBUG

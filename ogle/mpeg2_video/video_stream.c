@@ -131,6 +131,10 @@ uint32_t stats_f_intra_compute_first_nr = 0;
 sequence_t seq;
 picture_t pic;
 slice_t slice_data;
+
+#if PRAGMA_ALIGN
+#pragma align 32 (mb)
+#endif
 macroblock_t mb;
 
 
@@ -182,7 +186,10 @@ void motion_comp_add_coeff(unsigned int i);
 
 void extension_data(unsigned int i);
 
-void exit_program(int exitcode) __attribute__ ((noreturn));
+void exit_program(int exitcode) ATTRIBUTE_NORETURN;
+#if PRAGMA_NORETURN
+#pragma does_not_return (exit_program) 
+#endif
 
 int  writer_alloc(void);
 void writer_free(int);

@@ -23,6 +23,37 @@
 #include "mpeg.h"
 
 
+#undef ATTRIBUTE_ALIGNED
+
+#if defined(__GNUC__)
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
+#define ATTRIBUTE_ALIGNED(X) __attribute__ ((aligned (X)))
+#define PRAGMA_ALIGN 0
+#endif
+#endif
+
+#if !defined(ATTRIBUTE_ALIGNED)
+#define ATTRIBUTE_ALIGNED(X)
+#define PRAGMA_ALIGN 1
+#endif
+
+
+#undef ATTRIBUTE_NORETURN
+
+#if defined(__GNUC__)
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ >= 95)
+#define ATTRIBUTE_NORETURN  __attribute__ ((noreturn))
+#define PRAGMA_NORETURN 0
+#endif
+#endif
+
+#if !defined(ATTRIBUTE_NORETURN)
+#define ATTRIBUTE_NORETURN
+#define PRAGMA_NORETURN 1
+#endif
+
+
+
 /* Table 6-3. aspect_ratio_information TODO */
 /* Table 6-4 --- frame_rate_value TODO */
 /* Table 6-5. Meaning of chroma_format TODO */
@@ -60,7 +91,10 @@
 
 #ifdef DEBUG
 extern unsigned int debug;
-extern void exit_program(int exitcode) __attribute__ ((noreturn));
+extern void exit_program(int exitcode) ATTRIBUTE_NORETURN;
+#if PRAGMA_NORETURN
+#pragma does_not_return (exit_program) 
+#endif
 #endif
 
 #ifdef DEBUG
@@ -74,22 +108,22 @@ int debug_indent_level;
   } \
 } 
 
-#define DPRINTFI(level, text...) \
+#define DPRINTFI(level, ...) \
 if(debug >= level) \
 { \
   fprintf(stderr, "%*s", debug_indent_level, ""); \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 
-#define DPRINTF(level, text...) \
+#define DPRINTF(level, ...) \
 if(debug >= level) \
 { \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 #else
 #define DINDENT(spaces)
-#define DPRINTFI(level, text...)
-#define DPRINTF(level, text...)
+#define DPRINTFI(level, ...)
+#define DPRINTF(level, ...)
 #endif
 
 #ifdef DEBUG
@@ -158,6 +192,8 @@ typedef struct {
 
 
 typedef struct {
+  int16_t QFS[64] ATTRIBUTE_ALIGNED(32); // Only needs 8 but..
+
   uint16_t dummy1; //macroblock_escape
   uint16_t macroblock_address_increment;
   macroblock_modes_t modes; 
@@ -186,8 +222,6 @@ typedef struct {
 
   uint8_t quantiser_scale;
   int intra_dc_mult;
-
-  int16_t QFS[64] __attribute__ ((aligned (8)));
 
 } macroblock_t;
 

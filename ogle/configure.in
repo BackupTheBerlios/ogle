@@ -23,6 +23,7 @@ AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
 
+
 dnl Find X Window System
 AC_PATH_XTRA
 saved_CPPFLAGS=$CPPFLAGS
@@ -162,11 +163,14 @@ AC_ARG_WITH(mlib,
     mlib_path=$with_libmlib
   fi)
 if test x$mlib_path != xno; then
+  saved_CPPFLAGS=$CFLAGS
+  CFLAGS="$CFLAGS -L$mlib_path/lib"
   AC_CHECK_LIB(mlib, mlib_VideoDCT8x8_S16_S16, 
 	       [ MLIB_LIBS="-L$mlib_path/lib -rpath $mlib_path/lib -lmlib"
                  MLIB_CFLAGS=-I$mlib_path/include
                  have_mlib=yes
-               ],, -L$mlib_path/lib)
+               ],,)
+  CFLAGS=$saved_CPPFLAGS
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
@@ -175,8 +179,18 @@ if test x$have_mlib = xyes; then
   AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
 fi
 
+
+
+dnl Compiler specific stuff
 if test x"$GCC" = x"yes"; then
   CFLAGS="$CFLAGS -Wall"
+else
+    dnl non-GCC flags - we probably need exact configuration triplets here.
+    case "$host_alias" in
+    sparc-sun-solaris*)
+        CFLAGS="$CFLAGS -xCC -fast"
+	DVDREAD_CFLAGS="$DVDREAD_CFLAGS -xmemalign"
+    esac
 fi
 
 dnl Architecture specific stuff

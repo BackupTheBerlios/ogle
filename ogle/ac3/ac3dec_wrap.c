@@ -51,22 +51,22 @@ int debug_indent_level;
   } \
 } 
 
-#define DPRINTFI(level, text...) \
+#define DPRINTFI(level, ...) \
 if(debug >= level) \
 { \
   fprintf(stderr, "%*s", debug_indent_level, ""); \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 
-#define DPRINTF(level, text...) \
+#define DPRINTF(level, ...) \
 if(debug >= level) \
 { \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 #else
 #define DINDENT(spaces)
-#define DPRINTFI(level, text...)
-#define DPRINTF(level, text...)
+#define DPRINTFI(level, ...)
+#define DPRINTF(level, ...)
 #endif
 
 static int get_q();
@@ -419,9 +419,13 @@ int get_q()
   
   
   //fwrite(mmap_base+off, len, 1, outfile);
+#ifdef NEW_SYNC
   if(ctrl_data->speed == 1.0) {
     fwrite(data_buffer+off, len, 1, outfile);
   }
+#else
+  fwrite(data_buffer+off, len, 1, outfile);  
+#endif
   // release elem
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;

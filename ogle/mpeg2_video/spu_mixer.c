@@ -46,13 +46,13 @@ int debug;
 #endif
 
 #ifdef DEBUG
-#define DPRINTF(level, text...) \
+#define DPRINTF(level, ...) \
 if(debug > level) \
 { \
-    fprintf(stderr, ## text); \
+    fprintf(stderr, __VA_ARGS__); \
 }
 #else
-#define DPRINTF(level, text...)
+#define DPRINTF(level, ...)
 #endif
 
 #ifdef DEBUG
@@ -1078,8 +1078,8 @@ int next_spu_cmd_pending(spu_t *spu_info) {
       start_time = ((spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
-    /* starttime measured in 1100/90000 seconds */
-    PTS_TO_CLOCKTIME(spu_info->next_time, 1100 * start_time);
+    /* starttime measured in 1024/90000 seconds */
+    PTS_TO_CLOCKTIME(spu_info->next_time, 1024 * start_time);
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
 

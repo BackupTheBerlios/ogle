@@ -19,8 +19,8 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/shm.h>
 #include <fcntl.h>
@@ -49,22 +49,22 @@ int debug_indent_level;
   } \
 } 
 
-#define DPRINTFI(level, text...) \
+#define DPRINTFI(level, ...) \
 if(debug >= level) \
 { \
   fprintf(stderr, "%*s", debug_indent_level, ""); \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 
-#define DPRINTF(level, text...) \
+#define DPRINTF(level, ...) \
 if(debug >= level) \
 { \
-  fprintf(stderr, ## text); \
+  fprintf(stderr, __VA_ARGS__); \
 }
 #else
 #define DINDENT(spaces)
-#define DPRINTFI(level, text...)
-#define DPRINTF(level, text...)
+#define DPRINTFI(level, ...)
+#define DPRINTF(level, ...)
 #endif
 
 static int get_q();
