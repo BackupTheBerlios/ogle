@@ -123,33 +123,33 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
       break;
     
     switch(cmd->cmdtype) {
-    case CMD_NAV_CMD:
-      fprintf(stderr, "vmg: nav_cmd.cmd %d\n", cmd->cmd.nav_cmd.cmd);
-      switch(cmd->cmd.nav_cmd.cmd) {
-      case NAV_CMD_UP_BUTTON:
+    case CMD_DVDCTRL_CMD:
+      fprintf(stderr, "vmg: dvdctrl_cmd.cmd %d\n", cmd->cmd.dvdctrl_cmd.cmd);
+      switch(cmd->cmd.dvdctrl_cmd.cmd) {
+      case DVDCTRL_CMD_UP_BUTTON:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].up;
 	break;
-      case NAV_CMD_DOWN_BUTTON:
+      case DVDCTRL_CMD_DOWN_BUTTON:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].down;
 	break;
-      case NAV_CMD_LEFT_BUTTON:
+      case DVDCTRL_CMD_LEFT_BUTTON:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].left;
 	break;
-      case NAV_CMD_RIGHT_BUTTON:
+      case DVDCTRL_CMD_RIGHT_BUTTON:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].right;
 	break;
-      case NAV_CMD_ACTIVATE_BUTTON:
+      case DVDCTRL_CMD_ACTIVATE_BUTTON:
 	is_action = 1;
 	break;
-      case NAV_CMD_SELECT_BUTTON_NR:
-	*btn_nr = cmd->cmd.nav_cmd.button_nr;
+      case DVDCTRL_CMD_SELECT_BUTTON_NR:
+	*btn_nr = cmd->cmd.dvdctrl_cmd.button_nr;
 	break;
-      case NAV_CMD_SELECT_ACTIVATE_BUTTON_NR:
-	*btn_nr = cmd->cmd.nav_cmd.button_nr;
+      case DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR:
+	*btn_nr = cmd->cmd.dvdctrl_cmd.button_nr;
 	is_action = 1;
 	break;
       default:
-	fprintf(stderr, "vmg: Unknown nav_cmd.cmd\n");
+	fprintf(stderr, "vmg: Unknown dvdctrl_cmd.cmd\n");
 	break;
       }
       break;

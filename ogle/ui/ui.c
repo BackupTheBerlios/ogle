@@ -253,33 +253,33 @@ int input() {
       
     } else if(strcmp(tok, "btn") == 0) {
       msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-      sendcmd->cmdtype = CMD_NAV_CMD;
+      sendcmd->cmdtype = CMD_DVDCTRL_CMD;
       
       tok = strtok(NULL, " ");
       if(strcmp(tok, "up") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_UP_BUTTON;
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_UP_BUTTON;
       } else if(strcmp(tok, "down") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_DOWN_BUTTON;	
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_DOWN_BUTTON;	
       } else if(strcmp(tok, "left") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_LEFT_BUTTON;	
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_LEFT_BUTTON;	
       } else if(strcmp(tok, "right") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_RIGHT_BUTTON;	
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_RIGHT_BUTTON;	
       } else if(strcmp(tok, "activate") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_ACTIVATE_BUTTON;	
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_ACTIVATE_BUTTON;	
       }
       
     } else if(strcmp(tok, "btnnr") == 0) {
       msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-      sendcmd->cmdtype = CMD_NAV_CMD;
+      sendcmd->cmdtype = CMD_DVDCTRL_CMD;
       
       tok = strtok(NULL, " ");
       if(strcmp(tok, "activate") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_SELECT_ACTIVATE_BUTTON_NR;
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR;
       } else if(strcmp(tok, "select") == 0) {
-	sendcmd->cmd.nav_cmd.cmd = NAV_CMD_SELECT_BUTTON_NR;	
+	sendcmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_BUTTON_NR;	
       }
       tok = strtok(NULL, " ");
-      sendcmd->cmd.nav_cmd.button_nr = strtol(tok, NULL, 0);	
+      sendcmd->cmd.dvdctrl_cmd.button_nr = strtol(tok, NULL, 0);	
       
       
     }
@@ -304,8 +304,8 @@ int input() {
     case CMD_SPU_SET_PALETTE:
       send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
       break;
-    case CMD_NAV_CMD:
-      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_nav_cmd_t));
+    case CMD_DVDCTRL_CMD:
+      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_dvdctrl_cmd_t));
       break;
     default:
       break;
