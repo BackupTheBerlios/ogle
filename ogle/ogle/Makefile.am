@@ -16,7 +16,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 pkglib_LTLIBRARIES = libmsgevents.la libdvdcontrol.la
-pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h
+pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h dvdbookmarks.h
 
 
 INCLUDES = @TOP_INCLUDES@
@@ -24,6 +24,7 @@ INCLUDES = @TOP_INCLUDES@
 libmsgevents_la_SOURCES = msgevents.c
 libmsgevents_la_LDFLAGS = -version-info 5:0:1
 
-libdvdcontrol_la_SOURCES = dvdcontrol.c
-libdvdcontrol_la_LIBADD = libmsgevents.la
+libdvdcontrol_la_SOURCES = dvdcontrol.c dvdbookmarks.c
+libdvdcontrol_la_LIBADD = libmsgevents.la @XML_LIBS@
 libdvdcontrol_la_LDFLAGS = -version-info 8:0:0
+libdvdcontrol_la_CFLAGS = @XML_CFLAGS@

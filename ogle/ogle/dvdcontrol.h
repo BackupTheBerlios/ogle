@@ -21,6 +21,7 @@
 
 #include <ogle/dvd.h>
 #include <ogle/msgevents.h> /* Only for the hack with DVDNextEvent !! */
+#include <ogle/dvdbookmarks.h>
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>
