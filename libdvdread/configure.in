@@ -1,10 +1,8 @@
 AC_INIT(dvdread/dvd_reader.c)
-
-AC_CANONICAL_SYSTEM
-
-AM_INIT_AUTOMAKE(libdvdread, 0.9.3-cvs)
+AM_INIT_AUTOMAKE(libdvdread, 0.9.4)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
+AC_CANONICAL_HOST
 
 AC_PROG_CC
 AC_STDC_HEADERS
@@ -12,7 +10,7 @@ AC_STDC_HEADERS
 dnl
 dnl  Check the operating system
 dnl
-case x"$target_os" in
+case x"$host_os" in
   xdarwin*)
     CFLAGS="${CFLAGS} -no-cpp-precomp"
     AC_DEFINE(__DARWIN__, 1, Have a Mac OS X system)
@@ -25,7 +23,7 @@ dnl
 dnl non-gcc flags - we probably need exact configuration triplets here.
 dnl
 if test x"$GCC" != x"yes"; then
-    case x"$target" in
+    case x"$host" in
     xsparc-sun-solaris*)
 dnl #pragma pack(1) doesn't seem to change Fortes oppinion about what it
 dnl can assume about packing when accessing things of the types that where
@@ -52,7 +50,7 @@ dnl
 link_dvdcss=no
 dvdcss_path=""
 AC_ARG_WITH([libdvdcss],
-    [  --with-libdvdcss[=PATH] force linking against libdvdcss],
+    [  --with-libdvdcss[=PATH]   force linking against libdvdcss],
     [if test x"$withval" != xno; then
        link_dvdcss=yes
      fi
