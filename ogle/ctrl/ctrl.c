@@ -1134,10 +1134,12 @@ void destroy_msgq(void)
 int get_buffer(int size, shm_bufinfo_t *bufinfo)
 {
   int shmid;
-  
+  /* This also creates the image buffers that will be sent to attached
+   * from the X server if we use Xv.  So we need to make sure that it
+   * has permissions to attach / read it.  */
   if((shmid = shmget(IPC_PRIVATE,
 		     size,
-		     IPC_CREAT | 0600)) == -1) {
+		     IPC_CREAT | 0644)) == -1) {
     perror("*ctrl: get_buffer, shmget failed");
     return -1;
   }
