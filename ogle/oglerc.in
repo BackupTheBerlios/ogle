@@ -21,6 +21,11 @@
     <device>
       <path>@DEFAULT_AUDIO_DEVICE@</path>
     </device>
+    <speakers>
+      <front>2</front>
+      <rear>0</rear>
+      <sub>0</sub>
+    </speakers>
   </audio>
   <video>
     <display>
@@ -36,16 +41,7 @@
 	<geometry_src>X11</geometry_src>
 	<resolution_src>X11</resolution_src>
 	<switch_resolution>no</switch_resolution>
-	
     </display>
-    <window>
-      <default_pos_x></default_pos_x>
-      <default_pos_y></default_pos_y>
-      <default_size>1.0</default_size>
-      <allow_scaling>yes</allow_scaling>
-      <keep_aspect>yes</keep_aspect>
-      <default_state>FullScreen</default_state>
-    </window>
   </video>
   <user_interface>
     <bindings>

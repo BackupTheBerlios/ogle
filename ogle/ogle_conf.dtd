@@ -13,15 +13,26 @@
 <!ELEMENT device (path)?>
 <!ELEMENT dvd (nav|device)*>
 
-
-<!ELEMENT audio (device)?>
+<!ELEMENT front (#PCDATA)>
+<!ELEMENT rear (#PCDATA)>
+<!ELEMENT sub (#PCDATA)>
+<!ELEMENT dolby (#PCDATA)>
+<!ELEMENT speakers (front | rear | sub | dolby)*>
+<!ELEMENT audio (device | speakers)*>
 
 <!ELEMENT name (#PCDATA)>
-<!ELEMENT width_mm (#PCDATA)>
-<!ELEMENT height_mm (#PCDATA)>
-<!ELEMENT width_px (#PCDATA)>
-<!ELEMENT height_px (#PCDATA)>
-<!ELEMENT display (name, (width_mm | height_mm | width_px | height_px)*)>
+<!ELEMENT width (#PCDATA)>
+<!ELEMENT height (#PCDATA)>
+<!ELEMENT geometry ((width, height) | (height, width))>
+<!ELEMENT horizontal_pixels (#PCDATA)>
+<!ELEMENT vertical_pixels (#PCDATA)>
+<!ELEMENT resolution ((horizontal_pixels, vertical_pixels) |
+        (vertical_pixels, horizontal_pixels))>
+<!ELEMENT geometry_src (#PCDATA)>
+<!ELEMENT resolution_src (#PCDATA)>
+<!ELEMENT switch_resolution (#PCDATA)>
+<!ELEMENT display (name, (geometry | resolution | geometry_src |
+        resolution_src | switch_resolution)*)>
 <!ELEMENT video (display)?>
 
 <!ELEMENT action (#PCDATA)>
