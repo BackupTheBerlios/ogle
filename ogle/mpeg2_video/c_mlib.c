@@ -17,6 +17,7 @@
  */
 
 #include <inttypes.h>
+#include "c_mlib.h"
 
 static inline uint8_t
 clip_to_u8 (int16_t value)
@@ -510,7 +511,7 @@ mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
  *        c[1..7] = 128*sqrt(2)
  */
 
-INLINE static void 
+inline static void 
 idct_row(int16_t *blk, int16_t *coeffs)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
@@ -585,7 +586,7 @@ idct_row(int16_t *blk, int16_t *coeffs)
 
 /* FIXME something odd is going on with inlining this 
  * procedure. Things break if it isn't inlined */
-INLINE static void 
+inline static void 
 idct_col(int16_t *blk, int16_t *coeffs)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
@@ -649,7 +650,7 @@ idct_col(int16_t *blk, int16_t *coeffs)
   blk[8*7] = (x7-x1)>>14;
 }
 
-INLINE static void 
+inline static void 
 idct_col_u8(uint8_t *blk, int16_t *coeffs, int stride)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
