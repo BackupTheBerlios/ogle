@@ -126,7 +126,9 @@ typedef enum {
   
   DVDCtrlGetVolIds,
   
-  DVDCtrlTimeSkip
+  DVDCtrlTimeSkip,
+
+  DVDCtrlRetVal
 
 } DVDCtrlEventType_t;
 
@@ -139,16 +141,19 @@ typedef enum {
 
 typedef struct {
   DVDCtrlLongEventType_t type;
+  int32_t serial;
   char path[PATH_MAX];
 } DVDCtrlLongDVDRootEvent_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
+  int32_t serial;
   char xmlstr[1024];
 } DVDCtrlLongStateEvent_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
+  int32_t serial;
   int voltype;
   char volid[33];
   unsigned char volsetid[128];
@@ -156,56 +161,66 @@ typedef struct {
 
 typedef struct {
   DVDCtrlLongEventType_t type;
+  int32_t serial;
 } DVDCtrlLongAnyEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int nr;
 } DVDCtrlButtonEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int x;
   int y;
 } DVDCtrlMouseEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDMenuID_t menuid;
 } DVDCtrlMenuCallEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   double speed;
 } DVDCtrlScanEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDPTT_t ptt;
 } DVDCtrlPTTSearchEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDTitle_t title;
   DVDPTT_t ptt;
 } DVDCtrlPTTPlayEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDTitle_t title;
 } DVDCtrlTitlePlayEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDTimecode_t time;
 } DVDCtrlTimeSearchEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDTitle_t title;
   DVDTimecode_t time;
 } DVDCtrlTimePlayEvent_t;
@@ -213,94 +228,111 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDUOP_t uops;
 } DVDCtrlCurrentUOPS_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDLangID_t langid;
 } DVDCtrlLanguageEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDCountryID_t countryid;
 } DVDCtrlCountryEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDParentalLevel_t level;
 } DVDCtrlParentalLevelEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDPlayerRegion_t region;
 } DVDCtrlPlayerRegionEvent_t;
 
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDAudioStream_t streamnr;
 } DVDCtrlAudioStreamChangeEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int nrofstreams;
   DVDAudioStream_t currentstream;
 } DVDCtrlCurrentAudioEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDAudioStream_t streamnr;
   DVDBool_t enabled;
 } DVDCtrlAudioStreamEnabledEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDAudioStream_t streamnr;
   DVDAudioAttributes_t attr;
 } DVDCtrlAudioAttributesEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDDomain_t domain;
 } DVDCtrlCurrentDomainEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDLocation_t location;
 } DVDCtrlCurrentLocationEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDVolumeInfo_t volumeinfo;
 } DVDCtrlVolumeInfoEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int titles;
 } DVDCtrlTitlesEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDTitle_t title;
   int ptts;
 } DVDCtrlNumberOfPTTsEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDSubpictureStream_t streamnr;
 } DVDCtrlSubpictureStreamChangeEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDBool_t display;
 } DVDCtrlSubpictureStateEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int nrofstreams;
   DVDSubpictureStream_t currentstream;
   DVDBool_t display;
@@ -308,49 +340,63 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDSubpictureStream_t streamnr;
   DVDBool_t enabled;
 } DVDCtrlSubpictureStreamEnabledEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDSubpictureStream_t streamnr;
   DVDSubpictureAttributes_t attr;
 } DVDCtrlSubpictureAttributesEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   DVDAngle_t anglenr;
 } DVDCtrlAngleChangeEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int anglesavailable;
   DVDAngle_t anglenr;
 } DVDCtrlCurrentAngleEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   unsigned char id[16];
 } DVDCtrlDiscIDEvent_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
+  int32_t serial;
   int voltype;
 } DVDCtrlGetVolIdsEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
   int32_t seconds;
 } DVDCtrlTimeSkipEvent_t;
 
 typedef struct {
   DVDCtrlEventType_t type;
+  int32_t serial;
+  DVDResult_t val;
+} DVDCtrlRetValEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  int32_t serial;
 } DVDCtrlAnyEvent_t;
 
 typedef union {
   DVDCtrlEventType_t type;
-
+  DVDCtrlAnyEvent_t any;
   DVDCtrlButtonEvent_t button;
 
   DVDCtrlMouseEvent_t mouse;
@@ -407,6 +453,7 @@ typedef union {
   DVDCtrlGetVolIdsEvent_t volids;
   /* end infocmd */
 
+  DVDCtrlRetValEvent_t retval;
 } DVDCtrlEvent_t;
 
 typedef union {
