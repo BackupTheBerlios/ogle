@@ -232,9 +232,7 @@ int
 main (int argc, char *argv[])
 {
   DVDResult_t res;
-  MsgEventQType_t msgq_type;
-  char *msgqid;
-
+  char *msgq_str;
   program_name = argv[0];
 #ifdef ENABLE_NLS
   setlocale(LC_ALL, "");
@@ -250,13 +248,8 @@ main (int argc, char *argv[])
     exit(1);
   }
 
-  if(get_msgqtype(argv[2], &msgq_type, &msgqid) == -1) {
-    fprintf(stderr, "ogle_gui: unknown msgq type: %s\n", argv[2]);
-    return 1;
-  }
-
-  //  msgqid = atoi(argv[2]);
-
+  msgq_str = argv[2];
+  
   init_interpret_config(program_name,
 			add_keybinding,
 			set_dvd_path);
@@ -277,15 +270,13 @@ main (int argc, char *argv[])
   // Initialize glade, and read in the glade file
   my_glade_setup();
 
-  //if(msgqid !=-1) { // ignore sending data.
-    res = DVDOpenNav(&nav, msgqid);
-    if(res != DVD_E_Ok ) {
-      DVDPerror("DVDOpen", res);
-      exit(1);
-    }
-    //}
+  res = DVDOpenNav(&nav, msgq_str);
+  if(res != DVD_E_Ok ) {
+    DVDPerror("DVDOpen", res);
+    exit(1);
+  }
   
-  xsniff_init(msgqid);
+  xsniff_init(msgq_str);
   
   audio_menu_new();
   subpicture_menu_new();

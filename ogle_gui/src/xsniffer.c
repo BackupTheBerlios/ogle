@@ -35,7 +35,6 @@
 #endif
 
 #include <ogle/dvdcontrol.h>
-#include <ogle/msgevents.h>
 
 #include "xsniffer.h"
 #include "callbacks.h"
@@ -48,9 +47,9 @@ static DVDNav_t *nav2;
 pthread_t at;
 
 
-void xsniff_init(char *msgqid) {
+void xsniff_init(char *msgq_str) {
   DVDResult_t res;
-  res = DVDOpenNav(&nav2, msgqid);
+  res = DVDOpenNav(&nav2, msgq_str);
   if(res != DVD_E_Ok ) {
     DVDPerror("xsniffer: xsniff_init() DVDOpen", res);
     exit(1);
@@ -65,29 +64,24 @@ void xsniff_init(char *msgqid) {
 }
 
 void* xsniff_mouse(void* args) {
-  MsgEvent_t mev;
+  DVDEvent_t ev;
 
   init_actions(nav2);
   
   while(1) {
 
-#if 0 //(defined(BSD) && (BSD >= 199306))
-    if (DVDNextEventNonBlocking(nav2, &mev) != DVD_E_Ok)
+    if (DVDNextEvent(nav2, &ev) != DVD_E_Ok)
       pthread_exit(NULL);
-#else
-    if (DVDNextEvent(nav2, &mev) != DVD_E_Ok)
-      pthread_exit(NULL);
-#endif
     
-    switch(mev.type) {
+    switch(ev.type) {
 
-    case MsgEventQInputPointerMotion:
+    case DVDEventInputPointerMotion:
       {
 	DVDResult_t res;
 	int x, y;
 
-	x = mev.input.x;
-	y = mev.input.y;
+	x = ev.input.x;
+	y = ev.input.y;
 	res = DVDMouseSelect(nav2, x, y);
 	  
 	if(res != DVD_E_Ok) {
@@ -95,14 +89,14 @@ void* xsniff_mouse(void* args) {
 	}
       }
       break;
-    case MsgEventQInputButtonPress:
-      switch(mev.input.input) {
+    case DVDEventInputButtonPress:
+      switch(ev.input.input) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
 	  int x, y;
-	  x = mev.input.x;
-	  y = mev.input.y;
+	  x = ev.input.x;
+	  y = ev.input.y;
 	  res = DVDMouseActivate(nav2, x, y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
@@ -116,10 +110,10 @@ void* xsniff_mouse(void* args) {
       }
       break;
 
-    case MsgEventQInputKeyPress:
+    case DVDEventInputKeyPress:
       {
 	KeySym keysym;
-	keysym = mev.input.input;
+	keysym = ev.input.input;
 
 	do_keysym_action(keysym);
       }

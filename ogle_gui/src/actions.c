@@ -138,18 +138,47 @@ void actionSubpictureToggle(void *data)
   DVDResult_t res;
   int spu_nr;
   DVDStream_t spu_this;
-  DVDBool_t spu_shown;
+  DVDSubpictureState_t spu_state;
+  static DVDSubpictureState_t off_state = DVD_SUBPICTURE_STATE_OFF;
 
-  res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_shown);
+  struct action_number *user = (struct action_number *)data;
 
-  if(res != DVD_E_Ok) {
-    return;
-  }
+  if(user && user->nr >= 0 && user->nr < 4) {
 
-  if(spu_shown == DVDTrue) {
-    DVDSetSubpictureState(nav, DVDFalse);
+    switch(user->nr) {
+    case 0:
+      spu_state = DVD_SUBPICTURE_STATE_OFF;
+      off_state = spu_state;
+      break;
+    case 1:
+      spu_state = DVD_SUBPICTURE_STATE_ON;
+      break;
+    case 2:
+      spu_state = DVD_SUBPICTURE_STATE_FORCEDOFF;
+      off_state = spu_state;
+      break;
+    case 3:
+      spu_state = DVD_SUBPICTURE_STATE_DISABLED;
+      off_state = spu_state;
+      break;
+    default:
+      break;
+    }
+
+    DVDSetSubpictureState(nav, spu_state);
+
   } else {
-    DVDSetSubpictureState(nav, DVDTrue);
+    res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_state);
+    
+    if(res != DVD_E_Ok) {
+      return;
+    }
+    
+    if(spu_state != DVD_SUBPICTURE_STATE_ON) {
+      DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_ON);
+    } else {
+      DVDSetSubpictureState(nav, off_state);
+    }
   }
 }
 
@@ -485,9 +514,11 @@ void actionAudioStreamChange(void *data)
   int streams_avail;
   DVDAudioStream_t cur_stream;
   DVDAudioStream_t new_stream;
+  DVDAudioAttributes_t au_attr;
+  DVDBool_t enabled;
+  int next_track = 0;
   
   struct action_number *user = (struct action_number *)data;
-  
   
   res = DVDGetCurrentAudio(nav, &streams_avail, &cur_stream);
   if(res == DVD_E_Ok) {
@@ -496,14 +527,34 @@ void actionAudioStreamChange(void *data)
 	new_stream = user->nr;
       } else {
 	new_stream = cur_stream+1;
+	next_track = 8;
       }
+
+      do {
+	if(new_stream >= streams_avail) {
+	  new_stream = 0;
+	}
+	res = DVDIsAudioStreamEnabled(nav, new_stream, &enabled);
+	if(res == DVD_E_Ok) {
+	  if(enabled) {
+	    break;
+	  }
+	  new_stream++;
+	}
+	next_track--;
+      } while(next_track > 0);
       
-      if(new_stream >= streams_avail) {
-	new_stream = 0;
-      }
-      res = DVDAudioStreamChange(nav, new_stream);
-      if(res != DVD_E_Ok) {
-	DVDPerror("DVDAudioStreamChange: ", res);
+      if(enabled) {
+	res = DVDAudioStreamChange(nav, new_stream);
+	if(res != DVD_E_Ok) {
+	  DVDPerror("DVDAudioStreamChange: ", res);
+	}
+
+	res = DVDGetAudioAttributes(nav, new_stream, &au_attr);
+	if(res != DVD_E_Ok) {
+	  fprintf(stderr,"NOTE[ogle_gui]: DVDGetAudioAttributes: %s\n",
+		  DVDStrerror(res));
+	}
       }
     }
   } else {
@@ -518,17 +569,18 @@ void actionSubtitleStreamChange(void *data)
   int streams_avail;
   DVDSubpictureStream_t cur_stream;
   DVDSubpictureStream_t new_stream;
-  DVDBool_t subp_on;
+  DVDSubpictureState_t spu_state;
+  DVDSubpictureAttributes_t sp_attr;
 
   struct action_number *user = (struct action_number *)data;
   
   
   
   res = DVDGetCurrentSubpicture(nav, &streams_avail,
-				&cur_stream, &subp_on);
+				&cur_stream, &spu_state);
   if(res == DVD_E_Ok) {
     if(streams_avail > 0) {
-      if(subp_on == DVDTrue) {
+      if(spu_state == DVD_SUBPICTURE_STATE_ON) {
 	if(user != NULL && user->nr >=0 && user->nr < streams_avail) {
 	  new_stream = user->nr;
 	} else {
@@ -538,7 +590,7 @@ void actionSubtitleStreamChange(void *data)
 	if(new_stream >= streams_avail) {
 	  new_stream = 0;
 	  // if we are at the last stream, turn off subtitles
-	  res = DVDSetSubpictureState(nav, DVDFalse);
+	  res = DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_OFF);
 	  if(res != DVD_E_Ok) {
 	    DVDPerror("DVDSetSubpictureState: ", res);
 	  }
@@ -557,14 +609,22 @@ void actionSubtitleStreamChange(void *data)
 	  if(res != DVD_E_Ok) {
 	    DVDPerror("DVDSubpictureStreamChange: ", res);
 	  }
+	} else {
+	  new_stream = cur_stream;
 	}
 
-	res = DVDSetSubpictureState(nav, DVDTrue);
+	res = DVDSetSubpictureState(nav, DVD_SUBPICTURE_STATE_ON);
 	if(res != DVD_E_Ok) {
 	  DVDPerror("DVDSetSubpictureState: ", res);
 	}
-      }  
-    }     
+      }
+
+      res = DVDGetSubpictureAttributes(nav, new_stream, &sp_attr);
+      if(res != DVD_E_Ok) {
+	fprintf(stderr, "NOTE[ogle_gui]: DVDGetSubpictureAttributes: %s\n",
+		DVDStrerror(res));
+      }
+    }   
   } else {
     DVDPerror("DVDGetCurrentSubpicture: ", res);
   }

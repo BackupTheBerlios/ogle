@@ -61,7 +61,7 @@ void subpicture_menu_update(void) {
   DVDResult_t res;
   int StreamsAvailable;
   DVDStream_t CurrentStream;
-  DVDBool_t Shown;
+  DVDSubpictureState_t Shown;
 
   GtkWidget *selecteditem;
   GtkWidget *menu_item;
@@ -104,7 +104,7 @@ void subpicture_menu_update(void) {
                     (menu_group, language_name(Attr.Language));
       menu_group = gtk_radio_menu_item_group(GTK_RADIO_MENU_ITEM(menu_item));
 
-      if((stream == CurrentStream) && Shown) {
+      if((stream == CurrentStream) && Shown == DVD_SUBPICTURE_STATE_ON) {
         gtk_check_menu_item_set_active (GTK_CHECK_MENU_ITEM(menu_item), TRUE);
         selecteditem = menu_item;
       } 
