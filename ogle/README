@@ -1,0 +1,57 @@
+Playing a DVD
+
+To play a dvd you start ogle.
+  A simple player is included in the Ogle main package to start this do.
+  'ogle -u cli /dev/dvd' 
+  where you can change /dev/dvd to point to your dvd reader or a director
+  containing the files of a dvd. (see ogle_gui examples below)
+
+  then you start ac3dec
+  ac3dec /tmp/ac3 &
+
+  *attention*
+
+  don't forget to start ac3dec, we really mean it,
+  ac3dec /tmp/ac3 &
+
+  or if you don't want any audio
+  cat /tmp/ac3 >/dev/null & 
+
+Navigation in the simple player
+  '>', skips to the next chapter
+  '<', skips to the previous chapter
+  't', jumps to the Title menu
+  'r', jumps to the Root menu
+  'a', jumps to the Audio menu
+  's', jumps to the Subpicture menu
+  'g', jumps to the Angle menu
+  'p', jumps to the PTT (Chapter) menu
+  'c', does resume (if you have jumped to a menu from the movie)
+  'q', exit the player
+
+
+Ogle GUI
+  If you install the ogle_gui package you will also have access to a 
+  graphical user interface
+  In the menu of ogle_gui which will pop up you choose open and 
+  type the device name of your dvd drive
+  /dev/hdc or wherever it is on your system
+
+  or the path to a copy of the dvd on your hard drive
+  /usr/dvdcopy/VIDEO_TS 
+
+  or the path to the mounted dvd
+  /mnt/dvd or /mnt/dvd/VIDEO_TS 
+
+  or choose open disc in the menu
+  which will open /dev/dvd which should point to your dvd device.
+
+  then you start ac3dec
+  ac3dec /tmp/ac3 &
+
+  *attention*
+
+  At the moment you have to exit ogle and restart to play another dvd.
+
+
+For more information plees look at:  http://www.dtek.chalmers.se/~dvd/

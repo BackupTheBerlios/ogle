@@ -629,13 +629,13 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 
 int main(int argc, char *argv[])
 {
-  struct sigaction sig = { 0 };
+  struct sigaction sig;
   int c;
   MsgEventQ_t q;
   MsgEvent_t ev;
   MsgEventClient_t rcpt;
 
-  
+  memset(&sig, 0, sizeof(struct sigaction));
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
   if(sigaction(SIGINT, &sig, NULL) == -1) {
@@ -1278,6 +1278,10 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
     break;
   }
 
+#ifndef WCONTINUED 
+#define WCONTINUED 0
+#define WIFCONTINUED(x) 0
+#endif
 
   if(waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)
      != info->si_pid) {
