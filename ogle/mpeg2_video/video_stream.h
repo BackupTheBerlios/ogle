@@ -4,27 +4,26 @@
 /*
 #define MPEG2_VS_START_CODE_PREFIX 0x000001
 
-#define MPEG2_VS_PICTURE_START_CODE 0x00
+#define MPEG2_VS_PICTURE_START_CODE   0x00
 #define MPEG2_VS_USER_DATA_START_CODE 0xB2
 #define MPEG2_VS_SEQUENCE_HEADER_CODE 0xB2
-#define MPEG2_VS_SEQUENCE_ERROR_CODE 0xB2
+#define MPEG2_VS_SEQUENCE_ERROR_CODE  0xB2
 #define MPEG2_VS_EXTENSION_START_CODE 0xB2
-#define MPEG2_VS_SEQUENCE_END_CODE 0xB2
-#define MPEG2_VS_GROUP_START_CODE 0xB2
-
+#define MPEG2_VS_SEQUENCE_END_CODE    0xB2
+#define MPEG2_VS_GROUP_START_CODE     0xB2
 */
 
 
 /* Table 6-1  Start code values */
-#define MPEG2_VS_PICTURE_START_CODE     0x00000100
-#define MPEG2_VS_SLICE_START_CODE_LOWEST 0x00000101
+#define MPEG2_VS_PICTURE_START_CODE       0x00000100
+#define MPEG2_VS_SLICE_START_CODE_LOWEST  0x00000101
 #define MPEG2_VS_SLICE_START_CODE_HIGHEST 0x000001AF
-#define MPEG2_VS_USER_DATA_START_CODE   0x000001B2
-#define MPEG2_VS_SEQUENCE_HEADER_CODE   0x000001B3
-#define MPEG2_VS_SEQUENCE_ERROR_CODE    0x000001B4
-#define MPEG2_VS_EXTENSION_START_CODE   0x000001B5
-#define MPEG2_VS_SEQUENCE_END_CODE      0x000001B7
-#define MPEG2_VS_GROUP_START_CODE       0x000001B8
+#define MPEG2_VS_USER_DATA_START_CODE     0x000001B2
+#define MPEG2_VS_SEQUENCE_HEADER_CODE     0x000001B3
+#define MPEG2_VS_SEQUENCE_ERROR_CODE      0x000001B4
+#define MPEG2_VS_EXTENSION_START_CODE     0x000001B5
+#define MPEG2_VS_SEQUENCE_END_CODE        0x000001B7
+#define MPEG2_VS_GROUP_START_CODE         0x000001B8
 
 /* Table 6-2. extension_start_code_identifier codes. */
 #define MPEG2_VS_SEQUENCE_EXTENSION_ID                  0x1
@@ -67,7 +66,7 @@ typedef struct {
 
 #define VLC_FAIL 0
 
-// used by b14
+// used by B-14
 #define DCT_DC_FIRST          0
 #define DCT_DC_SUBSEQUENT     1
 
@@ -76,35 +75,37 @@ typedef struct {
 
 /* Table B-12 --- Variable length codes for dct_dc_size_luminance */
 const vlc_table_t table_b12[] = { 
-	{    2,  0x000,     1 },
-	{    2,  0x001,     2 },
-	{    3,  0x004,     0 },
-	{    3,  0x005,     3 },
-	{    3,  0x006,     4 },
-	{    4,  0x00E,     5 },
-	{    5,  0x01E,     6 },
-	{    6,  0x03E,     7 },
-	{    7,  0x07E,     8 },
-	{    8,  0x0FE,     9 },
-	{    9,  0x1FE,    10 },
-	{    9,  0x1FF,    11 },
-	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
+  {    2,  0x000,     1 },
+  {    2,  0x001,     2 },
+  {    3,  0x004,     0 },
+  {    3,  0x005,     3 },
+  {    3,  0x006,     4 },
+  {    4,  0x00E,     5 },
+  {    5,  0x01E,     6 },
+  {    6,  0x03E,     7 },
+  {    7,  0x07E,     8 },
+  {    8,  0x0FE,     9 },
+  {    9,  0x1FE,    10 },
+  {    9,  0x1FF,    11 },
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL } 
+};
 
 /* Table B-13 --- Variable length codes for dct_dc_size_chrominance */
 const vlc_table_t table_b13[] = {
-	{    2,  0x000,     0 },
-	{    2,  0x001,     1 },
-	{    2,  0x002,     2 },
-	{    3,  0x006,     3 },
-	{    4,  0x00E,     4 },
-	{    5,  0x01E,     5 },
-	{    6,  0x03E,     6 },
-	{    7,  0x07E,     7 },
-	{    8,  0x0FE,     8 },
-	{    9,  0x1FE,     9 },
-	{   10,  0x3FE,    10 },
-	{   10,  0x3FF,    11 },
-	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
+  {    2,  0x000,     0 },
+  {    2,  0x001,     1 },
+  {    2,  0x002,     2 },
+  {    3,  0x006,     3 },
+  {    4,  0x00E,     4 },
+  {    5,  0x01E,     5 },
+  {    6,  0x03E,     6 },
+  {    7,  0x07E,     7 },
+  {    8,  0x0FE,     8 },
+  {    9,  0x1FE,     9 },
+  {   10,  0x3FE,    10 },
+  {   10,  0x3FF,    11 },
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL } 
+};
 
 
 /* Table B-14 --- DCT coefficients Table zero */
@@ -222,7 +223,7 @@ const vlc_rl_table table_b14[] = {
   {	   16,	      0x1D,	   29,	    1	},
   {	   16,	      0x1E,	   28,	    1	},
   {	   16,	      0x1F,	   27,	    1	},
-  {	   VLC_FAIL, VLC_FAIL, VLC_FAIL, VLC_FAIL }
+  {  VLC_FAIL,    VLC_FAIL,  VLC_FAIL, VLC_FAIL }
 };
 
 /* Table B-15 --- DCT coefficients Table one */
@@ -340,7 +341,7 @@ const vlc_rl_table table_b15[] = {
   {	   16,	      0x1D,	   29,	    1	},
   {	   16,	      0x1E,	   28,	    1	},
   {	   16,	      0x1F,	   27,	    1	},
-  {	   VLC_FAIL, VLC_FAIL, VLC_FAIL, VLC_FAIL }  
+  {  VLC_FAIL,    VLC_FAIL,  VLC_FAIL, VLC_FAIL }  
 };
 
 
@@ -425,7 +426,7 @@ const vlc_table_t table_b1[] = {
   {	   11,	 0x19,	   32	},
   {	   11,	 0x18,	   33	},
   {	   11,	  0x8,	VLC_MACROBLOCK_ESCAPE },
-  { VLC_FAIL, VLC_FAIL, VLC_FAIL }
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL}
 };
 
 
@@ -441,40 +442,40 @@ const vlc_table_t table_b1[] = {
 
 /* Table B-10 --- Variable length codes for motion_code */
 const vlc_table_t table_b10[] = {
-	{	    1,	  0x1,	    0	},
-	{	    3,	  0x2,	    1	},
-	{	    3,	  0x3,	   -1	},
-	{	    4,	  0x2,	    2	},
-	{	    4,	  0x3,	   -2	},
-	{	    5,	  0x2,	    3	},
-	{	    5,	  0x3,	   -3	},
-	{	    7,	  0x6,	    4	},
-	{	    7,	  0x7,	   -4	},
-	{	    8,	  0x6,	    7	},
-	{	    8,	  0x7,	   -7	},
-	{	    8,	  0x8,	    6	},
-	{	    8,	  0x9,	   -6	},
-	{	    8,	  0xA,	    5	},
-	{	    8,	  0xB,	   -5	},
-	{	   10,	 0x12,	   10	},
-	{	   10,	 0x13,	  -10	},
-	{	   10,	 0x14,	    9	},
-	{	   10,	 0x15,	   -9	},
-	{	   10,	 0x16,	    8	},
-	{	   10,	 0x17,	   -8	},
-	{	   11,	 0x18,	   16	},
-	{	   11,	 0x19,	  -16	},
-	{	   11,	 0x1A,	   15	},
-	{	   11,	 0x1B,	  -15	},
-	{	   11,	 0x1C,	   14	},
-	{	   11,	 0x1D,	  -14	},
-	{	   11,	 0x1E,	   13	},
-	{	   11,	 0x1F,	  -13	},
-	{	   11,	 0x20,	   12	},
-	{	   11,	 0x21,	  -12	},
-	{	   11,	 0x22,	   11	},
-	{	   11,	 0x23,	  -11	},
-	{ VLC_FAIL, VLC_FAIL, VLC_FAIL }
+  {	    1,	  0x1,	    0	},
+  {	    3,	  0x2,	    1	},
+  {	    3,	  0x3,	   -1	},
+  {	    4,	  0x2,	    2	},
+  {	    4,	  0x3,	   -2	},
+  {	    5,	  0x2,	    3	},
+  {	    5,	  0x3,	   -3	},
+  {	    7,	  0x6,	    4	},
+  {	    7,	  0x7,	   -4	},
+  {	    8,	  0x6,	    7	},
+  {	    8,	  0x7,	   -7	},
+  {	    8,	  0x8,	    6	},
+  {	    8,	  0x9,	   -6	},
+  {	    8,	  0xA,	    5	},
+  {	    8,	  0xB,	   -5	},
+  {	   10,	 0x12,	   10	},
+  {	   10,	 0x13,	  -10	},
+  {	   10,	 0x14,	    9	},
+  {	   10,	 0x15,	   -9	},
+  {	   10,	 0x16,	    8	},
+  {	   10,	 0x17,	   -8	},
+  {	   11,	 0x18,	   16	},
+  {	   11,	 0x19,	  -16	},
+  {	   11,	 0x1A,	   15	},
+  {	   11,	 0x1B,	  -15	},
+  {	   11,	 0x1C,	   14	},
+  {	   11,	 0x1D,	  -14	},
+  {	   11,	 0x1E,	   13	},
+  {	   11,	 0x1F,	  -13	},
+  {	   11,	 0x20,	   12	},
+  {	   11,	 0x21,	  -12	},
+  {	   11,	 0x22,	   11	},
+  {	   11,	 0x23,	  -11	},
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL}
 };
 
 /* Table B-11  Variable length codes for dmvector[t] */
@@ -482,89 +483,87 @@ const vlc_table_t table_b11[] = {
   {	    1,	  0x0,	    0	},
   {	    2,	  0x2,	    1	},
   {	    2,	  0x3,	   -1	},
-  { VLC_FAIL, VLC_FAIL, VLC_FAIL }
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL}
 };
 
 /* Table B-9 --- Variable length codes for coded_block_pattern. */
 const vlc_table_t table_b9[] = {
-	{	    3,	  0x7,	   60	},
-	{	    4,	  0xD,	    4	},
-	{	    4,	  0xC,	    8	},
-	{	    4,	  0xB,	   16	},
-	{	    4,	  0xA,	   32	},
-	{	    5,	 0x13,	   12	},
-	{	    5,	 0x12,	   48	},
-	{	    5,	 0x11,	   20	},
-	{	    5,	 0x10,	   40	},
-	{	    5,	  0xF,	   28	},
-	{	    5,	  0xE,	   44	},
-	{	    5,	  0xD,	   52	},
-	{	    5,	  0xC,	   56	},
-	{	    5,	  0xB,	    1	},
-	{	    5,	  0xA,	   61	},
-	{	    5,	  0x9,	    2	},
-	{	    5,	  0x8,	   62	},
-	{	    6,	  0xF,	   24	},
-	{	    6,	  0xE,	   36	},
-	{	    6,	  0xD,	    3	},
-	{	    6,	  0xC,	   63	},
-	{	    7,	 0x17,	    5	},
-	{	    7,	 0x16,	    9	},
-	{	    7,	 0x15,	   17	},
-	{	    7,	 0x14,	   33	},
-	{	    7,	 0x13,	    6	},
-	{	    7,	 0x12,	   10	},
-	{	    7,	 0x11,	   18	},
-	{	    7,	 0x10,	   34	},
-	{	    8,	 0x1F,	    7	},
-	{	    8,	 0x1E,	   11	},
-	{	    8,	 0x1D,	   19	},
-	{	    8,	 0x1C,	   35	},
-	{	    8,	 0x1B,	   13	},
-	{	    8,	 0x1A,	   49	},
-	{	    8,	 0x19,	   21	},
-	{	    8,	 0x18,	   41	},
-	{	    8,	 0x17,	   14	},
-	{	    8,	 0x16,	   50	},
-	{	    8,	 0x15,	   22	},
-	{	    8,	 0x14,	   42	},
-	{	    8,	 0x13,	   15	},
-	{	    8,	 0x12,	   51	},
-	{	    8,	 0x11,	   23	},
-	{	    8,	 0x10,	   43	},
-	{	    8,	  0xF,	   25	},
-	{	    8,	  0xE,	   37	},
-	{	    8,	  0xD,	   26	},
-	{	    8,	  0xC,	   38	},
-	{	    8,	  0xB,	   29	},
-	{	    8,	  0xA,	   45	},
-	{	    8,	  0x9,	   53	},
-	{	    8,	  0x8,	   57	},
-	{	    8,	  0x7,	   30	},
-	{	    8,	  0x6,	   46	},
-	{	    8,	  0x5,	   54	},
-	{	    8,	  0x4,	   58	},
-	{	    9,	  0x7,	   31	},
-	{	    9,	  0x6,	   47	},
-	{	    9,	  0x5,	   55	},
-	{	    9,	  0x4,	   59	},
-	{	    9,	  0x3,	   27	},
-	{	    9,	  0x2,	   39	},
-	{	    9,	  0x1,	    0	},
-	{ VLC_FAIL, VLC_FAIL, VLC_FAIL }
+  {	    3,	  0x7,	   60	},
+  {	    4,	  0xD,	    4	},
+  {	    4,	  0xC,	    8	},
+  {	    4,	  0xB,	   16	},
+  {	    4,	  0xA,	   32	},
+  {	    5,	 0x13,	   12	},
+  {	    5,	 0x12,	   48	},
+  {	    5,	 0x11,	   20	},
+  {	    5,	 0x10,	   40	},
+  {	    5,	  0xF,	   28	},
+  {	    5,	  0xE,	   44	},
+  {	    5,	  0xD,	   52	},
+  {	    5,	  0xC,	   56	},
+  {	    5,	  0xB,	    1	},
+  {	    5,	  0xA,	   61	},
+  {	    5,	  0x9,	    2	},
+  {	    5,	  0x8,	   62	},
+  {	    6,	  0xF,	   24	},
+  {	    6,	  0xE,	   36	},
+  {	    6,	  0xD,	    3	},
+  {	    6,	  0xC,	   63	},
+  {	    7,	 0x17,	    5	},
+  {	    7,	 0x16,	    9	},
+  {	    7,	 0x15,	   17	},
+  {	    7,	 0x14,	   33	},
+  {	    7,	 0x13,	    6	},
+  {	    7,	 0x12,	   10	},
+  {	    7,	 0x11,	   18	},
+  {	    7,	 0x10,	   34	},
+  {	    8,	 0x1F,	    7	},
+  {	    8,	 0x1E,	   11	},
+  {	    8,	 0x1D,	   19	},
+  {	    8,	 0x1C,	   35	},
+  {	    8,	 0x1B,	   13	},
+  {	    8,	 0x1A,	   49	},
+  {	    8,	 0x19,	   21	},
+  {	    8,	 0x18,	   41	},
+  {	    8,	 0x17,	   14	},
+  {	    8,	 0x16,	   50	},
+  {	    8,	 0x15,	   22	},
+  {	    8,	 0x14,	   42	},
+  {	    8,	 0x13,	   15	},
+  {	    8,	 0x12,	   51	},
+  {	    8,	 0x11,	   23	},
+  {	    8,	 0x10,	   43	},
+  {	    8,	  0xF,	   25	},
+  {	    8,	  0xE,	   37	},
+  {	    8,	  0xD,	   26	},
+  {	    8,	  0xC,	   38	},
+  {	    8,	  0xB,	   29	},
+  {	    8,	  0xA,	   45	},
+  {	    8,	  0x9,	   53	},
+  {	    8,	  0x8,	   57	},
+  {	    8,	  0x7,	   30	},
+  {	    8,	  0x6,	   46	},
+  {	    8,	  0x5,	   54	},
+  {	    8,	  0x4,	   58	},
+  {	    9,	  0x7,	   31	},
+  {	    9,	  0x6,	   47	},
+  {	    9,	  0x5,	   55	},
+  {	    9,	  0x4,	   59	},
+  {	    9,	  0x3,	   27	},
+  {	    9,	  0x2,	   39	},
+  {	    9,	  0x1,	    0	},
+  { VLC_FAIL, VLC_FAIL, VLC_FAIL}
 };
-
-
 
 
 
 const uint8_t scan[2][8][8] = {
   /* Figure 7-1. Definition of scan[0][v][u] */
   {
-    { 0, 1, 5, 6, 14, 15, 27, 28 },
-    { 2, 4, 7, 13, 16, 26, 29, 42 },
-    { 3, 8, 12, 17, 25, 30, 41, 43 },
-    { 9, 11, 18, 24, 31, 40, 44, 53 },
+    {  0,  1,  5,  6, 14, 15, 27, 28 },
+    {  2,  4,  7, 13, 16, 26, 29, 42 },
+    {  3,  8, 12, 17, 25, 30, 41, 43 },
+    {  9, 11, 18, 24, 31, 40, 44, 53 },
     { 10, 19, 23, 32, 39, 45, 52, 54 },
     { 20, 22, 33, 38, 46, 51, 55, 60 },
     { 21, 34, 37, 47, 50, 56, 59, 61 },
@@ -572,10 +571,10 @@ const uint8_t scan[2][8][8] = {
   },
   /* Figure 7-2. Definition of scan[1][v][u] */
   {
-    { 0, 4, 6, 20, 22, 36, 38, 52 },
-    { 1, 5, 7, 21, 23, 37, 39, 53 },
-    { 2, 8, 19, 24, 34, 40, 50, 54 },
-    { 3, 9, 18, 25, 35, 41, 51, 55 },
+    {  0,  4,  6, 20, 22, 36, 38, 52 },
+    {  1,  5,  7, 21, 23, 37, 39, 53 },
+    {  2,  8, 19, 24, 34, 40, 50, 54 },
+    {  3,  9, 18, 25, 35, 41, 51, 55 },
     { 10, 17, 26, 30, 42, 46, 56, 60 },
     { 11, 16, 27, 31, 43, 47, 57, 61 },
     { 12, 15, 28, 32, 44, 48, 58, 62 },
@@ -585,69 +584,69 @@ const uint8_t scan[2][8][8] = {
 
 const uint8_t inverse_scan[2][64] = {
   /* Derived from Figure 7-1. Definition of scan[0][v][u] */
-  {  0,   1,   8,  16,   9,   2,   3,  10,  
-    17,  24,  32,  25,  18,  11,   4,   5,  
-    12,  19,  26,  33,  40,  48,  41,  34,  
-    27,  20,  13,   6,   7,  14,  21,  28,  
-    35,  42,  49,  56,  57,  50,  43,  36,
-    29,  22,  15,  23,  30,  37,  44,  51,
-    58,  59,  52,  45,  38,  31,  39,  46,
-    53,  60,  61,  54,  47,  55,  62,  63
+  {  0,  1,  8, 16,  9,  2,  3, 10,  
+    17, 24, 32, 25, 18, 11,  4,  5,  
+    12, 19, 26, 33, 40, 48, 41, 34,  
+    27, 20, 13,  6,  7, 14, 21, 28,  
+    35, 42, 49, 56, 57, 50, 43, 36,
+    29, 22, 15, 23, 30, 37, 44, 51,
+    58, 59, 52, 45, 38, 31, 39, 46,
+    53, 60, 61, 54, 47, 55, 62, 63
   }, 
   /* Derived from Figure 7-2. Definition of scan[1][v][u] */
   {
-     0,   8,  16,  24,   1,   9,   2,  10,
-    17,  25,  32,  40,  48,  56,  57,  49,
-    41,  33,  26,  18,   3,  11,   4,  12,
-    19,  27,  34,  42,  50,  58,  35,  43,
-    51,  59,  20,  28,   5,  13,   6,  14,
-    21,  29,  36,  44,  52,  60,  37,  45,
-    53,  61,  22,  30,   7,  15,  23,  31,
-    38,  46,  54,  62,  39,  47,  55,  63
+     0,  8, 16, 24,  1,  9,  2, 10,
+    17, 25, 32, 40, 48, 56, 57, 49,
+    41, 33, 26, 18,  3, 11,  4, 12,
+    19, 27, 34, 42, 50, 58, 35, 43,
+    51, 59, 20, 28,  5, 13,  6, 14,
+    21, 29, 36, 44, 52, 60, 37, 45,
+    53, 61, 22, 30,  7, 15, 23, 31,
+    38, 46, 54, 62, 39, 47, 55, 63
   }
 };
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */
 const uint8_t q_scale[32][2] = {
   { 255, 255 },
-  { 2, 1 },
-  { 4, 2 },
-  { 6, 3 },
-  { 8, 4 },
-  { 10, 5 },
-  { 12, 6 },
-  { 14, 7 },
-  { 16, 8 },
-  { 18, 10 },
-  { 20, 12 },
-  { 22, 14 },
-  { 24, 16 },
-  { 26, 18 },
-  { 28, 20 },
-  { 30, 22 },
-  { 32, 24 },
-  { 34, 28 },
-  { 36, 32 },
-  { 38, 36 },
-  { 40, 40 },
-  { 42, 44 },
-  { 44, 48 },
-  { 46, 52 },
-  { 48, 56 },
-  { 50, 64 },
-  { 52, 72 },
-  { 54, 80 },
-  { 56, 88 },
-  { 58, 96 },
-  { 60, 104 },
-  { 62, 112 }
+  {   2,   1 },
+  {   4,   2 },
+  {   6,   3 },
+  {   8,   4 },
+  {  10,   5 },
+  {  12,   6 },
+  {  14,   7 },
+  {  16,   8 },
+  {  18,  10 },
+  {  20,  12 },
+  {  22,  14 },
+  {  24,  16 },
+  {  26,  18 },
+  {  28,  20 },
+  {  30,  22 },
+  {  32,  24 },
+  {  34,  28 },
+  {  36,  32 },
+  {  38,  36 },
+  {  40,  40 },
+  {  42,  44 },
+  {  44,  48 },
+  {  46,  52 },
+  {  48,  56 },
+  {  50,  64 },
+  {  52,  72 },
+  {  54,  80 },
+  {  56,  88 },
+  {  58,  96 },
+  {  60, 104 },
+  {  62, 112 }
 };
 
 
 
 /* 6.3.7 Quant matrix extension */
 const int8_t default_intra_inverse_quantiser_matrix[8][8] = {
-  { 8, 16, 19, 22, 26, 27, 29, 34 },
+  {  8, 16, 19, 22, 26, 27, 29, 34 },
   { 16, 16, 22, 24, 27, 29, 34, 37 },
   { 19, 22, 26, 27, 29, 34, 34, 38 },
   { 22, 22, 26, 27, 29, 34, 37, 40 },
@@ -691,9 +690,9 @@ const DCTtab DCTtabfirst[12] =
  */
 const DCTtab DCTtabnext[12] =
 {
-  { 0, 2,4}, { 2, 1,4}, { 1, 1, 3}, { 1, 1, 3},
-  {64, 0,2}, {64, 0,2}, {64, 0, 2}, {64, 0, 2}, /* EOB */
-  { 0, 1,2}, { 0, 1,2}, { 0, 1, 2}, { 0, 1, 2}
+  { 0, 2, 4}, { 2, 1, 4}, { 1, 1, 3}, { 1, 1, 3},
+  {64, 0, 2}, {64, 0, 2}, {64, 0, 2}, {64, 0, 2}, /* EOB */
+  { 0, 1, 2}, { 0, 1, 2}, { 0, 1, 2}, { 0, 1, 2}
 };
 
 /* Table B-14, DCT coefficients table zero,
