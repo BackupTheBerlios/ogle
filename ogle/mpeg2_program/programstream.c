@@ -571,12 +571,13 @@ void get_next_demux_q(void)
   }
   while(!new_demux_range) {
     while(!demux_q_len) {
-      MsgNextEvent(msgq, &ev);
-      switch(ev.type) {
-      default:
-	handle_events(&ev);
-	//fprintf(stderr, "demux: unrecognized command\n");
-	break;
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	switch(ev.type) {
+	default:
+	  handle_events(&ev);
+	  //fprintf(stderr, "demux: unrecognized command\n");
+	  break;
+	}
       }
     }
     
@@ -1975,35 +1976,36 @@ int main(int argc, char **argv)
     //get_next_demux_q();
     
     while(!fileopen) {
-      MsgNextEvent(msgq, &regev);
-      switch(regev.type) {
-      case MsgEventQChangeFile:
+      if(MsgNextEvent(msgq, &regev) != -1) {
+	switch(regev.type) {
+	case MsgEventQChangeFile:
 #if DEBUG
-	fprintf(stderr, "demux: got changefile\n");
+	  fprintf(stderr, "demux: got changefile\n");
 #endif
-	loadinputfile(regev.changefile.filename);
-	fileopen = 1;
-	break;
-      case MsgEventQCtrlData:
+	  loadinputfile(regev.changefile.filename);
+	  fileopen = 1;
+	  break;
+	case MsgEventQCtrlData:
 #if DEBUG
-	fprintf(stderr, "demux: got ctrldata\n");
+	  fprintf(stderr, "demux: got ctrldata\n");
 #endif
-	attach_ctrl_shm(regev.ctrldata.shmid);
-	break;
-      case MsgEventQDemuxDVDRoot:
+	  attach_ctrl_shm(regev.ctrldata.shmid);
+	  break;
+	case MsgEventQDemuxDVDRoot:
 #if DEBUG
-	fprintf(stderr, "demux: got dvd root\n");
+	  fprintf(stderr, "demux: got dvd root\n");
 #endif
-	handle_events(&regev);
-	fileopen = 1;
-	break;
-      default:
-	handle_events(&regev);
+	  handle_events(&regev);
+	  fileopen = 1;
+	  break;
+	default:
+	  handle_events(&regev);
 	/*
-	fprintf(stderr, "demux: msg not wanted %d, from %ld\n",
-		regev.type, regev.any.client);
+	  fprintf(stderr, "demux: msg not wanted %d, from %ld\n",
+	  regev.type, regev.any.client);
 	*/
-	break;
+	  break;
+	}
       }
     }
     //fprintf(stderr, "demux: file opened\n");
@@ -2169,16 +2171,17 @@ int register_id(uint8_t id, int subtype)
     /* wait for answer */
     
     while(!id_registered(id, subtype)) {
-      MsgNextEvent(msgq, &ev);
-      if(ev.type == MsgEventQGntStreamBuf) {
-	DPRINTF(1, "demux: got stream %x, %x buffer \n",
-		ev.gntstreambuf.stream_id,
-		ev.gntstreambuf.subtype);
-	attach_decoder_buffer(ev.gntstreambuf.stream_id,
-			      ev.gntstreambuf.subtype,
-			      ev.gntstreambuf.q_shmid);
-      } else {
-	handle_events(&ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	if(ev.type == MsgEventQGntStreamBuf) {
+	  DPRINTF(1, "demux: got stream %x, %x buffer \n",
+		  ev.gntstreambuf.stream_id,
+		  ev.gntstreambuf.subtype);
+	  attach_decoder_buffer(ev.gntstreambuf.stream_id,
+				ev.gntstreambuf.subtype,
+				ev.gntstreambuf.q_shmid);
+	} else {
+	  handle_events(&ev);
+	}
       }
     }
 
@@ -2238,16 +2241,17 @@ int id_get_output(uint8_t id, int subtype)
     /* wait for answer */
     
     while(!id_has_output(id, subtype)) {
-      MsgNextEvent(msgq, &ev);
-      if(ev.type == MsgEventQGntStreamBuf) {
-	DPRINTF(1, "demux: got stream %x, %x buffer \n",
-		ev.gntstreambuf.stream_id,
-		ev.gntstreambuf.subtype);
-	attach_decoder_buffer(ev.gntstreambuf.stream_id,
-			      ev.gntstreambuf.subtype,
-			      ev.gntstreambuf.q_shmid);
-      } else {
-	handle_events(&ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	if(ev.type == MsgEventQGntStreamBuf) {
+	  DPRINTF(1, "demux: got stream %x, %x buffer \n",
+		  ev.gntstreambuf.stream_id,
+		  ev.gntstreambuf.subtype);
+	  attach_decoder_buffer(ev.gntstreambuf.stream_id,
+				ev.gntstreambuf.subtype,
+				ev.gntstreambuf.q_shmid);
+	} else {
+	  handle_events(&ev);
+	}
       }
     }
 
@@ -2639,15 +2643,16 @@ int get_buffer(int size)
   }
   
   while(ev.type != MsgEventQGntBuf) {
-    MsgNextEvent(msgq, &ev);
-    if(ev.type == MsgEventQGntBuf) {
-      DPRINTF(1, "demux: got buffer id %d, size %d\n",
-	      ev.gntbuf.shmid,
-	      ev.gntbuf.size);
-      return attach_buffer(ev.gntbuf.shmid,
-			   ev.gntbuf.size);
-    } else {
-      handle_events(&ev);
+    if(MsgNextEvent(msgq, &ev) != -1) {
+      if(ev.type == MsgEventQGntBuf) {
+	DPRINTF(1, "demux: got buffer id %d, size %d\n",
+		ev.gntbuf.shmid,
+		ev.gntbuf.size);
+	return attach_buffer(ev.gntbuf.shmid,
+			     ev.gntbuf.size);
+      } else {
+	handle_events(&ev);
+      }
     }
   }
   
@@ -2745,8 +2750,9 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
     while(data_elems[data_elem_nr].in_use) {
       DPRINTF(1, "demux: waiting for notification\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(&ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(&ev);
+      }
     }
     //q_head->writer_requests_notification = 0;
     
@@ -2826,8 +2832,9 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     
     while(q_elem[elem].in_use) {
       DPRINTF(1, "demux: waiting for notification2\n");
-      MsgNextEvent(msgq, &ev);
-      handle_events(&ev);
+      if(MsgNextEvent(msgq, &ev) != -1) {
+	handle_events(&ev);
+      }
     }
     //    q_head->writer_requests_notification = 0;
   }
