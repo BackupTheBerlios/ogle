@@ -4844,5 +4844,23 @@ void exit_program(int exitcode)
 
 
 #endif
+  
+  fprintf(stderr, "\nCompiled with:\n");
+#ifdef DEBUG
+  fprintf(stderr, "\t#define DEBUG\n");
+#endif
+
+#ifdef STATS
+  fprintf(stderr, "\t#define STATS\n");
+#endif
+
+#ifdef DCFLAGS
+  fprintf(stderr, "\tCFLAGS = %s\n", DCFLAGS);
+#endif
+
+#ifdef DLDFLAGS
+  fprintf(stderr, "\tLDFLAGS = %s\n", DLDFLAGS);
+#endif
+
   exit(exitcode);
 }
