@@ -914,6 +914,7 @@ void push_stream_data(uint8_t stream_id, int len,
       } else {
 	is_newfile = 0;
       }
+
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
 	if((subtype >= 0x80) && (subtype < 0x90)) {
@@ -2390,9 +2391,11 @@ void flush_all_streams(int scr_nr)
   for(n = 0; n < 256; n++) {
     if((n != MPEG2_PRIVATE_STREAM_1) && (id_reg[n].state == STREAM_DECODE)) {
       q_head = (q_head_t *)id_reg[n].shmaddr;
-      //fprintf(stderr, "demux: flushing stream %02x\n", n);
-      if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
-	fprintf(stderr, "demux: couldn't send flush\n");
+      if(q_head != NULL) {
+	//fprintf(stderr, "demux: flushing stream %02x\n", n);
+	if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
+	  fprintf(stderr, "demux: couldn't send flush\n");
+	}
       }
     }
   }
@@ -2400,9 +2403,11 @@ void flush_all_streams(int scr_nr)
   for(n = 0; n < 256; n++) {
     if(id_reg_ps1[n].state == STREAM_DECODE) {
       q_head = (q_head_t *)id_reg_ps1[n].shmaddr;
-      //fprintf(stderr, "demux: flushing substream %02x\n", n);
-      if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
-	fprintf(stderr, "demux: couldn't send flush\n");
+      if(q_head != NULL) {
+	//fprintf(stderr, "demux: flushing substream %02x\n", n);
+	if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
+	  fprintf(stderr, "demux: couldn't send flush\n");
+	}
       }
     }
   }

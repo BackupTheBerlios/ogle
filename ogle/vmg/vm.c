@@ -618,7 +618,6 @@ static link_t play_Cell(void)
     case 1: // Angle block
       /* Loop and check each cell instead? So we don't get outsid the block. */
       state.cellN += state.AGL_REG - 1;
-      assert(state.domain == VTSM_DOMAIN); // ??
       assert(state.cellN <= state.pgc->nr_of_cells);
       assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode != 0);
       assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 1);

@@ -113,11 +113,6 @@ static q_elem_t *picture_q_elems;
 //void init_out_q(int nr_of_bufs);
 //void setup_shm(int horiz_size, int vert_size, int nr_of_bufs);
 
-double time_pic[4] = { 0.0, 0.0, 0.0, 0.0};
-double time_max[4] = { 0.0, 0.0, 0.0, 0.0};
-double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
-double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
-
 
 int last_temporal_ref_to_dpy = -1;
 
@@ -130,67 +125,6 @@ uint8_t non_intra_inverse_quantiser_matrix_changed = 1;
 uint32_t stats_block_intra_nr = 0;
 uint32_t stats_f_intra_compute_subseq_nr = 0;
 uint32_t stats_f_intra_compute_first_nr = 0;
-
-#ifdef TIMESTAT
-
-void timestat_init();
-void timestat_print();
-
-clocktime_t picture_decode_start_time;
-clocktime_t picture_decode_end_time;
-clocktime_t picture_display_start_time;
-clocktime_t picture_display_end_time;
-
-clocktime_t picture_time;
-clocktime_t picture_decode_time;
-clocktime_t picture_display_time;
-
-clocktime_t picture_time0;
-clocktime_t picture_time1;
-clocktime_t picture_time2;
-
-clocktime_t picture_decode_time_tot[3];
-clocktime_t picture_display_time_tot[3];
-
-clocktime_t picture_decode_time_min[3];
-clocktime_t picture_display_time_min[3];
-
-clocktime_t picture_decode_time_max[3];
-clocktime_t picture_display_time_max[3];
-
-uint32_t picture_decode_nr[3];
-uint32_t picture_display_nr[3];
-
-clocktime_t *picture_decode_start_times;
-clocktime_t *picture_decode_end_times;
-clocktime_t *picture_display_start_times;
-clocktime_t *picture_display_end_times;
-uint8_t *picture_type;
-
-
-uint32_t picture_decode_num;
-uint32_t picture_display_num;
-
-typedef struct {
-  clocktime_t dec_start;
-  clocktime_t dec_end;
-  clocktime_t dec_tot;
-  clocktime_t dec_min;
-  clocktime_t disp_start;
-  clocktime_t disp_end;
-  clocktime_t disp_tot;
-  clocktime_t disp_min;
-  clocktime_t pic_tot;
-  clocktime_t pic_min;
-  clocktime_t should_sleep;
-  clocktime_t did_sleep;
-  int type;
-} picture_time_t;
-
-picture_time_t *picture_timestat;
-
-#endif
-
 
 sequence_t seq;
 picture_t pic;
@@ -335,12 +269,6 @@ void init_program()
   // SIGINT == ctrl-c
   sig.sa_handler = sighandler;
   sigaction(SIGINT, &sig, NULL);
-  
-
-#ifdef TIMESTAT
-  timestat_init();
-#endif
-  
 }
 
 int msgqid = -1;
@@ -959,7 +887,9 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     fprintf(stderr, "** video_decode: couldn't get buffer\n");
   }
   
-
+#ifdef HAVE_MMX
+    emms();
+#endif
   
   /* this should not be here */
   fprintf(stderr, "horizontal_size: %d, vertical_size: %d\n",
@@ -1976,8 +1906,12 @@ void picture_data(void)
       
       }
    */
+
+#ifdef HAVE_MMX
+    emms();
+#endif
   
-  {
+    { // Don't use floating point math!
     double sar = 1.0;
     uint16_t hsize,vsize;
     
@@ -1986,7 +1920,7 @@ void picture_data(void)
       vsize = seq.dpy_ext.display_vertical_size;
     } else {
       hsize = seq.horizontal_size;
-      vsize = seq.vertical_size;	
+      vsize = seq.vertical_size;
     }
     switch(seq.header.aspect_ratio_information) {
     case 0x0:
@@ -2133,94 +2067,6 @@ void picture_data(void)
   }
   
   prev_coded_temp_ref = pic.header.temporal_reference;
-  
-  
-  /* Temporarily broken :) */
-#if 0  
-
-  {
-    static int first = 1;
-    static int frame_nr = 0;
-    static int previous_picture_type;
-    
-    double diff;
-    static double old_time = 0.0;
-    
-#ifdef HAVE_MMX
-    emms();
-#endif
-    
-    // The time for the lastframe 
-    diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
-	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
-    
-    if(first) {
-      first = 0;
-    } else {
-      switch(previous_picture_type) { 
-      case PIC_CODING_TYPE_I:
-	time_pic[0] += diff;
-	num_pic[0]++;
-	if(diff > time_max[0]) {
-	  time_max[0] = diff;
-	}
-	if(diff < time_min[0]) {
-	  time_min[0] = diff;
-	}
-	break;
-      case PIC_CODING_TYPE_P:
-	time_pic[1] += diff;
-	num_pic[1]++;
-	if(diff > time_max[1]) {
-	  time_max[1] = diff;
-	}
-	if(diff < time_min[1]) {
-	  time_min[1] = diff;
-	}
-	break;
-      case PIC_CODING_TYPE_B:
-	time_pic[2] += diff;
-	num_pic[2]++;
-	if(diff > time_max[2]) {
-	  time_max[2] = diff;
-	}
-	if(diff < time_min[2]) {
-	  time_min[2] = diff;
-	}
-	break;
-      }
-      time_pic[3] += diff;
-      num_pic[3]++;
-      if(diff > time_max[3]) {
-	time_max[3] = diff;
-      }
-      if(diff < time_min[3]) {
-	time_min[3] = diff;
-      }
-      
-      if(frame_nr == 0) {
-	
-	frame_nr = 25;
-	otva.tv_sec = tva.tv_sec;
-	otva.tv_usec = tva.tv_usec;
-	gettimeofday(&tva, NULL);
-	
-	fprintf(stderr, "decode: frame rate: %f fps\n",
-		25.0/(((double)tva.tv_sec+
-		       (double)(tva.tv_usec)/1000000.0)-
-		      ((double)otva.tv_sec+
-		       (double)(otva.tv_usec)/1000000.0))
-		);
-	
-      }
-      
-      frame_nr--;
-    }
-    
-    previous_picture_type = pic.header.picture_coding_type;
-    gettimeofday(&otv, NULL); // Start time (for this frame) 
-  }
-#endif
   
   DINDENT(-2);
   next_start_code();
@@ -2589,435 +2435,6 @@ void exit_program(int exitcode)
   shmctl(picture_buffers_shmid, IPC_RMID, 0);
   shmctl(buf_ctrl_shmid, IPC_RMID, 0);
 
-#ifdef HAVE_MMX
-  emms();
-#endif
-  
-#if 0
-  { /* Print some frame rate info. */
-    int n;
-    for(n=0; n<4; n++) {
-      fprintf(stderr,"frames: %.0f\n", num_pic[n]);
-      fprintf(stderr,"max time: %.4f\n", time_max[n]);
-      fprintf(stderr,"min time: %.4f\n", time_min[n]);
-      fprintf(stderr,"fps: %.4f\n", num_pic[n]/time_pic[n]);
-    }
-  }
-#endif
-  
-#ifdef TIMESTAT
-  timestat_print();
-#endif
-
   exit(exitcode);
 }
-
-
-
-#ifdef TIMESTAT
-
-void timestat_init()
-{
-  int n;
-
-  for(n = 0; n < 3; n++) {
-    
-    picture_decode_time_tot[n].tv_sec = 0;
-    picture_decode_time_tot[n].tv_nsec = 0;
-    
-    picture_display_time_tot[n].tv_sec = 0;
-    picture_display_time_tot[n].tv_nsec = 0;
-
-    picture_decode_time_min[n].tv_sec = 99;
-    picture_decode_time_min[n].tv_nsec = 0;
-    
-    picture_display_time_min[n].tv_sec = 99;
-    picture_display_time_min[n].tv_nsec = 0;
-    
-    picture_decode_time_max[n].tv_sec = 0;
-    picture_decode_time_max[n].tv_nsec = 0;
-
-    picture_display_time_max[n].tv_sec = 0;
-    picture_display_time_max[n].tv_nsec = 0;
-
-    picture_decode_nr[n] = 0;
-    picture_display_nr[n] = 0;
-  }
-
-  picture_timestat = calloc(TIMESTAT_NOF, sizeof(picture_time_t));
-
-  picture_time.tv_sec = 0;
-  picture_time.tv_nsec = 0;
-
-  for(n = 0; n < TIMESTAT_NOF; n++) {
-    picture_timestat[n].dec_start = picture_time;
-    picture_timestat[n].dec_end = picture_time;
-    picture_timestat[n].disp_start = picture_time;
-    picture_timestat[n].disp_end = picture_time;
-    picture_timestat[n].should_sleep = picture_time;
-    picture_timestat[n].did_sleep = picture_time;
-    picture_timestat[n].type = 0xff;
-  }
-
-  picture_decode_start_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
-  picture_decode_end_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
-  picture_display_start_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
-  picture_display_end_times = calloc(TIMESTAT_NOF, sizeof(clocktime_t));
-  picture_type = calloc(TIMESTAT_NOF, sizeof(uint8_t));
-
-  picture_decode_num = 0;
-  picture_display_num = 0;
-  
-}
-
-void timestat_print()
-{
-  int n;
-  FILE *stat_file;
-  FILE *gnuplot_file;
-  picture_time_t tmppic;
-  int statnr = 1;
-  fprintf(stderr, "\ntimestat\n");
-
-
-  for(n = 0; n < picture_decode_num; n++) {
-
-    timesub(&(picture_timestat[n].dec_tot),
-	    &(picture_timestat[n].dec_end),
-	    &(picture_timestat[n].dec_start));
-    
-    picture_timestat[n].dec_min = picture_timestat[n].dec_tot;
-
-
-    timesub(&(picture_timestat[n].disp_tot),
-	    &(picture_timestat[n].disp_end),
-	    &(picture_timestat[n].disp_start));
-
-    picture_timestat[n].disp_min = picture_timestat[n].disp_tot;
-    
-
-    timesub(&(picture_timestat[n].pic_tot),
-	    &(picture_timestat[n].disp_end),
-	    &(picture_timestat[n].dec_start));
-
-    picture_timestat[n].pic_min = picture_timestat[n].pic_tot;
-    
-  }
-  
-  if((stat_file = fopen("video_stats", "r")) == NULL) {
-    perror("no previous stats");
-  } else {
-    n = 0;
-    fread(&statnr, sizeof(statnr), 1, stat_file);
-    statnr++;
-    while(fread(&tmppic, sizeof(tmppic), 1, stat_file) && 
-	  (n < picture_decode_num)) {
-      if(timecompare(&(picture_timestat[n].dec_min), &(tmppic.dec_min)) > 0) {
-	picture_timestat[n].dec_min = tmppic.dec_min;
-      }
-      timeadd(&(picture_timestat[n].dec_tot),
-	      &(picture_timestat[n].dec_tot),
-	      &(tmppic.dec_tot));
-      
-      if(timecompare(&(picture_timestat[n].disp_min), &(tmppic.disp_min)) > 0) {
-	picture_timestat[n].disp_min = tmppic.disp_min;
-      }
-      timeadd(&(picture_timestat[n].disp_tot),
-	      &(picture_timestat[n].disp_tot),
-	      &(tmppic.disp_tot));
-
-      if(timecompare(&(picture_timestat[n].pic_min), &(tmppic.pic_min)) > 0) {
-	picture_timestat[n].pic_min = tmppic.pic_min;
-      }
-      timeadd(&(picture_timestat[n].pic_tot),
-	      &(picture_timestat[n].pic_tot),
-	      &(tmppic.pic_tot));
-      n++;
-
-    }
-    picture_decode_num = n;
-    fclose(stat_file);
-  }
-  
-  if((stat_file = fopen("video_stats", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    fwrite(&statnr, sizeof(statnr), 1, stat_file);
-    if(fwrite(picture_timestat, sizeof(picture_time_t),
-	      picture_decode_num, stat_file) != picture_decode_num) {
-      perror("fwrite");
-    }
-    fprintf(stderr, "Wrote stats to file: video_stats\n");
-    fclose(stat_file);
-  }
-
-  if((gnuplot_file = fopen("stats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].dec_end), &(picture_timestat[n].dec_start));
-      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
-	      (int)picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      (int)picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("stats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].disp_start));
-      timesub(&picture_time0, &(picture_timestat[n].disp_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
-	      (int)picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      (int)picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("stats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      timesub(&picture_time, &(picture_timestat[n].disp_end), &(picture_timestat[n].dec_start));
-      timesub(&picture_time0, &(picture_timestat[n].dec_start), &(picture_timestat[0].dec_start));
-      fprintf(gnuplot_file, "%d.%09ld %d.%09ld\n",
-	      (int)picture_time0.tv_sec,
-	      picture_time0.tv_nsec,
-	      (int)picture_time.tv_sec,
-	      picture_time.tv_nsec);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-
-
-
-  /* ---------------- */
-
-  if((gnuplot_file = fopen("avgstats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].dec_tot.tv_sec+
-	      (double)picture_timestat[n].dec_tot.tv_nsec/
-	      1000000000.0)/(double)statnr);
-
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("avgstats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].disp_tot.tv_sec+
-	      (double)picture_timestat[n].disp_tot.tv_nsec/
-	       1000000000.0)/(double)statnr);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("avgstats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %.09f\n",
-	      n,
-	      ((double)picture_timestat[n].pic_tot.tv_sec+
-	       (double)picture_timestat[n].pic_tot.tv_nsec/
-	       1000000000.0)/(double)statnr);
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  fprintf(stderr, "statnr: %d\n", statnr);
-
-  
-
-  /* ------------------------------ */
-
-
-
-  if((gnuplot_file = fopen("minstats_dec.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09ld\n",
-	      n,
-	      (int)picture_timestat[n].dec_min.tv_sec,
-	      picture_timestat[n].dec_min.tv_nsec);
-      
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-  
-  if((gnuplot_file = fopen("minstats_disp.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09ld\n",
-	      n,
-	      (int)picture_timestat[n].disp_min.tv_sec,
-	      picture_timestat[n].disp_min.tv_nsec);
-
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-  if((gnuplot_file = fopen("minstats_pic.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-
-      fprintf(gnuplot_file, "%d %d.%09ld\n",
-	      n,
-	      (int)picture_timestat[n].pic_min.tv_sec,
-	      picture_timestat[n].pic_min.tv_nsec);
-
-    }
-    
-    fprintf(stderr, "Wrote gnuplot-stats to file: stats_pic.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-
-  /* ------------------------------- */
-  
-
-
-
-  if((gnuplot_file = fopen("stats_type.dat", "w")) == NULL) {
-    perror("fopen");
-  } else {
-    for(n = 0; n < picture_decode_num-1; n++) {
-      
-      fprintf(gnuplot_file, "%d %d\n",
-	      n,
-	      picture_timestat[n].type);
-
-      
-    }
-   
-    fprintf(stderr, "Wrote gnuplot-stats to file: avgstats_disp.dat\n");
-    fclose(gnuplot_file);
-  } 
-
-
-
-  /* ------------------------------- */
-    
-    /*
-    for(n = 0; n < picture_decode_num; n++) {
-      fprintf(gnuplot_file, "%.9f %d\n",
-	      1.0/24.0*n,
-	      n);
-    }
-    */
-
-  
-  for(n = 0; n < 3; n++) {
-    
-    fprintf(stderr, "avg_decode_time: %.4f s,  %.2f fps \n",
-	    ((double)picture_decode_time_tot[n].tv_sec +
-	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0)/
-	    (double)picture_decode_nr[n],
-	    (double)picture_decode_nr[n]/
-	    ((double)picture_decode_time_tot[n].tv_sec +
-	     (double)picture_decode_time_tot[n].tv_nsec/1000000000.0));
-
-    fprintf(stderr, "avg_display_time: %.4f s\n",
-	    ((double)picture_display_time_tot[n].tv_sec +
-	     (double)picture_display_time_tot[n].tv_nsec/1000000000.0)/
-	    (double)picture_display_nr[n]);
-
-
-
-    fprintf(stderr, "display_time_max: %d.%09ld\n",
-	    (int)picture_display_time_max[0].tv_sec,
-	    picture_display_time_max[0].tv_nsec);
-    fprintf(stderr, "display_time_max: %d.%09ld\n",
-	    (int)picture_display_time_max[1].tv_sec,
-	    picture_display_time_max[1].tv_nsec);
-    fprintf(stderr, "display_time_max: %d.%09ld\n",
-	    (int)picture_display_time_max[2].tv_sec,
-	    picture_display_time_max[2].tv_nsec);
-
-    fprintf(stderr, "display_time_min: %d.%09ld\n",
-	    (int)picture_display_time_min[0].tv_sec,
-	    picture_display_time_min[0].tv_nsec);
-    fprintf(stderr, "display_time_min: %d.%09ld\n",
-	    (int)picture_display_time_min[1].tv_sec,
-	    picture_display_time_min[1].tv_nsec);
-    fprintf(stderr, "display_time_min: %d.%09ld\n",
-	    (int)picture_display_time_min[2].tv_sec,
-	    picture_display_time_min[2].tv_nsec);
-
-    /*
-    picture_decode_time_tot[n].tv_sec = 0;
-    picture_decode_time_tot[n].tv_nsec = 0;
-    
-    picture_display_time_tot[n].tv_sec = 0;
-    picture_display_time_tot[n].tv_nsec = 0;
-
-    picture_decode_time_min[n].tv_sec = 99;
-    picture_decode_time_min[n].tv_nsec = 0;
-    
-    picture_display_time_min[n].tv_sec = 99;
-    picture_display_time_min[n].tv_nsec = 99;
-    
-    picture_decode_time_max[n].tv_sec = 0;
-    picture_decode_time_max[n].tv_nsec = 0;
-
-    picture_display_time_max[n].tv_sec = 0;
-    picture_display_time_max[n].tv_nsec = 0;
-
-    picture_decode_nr[n] = 0;
-    picture_display_nr[n] = 0;
-    */
-  }
-  
-}
-
-
-#endif
 

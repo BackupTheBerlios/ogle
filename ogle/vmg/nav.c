@@ -104,6 +104,9 @@ int main(int argc, char *argv[])
     
     wait_for_init(msgq);
     
+    /*  Call start here */
+    vm_reset(get_dvdroot()); // hack placed here becaus it calles DVDOpen...
+
     ev.type = MsgEventQDemuxDVDRoot;
     strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
     ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
@@ -141,9 +144,7 @@ int main(int argc, char *argv[])
   }
  
   
-  /*  Call start here */
-  vm_reset(get_dvdroot());
-
+  //vm_reset(get_dvdroot());
   do_run();
   
   return 0;
@@ -473,7 +474,7 @@ void do_run(void) {
   pci_t pci;
   dsi_t dsi;
   
-  vm_start();
+  vm_start(); // see hack in main
   do_init_cell(0);
   pci.pci_gi.nv_pck_lbn = -1;
   dsi.dsi_gi.nv_pck_lbn = -1;
