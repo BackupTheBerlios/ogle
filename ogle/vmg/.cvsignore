@@ -4,6 +4,7 @@ Makefile
 Makefile.in
 dump
 ifo_dump
+nav
 vmg_dump
 vmg
 vm
