@@ -50,7 +50,8 @@
 
 001(1) -- Jump commands
 =========================
-0011_**** *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
+0011_**** 0CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
+0011_**** 1CCC_**** ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- <not allowed>
 
 0011_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Exit
 0011_0000 ****_0010 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpTT          (jump to title in vts title domain [from FP,VMGM])
@@ -68,7 +69,8 @@
 
 010 -- Set System Parameters (Can be combined with Link commands)
 ============================
-010*_**** *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
+010*_**** 0CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
+010*_**** 1CCC_**** ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- <not allowed>
 
 0100_0001 ****_**** ****_**** A***_XXXX B***_YYYY C***_ZZZZ ****_**** ****_**** -- SetSTN A -> s[1]=g[X] B -> s[2]=g[Y] C-> s[3]=g[Z]
 0101_0001 ****_**** ****_**** AXXX_XXXX BYYY_YYYY CZZZ_ZZZZ ****_**** ****_**** -- SetSTN A -> s[1]=X    B -> s[2]=Y    C-> s[3]=Z
@@ -90,18 +92,28 @@ There should also be a SetAMXMD in this group.
 011*_**** 0CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** ****_**** BBBB_BBBB -- if (r[A] `C` r[B]) ...
 011*_**** 1CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** DDDD_DDDD DDDD_DDDD -- if (r[A] `C` D)    ...
 
-0110_SSSS ****_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- r[A] `S` r[B]
-0111_SSSS ****_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- r[A] `S` D
+0110_SSSS ****_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- g[A] `S` r[B]
+0111_SSSS ****_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- g[A] `S` D
+
 
 
 100 -- Set, Compare -> Link Sub-Instruction
-101 -- Compare -> (Set and Link Sub-Instruction)
-110 -- Compare -> Set, allways Link Sub-Instruction
 =============================
-1QQ*_**** 0CCC_AAAA ****_**** ****_**** ****_**** BBBB_BBBB ****_**** ****_**** -- ... if (g[A] `C` r[B]) ...
-1QQ*_**** 1CCC_AAAA ****_**** ****_**** DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- ... if (g[A] `C` D) ...
+100*_**** 0CCC_AAAA ****_**** ****_**** ****_**** BBBB_BBBB ****_**** ****_**** -- ... if (g[A] `C` r[B]) ...
+100*_**** 1CCC_AAAA ****_**** ****_**** DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- ... if (g[A] `C` D) ...
+1000_SSSS ****_AAAA ****_**** CCCC_CCCC ****_**** ****_**** ****_**** ****_**** -- ... g[A] `S` r[C] ...
+1001_SSSS ****_AAAA EEEE_EEEE EEEE_EEEE ****_**** ****_**** ****_**** ****_**** -- ... g[A] `S` E ...
 
-1QQ0_SSSS ****_AAAA ****_**** BBBB_BBBB ****_**** ****_**** ****_**** ****_**** -- ... g[A] `S` r[B] ...
+101 -- Compare -> (Set and Link Sub-Instruction)
+110 -- Compare -> Set, always Link Sub-Instruction
+=============================
+1QQ0_**** 0CCC_**** ****_**** LLLL_LLLL ****_**** BBBB_BBBB ****_**** ****_**** -- ... if (g[L] `C` r[B]) ...
+1QQ0_**** 1CCC_**** ****_**** LLLL_LLLL DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- ... if (g[L] `C` D) ...
+
+1QQ1_**** 0CCC_**** ****_**** ****_**** LLLL_LLLL BBBB_BBBB ****_**** ****_**** -- ... if (g[L] `C` r[B]) ...
+1QQ1_**** 1CCC_**** ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- ... -- not allowed --
+
+1QQ0_SSSS ****_AAAA CCCC_CCCC ****_**** ****_**** ****_**** ****_**** ****_**** -- ... g[A] `S` r[C] ...
 1QQ1_SSSS ****_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** ****_**** ****_**** -- ... g[A] `S` D ...
 
 1QQ*_**** ****_**** ****_**** ****_**** ****_**** ****_**** BBBB_BB** ***0_0000 -- ... LinkNoLink
@@ -117,3 +129,5 @@ There should also be a SetAMXMD in this group.
 1QQ*_**** ****_**** ****_**** ****_**** ****_**** ****_**** BBBB_BB** ***0_1100 -- ... LinkGoUpPGC
 1QQ*_**** ****_**** ****_**** ****_**** ****_**** ****_**** BBBB_BB** ***0_1101 -- ... LinkTailPGC
 1QQ*_**** ****_**** ****_**** ****_**** ****_**** ****_**** BBBB_BB** ***1_0000 -- ... RSM
+
+111*_***  -- not allowed ? --
