@@ -26,9 +26,24 @@ clip_to_u8 (int16_t value)
 }
 
 void
+mlib_VideoIDCTAdd_U8_S16 (uint8_t *curr_block,
+			  int16_t *coeffs, 
+			  int32_t stride) 
+{
+  int x,y;
+  
+  mlib_VideoIDCT8x8_S16_S16(coeffs, coeffs);
+  for (y = 0; y < 8; y++) {
+    for (x = 0; x < 8; x++)
+      curr_block[x] = clip_to_u8(curr_block[x] + *coeffs++);
+    curr_block += stride;
+  }
+}  
+
+void
 mlib_VideoAddBlock_U8_S16 (uint8_t *curr_block,
 			   int16_t *mc_block, 
-                           int32_t stride) 
+			   int32_t stride) 
 {
   int x,y;
 
@@ -42,7 +57,7 @@ mlib_VideoAddBlock_U8_S16 (uint8_t *curr_block,
 void
 mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
 			    uint8_t *ref_block,
-                            int width, int height,
+			    int width, int height,
 			    int32_t stride)
 {
   int x,y;

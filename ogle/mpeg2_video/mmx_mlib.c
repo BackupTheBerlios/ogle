@@ -24,10 +24,11 @@ static uint64_t ones = 0x0001000100010001ULL;
 static uint64_t twos = 0x0002000200020002ULL;
 
 //#define MC_MMX_verify
-inline static uint8_t
+static inline uint8_t
 clip_to_u8 (int16_t value)
 {
-  return value < 0 ? 0 : (value > 255 ? 255 : value);
+  //return value < 0 ? 0 : (value > 255 ? 255 : value);
+  return ((uint16_t)value) > 256 ? value < 0 ? 0 : 255 : value;
 }
 
 static inline void
@@ -234,6 +235,17 @@ mmx_interp_average_4_U8(uint8_t *dst, uint8_t *src1, uint8_t *src2, uint8_t *src
 
    packuswb_r2r(mm2,mm1);              // pack (w/ saturation)
    movq_r2m(mm1,*dst);                 // store result in dst
+}
+
+
+// Do the IDCT and add the result to a motion compensated 8x8 block
+void
+mlib_VideoIDCTAdd_U8_S16 (uint8_t *curr_block,
+			  int16_t *coeffs, 
+			  int32_t stride) 
+{
+  mlib_VideoIDCT8x8_S16_S16(coeffs, coeffs);
+  mlib_VideoAddBlock_U8_S16(curr_block, coeffs, stride);
 }
 
 // Add a motion compensated 8x8 block to the current block

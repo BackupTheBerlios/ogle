@@ -145,7 +145,7 @@ int block_intra(unsigned int i)
   { /* Reset all coefficients to 0. */
     int m;
     for(m=0; m<16; m++)
-      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
   
   /* DC - component */
@@ -294,10 +294,10 @@ int block_non_intra(unsigned int b)
     
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
-  { /* Reset all coefficients to 0 */
+  { /* Reset all coefficients to 0. */
     int m;
-    for(m=0; m<16; m+=4)
-      memset( ((uint64_t *)mb.QFS) + m, 0, 4*sizeof(uint64_t) );
+    for(m=0; m<16; m++)
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
   
   while(1) {
@@ -797,8 +797,9 @@ int macroblock(int new_slice)
 	  DPRINTF(4, "cbpindex: %d set\n", i);
 	  if(block_non_intra(i) == -1)
 	    return -1; // Error parsing bitstream
-	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
-	  motion_comp_add_coeff(i); // Add coefficients here
+	  
+	  //mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+	  motion_comp_add_coeff(i); // do idtc and add in here
 	}
       }
     }

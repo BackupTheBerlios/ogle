@@ -18,10 +18,14 @@
 if MLIB_LIBS
 MLIBSOURCES=yuv2rgb_mlib.c yuv2rgb_mlib.h
 else
+if USE_ALTIVEC
+ALTIVECSOURCES=altivec_mlib.c
+else
 if USE_MMX
 MMXSOURCES=yuv2rgb_mmx.c mmx_idct.S mmx_mlib.c mmx.h
 else
 CSOURCES=c_mlib.c c_mlib.h
+endif
 endif
 endif
 
@@ -33,6 +37,7 @@ endif
 EXTRA_DIST = \
 	yuv2rgb_mlib.c yuv2rgb_mlib.h \
 	yuv2rgb_mmx.c yuv2rgb_mmx.h mmx_idct.S mmx_mlib.c mmx.h \
+	altivec_mlib.c \
 	c_mlib.c c_mlib.h \
 	ffb_asm.s ffb_asm.h
 
@@ -46,7 +51,7 @@ ogle_mpeg_vs_SOURCES = \
 	c_getbits.c c_getbits.h \
 	video_tables.c video_tables.h \
 	video_types.h \
-	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
+	$(MLIBSOURCES) $(ALTIVECSOURCES) $(MMXSOURCES) $(CSOURCES)
 ogle_mpeg_vs_LDADD = \
 	@MLIB_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
@@ -58,7 +63,7 @@ ogle_vout_SOURCES = \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
-	$(MLIBSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
+	$(MLIBSOURCES) $(ALTIVECSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 ogle_vout_LDADD = \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \

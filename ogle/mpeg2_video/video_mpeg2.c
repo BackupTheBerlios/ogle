@@ -192,10 +192,10 @@ void block_intra(unsigned int i)
   
   //cpc_count_usr_events(1);
   
-  { // Reset all coefficients to 0.
+  { /* Reset all coefficients to 0. */
     int m;
     for(m=0; m<16; m++)
-      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
     
     
@@ -341,10 +341,10 @@ void block_non_intra(unsigned int b)
   
   //cpc_count_usr_events(1);
 
-  { // Reset all coefficients to 0.
+  { /* Reset all coefficients to 0. */
     int m;
-    for(m = 0; m < 16; m++)
-      memset((uint64_t *)mb.QFS + m, 0, sizeof(uint64_t));
+    for(m=0; m<16; m++)
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
   
   // We need the first and the following 8 bits
@@ -427,12 +427,11 @@ void block_intra(unsigned int i)
   
   //cpc_count_usr_events(1);
   
-  { // Reset all coefficients to 0.
+  { /* Reset all coefficients to 0. */
     int m;
     for(m=0; m<16; m++)
-      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
-    
     
   /* DC - component */
   {
@@ -664,11 +663,10 @@ void block_non_intra(unsigned int b)
   
   //cpc_count_usr_events(1);    
  
-  // Reset all coefficients to 0.
-  {
+  { /* Reset all coefficients to 0. */
     int m;
-    for(m = 0; m < 16; m++)
-      memset((uint64_t *)mb.QFS + m, 0, sizeof(uint64_t));
+    for(m=0; m<16; m++)
+      *(((uint64_t *)mb.QFS) + m) = 0;
   }
   
   while(1) {
@@ -1473,8 +1471,8 @@ void mpeg2_slice(void)
 	  if(mb.cbp & (1<<(5-i))) {
 	    DPRINTF(4, "cbpindex: %d set\n", i);
 	    block_non_intra(i);
-	    mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
-	    motion_comp_add_coeff(i);
+	    //mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+	    motion_comp_add_coeff(i); // IDCT and add done in here..
 	  }
 	}
 #if 0

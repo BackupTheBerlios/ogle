@@ -34,6 +34,11 @@
 #include <mlib_sys.h>
 #include <mlib_video.h>
 #include <mlib_algebra.h>
+#define mlib_VideoIDCTAdd_U8_S16(CURR_BLOCK, COEFFS, STRIDE) \
+  { \
+     mlib_VideoIDCT8x8_S16_S16(COEFFS, COEFFS); \
+     mlib_VideoAddBlock_U8_S16(CURR_BLOCK, COEFFS, STRIDE); \
+  }
 #else
 #ifdef HAVE_MMX
 #include "mmx.h"
@@ -505,6 +510,7 @@ void motion_comp_add_coeff(unsigned int i)
     if (pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD)
       dst += stride/2;
   }
-  
-  mlib_VideoAddBlock_U8_S16(dst, mb.QFS, stride);
+  //mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+  //mlib_VideoAddBlock_U8_S16(dst, mb.QFS, stride);
+  mlib_VideoIDCTAdd_U8_S16(dst, mb.QFS, stride);
 }
