@@ -97,7 +97,7 @@ void motion_comp()
   const unsigned int padded_width = seq.mb_width * 16;
 
   
-  DPRINTF(2, "dct_type: %d\n", mb.modes.dct_type);
+  DPRINTF(5, "dct_type: %d\n", mb.modes.dct_type);
   
   if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
     fprintf(stderr, "**** DP remove this and check if working\n");
@@ -114,8 +114,8 @@ void motion_comp()
     uint8_t *dst_y, *dst_u;//, *dst_v;
     uint8_t *block_pred_y, *block_pred_u;//, *pred_v;
     
-    DPRINTF(2, "forward_motion_comp\n");
-    DPRINTF(3, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
+    DPRINTF(5, "forward_motion_comp\n");
+    DPRINTF(5, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
 
     /* Image/Field select */
     /* FIXME: Should test is 'second coded field'. */
@@ -277,8 +277,8 @@ void motion_comp()
     uint8_t *dst_y, *dst_u;//, *dst_v;
     uint8_t *block_pred_y, *block_pred_u;//, *pred_v;
     
-    DPRINTF(2, "backward_motion_comp\n");
-    DPRINTF(3, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
+    DPRINTF(5, "backward_motion_comp\n");
+    DPRINTF(5, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
     
     /* Image/Field select */
     block_pred_y = bwd_ref_image->y;

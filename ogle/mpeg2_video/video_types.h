@@ -97,12 +97,31 @@ extern void exit_program(int exitcode) __attribute__ ((noreturn));
 #endif
 
 #ifdef DEBUG
+
+int debug_indent_level;
+#define DINDENT(spaces) \
+{ \
+  debug_indent_level += spaces; \
+  if(debug_indent_level < 0) { \
+    debug_indent_level = 0; \
+  } \
+} 
+
+#define DPRINTFI(level, text...) \
+if(debug >= level) \
+{ \
+  fprintf(stderr, "%*s", debug_indent_level, ""); \
+  fprintf(stderr, ## text); \
+}
+
 #define DPRINTF(level, text...) \
-if(debug > level) \
+if(debug >= level) \
 { \
   fprintf(stderr, ## text); \
 }
 #else
+#define DINDENT(spaces)
+#define DPRINTFI(level, text...)
 #define DPRINTF(level, text...)
 #endif
 

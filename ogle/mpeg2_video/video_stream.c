@@ -545,7 +545,7 @@ int main(int argc, char **argv)
   }
   
 #ifdef GETBITSMMAP
-  get_next_packet(); // Realy, open and mmap the FILE
+  get_next_packet(); // Really, open and mmap the FILE
   packet.offset = 0;
   packet.length = 0;  
   buf = (uint32_t *)mmap_base;
@@ -574,7 +574,7 @@ int main(int argc, char **argv)
   }
 #endif
   while(!feof(infile)) {
-    DPRINTF(0, "Looking for new Video Sequence\n");
+    DPRINTF(1, "Looking for new Video Sequence\n");
     video_sequence();
   }
 #endif
@@ -595,7 +595,7 @@ void next_start_code(void)
 }
 
 void resync(void) {
-  DPRINTF(1, "Resyncing\n");
+  DPRINTF(0, "Resyncing\n");
   GETBITS(8, "resync");
 }
 
@@ -619,10 +619,10 @@ void video_sequence(void) {
     return;
   }
   
-  DPRINTF(0, "Found Sequence Header\n");
+  DPRINTF(1, "Found Sequence Header\n");
 
   sequence_header();
-
+  DINDENT(1);
   if(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
     /* MPEG-2 always have a extension code right after the sequence header. */
     MPEG2 = 1;
@@ -647,24 +647,26 @@ void video_sequence(void) {
 	break;
       }
     }
-      
+    DINDENT(1);
     do {
       extension_and_user_data(0);
+      DINDENT(1);
       do {
 	if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
 	  group_of_pictures_header();
 	  extension_and_user_data(1);
 	}
 	picture_header();
+	DINDENT(1);
 	picture_coding_extension();
 	
 	extension_and_user_data(2);
 	
 	picture_data();
-	
+	DINDENT(-1);
       } while((nextbits(32) == MPEG2_VS_PICTURE_START_CODE) ||
 	      (nextbits(32) == MPEG2_VS_GROUP_START_CODE));
-      
+      DINDENT(-1);
       if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
 	if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
 	  DPRINTF(0, "*** not a sequence header or end code\n");
@@ -675,7 +677,7 @@ void video_sequence(void) {
 	sequence_extension();
       }
     } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
-    
+    DINDENT(-1);
   } else {
     /* ERROR: This is an ISO/IEC 11172-2 Stream */
     
@@ -726,12 +728,12 @@ void video_sequence(void) {
     } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE ||
 	    (nextbits(32) == MPEG2_VS_GROUP_START_CODE));
   }
-    
+  DINDENT(-1);  
   
   /* If we are exiting there should be a sequence end code following. */
   if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
     GETBITS(32, "Sequence End Code");
-    DPRINTF(0, "Found Sequence End\n");
+    DPRINTF(1, "Found Sequence End\n");
   } else {
     DPRINTF(0, "*** Didn't find Sequence End\n");
   }
@@ -749,8 +751,9 @@ void sequence_header(void)
   long int frame_interval_usec = 0;
 #endif
 
-  DPRINTF(0, "sequence_header\n");
-  
+  DPRINTFI(1, "sequence_header()\n");
+  DINDENT(2);
+
   sequence_header_code = GETBITS(32, "sequence header code");
   if(sequence_header_code != MPEG2_VS_SEQUENCE_HEADER_CODE) {
     fprintf(stderr, "wrong start_code sequence_header_code: %08x\n",
@@ -826,16 +829,38 @@ void sequence_header(void)
 
 
   
-  DPRINTF(1, "vertical: %u\n", seq.header.horizontal_size_value);
-  DPRINTF(1, "horisontal: %u\n", seq.header.vertical_size_value);
-
-  DPRINTF(1, "frame rate: ");
-  switch(seq.header.frame_rate_code) {
+  DPRINTFI(2, "horizontal_size_value: %u\n", seq.header.horizontal_size_value);
+  DPRINTFI(2, "vertical_size_value: %u\n", seq.header.vertical_size_value);
+  DPRINTFI(2, "aspect_ratio_information:(0x%01x) ",  seq.header.aspect_ratio_information);
+#ifdef DEBUG
+  switch(seq.header.aspect_ratio_information) {
   case 0x0:
-    DPRINTF(1, "forbidden\n");
+    DPRINTF(2, "forbidden\n");
     break;
   case 0x1:
-    DPRINTF(1, "24000/1001 (23.976)\n");
+    DPRINTF(2, "SAR = 1.0\n");
+    break;
+  case 0x2:
+    DPRINTF(2, "DAR = 3/4\n");
+    break;
+  case 0x3:
+    DPRINTF(2, "DAR = 9/16\n");
+    break;
+  case 0x4:
+    DPRINTF(2, "DAR = 1/2.21\n");
+    break;
+  default:
+    DPRINTF(2, "reserved\n");
+    break;
+  }
+#endif
+  DPRINTFI(2, "frame_rate_code:(0x%01x) ", seq.header.frame_rate_code);
+  switch(seq.header.frame_rate_code) {
+  case 0x0:
+    DPRINTF(2, "forbidden\n");
+    break;
+  case 0x1:
+    DPRINTF(2, "24000/1001 (23.976)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41708333;
 #else
@@ -843,7 +868,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x2:
-    DPRINTF(1, "24\n");
+    DPRINTF(2, "24\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41666667;
 #else
@@ -851,7 +876,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x3:
-    DPRINTF(1, "25\n");
+    DPRINTF(2, "25\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 40000000;
 #else
@@ -859,7 +884,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x4:
-    DPRINTF(1, "30000/1001 (29.97)\n");
+    DPRINTF(2, "30000/1001 (29.97)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33366667;
 #else
@@ -867,7 +892,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x5:
-    DPRINTF(1, "30\n");
+    DPRINTF(2, "30\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33333333;
 #else
@@ -875,7 +900,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x6:
-    DPRINTF(1, "50\n");
+    DPRINTF(2, "50\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 20000000;
 #else
@@ -883,7 +908,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x7:
-    DPRINTF(1, "60000/1001 (59.94)\n");
+    DPRINTF(2, "60000/1001 (59.94)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16683333;
 #else
@@ -891,7 +916,7 @@ void sequence_header(void)
 #endif
     break;
   case 0x8:
-    DPRINTF(1, "60\n");
+    DPRINTF(2, "60\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16666667;
 #else
@@ -899,7 +924,7 @@ void sequence_header(void)
 #endif
     break;
   default:
-    DPRINTF(1, "Reserved\n");
+    DPRINTF(2, "Reserved\n");
     break;
   }
   
@@ -922,11 +947,22 @@ void sequence_header(void)
     }
   }
 
+  DPRINTFI(2, "bit_rate_value: (0x%03x) %d bits/second\n",
+	  seq.header.bit_rate_value,
+	  seq.header.bit_rate_value*400);
+  DPRINTFI(2, "vbv_buffer_size_value: (0x%02x) min %d bits\n",
+	  seq.header.vbv_buffer_size_value,
+	  16*1024*seq.header.vbv_buffer_size_value);
+  DPRINTFI(2, "constrained_parameters_flag: %01x\n",
+	  seq.header.constrained_parameters_flag);
+   
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
   
   seq.mb_width  = (seq.horizontal_size+15)/16;
   seq.mb_height = (seq.vertical_size+15)/16;
+
+  DINDENT(-2);
 }
 
 
@@ -1045,7 +1081,7 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
   for(i=0 ; i< nr_of_bufs ; i++) {
     
     buf_ctrl_head->picture_infos[i].picture.y = baseaddr;
-#ifndef HAVE_XV_NO_CP  // TODO hack to get correct order for YV12 (yvu)
+#if 0 // HAVE_XV_NO_CP  // TODO hack to get correct order for YV12 (yvu)
     buf_ctrl_head->picture_infos[i].picture.u = baseaddr + y_size;
     buf_ctrl_head->picture_infos[i].picture.v = baseaddr + y_size + uv_size;
 #else
@@ -1128,14 +1164,32 @@ void sequence_extension(void) {
     fprintf(stderr, "wrong start_code extension_start_code: %08x\n",
 	    extension_start_code);
   }
+
+  DPRINTFI(1, "sequence_extension()\n");
+  DINDENT(2);
   
   seq.ext.extension_start_code_identifier 
     = GETBITS(4, "extension_start_code_identifier");
   seq.ext.profile_and_level_indication 
     = GETBITS(8, "profile_and_level_indication");
+  seq.ext.progressive_sequence = GETBITS(1, "progressive_sequence");
+  seq.ext.chroma_format = GETBITS(2, "chroma_format");
+  seq.ext.horizontal_size_extension = GETBITS(2, "horizontal_size_extension");
+  seq.ext.vertical_size_extension = GETBITS(2, "vertical_size_extension");
+  seq.ext.bit_rate_extension = GETBITS(12, "bit_rate_extension");
+  marker_bit();
+  seq.ext.vbv_buffer_size_extension = GETBITS(8, "vbv_buffer_size_extension");
+  seq.ext.low_delay = GETBITS(1, "low_delay");
+  seq.ext.frame_rate_extension_n = GETBITS(2, "frame_rate_extension_n");
+  seq.ext.frame_rate_extension_d = GETBITS(5, "frame_rate_extension_d");
+  next_start_code();
+
+  seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
+  seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
 #ifdef DEBUG
-  DPRINTF(2, "profile_and_level_indication: ");
+	   
+  DPRINTFI(2, "profile_and_level_indication: ");
   if(seq.ext.profile_and_level_indication & 0x80) {
     DPRINTF(2, "(reserved)\n");
   } else {
@@ -1183,38 +1237,45 @@ void sequence_extension(void) {
   }
  
 #endif
-      
-  seq.ext.progressive_sequence = GETBITS(1, "progressive_sequence");
+  DPRINTFI(2, "progressive seq: %01x\n", seq.ext.progressive_sequence);
 
-  DPRINTF(1, "progressive seq: %01x\n", seq.ext.progressive_sequence);
+#ifdef DEBUG
+  DPRINTFI(2, "chroma_format:(0x%01x) ", seq.ext.chroma_format);
+  switch(seq.ext.chroma_format) {
+  case 0x0:
+    DPRINTF(2, "reserved\n");
+    break;
+  case 0x1:
+    DPRINTF(2, "4:2:0\n");
+    break;
+  case 0x2:
+    DPRINTF(2, "4:2:2\n");
+    break;
+  case 0x3:
+    DPRINTF(2, "4:4:4\n");
+    break;
+  }
+#endif
 
-  seq.ext.chroma_format = GETBITS(2, "chroma_format");
-  seq.ext.horizontal_size_extension = GETBITS(2, "horizontal_size_extension");
-  seq.ext.vertical_size_extension = GETBITS(2, "vertical_size_extension");
-  seq.ext.bit_rate_extension = GETBITS(12, "bit_rate_extension");
-  marker_bit();
-  seq.ext.vbv_buffer_size_extension = GETBITS(8, "vbv_buffer_size_extension");
-  seq.ext.low_delay = GETBITS(1, "low_delay");
-  seq.ext.frame_rate_extension_n = GETBITS(2, "frame_rate_extension_n");
-  seq.ext.frame_rate_extension_d = GETBITS(5, "frame_rate_extension_d");
-  next_start_code();
+  DPRINTFI(2, "horizontal_size: %u\n", seq.horizontal_size);
+  DPRINTFI(2, "vertical_size: %u\n", seq.vertical_size);
 
-  seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
-  seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
-
-
-  DPRINTF(1, "bit rate: %d bits/s\n",
+  DPRINTFI(2, "bit_rate: %d bits/second\n",
 	  400 * ((seq.ext.bit_rate_extension << 12) 
 		 | seq.header.bit_rate_value));
 
-
-  DPRINTF(1, "frame rate: ");
+  DPRINTFI(2, "vbv_buffer_size: min %d bits\n",
+	   16*1024*((seq.ext.vbv_buffer_size_extension << 10) |
+		    seq.header.vbv_buffer_size_value));
+  DPRINTFI(2, "low_delay: %01x\n", seq.ext.low_delay);
+  
+  DPRINTFI(2, "frame_rate: ");
   switch(seq.header.frame_rate_code) {
   case 0x0:
-    DPRINTF(1, "forbidden\n");
+    DPRINTF(2, "forbidden\n");
     break;
   case 0x1:
-    DPRINTF(1, "24000/1001 (23.976)\n");
+    DPRINTF(2, "24000/1001 (23.976)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41708333;
 #else
@@ -1222,7 +1283,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x2:
-    DPRINTF(1, "24\n");
+    DPRINTF(2, "24\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 41666667;
 #else
@@ -1230,7 +1291,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x3:
-    DPRINTF(1, "25\n");
+    DPRINTF(2, "25\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 40000000;
 #else
@@ -1238,7 +1299,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x4:
-    DPRINTF(1, "30000/1001 (29.97)\n");
+    DPRINTF(2, "30000/1001 (29.97)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33366667;
 #else
@@ -1246,7 +1307,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x5:
-    DPRINTF(1, "30\n");
+    DPRINTF(2, "30\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 33333333;
 #else
@@ -1254,7 +1315,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x6:
-    DPRINTF(1, "50\n");
+    DPRINTF(2, "50\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 20000000;
 #else
@@ -1262,7 +1323,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x7:
-    DPRINTF(1, "60000/1001 (59.94)\n");
+    DPRINTF(2, "60000/1001 (59.94)\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16683333;
 #else
@@ -1270,7 +1331,7 @@ void sequence_extension(void) {
 #endif
     break;
   case 0x8:
-    DPRINTF(1, "60\n");
+    DPRINTF(2, "60\n");
 #ifdef HAVE_CLOCK_GETTIME
     frame_interval_nsec = 16666667;
 #else
@@ -1278,7 +1339,7 @@ void sequence_extension(void) {
 #endif
     break;
   default:
-    DPRINTF(1, "%f (computed)\n",
+    DPRINTF(2, "%f (computed)\n",
 	    (double)(seq.header.frame_rate_code)*
 	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
 	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
@@ -1303,14 +1364,15 @@ void sequence_extension(void) {
 #endif
     }
   }
+  DINDENT(-2);
 }
 
 
 /* 6.2.2.2 Extension and user data */
 void extension_and_user_data(unsigned int i) {
   
-  DPRINTF(3, "extension_and_user_data(%u)\n", i);
-
+  DPRINTFI(1, "extension_and_user_data(%u)\n", i);
+  DINDENT(2);
   while((nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) ||
 	(nextbits(32) == MPEG2_VS_USER_DATA_START_CODE)) {
     if(i != 1) {
@@ -1322,6 +1384,7 @@ void extension_and_user_data(unsigned int i) {
       user_data();
     }
   }
+  DINDENT(-2);
 }
 
 
@@ -1331,8 +1394,8 @@ void picture_coding_extension(void)
   uint32_t extension_start_code;
   int m,n;
 
-  DPRINTF(3, "picture_coding_extension\n");
-
+  DPRINTFI(1, "picture_coding_extension()\n");
+  DINDENT(2);
   extension_start_code = GETBITS(32, "extension_start_code");
   pic.coding_ext.extension_start_code_identifier 
     = GETBITS(4, "extension_start_code_identifier");
@@ -1371,22 +1434,22 @@ void picture_coding_extension(void)
 
 #ifdef DEBUG
   /* Table 6-14 Meaning of picture_structure */
-  DPRINTF(1, "picture_structure: ");
+  DPRINTFI(2, "picture_structure: ");
   switch(pic.coding_ext.picture_structure) {
   case PIC_STRUCT_RESERVED:
-    DPRINTF(1, "reserved");
+    DPRINTF(2, "reserved");
     break;
   case PIC_STRUCT_TOP_FIELD:
-    DPRINTF(1, "Top Field");
+    DPRINTF(2, "Top Field");
     break;
   case PIC_STRUCT_BOTTOM_FIELD:
-    DPRINTF(1, "Bottom Field");
+    DPRINTF(2, "Bottom Field");
     break;
   case PIC_STRUCT_FRAME_PICTURE:
-    DPRINTF(1, "Frame Picture");
+    DPRINTF(2, "Frame Picture");
     break;
   }
-  DPRINTF(1, "\n");
+  DPRINTF(2, "\n");
 #endif
 
   pic.coding_ext.top_field_first = GETBITS(1, "top_field_first");
@@ -1401,13 +1464,13 @@ void picture_coding_extension(void)
   pic.coding_ext.progressive_frame = GETBITS(1, "progressive_frame");
   pic.coding_ext.composite_display_flag = GETBITS(1, "composite_display_flag");
   
-  DPRINTF(1, "top_field_first: %01x\n", pic.coding_ext.top_field_first);
-  DPRINTF(1, "frame_pred_frame_dct: %01x\n", pic.coding_ext.frame_pred_frame_dct);
-  DPRINTF(1, "intra_vlc_format: %01x\n", pic.coding_ext.intra_vlc_format);
-  DPRINTF(1, "alternate_scan: %01x\n", pic.coding_ext.alternate_scan);
-  DPRINTF(1, "repeat_first_field: %01x\n", pic.coding_ext.repeat_first_field);
-  DPRINTF(1, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
-  DPRINTF(1, "composite_display_flag: %01x\n", pic.coding_ext.composite_display_flag);
+  DPRINTFI(2, "top_field_first: %01x\n", pic.coding_ext.top_field_first);
+  DPRINTFI(2, "frame_pred_frame_dct: %01x\n", pic.coding_ext.frame_pred_frame_dct);
+  DPRINTFI(2, "intra_vlc_format: %01x\n", pic.coding_ext.intra_vlc_format);
+  DPRINTFI(2, "alternate_scan: %01x\n", pic.coding_ext.alternate_scan);
+  DPRINTFI(2, "repeat_first_field: %01x\n", pic.coding_ext.repeat_first_field);
+  DPRINTFI(2, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
+  DPRINTFI(2, "composite_display_flag: %01x\n", pic.coding_ext.composite_display_flag);
   
   if(pic.coding_ext.composite_display_flag) {
     pic.coding_ext.v_axis = GETBITS(1, "v_axis");
@@ -1430,7 +1493,7 @@ void picture_coding_extension(void)
       seq.mb_height = ((seq.vertical_size+31)/32);
     }
   }
-  
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -1440,13 +1503,13 @@ void user_data(void)
 {
   uint32_t user_data_start_code;
   
-  DPRINTF(3, "user_data\n");
-
-  user_data_start_code = GETBITS(32, "user_date_start_code");
+  DPRINTFI(1, "user_data()\n");
+  DINDENT(2);
+  user_data_start_code = GETBITS(32, "user_data_start_code");
   while(nextbits(24) != 0x000001) {
     GETBITS(8, "user_data");
   }
-  
+  DINDENT(-2);
   next_start_code();  
 }
 
@@ -1459,8 +1522,8 @@ void group_of_pictures_header(void)
   uint8_t closed_gop;
   uint8_t broken_link;
   
-  DPRINTF(3, "group_of_pictures_header\n");
-
+  DPRINTFI(1, "group_of_pictures_header()\n");
+  DINDENT(2);
   group_start_code = GETBITS(32, "group_start_code");
 
   if(group_start_code != MPEG2_VS_GROUP_START_CODE) {
@@ -1471,7 +1534,7 @@ void group_of_pictures_header(void)
   time_code = GETBITS(25, "time_code");
 
   /* Table 6-11 --- time_code */
-  DPRINTF(2, "time_code: %02d:%02d.%02d'%02d\n",
+  DPRINTFI(2, "time_code: %02d:%02d.%02d'%02d\n",
 	  (time_code & 0x00f80000)>>19,
 	  (time_code & 0x0007e000)>>13,
 	  (time_code & 0x00000fc0)>>6,
@@ -1482,7 +1545,7 @@ void group_of_pictures_header(void)
   broken_link = GETBITS(1, "broken_link");
 
   last_temporal_ref_to_dpy = -1;
-  
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -1491,8 +1554,9 @@ void group_of_pictures_header(void)
 void picture_header(void)
 {
   uint32_t picture_start_code;
-  DPRINTF(3, "picture_header\n");
-
+  DPRINTFI(1, "picture_header()\n");
+  DINDENT(2);
+  
   seq.mb_row = 0;
   picture_start_code = GETBITS(32, "picture_start_code");
   
@@ -1509,10 +1573,15 @@ void picture_header(void)
    */
 
   if(PTS_DTS_flags & 0x02) {
+    PTS_DTS_flags = 0;
     last_pts = PTS;
     prev_scr_nr = last_scr_nr;
     last_scr_nr = scr_nr;
     picture_has_pts = 1;
+    DPRINTFI(1, "PTS: %016llx %lld.%06lld\n",
+	     PTS,
+	     PTS/90000,
+	     (PTS%90000)*1000000/90000);
   } else {
     picture_has_pts = 0;
   }
@@ -1549,9 +1618,10 @@ void picture_header(void)
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
 
+  DPRINTFI(1, "temporal_reference: %d\n", pic.header.temporal_reference);
 #ifdef DEBUG
   /* Table 6-12 --- picture_coding_type */
-  DPRINTF(1, "picture coding type: %01x, ", pic.header.picture_coding_type);
+  DPRINTFI(1, "picture_coding_type: %01x, ", pic.header.picture_coding_type);
 
   switch(pic.header.picture_coding_type) {
   case PIC_CODING_TYPE_FORBIDDEN:
@@ -1611,6 +1681,7 @@ void picture_header(void)
   }
   GETBITS(1, "extra_bit_picture");
   
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -1774,8 +1845,8 @@ void picture_data(void)
   int temporal_reference_error = 0;
   pinfos = buf_ctrl_head->picture_infos;
   
-
-  //fprintf(stderr, ".");
+  DPRINTFI(1, "picture_data()\n");
+  DINDENT(2);
   
 #ifdef HAVE_CLOCK_GETTIME
 
@@ -1856,13 +1927,14 @@ void picture_data(void)
   bepa++;
 
 
-  DPRINTF(3, "picture_data\n");
   
   if(msgqid != -1) {
     chk_for_msg();
   }
   
-  
+  DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
+  DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
+
   if(prev_coded_temp_ref != pic.header.temporal_reference) {
     
     /* If this is a I/P picture then we must release the reference 
@@ -1892,6 +1964,8 @@ void picture_data(void)
 	dpy_q_put(bwd_ref_buf_id);
 	
       }
+  DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
+  DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
 	
 
       if(fwd_ref_buf_id != -1) {
@@ -1925,6 +1999,8 @@ void picture_data(void)
       
       break;
     }
+  DPRINTFI(1, "last_temporal_ref_to_dpy: %d\n", last_temporal_ref_to_dpy);
+  DPRINTFI(1, "bwd_ref_temporal_reference: %d\n", bwd_ref_temporal_reference);
   
     /*
      * temporal reference is incremented by 1 for every frame.
@@ -2422,7 +2498,7 @@ void picture_data(void)
   }
 #endif
   
-
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -2430,7 +2506,8 @@ void picture_data(void)
 /* 6.2.2.2.1 Extension data */
 void extension_data(unsigned int i)
 {
-  DPRINTF(3, "extension_data(%d)", i);
+  DPRINTFI(1, "extension_data(%d)", i);
+  DINDENT(2);
   
   while(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
     GETBITS(32, "extension_start_code");
@@ -2464,6 +2541,7 @@ void extension_data(unsigned int i)
       }
     }
   }
+  DINDENT(-2);
 }
 
  
@@ -2499,6 +2577,9 @@ void reset_to_default_non_intra_quantiser_matrix()
 void quant_matrix_extension()
 {
   GETBITS(4, "extension_start_code_identifier");
+  
+  DPRINTFI(1, "quant_matrix_extension()\n");
+  DINDENT(2);
   
   if(GETBITS(1, "load_intra_quantiser_matrix")) {
     int n;
@@ -2544,6 +2625,7 @@ void quant_matrix_extension()
   GETBITS(1, "load_chroma_intra_quantiser_matrix (always 0 in 4:2:0)");
   GETBITS(1, "load_chroma_non_intra_quantiser_matrix (always 0 in 4:2:0)");
   
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -2555,6 +2637,9 @@ void picture_display_extension()
   uint16_t frame_centre_vertical_offset;
   uint8_t number_of_frame_centre_offsets;
   int i;
+
+  DPRINTFI(1, "picture_display_extension()\n");
+  DINDENT(2);
   
   if((seq.ext.progressive_sequence == 1) || 
      ((pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD) ||
@@ -2568,7 +2653,6 @@ void picture_display_extension()
     }
   }
   
-  DPRINTF(2, "picture_display_extension()\n");
   extension_start_code_identifier 
     = GETBITS(4,"extension_start_code_identifier");
 
@@ -2577,9 +2661,11 @@ void picture_display_extension()
     marker_bit();
     frame_centre_vertical_offset = GETBITS(16, "frame_centre_vertical_offset");
     marker_bit();
-    
+    DPRINTFI(2, "frame_centre_offset: %d, %d\n",
+	     frame_centre_horizontal_offset,
+	     frame_centre_vertical_offset);
   }
-  
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -2619,7 +2705,9 @@ void sequence_display_extension()
   uint16_t display_vertical_size;
   
   
-  DPRINTF(2, "sequence_display_extension()\n");
+  DPRINTFI(1, "sequence_display_extension()\n");
+  DINDENT(2);
+  
   extension_start_code_identifier 
     = GETBITS(4,"extension_start_code_identifier");
   video_format = GETBITS(3, "video_format");
@@ -2627,7 +2715,7 @@ void sequence_display_extension()
 
 #ifdef DEBUG
   /* Table 6-6. Meaning of video_format */
-  DPRINTF(2, "video_format: ");
+  DPRINTFI(2, "video_format: ");
   switch(video_format) {
   case 0x0:
     DPRINTF(2, "component\n");
@@ -2661,7 +2749,7 @@ void sequence_display_extension()
     
 #ifdef DEBUG
     /* Table 6-7. Colour Primaries */
-    DPRINTF(2, "colour primaries (Table 6-7): ");
+    DPRINTFI(2, "colour primaries (Table 6-7): ");
     switch(colour_primaries) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
@@ -2695,7 +2783,7 @@ void sequence_display_extension()
     
 #ifdef DEBUG
     /* Table 6-8. Transfer Characteristics */
-    DPRINTF(2, "transfer characteristics (Table 6-8): ");
+    DPRINTFI(2, "transfer characteristics (Table 6-8): ");
     switch(transfer_characteristics) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
@@ -2732,7 +2820,7 @@ void sequence_display_extension()
     
 #ifdef DEBUG
     /* Table 6-9. Matrix Coefficients */
-    DPRINTF(2, "matrix coefficients (Table 6-9): ");
+    DPRINTFI(2, "matrix coefficients (Table 6-9): ");
     switch(matrix_coefficients) {
     case 0x0:
       DPRINTF(2, "(forbidden)\n");
@@ -2769,9 +2857,9 @@ void sequence_display_extension()
   marker_bit();
   display_vertical_size = GETBITS(14, "display_vertical_size");
 
-  DPRINTF(2, "display_horizontal_size: %d\n", display_horizontal_size);
-  DPRINTF(2, "display_vertical_size: %d\n", display_vertical_size);
-  
+  DPRINTFI(2, "display_horizontal_size: %d\n", display_horizontal_size);
+  DPRINTFI(2, "display_vertical_size: %d\n", display_vertical_size);
+  DINDENT(-2);
   next_start_code();
 }
 
@@ -3265,8 +3353,7 @@ void print_time_offset(uint64_t PTS)
   struct timeval predtime;
   struct timeval offset;
 
-  ptstime.tv_sec = PTS/90000;
-  ptstime.tv_usec = (PTS%90000)*(1000000/90000);
+
 
   gettimeofday(&curtime, NULL);
   timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);

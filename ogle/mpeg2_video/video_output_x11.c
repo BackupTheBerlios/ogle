@@ -256,7 +256,7 @@ void display_init(int padded_width, int padded_height,
               xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
                                             padded_width, padded_height, 
 					   &shm_info);
-#ifndef HAVE_XV_NO_CP // TODO hack, check if correct
+#if 0 //HAVE_XV_NO_CP TODO hack, check if correct
               shm_info.shmid = shmget (IPC_PRIVATE, xv_image->data_size, 
                                          IPC_CREAT | 0777);
               shm_info.shmaddr = shmat (shm_info.shmid, 0, 0);
@@ -268,7 +268,7 @@ void display_init(int padded_width, int padded_height,
 #endif
 	      
               shm_info.readOnly = True;
-#ifndef HAVE_XV_NO_CP // TODO hack
+#if 0 // HAVE_XV_NO_CP // TODO hack
               xv_image->data = shm_info.shmaddr;
 #else
 	      xv_image->data = buf_ctrl_head->picture_infos[0].picture.y;
@@ -790,7 +790,7 @@ void draw_win(debug_win *dwin)
     draw_win_x11(dwin);
   } else {
     dst = xv_image->data;
-#ifndef HAVE_XV_NO_CP  // TODO hack, needs checking for correctness
+#if 0 // HAVE_XV_NO_CP  // TODO hack, needs checking for correctness
     /* Copy Y data */
     size = dwin->image->padded_width*dwin->image->padded_height;
     memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
@@ -801,7 +801,6 @@ void draw_win(debug_win *dwin)
     size = dwin->image->padded_width*dwin->image->padded_height/4;
     memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
 #else
-    //buf_ctrl_head->picture_infos[i].picture.y;
     xv_image->data = dwin->image->y;
 #endif
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 

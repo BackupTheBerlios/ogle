@@ -89,7 +89,7 @@ extern int get_vlc(const vlc_table_t *table, char *func);
 static
 void reset_dc_dct_pred(void)
 {
-  DPRINTF(3, "Resetting dc_dct_pred\n");
+  DPRINTFI(3, "Resetting dc_dct_pred\n");
   
   /* Table 7-2. Relation between intra_dc_precision and the predictor
      reset value */
@@ -129,7 +129,7 @@ void reset_dc_dct_pred(void)
 static
 void reset_PMV()
 {
-  DPRINTF(3, "Resetting PMV\n");
+  DPRINTFI(3, "Resetting PMV\n");
 
   pic.PMV[0][0][0] = 0;
   pic.PMV[0][0][1] = 0;
@@ -144,7 +144,7 @@ void reset_PMV()
 static
 void reset_vectors()
 {
-  DPRINTF(3, "Resetting motion vectors\n");
+  DPRINTFI(3, "Resetting motion vectors\n");
   
   mb.vector[0][0][0] = 0;
   mb.vector[0][0][1] = 0;
@@ -183,7 +183,7 @@ void block_intra(unsigned int i)
   unsigned int offset;
   uint32_t word;
   
-  DPRINTF(3, "pattern_code(%d) set\n", i);
+  DPRINTFI(3, "pattern_code(%d) set\n", i);
   
   { // Reset all coefficients to 0.
     int m;
@@ -598,7 +598,7 @@ void motion_vector(int r, int s)
 {
   int t;
   
-  DPRINTF(2, "motion_vector(%d, %d)\n", r, s);
+  DPRINTF(3, "motion_vector(%d, %d)\n", r, s);
 
   for(t = 0; t < 2; t++) {   
     int delta;
@@ -842,8 +842,8 @@ void macroblock(void)
 {
   uint16_t inc_add = 0;
   
-  DPRINTF(3, "macroblock()\n");
-
+  DPRINTFI(3, "macroblock()\n");
+  DINDENT(2);
   while(nextbits(11) == 0x008) {
     GETBITS(11, "macroblock_escape");
     inc_add += 33;
@@ -857,7 +857,7 @@ void macroblock(void)
   /* In MPEG-2 ML@MP a slice never span two or more rows. */
   seq.mb_column = seq.macroblock_address % seq.mb_width;
   
-  DPRINTF(2, " Macroblock: %d, row: %d, col: %d\n",
+  DPRINTFI(4, " Macroblock: %d, row: %d, col: %d\n",
 	  seq.macroblock_address,
 	  seq.mb_row,
 	  seq.mb_column);
@@ -885,7 +885,7 @@ void macroblock(void)
     
     switch(pic.header.picture_coding_type) {
     case PIC_CODING_TYPE_P:
-      DPRINTF(3,"skipped in P-picture\n");
+      DPRINTFI(4, "skipped in P-picture\n");
       /* mlib is broken!!! 
       {
 	int x = (seq.mb_column-mb.macroblock_address_increment+1);
@@ -954,7 +954,7 @@ void macroblock(void)
       break;
       
     case PIC_CODING_TYPE_B:
-      DPRINTF(3,"skipped in B-frame\n");
+      DPRINTFI(4, "skipped in B-frame\n");
       {
 	int old_col = seq.mb_column;
 	// The previos macroblocks vectors are used.
@@ -996,12 +996,12 @@ void macroblock(void)
   
   if(!(mb.modes.macroblock_type & MACROBLOCK_INTRA)) {
     reset_dc_dct_pred();  
-    DPRINTF(3, "non_intra macroblock\n");
+    DPRINTFI(4, "non_intra macroblock\n");
   }
 
   if(mb.macroblock_address_increment > 1) {
     reset_dc_dct_pred();
-    DPRINTF(3, "skipped block\n");
+    DPRINTFI(4, "skipped block\n");
   }
     
    
@@ -1088,7 +1088,7 @@ void macroblock(void)
        in which macroblock_motion_forward is zero */
     if((!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)) && 
        (!(mb.modes.macroblock_type & MACROBLOCK_INTRA))) {
-      DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
+      DPRINTF(4, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
       /* 7.6.3.4 */
       reset_PMV();
       if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
@@ -1223,7 +1223,7 @@ void macroblock(void)
       }
     }
   }
-  
+  DINDENT(-2);
 }
 
 
@@ -1232,13 +1232,11 @@ void mpeg2_slice(void)
 {
   uint32_t slice_start_code;
   
-  DPRINTF(3, "slice\n");
-
+  DPRINTFI(3, "slice()\n");
+  DINDENT(2);
   reset_dc_dct_pred();
   reset_PMV();
 
-  DPRINTF(3, "start of slice\n");
-  
   slice_start_code = GETBITS(32, "slice_start_code");
   slice_data.slice_vertical_position = slice_start_code & 0xff;
   
@@ -1277,5 +1275,5 @@ void mpeg2_slice(void)
   do {
     macroblock();
   } while(nextbits(23) != 0);
-  
+  DINDENT(-2);
 }

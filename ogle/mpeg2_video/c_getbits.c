@@ -738,22 +738,6 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
   
-  /*
-  PTS_DTS_flags = q_elems[elem].PTS_DTS_flags;
-  if(PTS_DTS_flags & 0x2) {
-    PTS = q_elems[elem].PTS;
-    scr_nr = q_elems[elem].scr_nr;
-  }
-  if(PTS_DTS_flags & 0x1) {
-    DTS = q_elems[elem].DTS;
-  }
-  
-
-  
-  off = q_elems[elem].off;
-  len = q_elems[elem].len;
-  */
-
   packet.offset = off;
   packet.length = len;
   
