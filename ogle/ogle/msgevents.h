@@ -175,6 +175,7 @@ typedef enum {
   MsgEventQDestroyQ,
   MsgEventQDemuxStreamChange2,
   MsgEventQSaveScreenshot,
+  MsgEventQSPUState,
   MsgEventQReqPicBuf,
   MsgEventQGntPicBuf,
   MsgEventQDestroyPicBuf
@@ -283,6 +284,13 @@ typedef struct {
   MsgEventClient_t client;
   uint32_t colors[16];
 } MsgQSPUPaletteEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  uint32_t state;
+} MsgQSPUStateEvent_t;
 
 
 typedef struct {
@@ -575,6 +583,7 @@ typedef union {
   MsgQReqInputEvent_t reqinput;
   MsgQInputEvent_t input;
   MsgQSaveScreenshotEvent_t savescreenshot;
+  MsgQSPUStateEvent_t spustate;
 } MsgEvent_t;
 
 #ifdef SOCKIPC

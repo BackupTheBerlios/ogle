@@ -110,6 +110,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDestroyQ",
   "MsgEventQDemuxStreamChange2",
   "MsgEventQSaveScreenshot",
+  "MsgEventQSPUState",
   "MsgEventQReqPicBuf",
   "MsgEventQGntPicBuf",
   "MsgEventQDestroyBuf",
@@ -821,6 +822,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQSPUHighlight:
     size = sizeof(MsgQSPUHighlightEvent_t);
+    break;
+  case MsgEventQSPUState:
+    size = sizeof(MsgQSPUStateEvent_t);
     break;
   case MsgEventQSpeed:
     size = sizeof(MsgQSpeedEvent_t);

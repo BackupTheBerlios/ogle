@@ -106,6 +106,8 @@ static void (*mix_function)(uint32_t color, uint32_t contrast,
 
 static highlight_t highlight = {{0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450};
 
+static uint32_t spu_state;
+
 extern int video_scr_nr;
 extern int msgqid;
 
@@ -266,6 +268,11 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       redraw_request();
     }
+    break;
+  case MsgEventQSPUState:
+    spu_state = ev->spustate.state;
+    DNOTE("spustate: %02x\n", spu_state);
+    //      redraw_request();
     break;
   default:
     /* DNOTE("spu_mixer: ignoring event type (%d)\n", ev->type); */
@@ -585,7 +592,7 @@ static void decode_dcsq(spu_handle_t *spu_info)
     /* Command Sequence */
       
     DPRINTF(3, "\t\t\tDisplay Control Command: 0x%02x\n", command);
-      
+
     switch (command) {
     case 0x00: /* forced display start (often a menu) */
       DPRINTF(3, "\t\t\t\tforced display start\n");
@@ -593,7 +600,7 @@ static void decode_dcsq(spu_handle_t *spu_info)
       break;
     case 0x01: /* display start */
       DPRINTF(3, "\t\t\t\tdisplay start\n");
-      spu_info->display_start = 1;
+      spu_info->display_start = 0x40;
       break;
     case 0x02: /* display stop */
       DPRINTF(3, "\t\t\t\tdisplay stop\n");
@@ -1148,7 +1155,6 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
 	  // FIXME: assumes order of src_nr
 	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 	    /* Reset state  */
-	    //DNOTE("spu: flush/reset 2\n");
 	    spu_info->display_start = 0;
 	    spu_info->has_highlight = 0;
 	  }
@@ -1177,7 +1183,6 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
 
       
       /* Reset state  */
-      //DNOTE("spu: flush/reset 3\n");
       spu_info->display_start = 0;
       spu_info->has_highlight = 0;
       
@@ -1187,13 +1192,18 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
     }
   }
 
-  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
-    //DNOTE("spu: spu_info->scr_nr != video_scr_nr\n");
+  //  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
+  if(ctrl_time[spu_info->scr_nr].scr_id < ctrl_time[video_scr_nr].scr_id) {
+    DNOTE("spu: spu_info->scr_nr (%d)[%d] != video_scr_nr (%d)[%d]\n",
+	  spu_info->scr_nr,
+	  ctrl_time[spu_info->scr_nr].scr_id,
+	  video_scr_nr,
+	  ctrl_time[video_scr_nr].scr_id);
     return 1;
   }
 
   if(ctrl_time[spu_info->scr_nr].offset_valid == OFFSET_NOT_VALID) {
-    //DNOTE("scr_nr: %d, OFFSET_NOT_VALID\n", spu_info->scr_nr);
+    DNOTE("scr_nr: %d, OFFSET_NOT_VALID\n", spu_info->scr_nr);
     return 0;
   }
   PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
@@ -1267,7 +1277,8 @@ void mix_subpicture_rgb(char *data, int width, int height)
   }
 
 
-  if(spu_info.display_start /* || spu_info.menu */) {
+  if(spu_info.display_start == 1 ||
+     spu_info.display_start & spu_state) {
     
     palette = palette_rgb;
 
@@ -1310,7 +1321,9 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
   }
 
 
-  if(spu_info.display_start /* || spu_info.menu */) {
+  if(spu_info.display_start == 1 ||
+     spu_info.display_start & spu_state) {
+    
     int width = img->info->picture.padded_width;
     int height = img->info->picture.padded_height;
     //DNOTE("decoding data\n");
