@@ -73,6 +73,7 @@ char *framerate = NULL;
 char *output_bufs = NULL;
 char *file_offset = NULL;
 char *videodecode_debug = NULL;
+char *demux_debug = NULL;
 
 int ac3_audio_stream = -1;
 int mpeg_audio_stream = -1;
@@ -85,7 +86,7 @@ int nav_stream = -1;
 
 void usage(void)
 {
-  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n <#>] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <debug_level>] <input file>\n", program_name);
+  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n <#>] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <videodebug_level>] [-D <demuxdebug_level>] <input file>\n", program_name);
 }
 
 
@@ -95,8 +96,6 @@ int main(int argc, char *argv[])
 {
   struct sigaction sig;
   pid_t demux_pid = -1;
-  pid_t decode_pid = -1;
-  pid_t display_pid = -1;
   int c;
 
   sig.sa_handler = int_handler;
@@ -139,6 +138,9 @@ int main(int argc, char *argv[])
       break;
     case 'd':
       videodecode_debug = optarg;
+      break;      
+    case 'D':
+      demux_debug = optarg;
       break;      
     case 'h':
     case '?':
@@ -335,6 +337,11 @@ int init_demux(char *msgqid_str)
       eargv[n++] = file_offset;
     }
     
+    if(demux_debug != NULL) {
+      eargv[n++] = "-d";
+      eargv[n++] = demux_debug;
+    }
+    
     eargv[n++] = NULL;
     
     if(execv(demux_path, eargv) == -1) {
@@ -443,6 +450,8 @@ int init_dolby_ac3_decoder(char *msgqid_str)
   
   fprintf(stderr, "init ac3\n");
 
+  /* fork/exec ac3 decoder */
+
   switch(pid = fork()) {
   case 0:
     /* child process */
@@ -492,6 +501,8 @@ int init_spu_decoder(char *msgqid_str)
 
   fprintf(stderr, "init spu\n");
 
+  /* fork/exec spu decoder */
+
   switch(pid = fork()) {
   case 0:
     /* child process */
@@ -539,6 +550,8 @@ int init_mpeg_private_stream_2_decoder(char *msgqid_str)
 
   fprintf(stderr, "init vmg\n");
 
+  /* fork/exec vmg processor */
+
   switch(pid = fork()) {
   case 0:
     /* child process */
@@ -567,6 +580,8 @@ int init_mpeg_private_stream_2_decoder(char *msgqid_str)
 int init_mpeg_audio_decoder(char *msgqid)
 {
   pid_t pid;
+  int n;
+  char *eargv[16];
   char *decode_name;
   char *decode_path = getenv("DVDP_MPEGAUDIO");
 
@@ -584,13 +599,20 @@ int init_mpeg_audio_decoder(char *msgqid)
 
   fprintf(stderr, "init mpeg_audio_decoder\n");
 
+  /* fork/exec decoder */
+
   switch(pid = fork()) {
   case 0:
-    /* child process */
+    /* child process */    
+    n = 0;
+    eargv[n++] = decode_name;
+    eargv[n++] = "-m";
+    eargv[n++] = msgqid_str;
     
-    if(execl(decode_path, decode_name,
-	     "-m", msgqid_str, NULL) == -1) {
-      perror("execl mpegaudio");
+    eargv[n++] = NULL;
+    
+    if(execv(decode_path, eargv) == -1) {
+      perror("execl mpeg audio");
       fprintf(stderr, "path: %s\n", decode_path);
     }
     exit(-1);
@@ -1401,6 +1423,7 @@ void int_handler()
    *
    * exit
    */
+  
   
   fprintf(stderr, "Caught SIGINT, cleaning up\n");
   remove_q_shm();
