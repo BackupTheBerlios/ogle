@@ -40,6 +40,7 @@
 #include "queue.h"
 #include "timemath.h"
 //#include "sync.h"
+#include "debug_print.h"
 #include "vm.h"
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -114,7 +115,7 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
     else if((ev->gntcapability.capability & DECODE_DVD_SPU) == DECODE_DVD_SPU)
       spu_client = ev->gntcapability.capclient;
     else
-      fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
+      WARNING("capabilities not requested (%d)\n", 
 	      ev->gntcapability.capability);
     break;
   case MsgEventQDVDCtrl:
@@ -150,8 +151,7 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 	set_sprm(20, region);
 	break;
       default:
-	fprintf(stderr, "*vmg: unhandled dvdctrl event type (%d)\n",
-		ev->dvdctrl.cmd.type);
+	DNOTE("unhandled dvdctrl event type (%d)\n", ev->dvdctrl.cmd.type);
 	break;
       }
     }
@@ -165,8 +165,11 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       break;
     }
     break;
+  case MsgEventQFlushData:
+    /* Ignore for now */
+    break;
   default:
-    fprintf(stderr, "*vmg: unrecognized event type (%d)\n", ev->type);
+    DNOTE("unhandled event type (%d)\n", ev->type);
     break;
   }
 }
@@ -260,7 +263,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   char *shmaddr;
   q_head_t *q_head;
 
-  fprintf(stderr, "vmg: shmid: %d\n", shmid);
+  //DNOTE("shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
@@ -440,7 +443,7 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      fprintf(stderr, "vmg: couldn't send notification\n");
+      WARNING("couldn't send notification\n");
     }
   }
 

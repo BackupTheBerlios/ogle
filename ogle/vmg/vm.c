@@ -32,14 +32,22 @@
 #include "vmcmd.h"
 #include "vm.h"
 
+#include "debug_print.h"
+#ifndef TRACE
+#undef DNOTE
+#if defined(__GNUC__) && ( __GNUC__ < 2 || (__GNUC__ == 2 && __GNUC_MINOR__ < 95))
+#define DNOTE(str, args...) while(0)
+#else /* __GNUC__ < 2 */
+#define DNOTE(format, ...) while(0) 
+#endif 
+#endif /* TRACE */
+
 
 static dvd_reader_t *dvd;
 static ifo_handle_t *vmgi;
 static ifo_handle_t *vtsi;
 
 dvd_state_t state;
-
-
 
 
 
@@ -655,11 +663,10 @@ static link_t play_PGC(void)
 {    
   link_t link_values;
   
-  fprintf(stderr, "vm: play_PGC:");
   if(state.domain != FP_DOMAIN)
-    fprintf(stderr, " state.pgcN (%i)\n", get_PGCN());
+    DNOTE("play_PGC: state.pgcN (%i)\n", get_PGCN());
   else
-    fprintf(stderr, " first_play_pgc\n");
+    DNOTE("play_PGC: first_play_pgc\n");
 
   // These should have been set before play_PGC is called.
   // They won't be set automaticaly and the when the pre-commands are
@@ -680,7 +687,7 @@ static link_t play_PGC(void)
       // link_values contains the 'jump' return value
       return link_values;
     } else {
-      fprintf(stderr, "PGC pre commands didn't do a Jump, Link or Call\n");
+      DNOTE("PGC pre commands didn't do a Jump, Link or Call\n");
     }
   }
   return play_PG();
@@ -689,12 +696,12 @@ static link_t play_PGC(void)
 
 static link_t play_PG(void)
 {
-  fprintf(stderr, "play_PG: state.pgN (%i)\n", state.pgN);
+  DNOTE("play_PG: state.pgN (%i)\n", state.pgN);
   
   assert(state.pgN > 0);
   if(state.pgN > state.pgc->nr_of_programs) {
-    fprintf(stderr, "state.pgN (%i) == pgc->nr_of_programs + 1 (%i)\n", 
-	    state.pgN, state.pgc->nr_of_programs + 1);
+    DNOTE("state.pgN (%i) == pgc->nr_of_programs + 1 (%i)\n", 
+	  state.pgN, state.pgc->nr_of_programs + 1);
     assert(state.pgN == state.pgc->nr_of_programs + 1);
     return play_PGC_post();
   }
@@ -707,12 +714,12 @@ static link_t play_PG(void)
 
 static link_t play_Cell(void)
 {
-  fprintf(stderr, "play_Cell: state.cellN (%i)\n", state.cellN);
+  DNOTE("play_Cell: state.cellN (%i)\n", state.cellN);
   
   assert(state.cellN > 0);
   if(state.cellN > state.pgc->nr_of_cells) {
-    fprintf(stderr, "state.cellN (%i) == pgc->nr_of_cells + 1 (%i)\n", 
-	    state.cellN, state.pgc->nr_of_cells + 1);
+    DNOTE("state.cellN (%i) == pgc->nr_of_cells + 1 (%i)\n", 
+	  state.cellN, state.pgc->nr_of_cells + 1);
     assert(state.cellN == state.pgc->nr_of_cells + 1); 
     return play_PGC_post();
   }
@@ -737,7 +744,7 @@ static link_t play_Cell(void)
     case 2: // ??
     case 3: // ??
     default:
-      fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
+      WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
 	      state.pgc->cell_playback[state.cellN - 1].block_mode,
 	      state.pgc->cell_playback[state.cellN - 1].block_type);
     }
@@ -746,7 +753,7 @@ static link_t play_Cell(void)
   case 3: // Last cell in the block
   // These might perhaps happen for RSM or LinkC commands?
   default:
-    fprintf(stderr, "Cell is in block but did not enter at first cell!\n");
+    WARNING("Cell is in block but did not enter at first cell!\n");
   }
   
   /* Updates state.pgN and PTTN_REG */
@@ -768,7 +775,7 @@ static link_t play_Cell_post(void)
 {
   cell_playback_t *cell;
   
-  fprintf(stderr, "play_Cell_post: state.cellN (%i)\n", state.cellN);
+  DNOTE("play_Cell_post: state.cellN (%i)\n", state.cellN);
   
   cell = &state.pgc->cell_playback[state.cellN - 1];
   
@@ -780,12 +787,12 @@ static link_t play_Cell_post(void)
     
     assert(state.pgc->command_tbl != NULL);
     assert(state.pgc->command_tbl->nr_of_cell >= cell->cell_cmd_nr);
-    fprintf(stderr, "Cell command pressent, executing\n");
+    DNOTE("Cell command pressent, executing\n");
     if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell->cell_cmd_nr - 1], 1,
 		  &state.registers, &link_values)) {
       return link_values;
     } else {
-       fprintf(stderr, "Cell command didn't do a Jump, Link or Call\n");
+       DNOTE("Cell command didn't do a Jump, Link or Call\n");
       // Error ?? goto tail? goto next PG? or what? just continue?
     }
   }
@@ -816,7 +823,7 @@ static link_t play_Cell_post(void)
     case 2: // ??
     case 3: // ??
     default:
-      fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
+      WARNING("Invalid? Cell block_mode (%d), block_type (%d)\n",
 	      state.pgc->cell_playback[state.cellN - 1].block_mode,
 	      state.pgc->cell_playback[state.cellN - 1].block_type);
     }
@@ -826,7 +833,7 @@ static link_t play_Cell_post(void)
   
   /* Figure out the correct pgN for the new cell */ 
   if(update_PGN()) {
-    fprintf(stderr, "last cell in this PGC\n");
+    DNOTE("last cell in this PGC\n");
     return play_PGC_post();
   }
 
@@ -838,7 +845,7 @@ static link_t play_PGC_post(void)
 {
   link_t link_values;
 
-  fprintf(stderr, "play_PGC_post:\n");
+  DNOTE("play_PGC_post:\n");
   
   assert(state.pgc->still_time == 0); // FIXME $$$
 
@@ -856,7 +863,7 @@ static link_t play_PGC_post(void)
   // Or perhaps handle it here?
   {
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
-    fprintf(stderr, "** Fell of the end of the pgc, continuing in NextPGC\n");
+    DNOTE("** Fell of the end of the pgc, continuing in NextPGC\n");
     if(state.domain == FP_DOMAIN) {
       /* User should select a title them self, i.e. we should probably go 
 	 to the STOP_DOMAIN.  Untill we have that implemented start playing
@@ -865,7 +872,7 @@ static link_t play_PGC_post(void)
 	assert(0);
       /* This won't create an infinite loop becase we can't ever get to the
 	 FP_DOMAIN again without executing a command. */
-      play_PGC();
+      return play_PGC();
     }
     assert(state.pgc->next_pgc_nr != 0);
     /* Should end up in the STOP_DOMAIN if next_pgc i 0. */
@@ -881,11 +888,10 @@ static link_t process_command(link_t link_values)
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
+#ifdef TRACE
     vmPrint_LINK(link_values);
-    /*
-    fprintf(stderr, "%i %i %i %i\n", link_values.command, 
-	    link_values.data1, link_values.data2, link_values.data3);
-    */
+#endif
+    
     switch(link_values.command) {
     case LinkNoLink:
       if(link_values.data1 != 0)
@@ -1242,7 +1248,7 @@ static int get_ID(int id)
       return pgcN;
     }
   }
-  fprintf(stderr, "** No such id/menu (%d) entry PGC\n", id);
+  DNOTE("** No such id/menu (%d) entry PGC\n", id);
   return -1; // error
 }
 
@@ -1321,19 +1327,19 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
   
   vtsi = ifoOpenVTSI(dvd, vtsN);
   if(vtsi == NULL) {
-    fprintf(stderr, "ifoOpenVTSI failed\n");
+    FATAL("ifoOpenVTSI failed\n");
     exit(1);
   }
   if(!ifoRead_VTS_PTT_SRPT(vtsi)) {
-    fprintf(stderr, "ifoRead_VTS_PTT_SRPT failed\n");
+    FATAL("ifoRead_VTS_PTT_SRPT failed\n");
     exit(1);
   }
   if(!ifoRead_PGCIT(vtsi)) {
-    fprintf(stderr, "ifoRead_PGCIT failed\n");
+    FATAL("ifoRead_PGCIT failed\n");
     exit(1);
   }
   if(!ifoRead_PGCI_UT(vtsi)) {
-    fprintf(stderr, "ifoRead_PGCI_UT failed\n");
+    FATAL("ifoRead_PGCI_UT failed\n");
     exit(1);
   }
   state.vtsN = vtsN;
@@ -1347,7 +1353,7 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
   int i;
   
   if(h == NULL || h->pgci_ut == NULL) {
-    fprintf(stderr, "*** pgci_ut handle is NULL ***\n");
+    WARNING("*** pgci_ut handle is NULL ***\n");
     return NULL; // error?
   }
   
@@ -1356,10 +1362,10 @@ static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
 	&& h->pgci_ut->lu[i].lang_code != lang)
     i++;
   if(i == h->pgci_ut->nr_of_lus) {
-    fprintf(stderr, "Language '%c%c' not found, using '%c%c' instead\n",
-	    (char)(lang >> 8), (char)(lang & 0xff),
-	    (char)(h->pgci_ut->lu[0].lang_code >> 8),
-	    (char)(h->pgci_ut->lu[0].lang_code & 0xff));
+    NOTE("Language '%c%c' not found, using '%c%c' instead\n",
+	 (char)(lang >> 8), (char)(lang & 0xff),
+	 (char)(h->pgci_ut->lu[0].lang_code >> 8),
+	 (char)(h->pgci_ut->lu[0].lang_code & 0xff));
     i = 0; // error?
   }
   

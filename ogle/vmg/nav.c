@@ -194,7 +194,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     if(attr.display_aspect_ratio != video_aspect) {
       video_aspect = attr.display_aspect_ratio;
       
-      DNOTE("sending aspect %s\n", video_aspect ? "16:9" : "4:3");
+      //DNOTE("sending aspect %s\n", video_aspect ? "16:9" : "4:3");
       
       ev.type = MsgEventQSetSrcAspect;
       ev.setsrcaspect.mode_src = AspectModeSrcVM;
@@ -276,7 +276,7 @@ static void send_spu_palette(uint32_t palette[16]) {
     ev.spupalette.colors[i] = palette[i];
   }
   
-  DNOTE("sending subpicture palette\n");
+  //DNOTE("sending subpicture palette\n");
   
   if(send_spu(msgq, &ev) == -1) {
     ERROR("failed sending subpicture palette\n");
@@ -536,7 +536,7 @@ static void do_run(void) {
       if((dsi.vobu_sri.next_vobu & 0x80000000) == 0 
 	 && dsi.dsi_gi.vobu_1stref_ea != 0 /* there is video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
-	DNOTE("FlowCtrlCompleteVideoUnit = 1;\n");
+	//DNOTE("FlowCtrlCompleteVideoUnit = 1;\n");
       } else {
 	complete_video = FlowCtrlNone;
       }
@@ -568,7 +568,7 @@ static void do_run(void) {
 	send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
 	pending_lbn = cell->first_sector + block;
       } else {
-	DNOTE("end of cell\n");
+	//DNOTE("end of cell\n");
 	; // end of cell!
 	if(cell->still_time == 0xff) // Inf. still time
 	  NOTE("Still picture select an item to continue.\n");
