@@ -4,19 +4,24 @@
 #include "dvd.h"
 
 typedef enum {
-  DVDCtrlLeftButtonSelect,
-  DVDCtrlRightButtonSelect,
-  DVDCtrlUpperButtonSelect,
-  DVDCtrlLowerButtonSelect,
+  DVDCtrlButtonMask = 0x01000000,
+  DVDCtrlMouseMask  = 0x02000000
+} DVDCtrlEventMask_t;
 
-  DVDCtrlButtonActivate,
-  DVDCtrlButtonSelect,
-  DVDCtrlButtonSelectAndActivate,
+typedef enum {
+  DVDCtrlLeftButtonSelect        = 0x01000001,
+  DVDCtrlRightButtonSelect       = 0x01000002,
+  DVDCtrlUpperButtonSelect       = 0x01000003,
+  DVDCtrlLowerButtonSelect       = 0x01000004,
 
-  DVDCtrlMouseSelect,
-  DVDCtrlMouseActivate,
+  DVDCtrlButtonActivate          = 0x01000005,
+  DVDCtrlButtonSelect            = 0x01000006,
+  DVDCtrlButtonSelectAndActivate = 0x01000007,
 
-  DVDCtrlEventMenuCall,
+  DVDCtrlMouseSelect             = 0x02000001,
+  DVDCtrlMouseActivate           = 0x02000002,
+
+  DVDCtrlEventMenuCall = 1,
   DVDCtrlEventResume,
   DVDCtrlGoUp,
 
