@@ -147,8 +147,10 @@ AC_CHECK_FUNC(clock_gettime, [ AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]) ],
 
 dnl nanosleep is in librt on Solaris
 AC_CHECK_FUNC(nanosleep, , 
-  AC_CHECK_LIB(rt, nanosleep, , 
-    AC_MSG_ERROR(You need nanosleep)
+  AC_CHECK_LIB(rt, nanosleep, [ LIBS="$LIBS -lrt" ],
+    AC_CHECK_LIB(posix4, nanosleep, [ LIBS="$LIBS -lposix4" ], 
+      AC_MSG_ERROR(You need nanosleep)
+    )
   )
 )
 
