@@ -362,8 +362,10 @@ void get_next_demux_q(void)
 {
   MsgEvent_t ev;
   int new_demux_range = 0;
-  if(demux_cmd & FlowCtrlCompleteVideoUnit) {
-    put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd);
+  if(id_stat(0xe0, 0) == STREAM_DECODE) {
+    if(demux_cmd & FlowCtrlCompleteVideoUnit) {
+      put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd);
+    }
   }
   while(!new_demux_range) {
     while(!demux_q_len) {
