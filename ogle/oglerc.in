@@ -27,6 +27,11 @@
       <rear>0</rear>
       <sub>0</sub>
     </speakers>
+    <liba52>
+      <level>0.6</level>
+      <adjust_level>no</adjust_level>
+      <drc>no</drc>
+    </liba52>
   </audio>
   <video>
     <display>

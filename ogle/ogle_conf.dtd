@@ -14,12 +14,17 @@
 <!ELEMENT device (path|driver)*>
 <!ELEMENT dvd (nav|device)*>
 
+<!ELEMENT drc (#PCDATA)>
+<!ELEMENT adjust_level (#PCDATA)>
+<!ELEMENT level (#PCDATA)>
+<!ELEMENT liba52 (level|adjust_level|drc)*>
+
 <!ELEMENT front (#PCDATA)>
 <!ELEMENT rear (#PCDATA)>
 <!ELEMENT sub (#PCDATA)>
 <!ELEMENT dolby (#PCDATA)>
 <!ELEMENT speakers (front | rear | sub | dolby)*>
-<!ELEMENT audio (device | speakers)*>
+<!ELEMENT audio (device | speakers | liba52)*>
 
 <!ELEMENT name (#PCDATA)>
 <!ELEMENT width (#PCDATA)>
