@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ipc.h>
@@ -50,10 +51,20 @@ int create_ctrl_data();
 int init_ui(char *msgqid_str);
 int register_stream(uint8_t stream_id, uint8_t subtype);
 
+static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
+
 void int_handler(int sig);
+void sigchld_handler(int sig, siginfo_t *info, void* context);
+
 void remove_q_shm();
 void add_q_shmid(int shmid);
 void destroy_msgq();
+
+void add_to_pidlist(pid_t pid);
+int remove_from_pidlist(pid_t pid);
+
+void cleanup_and_exit(void);
+void slay_children(void);
 
 int msgqid;
 
@@ -83,6 +94,7 @@ int subpicture_stream = -1;
 int nav_stream = -1;
 char *ui = NULL;
 
+static int child_killed = 0;
 
 void usage(void)
 {
@@ -240,18 +252,86 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 	    == capability) {
     name = getenv("DVDP_DEMUX");
     *ret_capability = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
-  } else if((capability & (UI_MPEG_CLI | UI_DVD_CLI))
+  } else if((capability & (UI_DVD_CLI))
 	    == capability) {
-    name = getenv("DVDP_UI");
-    *ret_capability = UI_MPEG_CLI | UI_DVD_CLI;
+    name = getenv("DVDP_CLI_UI");
+    *ret_capability = UI_DVD_CLI;
   } else if((capability & (DECODE_DVD_NAV))
 	    == capability) {
     name = getenv("DVDP_VMG");
     *ret_capability = DECODE_DVD_NAV;
+  } else if((capability & (UI_DVD_GUI))
+	    == capability) {
+    name = getenv("DVDP_UI");
+    *ret_capability = UI_DVD_GUI;
   }
 
   return name;
 }
+
+
+
+
+int request_capability(MsgEventQ_t *q, int cap,
+		       MsgEventClient_t *capclient, int *retcaps)
+{
+  MsgEvent_t r_ev;
+  char *decodername;
+  cap_state_t state = 0;
+  fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
+
+  
+  if(!search_capabilities(cap,
+			  capclient,
+			  retcaps,
+			  &state)) {
+    int fullcap;
+    
+    decodername = capability_to_decoderstr(cap,
+					   &fullcap);
+	
+    if(decodername != NULL) {
+      register_capabilities(0,
+			    fullcap,
+			    CAP_started);
+      
+      fprintf(stderr, "ctrl: starting decoder %d %s\n",
+	      fullcap,
+	      decodername);
+      init_decoder(msgqid_str, decodername);
+    }
+    
+  }
+  
+  while(search_capabilities(cap,
+			    capclient,
+			    retcaps,
+			    &state) &&
+	(state != CAP_running)) {
+    if(MsgNextEvent(q, &r_ev) == -1) {
+      switch(errno) {
+      case EINTR:
+	continue;
+	break;
+      }
+    }
+    handle_events(q, &r_ev);
+  }
+  
+  if(state == CAP_running) {
+    fprintf(stderr, "ctrl: sending ctrldata\n");
+    r_ev.type = MsgEventQCtrlData;
+    r_ev.ctrldata.shmid = ctrl_data_shmid;
+    
+    MsgSendEvent(q, *capclient, &r_ev, 0);
+    
+    return 1;
+  } else {
+    fprintf(stderr, "ctrl: didn't find capability\n");
+    return 0;
+  }
+}
+
 
 static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
@@ -276,47 +356,15 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQReqCapability:
     {
-      char *decodername;
       MsgEvent_t retev;
-      cap_state_t state = 0;
-      fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
+
       retev.type = MsgEventQGntCapability;
       
-      if(!search_capabilities(ev->reqcapability.capability,
-			      &retev.gntcapability.capclient,
-			      &retev.gntcapability.capability,
-			      &state)) {
-	int fullcap;
-	
-	decodername = capability_to_decoderstr(ev->reqcapability.capability,
-					       &fullcap);
-	
-	if(decodername != NULL) {
-	  register_capabilities(0,
-				fullcap,
-				CAP_started);
-	
-	  fprintf(stderr, "ctrl: starting decoder %d %s\n",
-		  fullcap,
-		  decodername);
-	  init_decoder(msgqid_str, decodername);
-	}
-	
-      }
-      
-      while(search_capabilities(ev->reqcapability.capability,
-				&retev.gntcapability.capclient,
-				&retev.gntcapability.capability,
-				&state) &&
-	    (state != CAP_running)) {
-	MsgNextEvent(q, &r_ev);
-	handle_events(q, &r_ev);
-      }
-      
-      if(state == CAP_running) {
+      if(request_capability(q, ev->reqcapability.capability,
+			    &retev.gntcapability.capclient,
+			    &retev.gntcapability.capability)) {
 	MsgSendEvent(q, ev->reqcapability.client, &retev, 0);
       } else {
-	fprintf(stderr, "ctrl: didn't find capability\n");
 	retev.gntcapability.client = CLIENT_NONE;
 	MsgSendEvent(q, ev->reqcapability.client, &retev, 0);
       }
@@ -387,7 +435,13 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	
 	while(!search_capabilities(capability, &rcpt, NULL, &state) ||
 	      (state != CAP_running)) {
-	  MsgNextEvent(q, &r_ev);
+	  if(MsgNextEvent(q, &r_ev) == -1) {
+	    switch(errno) {
+	    case EINTR:
+	      continue;
+	      break;
+	    }
+	  }
 	  handle_events(q, &r_ev);
 	}
 	
@@ -474,7 +528,13 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       while(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, &state) ||
 	    (state != CAP_running)) {
-	MsgNextEvent(q, &r_ev);
+	if(MsgNextEvent(q, &r_ev) == -1) {
+	  switch(errno) {
+	  case EINTR:
+	    continue;
+	    break;
+	  }
+	}
 	handle_events(q, &r_ev);
       }
       fprintf(stderr, "ctrl: got capability video_out\n");
@@ -558,7 +618,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 
 int main(int argc, char *argv[])
 {
-  struct sigaction sig;
+  struct sigaction sig = { 0 };
   pid_t demux_pid = -1;
   int c;
   MsgEventQ_t q;
@@ -571,7 +631,13 @@ int main(int argc, char *argv[])
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
   if(sigaction(SIGINT, &sig, NULL) == -1) {
-    perror("sigaction");
+    perror("sigaction1");
+  }
+
+  sig.sa_sigaction = sigchld_handler;
+  sig.sa_flags = SA_SIGINFO;
+  if(sigaction(SIGCHLD, &sig, NULL) == -1) {
+    perror("sigaction2");
   }
   
   
@@ -661,62 +727,19 @@ int main(int argc, char *argv[])
   q.mtype = CLIENT_RESOURCE_MANAGER;
 
   if(ui != NULL) {
-    init_ui(msgqid_str);
-  }
-  
-  demux_pid = init_demux(msgqid_str);
-
-
-  while(!search_capabilities(DEMUX_MPEG2_PS, &rcpt, NULL, NULL)) {
-    MsgNextEvent(&q, &ev);
-    switch(ev.type) {
-    case MsgEventQInitReq:
-      fprintf(stderr, "ctrl: MsgEventQInitReq, new_id: %d\n", next_client_id);
-      ev.type = MsgEventQInitGnt;
-      ev.initgnt.newclientid = next_client_id++;
-      MsgSendEvent(&q, CLIENT_UNINITIALIZED, &ev, 0);
-      break;
-    case MsgEventQRegister:
-      fprintf(stderr, "ctrl: MsgEventQRegister\n");
-      register_capabilities(ev.registercaps.client,
-			    ev.registercaps.capabilities,
-			    CAP_running);
-      break;
-    case MsgEventQReqCapability:
-      fprintf(stderr, "ctrl: MsgEventQReqCapability\n");
-      ev.type = MsgEventQGntCapability;
-      state = 0;
-      while(search_capabilities(ev.reqcapability.capability,
-				&ev.gntcapability.capclient,
-				&ev.reqcapability.capability,
-				&state) &&
-	    (state != CAP_running)) {
-	MsgNextEvent(&q, &r_ev);
-	handle_events(&q, &r_ev);
-      }
-      if(state == CAP_running) {
-	MsgSendEvent(&q, ev.gntcapability.client, &ev, 0);
-      } else {
-	fprintf(stderr, "ctrl: didn't find capability\n");
-	MsgSendEvent(&q, ev.gntcapability.client, &ev, 0);
-      }
-      break;
-    default:
-      fprintf(stderr, "ctrl2: msgtype not wanted\n");
-      break;
+    MsgEventClient_t ui_client;
+    if(!strcmp("cli", ui)) {
+      request_capability(&q, UI_DVD_CLI, &ui_client, NULL);
+    } else if(!strcmp("gui", ui)) {
+      request_capability(&q, UI_DVD_GUI, &ui_client, NULL);
+    } else {
+      fprintf(stderr, "**ctrl: no ui specified\n");
+      cleanup_and_exit();
     }
-    
   }
-  
-  ev.type = MsgEventQCtrlData;
-  ev.ctrldata.shmid = ctrl_data_shmid;
-  
-  MsgSendEvent(&q, rcpt, &ev, 0);
-  
-
-  ev.type = MsgEventQDemuxDefault;
   
   /* If any streams are specified on the commadline, dexmux only those */
+  /*
   if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
       dts_audio_stream & mpeg_video_stream & subpicture_stream &
       nav_stream) == -1) {
@@ -726,9 +749,27 @@ int main(int argc, char *argv[])
   }
   
   MsgSendEvent(&q, rcpt, &ev, 0);
-  
+  */
   while(1){
-    MsgNextEvent(&q, &ev);
+    if(child_killed) {
+      fprintf(stderr, "ctrl: waiting for children to really die\n"); 
+      sleep(1);
+      sleep(1);
+      sleep(1);
+      sleep(1);
+      sleep(1);
+      sleep(1);
+      sleep(1);
+      slay_children();
+      cleanup_and_exit();
+    }
+    if(MsgNextEvent(&q, &ev) == -1) {
+      switch(errno) {
+      case EINTR:
+	continue;
+	break;
+      }
+    }
     handle_events(&q, &ev);
   }
   
@@ -881,8 +922,10 @@ int init_decoder(char *msgqid_str, char *decoderstr)
   
   fprintf(stderr, "ctrl: init decoder %s\n", decode_name);
 
-  /* fork/exec decoder */
+  //starting_decoder = 1;
 
+  /* fork/exec decoder */
+  
   switch(pid = fork()) {
   case 0:
     /* child process */
@@ -922,287 +965,47 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     /* parent process */
     break;
   }
+  if(pid != -1) {
+    add_to_pidlist(pid);
+  }
+  //  starting_decoder = 0;
   return pid;
 
 }
-#if 0
-int init_mpeg_video_decoder(char *msgqid_str)
+
+
+
+pid_t *pidlist = NULL;
+int num_pids = 0;
+
+void add_to_pidlist(pid_t pid)
 {
-  pid_t pid;
-  char *eargv[16];
-  char *decode_name;
-  char *decode_path = getenv("DVDP_VIDEO");
   int n;
 
-  if(decode_path == NULL) {
-    fprintf(stderr, "DVDP_VIDEO not set\n");
-    return(-1);
+  for(n = 0; n < num_pids; n++) {
+    if(pidlist[n] == -1) {
+      pidlist[n] = pid;
+      return;
+    }
   }
 
-  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
-    decode_name = decode_path;
-  }
-  if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init mpeg_video\n");
-
-  /* fork/exec decoder */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    n = 0;
-    eargv[n++] = decode_name;
-    eargv[n++] = "-m";
-    eargv[n++] = msgqid_str;
-
-    if(output_bufs != NULL) {
-      eargv[n++] = "-r";
-      eargv[n++] = output_bufs;
-    }
-    if(framerate != NULL) {
-      eargv[n++] = "-f";
-      eargv[n++] = framerate;
-    }
-
-    if(videodecode_debug != NULL) {
-      eargv[n++] = "-d";
-      eargv[n++] = videodecode_debug;
-    }
-    eargv[n++] = NULL;
-    
-    if(execv(decode_path, eargv) == -1) {
-      perror("execv decode");
-      fprintf(stderr, "path: %s\n", decode_path);
-    }
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    break;
-  default:
-    /* parent process */
-    break;
-  }
-  return pid;
-
+  num_pids++;
+  pidlist = realloc(pidlist, num_pids*sizeof(pid_t));
+  pidlist[num_pids-1] = pid;
 }
 
-int init_dolby_ac3_decoder(char *msgqid_str)
+int remove_from_pidlist(pid_t pid)
 {
-  pid_t pid;
-  char *decode_name;
-  char *decode_path = getenv("DVDP_AC3");
-
-  if(decode_path == NULL) {
-    fprintf(stderr, "DVDP_AC3 not set\n");
-    return(-1);
-  }
-
-  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
-    decode_name = decode_path;
-  }
-  if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-  
-  fprintf(stderr, "init ac3\n");
-
-  /* fork/exec ac3 decoder */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    
-    if(execl(decode_path, decode_name,
-	     "-m", msgqid_str, NULL) == -1) {
-      perror("execl ac3");
-      fprintf(stderr, "path: %s\n", decode_path);
-
-    }
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    
-    break;
-  default:
-    /* parent process */
-    break;
-  }
- 
-  return pid;
-  
-}
-
-int init_spu_decoder(char *msgqid_str)
-{
-  pid_t pid;
-  char *decode_name;
-  char *decode_path = getenv("DVDP_SPU");
-
-  
-  if(decode_path == NULL) {
-    fprintf(stderr, "DVDP_SPU not set\n");
-    return(-1);
-  }
-
-  if(strcmp(decode_path, "RUNNING") == 0) {
-    return 0;
-  }
-
-  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
-    decode_name = decode_path;
-  }
-  if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init spu\n");
-
-  /* fork/exec spu decoder */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    
-    if(execl(decode_path, decode_name,
-	     "-m", msgqid_str, NULL) == -1) {
-      perror("execl spu");
-      fprintf(stderr, "path: %s\n", decode_path);
-    }
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    
-    break;
-  default:
-    /* parent process */
-    break;
-  }
- 
-  return pid;
-  
-}
-
-int init_mpeg_private_stream_2_decoder(char *msgqid_str)
-{
-  pid_t pid;
-  char *decode_name;
-  char *decode_path = getenv("DVDP_VMG");
-
-  if(decode_path == NULL) {
-    fprintf(stderr, "DVDP_VMG not set\n");
-    return(-1);
-  }
-  
-  if(strcmp(decode_path, "RUNNING") == 0) {
-    return 0;
-  }
-
-  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
-    decode_name = decode_path;
-  }
-
-  if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init vmg\n");
-
-  /* fork/exec vmg processor */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    
-    if(execl(decode_path, decode_name,
-	     "-m", msgqid_str, NULL) == -1) {
-      perror("execl vmg");
-      fprintf(stderr, "path: %s\n", decode_path);
-    }
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    
-    break;
-  default:
-    /* parent process */
-    break;
-  }
- 
-  return pid;
-  
-}
-
-int init_mpeg_audio_decoder(char *msgqid)
-{
-  pid_t pid;
   int n;
-  char *eargv[16];
-  char *decode_name;
-  char *decode_path = getenv("DVDP_MPEGAUDIO");
-
-  if(decode_path == NULL) {
-    fprintf(stderr, "DVDP_MPEGAUDIO not set\n");
-    return(-1);
-  }
-  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
-    decode_name = decode_path;
-  }
-  if(decode_name > &decode_path[strlen(decode_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init mpeg_audio_decoder\n");
-
-  /* fork/exec decoder */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */    
-    n = 0;
-    eargv[n++] = decode_name;
-    eargv[n++] = "-m";
-    eargv[n++] = msgqid_str;
-    
-    eargv[n++] = NULL;
-    
-    if(execv(decode_path, eargv) == -1) {
-      perror("execl mpeg audio");
-      fprintf(stderr, "path: %s\n", decode_path);
+  for(n = 0; n < num_pids; n++) {
+    if(pidlist[n] == pid) {
+      pidlist[n] = -1;
+      return 1;
     }
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    
-    break;
-  default:
-    /* parent process */
-    break;
   }
- 
-  return pid;
   
+  return 0;
 }
-
-#endif
-
 
 
 /**
@@ -1515,6 +1318,15 @@ void remove_q_shm()
   
 }
 
+void cleanup_and_exit(void)
+{
+  fprintf(stderr, "ctrl: cleaning up\n");
+  remove_q_shm();
+  destroy_msgq();
+  fprintf(stderr, "ctrl: exiting\n");
+  exit(0);
+}
+
 void int_handler(int sig)
 {
   /* send quit msg to demuxer and decoders
@@ -1526,11 +1338,116 @@ void int_handler(int sig)
    *
    * exit
    */
-  
+  int n;
+  pid_t pid;
   
   fprintf(stderr, "Caught signal %d, cleaning up\n", sig);
-  remove_q_shm();
-  destroy_msgq();
-  exit(0);
 
+  for(n = 0; n < num_pids; n++) {
+    if((pid = pidlist[n]) != -1) {
+      child_killed = 1;
+      fprintf(stderr, "killing child: %d\n", pid);
+      kill(pid, SIGINT);
+    }
+    if(!child_killed) {
+      fprintf(stderr, "ctrl: All children dead\n");
+      child_killed = 1;
+    }
+  }
+}
+
+
+void sigchld_handler(int sig, siginfo_t *info, void* context)
+{
+  /* 
+   *
+   */
+  int stat_loc;
+  int died = 0;
+  pid_t pid;
+  
+  switch(info->si_code) {
+  case CLD_STOPPED:
+    fprintf(stderr, "ctrl: child: %d stopped\n", info->si_pid);
+    break;
+  case CLD_CONTINUED:
+    fprintf(stderr, "ctrl: child: %d continued\n", info->si_pid);
+    break;
+  case CLD_KILLED:
+    fprintf(stderr, "ctrl: child: %d killed\n", info->si_pid);
+    died = 1;
+    break;
+  case CLD_DUMPED:
+    fprintf(stderr, "ctrl: child: %d dumped\n", info->si_pid);
+    died = 1;
+    break;
+  case CLD_TRAPPED:
+    fprintf(stderr, "ctrl: child: %d trapped\n", info->si_pid);
+    died = 1;
+    break;
+  case CLD_EXITED:
+    fprintf(stderr, "ctrl: child: %d exited with %d\n",
+	    info->si_pid, info->si_status);
+    died = 1;
+    break;
+  default:
+    fprintf(stderr, "**ctrl: unknown cause of sigchld\n");
+    break;
+  }
+
+
+  if(waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)
+     != info->si_pid) {
+    fprintf(stderr, "waitpid\n");
+  }
+  if(WIFEXITED(stat_loc)) {
+    fprintf(stderr, "pid: %d exited with status: %d\n",
+	    info->si_pid,
+	    WEXITSTATUS(stat_loc));
+  } else if(WIFSIGNALED(stat_loc)) {
+    fprintf(stderr, "pid: %d terminated on signal: %d\n",
+	    info->si_pid,
+	    WTERMSIG(stat_loc));
+  } else if(WIFSTOPPED(stat_loc)) {
+    fprintf(stderr, "pid: %d stopped on signal: %d\n",
+	    info->si_pid, 
+	    WSTOPSIG(stat_loc));
+  } else if(WIFCONTINUED(stat_loc)) {
+    fprintf(stderr, "pid: %d continued\n", info->si_pid);
+  } else {
+    fprintf(stderr, "pid: %d\n", info->si_pid);
+  }
+  if(died) {
+    int n;
+    if(!remove_from_pidlist(info->si_pid)) {
+      fprintf(stderr, "pid died before registering\n");
+    }
+    for(n = 0; n < num_pids; n++) {
+      if((pid = pidlist[n]) != -1) {
+	child_killed = 1;
+	fprintf(stderr, "killing child: %d\n", pid);
+	kill(pid, SIGINT);
+      }
+    }
+    if(!child_killed) {
+      fprintf(stderr, "ctrl: all children dead\n");
+      child_killed = 2;
+    }
+  }
+
+}
+
+
+void slay_children(void)
+{
+  int n;
+  pid_t pid;
+  for(n = 0; n < num_pids; n++) {
+    if((pid = pidlist[n]) != -1) {
+      child_killed = 2;
+      fprintf(stderr, "slaying child: %d\n", pid);
+      kill(pid, SIGKILL);
+    }
+  }
+  child_killed = 2;
 }
