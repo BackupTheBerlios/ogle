@@ -829,15 +829,16 @@ int main(int argc, char **argv)
       strcpy((char *)&(packet.payload), argv[optind]);
       
       if(video)
-	fwrite(&pack, packet.len+2, 1, video_file);
+	fwrite(&packet, packet.len+8, 1, video_file);
       if(audio)
-	fwrite(&pack, packet.len+2, 1, audio_file);
+	fwrite(&packet, packet.len+8, 1, audio_file);
       if(subtitle)
-	fwrite(&pack, packet.len+2, 1, subtitle_file);
+	fwrite(&packet, packet.len+8, 1, subtitle_file);
       
       // Setup signal handler for SEGV, to detect that we ran 
-      // out of file, without a test.
-      sig.sa_handler = segvhandler;
+      // out of file without a test.
+ 
+     sig.sa_handler = segvhandler;
       rv = sigaction(SIGSEGV, &sig, NULL);
       if(rv == -1) {
 	perror("sighandler");

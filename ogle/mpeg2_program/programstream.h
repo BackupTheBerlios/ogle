@@ -35,14 +35,14 @@ enum {
 
 
 struct off_len_packet {
-	               uint8_t  cmd;
+	               uint32_t cmd;
                        uint32_t off;
                        uint32_t len;
                       };
 
 struct load_file_packet {
-                         uint8_t  cmd;
-                         uint16_t len;
+                         uint32_t  cmd;
+                         uint32_t len;
                          char     payload[200];   // HACK ALERT!
                         };
 
