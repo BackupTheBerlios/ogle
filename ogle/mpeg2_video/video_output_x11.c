@@ -334,13 +334,32 @@ void display_init(int padded_width, int padded_height,
 	      xv_image->data = picture_data->y;
 
 
+	      /* make sure we don't have any unhandled errors */
+	      XSync (mydisplay, False);
+	      
+	      /* set error handler so we can check if xshmattach failed */
+	      prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+	      
+	      /* get the serial of the xshmattach request */
+	      req_serial = NextRequest(mydisplay);
+	      
+	      /* try to attach */
+	      
               XShmAttach (mydisplay, &shm_info);
+	      
+	      /* make sure xshmattach has been processed and any errors
+		 have been returned to us */
+	      XSync (mydisplay, False);
+	      
+	      /* revert to the previous xerrorhandler */
+	      XSetErrorHandler(prev_xerrhandler);
 
-	      shmctl (shm_info.shmid, IPC_RMID, 0);
-	      //memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
-	      
-	      CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
-	      
+	      if(use_xshm) {
+		shmctl (shm_info.shmid, IPC_RMID, 0);
+		//memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
+		
+		CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
+	      }
 	      return; /* All set up! */
             } else {
               xv_port = 0;
@@ -929,28 +948,17 @@ void draw_win(debug_win *dwin)
     draw_win_x11(dwin);
   } else {
     dst = xv_image->data;
-#if 0 // HAVE_XV_NO_CP  // TODO hack, needs checking for correctness
-    /* Copy Y data */
-    size = dwin->image->info->padded_width*dwin->image->info->padded_height;
-    memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
-    /* Copy U data */
-    size = dwin->image->info->padded_width*dwin->image->info->padded_height/4;
-    memcpy(dst + xv_image->offsets[1], dwin->image->v, size);
-    /* Copy V data */
-    size = dwin->image->info->padded_width*dwin->image->info->padded_height/4;
-    memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
-#else
+    
     xv_image->data = dwin->image->y;
-#endif
-
+    
 #ifdef SPU
-  if(msgqid != -1) {
-    mix_subpicture(xv_image->data,
-		   dwin->image->info->padded_width,
-		   dwin->image->info->padded_height, 1);
-  }
+    if(msgqid != -1) {
+      mix_subpicture(xv_image->data,
+		     dwin->image->info->padded_width,
+		     dwin->image->info->padded_height, 1);
+    }
 #endif
-
+    
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
                   dwin->image->info->horizontal_size, dwin->image->info->vertical_size,
@@ -965,17 +973,8 @@ void draw_win(debug_win *dwin)
       /* this is to make sure that we are free to use the image again
          It waits for an XShmCompletionEvent */
       XIfEvent(mydisplay, &ev, predicate, NULL);
-
       
-      /*
-      if(ev.type == CompletionType) {
-	fprintf(stderr, ".");
-      } else {
-	fprintf(stderr, ",%d, %d", ev.type,
-		((XShmCompletionEvent *)e)->offset);
-	
-      }
-      */
+      
     }
     //XFlush(mydisplay);
   }
