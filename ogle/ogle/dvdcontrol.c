@@ -152,7 +152,7 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
   ev.registercaps.capabilities = UI_DVD_GUI;
   if(MsgSendEvent((*nav)->msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     free(*nav);
-    return DVD_E_Unspecified;    
+    return DVD_E_FailedToSend;   
   }
   
   (*nav)->client = get_nav_client((*nav)->msgq);
@@ -196,13 +196,14 @@ static const char DVD_E_Unspecified_STR[] = "Unspecified";
 static const char DVD_E_NotImplemented_STR[] = "Not Implemented";
 static const char DVD_E_NoSuchError_STR[] = "No such error code";
 static const char DVD_E_RootNotSet_STR[] = "Root not set";
+static const char DVD_E_FailedToSend_STR[] = "Failed to send request";
 /**
  * Print DVD error messages
  */
 void DVDPerror(const char *str, DVDResult_t ErrCode)
 {
   const char *errstr;
-
+  
   switch(ErrCode) {
   case DVD_E_Ok:
     errstr = DVD_E_Ok_STR;
@@ -215,6 +216,9 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
     break;
   case DVD_E_RootNotSet:
     errstr = DVD_E_RootNotSet_STR;
+    break;
+  case DVD_E_FailedToSend:
+    errstr = DVD_E_FailedToSend_STR;
     break;
   default:
     errstr = DVD_E_NoSuchError_STR;
@@ -271,7 +275,7 @@ DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, DVDSPRMArray_t *const Registers)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
 {
@@ -283,7 +287,7 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
   ev.dvdctrl.cmd.currentuops.type = DVDCtrlGetCurrentUOPS;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -321,7 +325,7 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented. 
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				  DVDAudioAttributes_t *const Attr)
@@ -335,7 +339,7 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   ev.dvdctrl.cmd.audioattributes.streamnr = StreamNr;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -394,7 +398,7 @@ DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 			       DVDAudioStream_t *const CurrentStream)
@@ -407,7 +411,7 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAudio;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -442,7 +446,7 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				    DVDBool_t *const Enabled)
@@ -456,7 +460,7 @@ DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   ev.dvdctrl.cmd.audiostreamenabled.streamnr = StreamNr;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -506,7 +510,7 @@ DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle)
@@ -519,7 +523,7 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAngle;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -537,8 +541,7 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
       *CurrentAngle = ev.dvdctrl.cmd.currentangle.anglenr;
       return DVD_E_Ok;
     }
-  } 
-
+  }
 }
 
 /**
@@ -550,7 +553,7 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav, 
 				DVDVolumeInfo_t *const VolumeInfo)
@@ -563,7 +566,7 @@ DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav,
   ev.dvdctrl.cmd.type = DVDCtrlGetDVDVolumeInfo;
  
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -592,7 +595,7 @@ DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
 {
@@ -604,7 +607,7 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
   ev.dvdctrl.cmd.type = DVDCtrlGetTitles;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -633,7 +636,7 @@ DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
 {
@@ -645,7 +648,7 @@ DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentDomain;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -674,7 +677,7 @@ DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
 {
@@ -686,7 +689,7 @@ DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentLocation;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   while(1) {
@@ -717,7 +720,7 @@ DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, DVDLocation_t *const Location)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title, 
 			       int *const PartsAvailable)
@@ -731,7 +734,7 @@ DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title,
   ev.dvdctrl.cmd.parts.title = Title;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -786,7 +789,7 @@ DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
@@ -801,7 +804,7 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
   ev.dvdctrl.cmd.type = DVDCtrlGetCurrentSubpicture;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
     
   while(1) {
@@ -838,7 +841,7 @@ DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
 					 DVDSubpictureStream_t StreamNr,
@@ -853,7 +856,7 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
   ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = StreamNr;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -891,7 +894,7 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented. 
+ * @retval DVD_E_FailedToSend Failed to send the request. 
  */
 DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
 				       DVDSubpictureStream_t StreamNr,
@@ -906,7 +909,7 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
   ev.dvdctrl.cmd.subpictureattributes.streamnr = StreamNr;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -986,6 +989,7 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
  * to by state will be updated. Otherwise an error code  is returned.
  *
  * @retval DVD_E_Ok Success.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  * @retval DVD_E_Unspecified Failure. 
  */
 DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
@@ -998,7 +1002,7 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
   ev.dvdctrl.cmd.type = DVDCtrlGetState;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -1036,6 +1040,7 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
  * to by state will be updated. Otherwise an error code  is returned.
  *
  * @retval DVD_E_Ok Success.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  * @retval DVD_E_Unspecified Failure. 
  */
 DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
@@ -1048,7 +1053,7 @@ DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
   ev.dvdctrl.cmd.type = DVDCtrlGetDiscID;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -1098,6 +1103,7 @@ DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
  * to by state will be updated. Otherwise an error code  is returned.
  *
  * @retval DVD_E_Ok Success.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  * @retval DVD_E_Unspecified Failure. 
  */
 DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
@@ -1114,7 +1120,7 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
   ev.dvdctrl.cmd.volids.voltype = type;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -1155,7 +1161,6 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
 {
@@ -1164,8 +1169,7 @@ DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
     return DVD_E_Unspecified;
   }
   
-  return DVD_E_Ok;
-  
+  return DVD_E_Ok;  
 } 
 
 #if (defined(BSD) && (BSD >= 199306))
@@ -1177,7 +1181,6 @@ DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev)
   }
   
   return DVD_E_Ok;
-  
 } 
 #endif
 
@@ -1204,11 +1207,10 @@ DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask)
   }
   
   if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
-  
 }
 
 /** @defgroup dvdctrl DVD control functions
@@ -1248,7 +1250,7 @@ DVDResult_t DVDSetAspectModeSrc(DVDNav_t *nav, AspectModeSrc_t mode_src)
   }
   
   if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1278,7 +1280,7 @@ DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
   }
   
   if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1305,7 +1307,7 @@ DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode)
   }
   
   if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1321,7 +1323,7 @@ DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
 {
@@ -1337,7 +1339,7 @@ DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
     = '\0';
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   while(1) {
@@ -1350,8 +1352,6 @@ DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
       return ev.dvdctrl.cmd.retval.val;
     }
   }
-
-  return DVD_E_Ok;
 }
 
 /** 
@@ -1363,7 +1363,7 @@ DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav)
 {
@@ -1373,7 +1373,7 @@ DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlLeftButtonSelect;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1390,7 +1390,7 @@ DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDRightButtonSelect(DVDNav_t *nav)
 {
@@ -1400,7 +1400,7 @@ DVDResult_t DVDRightButtonSelect(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlRightButtonSelect;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1417,7 +1417,7 @@ DVDResult_t DVDRightButtonSelect(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav)
 {
@@ -1427,7 +1427,7 @@ DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlUpperButtonSelect;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1444,7 +1444,7 @@ DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDLowerButtonSelect(DVDNav_t *nav)
 {
@@ -1454,7 +1454,7 @@ DVDResult_t DVDLowerButtonSelect(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlLowerButtonSelect;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1471,7 +1471,7 @@ DVDResult_t DVDLowerButtonSelect(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDButtonActivate(DVDNav_t *nav)
 {
@@ -1481,7 +1481,7 @@ DVDResult_t DVDButtonActivate(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlButtonActivate;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) { 
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
  
   return DVD_E_Ok;
@@ -1499,7 +1499,7 @@ DVDResult_t DVDButtonActivate(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDButtonSelect(DVDNav_t *nav, int Button)
 {
@@ -1510,7 +1510,7 @@ DVDResult_t DVDButtonSelect(DVDNav_t *nav, int Button)
   ev.dvdctrl.cmd.button.nr = Button;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1528,7 +1528,7 @@ DVDResult_t DVDButtonSelect(DVDNav_t *nav, int Button)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDButtonSelectAndActivate(DVDNav_t *nav, int Button)
 {
@@ -1539,7 +1539,7 @@ DVDResult_t DVDButtonSelectAndActivate(DVDNav_t *nav, int Button)
   ev.dvdctrl.cmd.button.nr = Button;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1558,7 +1558,7 @@ DVDResult_t DVDButtonSelectAndActivate(DVDNav_t *nav, int Button)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDMouseSelect(DVDNav_t *nav, int x, int y)
 {
@@ -1570,7 +1570,7 @@ DVDResult_t DVDMouseSelect(DVDNav_t *nav, int x, int y)
   ev.dvdctrl.cmd.mouse.y = y;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1589,7 +1589,7 @@ DVDResult_t DVDMouseSelect(DVDNav_t *nav, int x, int y)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDMouseActivate(DVDNav_t *nav, int x, int y)
 {
@@ -1601,7 +1601,7 @@ DVDResult_t DVDMouseActivate(DVDNav_t *nav, int x, int y)
   ev.dvdctrl.cmd.mouse.y = y;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
 
   return DVD_E_Ok;
@@ -1619,7 +1619,7 @@ DVDResult_t DVDMouseActivate(DVDNav_t *nav, int x, int y)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDMenuCall(DVDNav_t *nav, DVDMenuID_t MenuId)
 {
@@ -1630,7 +1630,7 @@ DVDResult_t DVDMenuCall(DVDNav_t *nav, DVDMenuID_t MenuId)
   ev.dvdctrl.cmd.menucall.menuid = MenuId;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1647,7 +1647,7 @@ DVDResult_t DVDMenuCall(DVDNav_t *nav, DVDMenuID_t MenuId)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDResume(DVDNav_t *nav)
 {
@@ -1657,7 +1657,7 @@ DVDResult_t DVDResume(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlResume;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1675,7 +1675,7 @@ DVDResult_t DVDResume(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDGoUp(DVDNav_t *nav)
 {
@@ -1685,7 +1685,7 @@ DVDResult_t DVDGoUp(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlGoUp;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1704,7 +1704,7 @@ DVDResult_t DVDGoUp(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDForwardScan(DVDNav_t *nav, double Speed)
 {
@@ -1715,7 +1715,7 @@ DVDResult_t DVDForwardScan(DVDNav_t *nav, double Speed)
   ev.dvdctrl.cmd.scan.speed = Speed;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1734,7 +1734,7 @@ DVDResult_t DVDForwardScan(DVDNav_t *nav, double Speed)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
 {
@@ -1745,7 +1745,7 @@ DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
   ev.dvdctrl.cmd.scan.speed = Speed;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1762,7 +1762,7 @@ DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
 {
@@ -1772,7 +1772,7 @@ DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlNextPGSearch;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1789,7 +1789,7 @@ DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
 {
@@ -1799,7 +1799,7 @@ DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlPrevPGSearch;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1816,7 +1816,7 @@ DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
 {
@@ -1826,7 +1826,7 @@ DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlTopPGSearch;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1844,7 +1844,7 @@ DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
 {
@@ -1855,7 +1855,7 @@ DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
   ev.dvdctrl.cmd.pttsearch.ptt = PTT;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1874,7 +1874,7 @@ DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
 {
@@ -1886,7 +1886,7 @@ DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
   ev.dvdctrl.cmd.pttplay.ptt = PTT;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) { 
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
  
   return DVD_E_Ok;
@@ -1903,7 +1903,7 @@ DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
 {
@@ -1914,7 +1914,7 @@ DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
   ev.dvdctrl.cmd.titleplay.title = Title;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1931,7 +1931,7 @@ DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
 {
@@ -1942,7 +1942,7 @@ DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
   ev.dvdctrl.cmd.timesearch.time = time;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1959,7 +1959,7 @@ DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
 {
@@ -1971,7 +1971,7 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
   ev.dvdctrl.cmd.timeplay.time = time;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -1988,7 +1988,7 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDTimeSkip(DVDNav_t *nav, int32_t seconds)
 {
@@ -1999,7 +1999,7 @@ DVDResult_t DVDTimeSkip(DVDNav_t *nav, int32_t seconds)
   ev.dvdctrl.cmd.timeskip.seconds = seconds;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2015,7 +2015,7 @@ DVDResult_t DVDTimeSkip(DVDNav_t *nav, int32_t seconds)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPauseOn(DVDNav_t *nav)
 {
@@ -2025,7 +2025,7 @@ DVDResult_t DVDPauseOn(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlPauseOn;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2042,7 +2042,7 @@ DVDResult_t DVDPauseOn(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPauseOff(DVDNav_t *nav)
 {
@@ -2052,7 +2052,7 @@ DVDResult_t DVDPauseOff(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlPauseOff;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2068,7 +2068,7 @@ DVDResult_t DVDPauseOff(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDStop(DVDNav_t *nav)
 {
@@ -2078,7 +2078,7 @@ DVDResult_t DVDStop(DVDNav_t *nav)
   ev.dvdctrl.cmd.type = DVDCtrlStop;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2097,7 +2097,7 @@ DVDResult_t DVDStop(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 {
@@ -2108,7 +2108,7 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
   ev.dvdctrl.cmd.defaultmenulanguageselect.langid = Lang;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2126,7 +2126,7 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
 {
@@ -2137,7 +2137,7 @@ DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
   ev.dvdctrl.cmd.audiostreamchange.streamnr = StreamNr;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2165,7 +2165,7 @@ DVDResult_t DVDDefaultAudioLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
   ev.dvdctrl.cmd.defaultaudiolanguageselect.langid = Lang;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2199,7 +2199,7 @@ DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
 {
@@ -2210,7 +2210,7 @@ DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
   ev.dvdctrl.cmd.anglechange.anglenr = AngleNr;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2230,7 +2230,7 @@ DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
  */
 DVDResult_t DVDStillOff(DVDNav_t *nav)
 {
-return DVD_E_NotImplemented;
+  return DVD_E_NotImplemented;
 }
 
 
@@ -2274,7 +2274,7 @@ DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
   ev.dvdctrl.cmd.defaultsubpicturelanguageselect.langid = Lang;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2292,7 +2292,7 @@ DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
 				      DVDSubpictureStream_t SubpictureNr)
@@ -2304,7 +2304,7 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
   ev.dvdctrl.cmd.subpicturestreamchange.streamnr = SubpictureNr;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2322,7 +2322,7 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
 {
@@ -2333,7 +2333,7 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
   ev.dvdctrl.cmd.subpicturestate.display = Display;
 
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2351,7 +2351,7 @@ DVDResult_t DVDSetSubpictureState(DVDNav_t *nav, DVDBool_t Display)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country)
 {
@@ -2362,7 +2362,7 @@ DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country)
   ev.dvdctrl.cmd.parentalcountryselect.countryid = country;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2380,7 +2380,7 @@ DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
 {
@@ -2391,7 +2391,7 @@ DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
   ev.dvdctrl.cmd.parentallevelselect.level = level;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2409,7 +2409,7 @@ DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region)
 {
@@ -2420,7 +2420,7 @@ DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region)
   ev.dvdctrl.cmd.playerregionselect.region = region;
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
@@ -2434,7 +2434,7 @@ DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_Unspecified Failure.
+ * @retval DVD_E_FailedToSend Failed to send the request.
  */
 DVDResult_t DVDSetState(DVDNav_t *nav, char *state)
 {
@@ -2448,7 +2448,7 @@ DVDResult_t DVDSetState(DVDNav_t *nav, char *state)
     = '\0';
   
   if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
-    return DVD_E_Unspecified;
+    return DVD_E_FailedToSend;
   }
   
   return DVD_E_Ok;
