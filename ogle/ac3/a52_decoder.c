@@ -729,21 +729,27 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	  print_skip = 0;
 	  fprintf(stderr, "a52_decoder: skipped data to find a valid frame\n");
 	}
-	flags = speaker_flags | A52_ADJUST_LEVEL;
-        if(flags != last_output_flags) {
-          open_output(flags);
-          last_output_flags = flags;
-        }
+	
 	if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
 	  fprintf(stderr, "a52_decoder: ao_setup() error\n");
 	  goto error;
 	}
+	
 
+	flags = speaker_flags | A52_ADJUST_LEVEL;
 	memset(&state, 0, sizeof(a52_state_t));
 	if(a52_frame(&state, buf, &flags, &level, bias)) {
 	  fprintf(stderr, "a52_decoder: a52_frame() error\n");
 	  goto error;
 	}
+        if(flags != last_output_flags) {
+          open_output(flags);
+          last_output_flags = flags;
+          if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
+            fprintf(stderr, "ao_setup() error\n");
+            goto error;
+          }
+        }
 
 	if(disable_dynrng)
 	  a52_dynrng(&state, NULL, NULL);
