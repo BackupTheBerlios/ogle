@@ -344,8 +344,8 @@ DVDP_LPCM=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_LPCM
 DVDP_MPEGAUDIO=$DVDP_ROOT/ogle_audio$audio_debug
 export DVDP_MPEGAUDIO
-DVDP_DTSAUDIO=$DVDP_ROOT/ogle_audio$audio_debug
-export DVDP_DTSAUDIO
+DVDP_DTS=$DVDP_ROOT/ogle_audio$audio_debug
+export DVDP_DTS
 DVDP_VIDEO=$DVDP_ROOT/ogle_mpeg_vs$mpeg_vs_debug
 export DVDP_VIDEO
 DVDP_VMG=$DVDP_ROOT/ogle_nav$nav_debug

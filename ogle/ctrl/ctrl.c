@@ -306,6 +306,9 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
   } else if((capability & DECODE_DTS_AUDIO) == capability) {
     name = getenv("DVDP_DTS");
     *ret_capability = DECODE_DTS_AUDIO;
+  } else if((capability & DECODE_LPCM_AUDIO) == capability) {
+    name = getenv("DVDP_LPCM");
+    *ret_capability = DECODE_LPCM_AUDIO;
   } else if((capability & (DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO))
 	    == capability) {
     name = getenv("DVDP_MPEGAUDIO");
@@ -556,7 +559,12 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 				  CAP_started);
 	  }
  // DNOTE("starting decoder %d %s\n", capability, decodername);
-	  init_decoder(msgqid_str, decodername);
+	  if(init_decoder(msgqid_str, decodername) == -1) {
+	    ERROR("ReqStreamBuf: init_decoder: cap:%x, id:%02x, sub_id:%x\n",
+		  capability,
+		  ev->reqstreambuf.stream_id,
+		  ev->reqstreambuf.subtype);
+	  }
  // DNOTE("started decoder %d\n", capability);
 	}
 	
