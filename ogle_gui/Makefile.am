@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = intl src po
+SUBDIRS = intl src pixmaps po
 
 install-data-local:
 	@$(NORMAL_INSTALL)

@@ -7,5 +7,4 @@ src/language.c
 src/main.c
 src/menu.c
 src/subpicture.c
-po/glade-files.c
-
+pixmaps/glade-strings.c
