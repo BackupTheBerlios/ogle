@@ -46,8 +46,12 @@ AC_ARG_WITH(dvdcontrol,
     dvd_path=$withval
   fi)
 if test -z "$dvd_path"; then
-  dnl We have nothing better to go on, guess that it's installed in /usr/local
-  dvd_path=/usr/local
+  dnl We have nothing better to go on, guess that it's installed in prefix
+  if test "x$prefix" != xNONE; then
+    dvd_path=$prefix
+  else
+    dvd_path=$ac_default_prefix
+  fi  
 fi
 
 AC_CHECK_LIB(dvdcontrol, DVDOpenNav, 
@@ -56,7 +60,7 @@ AC_CHECK_LIB(dvdcontrol, DVDOpenNav,
   ],, 
   -L$dvd_path/lib/ogle)
 if test -z "$DVDLIBS"; then
-  AC_MSG_ERROR([Needs libdvdcontrol, install it and/or specify the location])
+  AC_MSG_ERROR([Needs libdvdcontrol, install it and/or specify it's location])
 fi
 
 AC_ARG_WITH(dvd-includes, 

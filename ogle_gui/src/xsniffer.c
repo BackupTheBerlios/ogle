@@ -77,7 +77,15 @@ void* xsniff_mouse(void* args) {
 	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	}
 
-	res = DVDMouseSelect(nav, ev.xbutton.x, ev.xbutton.y);
+	{ 
+	  int x, y;
+	  XWindowAttributes xattr;
+	  XGetWindowAttributes(display, win, &xattr);
+	  // Represent the coordinate as a fixpoint numer btween 0..65536
+	  x = ev.xbutton.x * 65536 / xattr.width;
+	  y = ev.xbutton.y * 65536 / xattr.height;
+	  res = DVDMouseSelect(nav, x, y);
+	}
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
@@ -88,8 +96,13 @@ void* xsniff_mouse(void* args) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
-
-	  res = DVDMouseActivate(nav, ev.xbutton.x, ev.xbutton.y);
+	  int x, y;
+	  XWindowAttributes xattr;
+	  XGetWindowAttributes(display, win, &xattr);
+	  // Represent the coordinate as a fixpoint numer btween 0..65536
+	  x = ev.xbutton.x * 65536 / xattr.width;
+	  y = ev.xbutton.y * 65536 / xattr.height;
+	  res = DVDMouseActivate(nav, x, y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
 	  }
