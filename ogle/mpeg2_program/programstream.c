@@ -146,6 +146,7 @@ char *program_name;
 FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
+FILE *ps1_file;
 int video_stream = -1;
 
 int   infilefd;
@@ -934,6 +935,10 @@ void push_stream_data(uint8_t stream_id, int len,
 	  // dts
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
 		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
+	} else if((subtype >= 0xA0) && (subtype < 0xA8)) {
+	  // pcm
+	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
+		   PTS_DTS_flags, PTS, DTS, is_newfile, 0);
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  // spu
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
@@ -951,12 +956,32 @@ void push_stream_data(uint8_t stream_id, int len,
 	
 	if((subtype >= 0x80) && (subtype < 0x88)) {
 	  // ac3
+#if 0
 	  fwrite(&disk_buf[offs-(bits_left/8)+4], len-4, 1,
 		 id_file(stream_id, subtype));
+#else
+	  fwrite(&disk_buf[offs-(bits_left/8)], 4, 1,
+		 id_file(stream_id, subtype));
+#endif	
+	  
 	} else if((subtype >= 0x88) && (subtype < 0x90)) {
 	  // dts
+#if 0
 	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
 		 id_file(stream_id, subtype));
+#else
+	  fwrite(&disk_buf[offs-(bits_left/8)], 64, 1,
+		 id_file(stream_id, subtype));
+#endif
+	} else if((subtype >= 0xA0) && (subtype < 0xA8)) {
+	  // pcm
+#if 0
+	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
+		 id_file(stream_id, subtype));
+#else
+	  fwrite(&disk_buf[offs-(bits_left/8)], 64, 1,
+		 id_file(stream_id, subtype));
+#endif
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  // spu
 	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
@@ -1581,6 +1606,8 @@ char *stream_opts[] = {
   "nr",
 #define OPT_FILE         1
   "file",
+#define OPT_SUBID        2
+  "subid",
   NULL
 };
 
@@ -1610,8 +1637,9 @@ int main(int argc, char **argv)
   char *options;
   char *opt_value;
   int stream_nr;
+  int subid;
   char *file;
-  int stream_id;
+  uint8_t stream_id;
   int lost_sync = 1;
   
   program_name = argv[0];
@@ -1619,7 +1647,7 @@ int main(int argc, char **argv)
   init_id_reg(STREAM_DISCARD);
   
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "v:a:s:i:d:m:o:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "v:a:s:i:d:m:o:p:h?")) != EOF) {
     switch (c) {
     case 'v':
       stream_nr = -1;
@@ -1676,6 +1704,78 @@ int main(int argc, char **argv)
       }
 	
 	  
+
+      break;
+    case 'p':
+      stream_nr = -1;
+      file = NULL;
+      subid = -1;
+      options = optarg;
+      while (*options != '\0') {
+	switch(getsubopt(&options, stream_opts, &opt_value)) {
+	case OPT_SUBID:
+	  if(opt_value == NULL) {
+	    exit(1);
+	  }
+	  subid = strtol(opt_value, NULL, 0);
+	  break;
+	case OPT_STREAM_NR:
+	  if(opt_value == NULL) {
+	    exit(1);
+	  }
+	  
+	  stream_nr = atoi(opt_value);
+	  break;
+	case OPT_FILE:
+	  if(opt_value == NULL) {
+	    exit(1);
+	  }
+	  
+	  file = opt_value;
+	  break;
+	default:
+	  fprintf(stderr, "*demux: Unknown suboption\n");
+	  exit(1);
+	  break;
+	}
+      }
+      
+      
+      if((subid == -1)) {
+	fprintf(stderr, "*demux: Missing suboptions\n");
+	exit(1);
+      } else if(subid < 0 || subid > 0xff) {
+	fprintf(stderr, "*demux: subid out of range\n");
+	exit(1);
+      }
+
+      if((stream_nr == -1)) {
+	fprintf(stderr, "*demux: Missing suboptions\n");
+	exit(1);
+      } 
+
+      
+      if(!(stream_nr < subid) || (subid | stream_nr) > 0xff) {
+	fprintf(stderr, "*demux: subid/stream_nr combination invalid\n");
+	exit(1);
+      }
+
+      stream_id = (subid | stream_nr);
+      
+      if(file != NULL) {
+	ps1_file = fopen(file,"w");
+	if(!ps1_file) {
+	  perror(optarg);
+	  exit(1);
+	}
+
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DECODE, -1, NULL, ps1_file);
+	
+      } else {
+	fprintf(stderr, "Private stream 1 subid %d disabled\n", stream_nr);
+	
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DISCARD, -1, NULL, NULL);
+      }
 
       break;
     case 'a':
@@ -1846,8 +1946,10 @@ int main(int argc, char **argv)
 #if DEBUG
   fprintf(stderr, "demux: get next demux q\n");
 #endif
-  get_next_demux_q();
-  
+  if(msgqid != -1) {
+    get_next_demux_q();
+  }
+
   if(off_from != -1) {
     //fprintf(stderr, "demux: off_from pack\n");
     offs = off_from;
