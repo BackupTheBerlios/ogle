@@ -14,6 +14,10 @@
 
 #define BUF_SIZE 2048
 
+
+#define MPEG1 0x0
+#define MPEG2 0x1
+
 uint8_t    *buf;
 
 unsigned int bytes_read = 0;
@@ -282,7 +286,7 @@ void system_header()
 }
 
 
-void pack_header()
+int pack_header()
 {
   uint64_t system_clock_reference;
   uint64_t system_clock_reference_base;
@@ -290,48 +294,89 @@ void pack_header()
   uint32_t program_mux_rate;
   uint8_t  pack_stuffing_length;
   int i;
+  uint8_t fixed_bits;
+  int version;
 
   DPRINTF(2, "pack_header()\n");
 
   GETBITS(32,"pack_start_code");
-  GETBITS(2, "01");
-  system_clock_reference_base = 
-    GETBITS(3,"system_clock_reference_base [32..30]") << 30;
-  marker_bit();
-  system_clock_reference_base |= 
-    GETBITS(15, "system_clock_reference_base [29..15]") << 15;
-  marker_bit();
-  system_clock_reference_base |= 
-    GETBITS(15, "system_clock_reference_base [14..0]");
-  marker_bit();
-  system_clock_reference_extension = 
-    GETBITS(9, "system_clock_reference_extension");
-  /* 2.5.2 or 2.5.3.4 (definition of system_clock_reference) */
-  system_clock_reference = 
-    system_clock_reference_base * 300 + system_clock_reference_extension;
-  marker_bit();
-  program_mux_rate = GETBITS(22, "program_mux_rate");
-  marker_bit();
-  marker_bit();
-  GETBITS(5, "reserved");
-  pack_stuffing_length = GETBITS(3, "pack_stuffing_length");
-  for(i=0;i<pack_stuffing_length;i++) {
-    GETBITS(8 ,"stuffing_byte");
+  
+  fixed_bits = nextbits(4);
+  if(fixed_bits == 0x02) {
+    version = MPEG1;
+  } else if((fixed_bits >> 2) == 0x01) {
+    version = MPEG2;
+  } else {
+    version = -1;
+    fprintf(stderr, "unknown MPEG version\n");
   }
-  DPRINTF(3, "system_clock_reference_base: %llu\n",
-      system_clock_reference_base);
-  DPRINTF(3, "system_clock_reference_extension: %u\n",
-      system_clock_reference_extension);
-  DPRINTF(3, "system_clock_reference: %llu [%6f s]\n", 
-          system_clock_reference, ((double)system_clock_reference)/27000000.0);
-  DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
-      program_mux_rate, program_mux_rate*50*8);
-  DPRINTF(3, "pack_stuffing_length: %u\n",
-      pack_stuffing_length);
-
+  
+  
+  switch(version) {
+  case MPEG2:
+    GETBITS(2, "01");
+    
+    system_clock_reference_base = 
+      GETBITS(3,"system_clock_reference_base [32..30]") << 30;
+    marker_bit();
+    system_clock_reference_base |= 
+      GETBITS(15, "system_clock_reference_base [29..15]") << 15;
+    marker_bit();
+    system_clock_reference_base |= 
+      GETBITS(15, "system_clock_reference_base [14..0]");
+    marker_bit();
+    system_clock_reference_extension = 
+      GETBITS(9, "system_clock_reference_extension");
+    /* 2.5.2 or 2.5.3.4 (definition of system_clock_reference) */
+    system_clock_reference = 
+      system_clock_reference_base * 300 + system_clock_reference_extension;
+    marker_bit();
+    program_mux_rate = GETBITS(22, "program_mux_rate");
+    marker_bit();
+    marker_bit();
+    GETBITS(5, "reserved");
+    pack_stuffing_length = GETBITS(3, "pack_stuffing_length");
+    for(i=0;i<pack_stuffing_length;i++) {
+      GETBITS(8 ,"stuffing_byte");
+    }
+    DPRINTF(3, "system_clock_reference_base: %llu\n",
+	    system_clock_reference_base);
+    DPRINTF(3, "system_clock_reference_extension: %u\n",
+	    system_clock_reference_extension);
+    DPRINTF(3, "system_clock_reference: %llu [%6f s]\n", 
+	    system_clock_reference, ((double)system_clock_reference)/27000000.0);
+    DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
+	    program_mux_rate, program_mux_rate*50*8);
+    DPRINTF(3, "pack_stuffing_length: %u\n",
+	    pack_stuffing_length);
+    break;
+  case MPEG1:
+    GETBITS(4, "0010");
+    
+    system_clock_reference_base = 
+      GETBITS(3,"system_clock_reference_base [32..30]") << 30;
+    marker_bit();
+    system_clock_reference_base |= 
+      GETBITS(15, "system_clock_reference_base [29..15]") << 15;
+    marker_bit();
+    system_clock_reference_base |= 
+      GETBITS(15, "system_clock_reference_base [14..0]");
+    marker_bit();
+    marker_bit();
+    program_mux_rate = GETBITS(22, "program_mux_rate");
+    marker_bit();
+    DPRINTF(3, "system_clock_reference_base: %llu\n",
+	    system_clock_reference_base);
+    DPRINTF(3, "program_mux_rate: %u [%u bits/s]\n",
+	    program_mux_rate, program_mux_rate*50*8);
+    break;
+  }
   if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
     system_header();
   }
+
+  return version;
+
 }
 
 void push_stream_data(uint8_t stream_id, int len)
@@ -664,47 +709,131 @@ void PES_packet()
 }
 
 
+
+// MPEG-1 packet
+
+void packet()
+{
+  uint8_t stream_id;
+  uint16_t packet_length;
+  uint8_t P_STD_buffer_scale;
+  uint16_t P_STD_buffer_size;
+  uint64_t PTS;
+  uint64_t DTS;
+  int N;
+  
+  GETBITS(24 ,"packet_start_code_prefix");
+  stream_id = GETBITS(8, "stream_id");
+  packet_length = GETBITS(16, "packet_length");
+  N = packet_length;
+  
+  if(stream_id != MPEG2_PRIVATE_STREAM_2) {
+    
+    while(nextbits(8) == 0xff) {
+      GETBITS(8, "stuffing byte");
+      N--;
+    }
+    
+    if(nextbits(2) == 0x1) {
+      GETBITS(2, "01");
+      P_STD_buffer_scale = GETBITS(1, "P_STD_buffer_scale");
+      P_STD_buffer_size = GETBITS(13, "P_STD_buffer_size");
+      
+      N -= 2;
+    }
+    if(nextbits(4) == 0x2) {
+      GETBITS(4, "0010");
+      PTS                     = GETBITS(3, "PTS [32..30]")<<30;
+      marker_bit();
+      PTS                    |= GETBITS(15, "PTS [29..15]")<<15;
+      marker_bit();
+      PTS                    |= GETBITS(15, "PTS [14..0]");
+      marker_bit();
+      
+      N -= 5;
+    } else if(nextbits(4) == 0x3) {
+
+      GETBITS(4, "0011");
+      PTS                     = GETBITS(3, "PTS [32..30]")<<30;
+      marker_bit();
+      PTS                    |= GETBITS(15, "PTS [29..15]")<<15;
+      marker_bit();
+      PTS                    |= GETBITS(15, "PTS [14..0]");
+      marker_bit();
+      DPRINTF(3, "PTS: %llu [%6f s]\n", PTS, ((double)PTS)/90E3);
+
+      GETBITS(4, "0001");
+      DTS                     = GETBITS(3, "DTS [32..30]")<<30;
+      marker_bit();
+      DTS                    |= GETBITS(15, "DTS [29..15]")<<15;
+      marker_bit();
+      DTS                    |= GETBITS(15, "DTS [14..0]");
+      marker_bit();
+      DPRINTF(3, "DTS: %llu [%6f s]\n", DTS, ((double)DTS)/90E3);
+
+      N -= 10;
+    } else {
+      
+      GETBITS(8, "00001111");
+      N--;
+    }
+  }
+
+  push_stream_data(stream_id, N);
+  
+}
+
+
+
 void pack()
 {
   uint32_t start_code;
   uint8_t stream_id;
   uint8_t is_PES = 0;
-
+  int mpeg_version;
   //fprintf(stderr, "pack()\n");
   
-  pack_header();
-  while((((start_code = nextbits(32))>>8)&0x00ffffff) ==
-	MPEG2_PES_PACKET_START_CODE_PREFIX) {
-    
-    stream_id = (start_code&0xff);
-    
-    is_PES = 0;
-    if(((stream_id&0xc0) == 0xc0) || ((stream_id&0xe0) == 0x0e0)) {
-      is_PES = 1;
-    } else {
-      switch(stream_id) {
-      case 0xBC:
-      case 0xBD:
-      case 0xBE:
-      case 0xBF:
+  mpeg_version = pack_header();
+  switch(mpeg_version) {
+  case MPEG1:
+    while(nextbits(32) >= 0x000001BC) {
+      packet();
+    }
+    break;
+  case MPEG2:
+    while((((start_code = nextbits(32))>>8)&0x00ffffff) ==
+	  MPEG2_PES_PACKET_START_CODE_PREFIX) {
+      
+      stream_id = (start_code&0xff);
+      
+      is_PES = 0;
+      if(((stream_id&0xc0) == 0xc0) || ((stream_id&0xe0) == 0x0e0)) {
 	is_PES = 1;
-	break;
-      case 0xBA:
+      } else {
+	switch(stream_id) {
+	case 0xBC:
+	case 0xBD:
+	case 0xBE:
+	case 0xBF:
+	  is_PES = 1;
+	  break;
+	case 0xBA:
 				//fprintf(stderr, "Pack Start Code\n");
-	is_PES = 0;
-	break;
-      default:
-	is_PES = 0;
-	fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
+	  is_PES = 0;
+	  break;
+	default:
+	  is_PES = 0;
+	  fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
+	  break;
+	}
+      }
+      if(!is_PES) {
 	break;
       }
+      
+      PES_packet();
     }
-    if(!is_PES) {
-      break;
-    }
-    
-    PES_packet();
-    
+    break;
   }
 }
 
