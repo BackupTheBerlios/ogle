@@ -26,4 +26,4 @@ libmsgevents_la_LDFLAGS = -version-info 4:0:0
 
 libdvdcontrol_la_SOURCES = dvdcontrol.c
 libdvdcontrol_la_LIBADD = libmsgevents.la
-libdvdcontrol_la_LDFLAGS = -version-info 5:0:2
+libdvdcontrol_la_LDFLAGS = -version-info 6:0:3
