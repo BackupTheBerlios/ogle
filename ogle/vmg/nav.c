@@ -538,6 +538,7 @@ static int block;
 static int still_time;
 static cell_playback_t *cell;
 
+#define INF_STILL_TIME (10 * 0xff)
 
 static void do_init_cell(int flush) {
   
@@ -622,10 +623,10 @@ static void do_run(void) {
       } else {
 	//DNOTE("end of cell\n");
 	; // end of cell!
-	if(cell->still_time == 0xff) // Inf. still time
+	if(still_time == INF_STILL_TIME) // Inf. still time
 	  NOTE("Still picture select an item to continue.\n");
-	else if(cell->still_time != 0)
-	  NOTE("Pause for %d seconds,\n", cell->still_time);
+	else if(still_time != 0)
+	  NOTE("Pause for %d seconds,\n", still_time/10);
 #if 0 
 	/* TODO XXX $$$ This should only be done at the correct time */
 	/* Handle forced activate button here */
@@ -658,7 +659,7 @@ static void do_run(void) {
       } else { 
 	/* Handle cell still time here */
 	got_data = 0;
-	if(cell->still_time == 0xff) // Inf. still time
+	if(still_time == INF_STILL_TIME) // Inf. still time
 	  MsgNextEvent(msgq, &ev);
 	else
 	  while(still_time && MsgCheckEvent(msgq, &ev)) {
@@ -753,8 +754,7 @@ static void do_run(void) {
 	    
 	    /* Hack to exit STILL_MODE if we're in it. */
 	    if(cell->first_sector + block > cell->last_vobu_start_sector &&
-	       cell->still_time > 0) {
-	      cell->still_time = 0;
+	       still_time > 0) {
 	      still_time = 0;
 	    }
 	    MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
