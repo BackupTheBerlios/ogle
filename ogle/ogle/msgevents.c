@@ -28,7 +28,7 @@
 #include "dvdevents.h"
 #include "msgevents.h"
 
-#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 
@@ -295,7 +295,7 @@ int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return)
       case ENOMSG:
 #endif
       case EAGAIN:
-      case EINTR:     // interrupted by system call, try again
+      case EINTR:     // interrupted by system call/signal, try again
        usleep(10000);
        continue;
        break;
@@ -327,7 +327,7 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 #endif
       case EAGAIN:
 	break;
-      case EINTR:     // interrupted by system call, try again
+      case EINTR:     // interrupted by system call/signal, try again
 	continue;
 	break;
       default:
@@ -503,7 +503,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   while(1) {
     if(msgsnd(q->msqid, (void *)&msg, size, msgflg) == -1) {
       switch(errno) {
-      case EINTR: //interrupted by syscall, try again
+      case EINTR: //interrupted by syscall/signal, try again
 	continue;
 	break;
       default:

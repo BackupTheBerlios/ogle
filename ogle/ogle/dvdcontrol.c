@@ -29,7 +29,7 @@
 #include "dvdbookmarks.h"
 #include "dvdcontrol.h"
 
-#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#if HAVE_SYS_PARAM_H
 #include <sys/param.h>
 #endif
 
