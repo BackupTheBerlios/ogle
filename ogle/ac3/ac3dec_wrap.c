@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/msg.h>
+#include <string.h>
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -28,7 +29,6 @@ int wait_for_msg(cmdtype_t cmdtype);
 int eval_msg(cmd_t *cmd);
 int get_q();
 
-int file_open(char *infile);
 int attach_ctrl_shm(int shmid);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
@@ -86,7 +86,7 @@ int main(int argc, char *argv[])
   
 
   if(msgqid != -1) {
-    wait_for_msg(CMD_FILE_OPEN);
+    //wait_for_msg(CMD_FILE_OPEN);
     wait_for_msg(CMD_DECODE_STREAM_BUFFER);
   } else {
     fprintf(stderr, "what?\n");
@@ -146,9 +146,6 @@ int eval_msg(cmd_t *cmd)
   sendcmd = (cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
-  case CMD_FILE_OPEN:
-    file_open(cmd->cmd.file_open.file);
-    break;
   case CMD_CTRL_DATA:
     attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
     break;
@@ -172,17 +169,62 @@ int eval_msg(cmd_t *cmd)
   return 0;
 }
 
-int file_open(char *infile)
+
+static void change_file(char *new_filename)
 {
   int filefd;
-  struct stat statbuf;
+  static struct stat statbuf;
+  int rv;
+  static char *cur_filename = NULL;
+
+  // maybe close file when null ?
+  if(new_filename == NULL) {
+    return;
+  }
+
+  // if same filename do nothing
+  if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
+    return;
+  }
+
+  if(mmap_base != NULL) {
+    munmap(mmap_base, statbuf.st_size);
+  }
+  if(cur_filename != NULL) {
+    free(cur_filename);
+  }
   
-  filefd = open(infile, O_RDONLY);
-  fstat(filefd, &statbuf);
-  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
-			   PROT_READ, MAP_SHARED, filefd, 0);
-  return 0;
+  filefd = open(new_filename, O_RDONLY);
+  if(filefd == -1) {
+    perror(new_filename);
+    exit(1);
+  }
+
+
+  cur_filename = strdup(new_filename);
+  rv = fstat(filefd, &statbuf);
+  if(rv == -1) {
+    perror("fstat");
+    exit(1);
+  }
+  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
+			      PROT_READ, MAP_SHARED, filefd,0);
+  close(filefd);
+  if(mmap_base == MAP_FAILED) {
+    perror("mmap");
+    exit(1);
+  }
+  
+#ifdef HAVE_MADVISE
+  rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
+  if(rv == -1) {
+    perror("madvise");
+    exit(1);
+  }
+#endif
+
 }
+
 
 int attach_ctrl_shm(int shmid)
 {
@@ -312,7 +354,9 @@ int get_q()
   }
 
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
-
+  
+  change_file(data_elem->filename);
+  
   fwrite(mmap_base+off, len, 1, outfile);
   
   // release elem
