@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <ctype.h>
 #include <inttypes.h>
 
 #include <assert.h>
@@ -42,7 +43,7 @@ extern int debug;
 
 
 void ifoPrint_time(int level, dvd_time_t *time) {
-  char *rate;
+  char *rate = NULL;
   assert((time->hour >> 4) <= 9 && (time->hour & 0xf) <= 9);
   assert((time->minute >> 4) <= 6 && (time->minute & 0xf) <= 9);
   assert((time->second >> 4) <= 6 && (time->second & 0xf) <= 9);
@@ -71,6 +72,22 @@ void ifoPrint_time(int level, dvd_time_t *time) {
 }
 
 void ifoPrint_video_attributes(int level, video_attr_t *attr) {
+  
+  /* The following test is shorter bu not correct ISO C,
+     memcmp(attr,my_friendly_zeros, sizeof(video_attr_t)) */
+  if(attr->mpeg_version == 0 
+     && attr->video_format == 0 
+     && attr->display_aspect_ratio == 0 
+     && attr->permitted_df == 0 
+     && attr->unknown1 == 0 
+     && attr->line21_CC_1 == 0 
+     && attr->line21_CC_2 == 0 
+     && attr->video_format == 0 
+     && attr->letterboxed == 0 
+     && attr->film_mode == 0) {
+    PUT(level,"-- Unspecified --");
+    return;
+  }
   
   switch(attr->mpeg_version) {
   case 0:
@@ -122,7 +139,8 @@ void ifoPrint_video_attributes(int level, video_attr_t *attr) {
     PUT(0, "(please send a bug report)");
   }
   
-  PUT(level, "%x ", attr->unknown1);
+  PUT(level, "U%x ", attr->unknown1);
+  assert(!attr->unknown1);
   
   if(attr->line21_CC_1 || attr->line21_CC_2) {
     PUT(level, "CC line21 ");
@@ -165,6 +183,20 @@ void ifoPrint_video_attributes(int level, video_attr_t *attr) {
 
 void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   
+  if(attr->audio_format == 0
+     && attr->multichannel_extension == 0
+     && attr->lang_type == 0
+     && attr->application_mode == 0
+     && attr->quantization == 0
+     && attr->sample_frequency == 0
+     && attr->channels == 0
+     && attr->audio_type == 0
+     && attr->unknown1 == 0
+     && attr->unknown1 == 0) {
+    PUT(level,"-- Unspecified --");
+    return;
+  }
+  
   switch(attr->audio_format) {
   case 0:
     PUT(level, "ac3 ");
@@ -182,10 +214,10 @@ void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
     PUT(level, "lpcm ");
     break;
   case 5:
-    PUT(level, "dts ");
+    PUT(0, "(please send a bug report) ");
     break;
   case 6:
-    PUT(level, "sdds ");
+    PUT(level, "dts ");
     break;
   default:
     PUT(0, "(please send a bug report) ");
@@ -197,6 +229,7 @@ void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   switch(attr->lang_type) {
   case 0:
     // not specified
+    assert(attr->lang_code[0] == 0 && attr->lang_code[1] == 0);
     break;
   case 1:
     PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
@@ -250,7 +283,9 @@ void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
   case 0:
     // not specified
     break;
-    //case 1: // Normal ?
+  case 1: // Normal audio
+    PUT(level, "Normal audio ");
+    break;
     //case 3: // Directors Comments
     //case 4: // Music score 1
     //case 4: // Music score 2    
@@ -264,19 +299,30 @@ void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
 
 void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
   
+  if(attr->user_selectable == 0
+     && attr->lang_code[0] == 0
+     && attr->lang_code[1] == 0
+     && attr->zero1 == 0
+     && attr->zero2 == 0
+     && attr->zero3== 0) {
+    PUT(level,"-- Unspecified --");
+    return;
+  }
+  
   if(attr->user_selectable & 0x80)
     PUT(level, "user_selectable ");
-  
-  PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
+  if(isalpha((int)attr->lang_code[0]) && isalpha((int)attr->lang_code[1]))
+    PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
+  else
+    PUT(level, "%02x%02x ", attr->lang_code[0], attr->lang_code[1]);
   
   PUT(level, "%d ", attr->zero1);
   PUT(level, "%d ", attr->zero2);
   PUT(level, "%d ", attr->zero3);
-  
 }
 
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
-  int i, j;
+  int i;
   
   PUT(5, "VMG Identifier: %.12s\n", vmgi_mat->vmg_identifier);
   PUT(5, "Last Sector of VMG: %08x\n", vmgi_mat->vmg_last_sector);
@@ -324,7 +370,7 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
 
 
 void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
-  int i,j;
+  int i;
 
   PUT(5, "VTS Identifier: %.12s\n", vtsi_mat->vts_identifier);
   PUT(5, "Last Sector of VTS: %08x\n", vtsi_mat->vts_last_sector);

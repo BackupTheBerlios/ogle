@@ -41,9 +41,9 @@ typedef struct {
   unsigned int display_aspect_ratio : 2;
   unsigned int permitted_df         : 2;
   
-  unsigned int unknown1             : 2; // Mostly 00 but sometimes 10
   unsigned int line21_CC_1          : 1;
   unsigned int line21_CC_2          : 1;
+  unsigned int unknown1             : 2;
   
   unsigned int picture_size         : 2;
   unsigned int letterboxed          : 1;
@@ -58,9 +58,9 @@ typedef struct {
   unsigned int letterboxed          : 1;
   unsigned int picture_size         : 2;
   
+  unsigned int unknown1             : 2;
   unsigned int line21_CC_2          : 1;
   unsigned int line21_CC_1          : 1;
-  unsigned int unknown1             : 2;
 #endif
 } __attribute__ ((packed)) video_attr_t;
 

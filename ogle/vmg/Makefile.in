@@ -28,5 +28,10 @@ ifo_dump: ifo_dump.o ifo_read.o ifo_print.o vmcmd.o
 vm: vm.o ifo_read.o ifo_print.o decoder.o nav_read.o nav_print.o nav.o vmcmd.o 
 vmg_dump: vmg_dump.o nav_read.o nav_print.o nav.o vmcmd.o
 
+
+ifo_read.o: ifo.h ifo_read.c
+ifo_print.o: ifo.h ifo_print.c
+ifo_dump.o: ifo.h ifo_dump.c
+
 clean:
 	rm -f vmg vmg_dump ifo_dump dump vm *.o
