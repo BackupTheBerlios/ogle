@@ -102,9 +102,6 @@ static inline uint32_t getbits(unsigned int nr)
 {
   uint32_t result;
   
-  // To get some profiling data...
-  // if(offs > 100000000) exit(0);
-
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
   bits_left -=nr;
@@ -388,6 +385,9 @@ void push_stream_data(uint8_t stream_id, int len)
       //	fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
       // }
     }
+#if 0
+  } else if(stream_id == MPEG2_PADDING_STREAM) {
+#endif  
   } else {
     DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
   }
@@ -635,7 +635,12 @@ void PES_packet()
       bytes_read += PES_extension_field_length;
     }
     
-    N = PES_packet_length - bytes_read;
+    N = (PES_header_data_length+3)-bytes_read;
+    drop_bytes(N);
+    bytes_read += N;
+
+    N = PES_packet_length-bytes_read;
+    
     
     //FIXME  kolla specen...    
     //FIXME  push pes..    
@@ -665,10 +670,10 @@ void PES_packet()
 	//if(data[i] >= 0x20 && data[i]<=0x2f) {
 	//fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
 	//}
-	if(data[i+0] == subtitle_id ){ 
-	  fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
-	  fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
-	}
+	//if(data[i+0] == subtitle_id ){ 
+	// fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
+	// fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
+	//}
       }
     }
 #endif
@@ -676,9 +681,8 @@ void PES_packet()
     push_stream_data(stream_id, PES_packet_length);
     //fprintf(stderr, "*PRIVATE_stream_2\n");
   } else if(stream_id == MPEG2_PADDING_STREAM) {
-    //FIXME det står N i specen
     drop_bytes(PES_packet_length);
-    //fprintf(stderr, "*PADDING_stream\n");
+    //    push_stream_data(stream_id, PES_packet_length);
   }
 }
 
@@ -767,6 +771,8 @@ int get_bytes(unsigned int len, unsigned char **data)
   }
 }
 #endif
+
+
 
 void segvhandler (void)
 {
@@ -898,7 +904,8 @@ int main(int argc, char **argv)
       fprintf(stderr, "Found Program Stream\n");
       MPEG2_program_stream();
     }
-    GETBITS(8, "resync");
+    GETBITS(8, "resync");//    resync();
+    DPRINTF(1, "resyncing");
   }
 }
 
