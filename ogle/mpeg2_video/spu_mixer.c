@@ -718,14 +718,86 @@ void decode_dcsq(spu_t *spu_info) {
   }
 }
 
-void display_mix_function_rgb(uint32_t color, uint32_t contrast, 
-			      unsigned int length, uint32_t *pixel) {
+void display_mix_function_bgr16(uint32_t color, uint32_t contrast, 
+				unsigned int length, uint16_t *pixel) {
   uint32_t invcontrast = 256 - contrast;
   int n;
   
   /* if total transparency do nothing */
   if(contrast != 0) {
-    uint32_t r, g, b;
+    unsigned int r, g, b;
+    r = color & 0xff;
+    g = (color >> 8) & 0xff;
+    b = (color >> 16) & 0xff;
+    
+    /* if no transparancy just overwrite */
+    if(contrast == (0xf<<4)) {
+      uint16_t color2 = ((b << 8) & 0xf800) | ((g << 3) & 0x0770) | (r >> 3);
+      for(n = 0; n < length; n++, pixel++) {
+	*pixel = color2;
+      }
+    } else {
+      for(n = 0; n < length; n++, pixel++) {
+	unsigned int pr, pg, pb;
+	uint16_t source = *pixel;
+	pr = (source & 0x001f) << 3;
+	pg = (source & 0x0770) >> 3; // or 0x037 >> 2, 0x076 >> 3 ???
+	pb = (source & 0xf800) >> 8; // (source >> 8) & 0xf8;
+	
+	pr = (pr * invcontrast + r * contrast) >> 8;
+	pg = (pg * invcontrast + g * contrast) >> 8;
+	pb = (pb * invcontrast + b * contrast) >> 8;
+	
+	*pixel = ((pb << 8) & 0xf800) | ((pg << 3) & 0x0770) | (pr >> 3);
+      }
+    }
+  }
+}
+
+void display_mix_function_bgr24(uint32_t color, uint32_t contrast, 
+				unsigned int length, uint8_t *pixel) {
+  uint32_t invcontrast = 256 - contrast;
+  int n;
+  
+  /* if total transparency do nothing */
+  if(contrast != 0) {
+    unsigned int r, g, b;
+    r = color & 0xff;
+    g = (color >> 8) & 0xff;
+    b = (color >> 16) & 0xff;
+    
+    /* if no transparancy just overwrite */
+    if(contrast == (0xf<<4)) {
+      for(n = 0; n < length; n++, pixel++) {
+	*pixel++ = b;
+	*pixel++ = g;
+	*pixel   = r;
+      }
+    } else {
+      for(n = 0; n < length; n++, pixel++) {
+	unsigned int pr, pg, pb;
+	pb = pixel[0];
+	pg = pixel[1];
+	pr = pixel[2];
+	
+	pr = (pr * invcontrast + r * contrast) >> 8;
+	pg = (pg * invcontrast + g * contrast) >> 8;
+	pb = (pb * invcontrast + b * contrast) >> 8;
+	
+	*pixel++ = pb; *pixel++ = pg; *pixel = pr;
+      }
+    }
+  }
+}
+
+void display_mix_function_bgr32(uint32_t color, uint32_t contrast, 
+				unsigned int length, uint32_t *pixel) {
+  uint32_t invcontrast = 256 - contrast;
+  int n;
+  
+  /* if total transparency do nothing */
+  if(contrast != 0) {
+    unsigned int r, g, b;
     r = color & 0xff;
     g = (color >> 8) & 0xff;
     b = (color >> 16) & 0xff;
@@ -737,14 +809,15 @@ void display_mix_function_rgb(uint32_t color, uint32_t contrast,
       }
     } else {
       for(n = 0; n < length; n++, pixel++) {
-	uint32_t pr, pg, pb;
-	pr = *pixel & 0xff;
-	pg = (*pixel >> 8) & 0xff;
-	pb = (*pixel >> 16) & 0xff;
+	unsigned int pr, pg, pb;
+	uint16_t source = *pixel;
+	pr = source & 0xff;
+	pg = (source >> 8) & 0xff;
+	pb = (source >> 16) & 0xff;
 	
-	pr = (pr * (invcontrast) + r * contrast) >> 8;
-	pg = (pg * (invcontrast) + g * contrast) >> 8;
-	pb = (pb * (invcontrast) + b * contrast) >> 8;
+	pr = (pr * invcontrast + r * contrast) >> 8;
+	pg = (pg * invcontrast + g * contrast) >> 8;
+	pb = (pb * invcontrast + b * contrast) >> 8;
 	
 	*pixel = (pb << 16) | (pg << 8) | pr;
       }
@@ -818,136 +891,7 @@ void display_mix_function_yuv(uint32_t color, uint32_t contrast,
 	  v_pixel[n] = pv;
 	}
       }
-#if 0
-      for(n = 0; n < length; n++, y_pixel++) {
-	uint32_t py,pu,pv;
-	py = *y_pixel;
-	py = (py*(invcontrast) + yl*contrast)>>8;
-	*y_pixel = (py & 0xff);
-	/* only write uv on even columns and rows */
-	if(!((x+spu_info->x_start + n) & 1) &&
-	   !((y+spu_info->y_start) & 1)) {
-	  pu = *u_pixel;
-	  pu = (pu*(invcontrast) + u*contrast)>>8;
-	  *u_pixel = pu;
-	  pv = *v_pixel;
-	  pv = (pv*(invcontrast) + v*contrast)>>8;
-	  *v_pixel = pv;
-	}
-	if((x+spu_info->x_start + n) & 1) {
-	  u_pixel++;
-	  v_pixel++;
-	}
-      }
-#endif
     }    
-  }
-}
-
-
-void display_mix_function(spu_t *spu_info, 
-			  char *data, int width, int height, int picformat,  
-			  uint32_t color, uint32_t contrast,
-			  unsigned int x, unsigned int y, 
-			  unsigned int length) {
-  uint32_t invcontrast;
-  invcontrast = 256 - contrast;
-    
-  if(picformat == 0) {
-    int n;
-      
-    /* if total transparency do nothing */
-    if(contrast != 0) {
-      uint32_t *pixel;
-      uint32_t r, g, b;
-      r = color & 0xff;
-      g = (color>>8) & 0xff;
-      b = (color>>16) & 0xff;
-
-      pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
-				  +(x+spu_info->x_start)]);
-	
-      /* if no transparancy just overwrite */
-      if(contrast == (0xf<<4)) {
-	for(n = 0; n < length; n++, pixel++) {
-	  *pixel = color;
-	}
-      } else {
-	for(n = 0; n < length; n++, pixel++) {
-	  uint32_t pr, pg, pb;
-	  pr = *pixel & 0xff;
-	  pg = (*pixel>>8) & 0xff;
-	  pb = (*pixel>>16) & 0xff;
-	    
-	  pr = (pr*(invcontrast)+r*contrast)>>8;
-	  pg = (pg*(invcontrast)+g*contrast)>>8;
-	  pb = (pb*(invcontrast)+b*contrast)>>8;
-	    
-	  *pixel = pb<<16 | pg<<8 | pr;
-	}
-      }
-	
-    } 
-  } else {
-    int n;
-
-      /* if total transparency do nothing */
-    if(contrast != 0) {
-      uint8_t *y_pixel, *u_pixel, *v_pixel;
-      uint8_t yl, u, v;
-
-      yl = (color >> 16) & 0xff;
-      u  = (color >> 8) & 0xff;
-      v  = color & 0xff;
-	
-      y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
-				   +(x+spu_info->x_start)]);
-      u_pixel = &(((uint8_t *)data)[width*height+
-				   (y+spu_info->y_start)*width/4
-				   +(x+spu_info->x_start)/2]);
-      v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
-				   (y+spu_info->y_start)*width/4
-				   +(x+spu_info->x_start)/2]);
-	
-	  
-      /* if no transparancy just overwrite */
-      if(contrast == (0xf<<4)) {
-	for(n = 0; n < length; n++, y_pixel++) {
-	  *y_pixel = yl;
-	  /* only write uv on even columns and rows */
-	  if(!((x+spu_info->x_start + n) & 1) &&
-	     !((y+spu_info->y_start)&1)) {
-	    *u_pixel = u;
-	    *v_pixel = v;
-	  }
-	  if((x+spu_info->x_start + n) & 1) {
-	    u_pixel++;
-	    v_pixel++;
-	  }
-	}
-      } else {
-	for(n = 0; n < length; n++, y_pixel++) {
-	  uint32_t py,pu,pv;
-	  py = *y_pixel;
-	  py = (py*(invcontrast) + yl*contrast)>>8;
-	  *y_pixel = (py & 0xff);
-	  /* only write uv on even columns and rows */
-	  if(!((x+spu_info->x_start + n) & 1) &&
-	     !((y+spu_info->y_start) & 1)) {
-	    pu = *u_pixel;
-	    pu = (pu*(invcontrast) + u*contrast)>>8;
-	    *u_pixel = pu;
-	    pv = *v_pixel;
-	    pv = (pv*(invcontrast) + v*contrast)>>8;
-	    *v_pixel = pv;
-	  }
-	  if((x+spu_info->x_start + n) & 1) {
-	    u_pixel++;
-	    v_pixel++;
-	  }
-	}
-      }
-    }
   }
 }
 
@@ -1043,27 +987,33 @@ void decode_display_data(spu_t *spu_info, char *data,
 
     /* Only blend if not totally transparent. */
     if(contrast != 0) {
-      unsigned int line_y, offs;
-      char *addr, *addr_uv, *addr_u, *addr_v;
+      unsigned int line_y;
+      char *addr;
       
       line_y = (y + spu_info->y_start) * line_stride;
       // (width * bpp) == line_stride (for rgb or yuv)
+      addr = data + line_y + (x + spu_info->x_start) * pixel_stride;
     
       if(!blendyuv) {
-	offs = line_y + (x + spu_info->x_start) * pixel_stride;
-	addr = data + offs;
 	/* Change this to call though a function pointer.. ? */
 	switch(pixel_stride) {
 	case 1: 
 	case 2:
+	  display_mix_function_bgr16(palette_rgb[color], 
+				     contrast, length, (uint16_t *)addr);
+	  break;
 	case 3:
 	  // Not supported yet.
+	  display_mix_function_bgr24(palette_rgb[color], 
+				     contrast, length, (uint8_t *)addr);
 	  break;
 	case 4:
-	  display_mix_function_rgb(palette_rgb[color], contrast, length, addr);
+	  display_mix_function_bgr32(palette_rgb[color], 
+				     contrast, length, (uint32_t *)addr);
 	  break;
 	}
       } else {
+	char *addr_uv, *addr_u, *addr_v;
 	// bpp == 1
 	// line_uv == line_y/4 ??
 	// yes if we make sure to only use the info for even lines..
