@@ -331,17 +331,22 @@ void pack_header()
 void push_stream_data(uint8_t stream_id, int len)
 {
   uint8_t *data = &buf[offs-(bits_left/8)];
-  static struct off_len_packet pack;
 
-  pack.cmd = PACK_TYPE_OFF_LEN;
-  pack.off = offs-(bits_left/8);
-  pack.len = len;
+  static struct {
+    uint32_t type;
+    struct off_len_packet body;
+  } ol_pack;
+
+  ol_pack.type   = PACK_TYPE_OFF_LEN;
+
+  ol_pack.body.offset = offs - (bits_left/8);
+  ol_pack.body.length = len;
 
   DPRINTF(5, "bitsleft: %d\n", bits_left);
 
   if(stream_id == 0xe0) {
     if(video) {
-      fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
+      fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
     }
     DPRINTF(4, "Video packet: %u bytes\n", len);    
   } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
@@ -349,7 +354,7 @@ void push_stream_data(uint8_t stream_id, int len)
     if(audio) {
       DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
       if(*data == 0x80) {
-	fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
+	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
       }
     }
     if(subtitle) {
@@ -360,14 +365,13 @@ void push_stream_data(uint8_t stream_id, int len)
       }
             if(*data == subtitle_id ){ 
       	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-	fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
+	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
       }
     }
   } else {
     DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
   }
    
-
   drop_bytes(len);
 
 }
@@ -716,8 +720,11 @@ void loadinputfile(char *infilename)
 {
   struct stat statbuf;
   int rv;
-  struct load_file_packet packet;
-  
+  struct {
+    uint32_t type;
+    struct load_file_packet body;
+  } lf_pack;
+
   infilefd = open(infilename, O_RDONLY);
   if(infilefd == -1) {
     perror(infilename);
@@ -743,16 +750,15 @@ void loadinputfile(char *infilename)
   
   //Sending "load-this-file" packet to listeners
   
-  packet.cmd = PACK_TYPE_LOAD_FILE;
-  packet.len = strlen(infilename);
-  strcpy((char *)&(packet.filename), infilename);
+  lf_pack.body.length = strlen(infilename);
+  strcpy((char *)&(lf_pack.body.filename), infilename);
   
   if(video)
-    fwrite(&packet, packet.len+8, 1, video_file);
+    fwrite(&lf_pack, lf_pack.body.length+8, 1, video_file);
   if(audio)
-    fwrite(&packet, packet.len+8, 1, audio_file);
+    fwrite(&lf_pack, lf_pack.body.length+8, 1, audio_file);
   if(subtitle)
-    fwrite(&packet, packet.len+8, 1, subtitle_file); 
+    fwrite(&lf_pack, lf_pack.body.length+8, 1, subtitle_file); 
 }
 
 
