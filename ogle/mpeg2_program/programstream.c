@@ -67,7 +67,6 @@ int init_id_reg();
 //int wait_for_msg(mq_cmdtype_t cmdtype);
 //int eval_msg(mq_cmd_t *cmd);
 int get_buffer(int size);
-int send_msg(mq_msg_t *msg, int mtext_size);
 int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int id_stat(uint8_t id, uint8_t subtype);
 char *id_qaddr(uint8_t id, uint8_t subtype);
@@ -1567,7 +1566,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "demux: couldn't get message q\n");
       exit(-1);
     }
-    fprintf(stderr, "demux: msgq opened, clientnr: %d\n",
+    fprintf(stderr, "demux: msgq opened, clientnr: %ld\n",
 	    msgq->mtype);
 
     // register with the resource manager and tell what we can do
@@ -1592,7 +1591,7 @@ int main(int argc, char **argv)
 	attach_ctrl_shm(regev.ctrldata.shmid);
 	break;
       default:
-	fprintf(stderr, "demux: msg not wanted %d, from %d\n",
+	fprintf(stderr, "demux: msg not wanted %d, from %ld\n",
 		regev.type, regev.any.client);
 	break;
       }
@@ -1949,16 +1948,6 @@ int get_buffer(int size)
   
   return 0;
 }
-
-int send_msg(mq_msg_t *msg, int mtext_size)
-{
-  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
-    perror("ctrl: msgsnd1");
-    return -1;
-  }
-  return 0;
-}
-
 
 
 void flush_all_streams(int scr_nr)

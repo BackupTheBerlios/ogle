@@ -14,7 +14,6 @@
 #include <string.h>
 
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
 #include "timemath.h"
 

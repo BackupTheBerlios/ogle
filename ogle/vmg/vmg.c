@@ -21,9 +21,6 @@
 //#include "sync.h"
 
 extern void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
-extern int send_msg(mq_msg_t *msg, int mtext_size);
-extern int wait_for_msg(mq_cmdtype_t cmdtype);
-extern int eval_msg(mq_cmd_t *cmd);
 extern int get_q(char *buffer);
 
 extern int file_open(char *infile);

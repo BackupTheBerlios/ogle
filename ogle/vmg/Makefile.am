@@ -18,7 +18,7 @@
 bin_PROGRAMS = vmg dump ifo_dump vm vmg_dump
 
 vmg_LDADD = $(top_builddir)/common/libcommon.a \
-	$(top_builddir)/common/libmsgcom.la
+	$(top_builddir)/ogle/libmsgevents.la
 vmg_SOURCES = vmg.c com.c
 
 dump_SOURCES = \
@@ -33,7 +33,7 @@ ifo_dump_SOURCES = ifo_dump.c \
 	vmcmd.c ifo.h
 
 vm_LDADD = $(top_builddir)/common/libcommon.a \
-	$(top_builddir)/common/libmsgcom.la
+	$(top_builddir)/ogle/libmsgevents.la
 vm_SOURCES = \
 	vm.c vm.h \
 	ifo_read.c ifo_read.h \
@@ -51,4 +51,4 @@ vmg_dump_SOURCES = vmg_dump.c \
 	nav.h \
 	vmcmd.c vmcmd.h
 vmg_dump_LDADD = $(top_builddir)/common/libcommon.a \
-		$(top_builddir)/common/libmsgcom.la 
+		$(top_builddir)/ogle/libmsgevents.la 
