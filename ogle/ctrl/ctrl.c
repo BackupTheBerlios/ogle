@@ -119,10 +119,22 @@ typedef enum {
  * haven't registered itself.
  * Running: the client has registered itself and is ready.
  */
+
+typedef struct _capability_t {
+  struct _capability_t *next;
+  int capability;
+  int instances;
+  int instances_in_use;
+} capability_t;
+
 typedef struct {
-  
-  
-} process_info_t
+  MsgEventClient_t client;          // client id
+  int capabilities;                 // mask of all capabilities the client has
+  capability_t *used_capabilities;  // list of the capabilities in use
+  cap_state_t state;                // started, running
+  pid_t pid;                        // pid of client
+  char *exec_name;                  // file name of executable
+} process_info_t;
 
 
 typedef struct {
