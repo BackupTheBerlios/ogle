@@ -26,7 +26,12 @@
 #include "config.h"
 
 #include <stdio.h>
+
+#if defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
 
 #include "nav_types.h"
 #include "nav_print.h"

@@ -22,7 +22,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+
+#if defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
+
 #include <string.h>
 
 #include "bswap.h"

@@ -19,8 +19,12 @@
 #include "config.h"
 
 #include <stdio.h>
-#include <ctype.h>
+
+#if defined(HAVE_INTTYPES_H)
 #include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
 
 #include "cmd_print.h"
 

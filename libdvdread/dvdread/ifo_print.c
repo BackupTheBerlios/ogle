@@ -23,9 +23,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <inttypes.h>
 #include <string.h>
 #include <ctype.h>
+
+#if defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
+#include <stdint.h>
+#endif
 
 #include "ifo_types.h"
 #include "ifo_read.h"
