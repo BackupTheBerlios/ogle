@@ -1102,22 +1102,26 @@ static void display_adjust_size(yuv_image_t *current_image,
   } else if(view_area_mode == 1) {
     src_view_area = new_view_area;
   }
-
+	  
   if(src_view_area.x < 0) {
     src_view_area.x = 0;
+    new_view_area.x = src_view_area.x;
   }
   if(src_view_area.y < 0) {
     src_view_area.y = 0;
+    new_view_area.y = src_view_area.y;
   }
   if(src_view_area.x + src_view_area.width >
      current_image->info->picture.horizontal_size) {
     src_view_area.width =
       current_image->info->picture.horizontal_size - src_view_area.x;
+    new_view_area.width = src_view_area.width;
   }
   if(src_view_area.y + src_view_area.height >
      current_image->info->picture.vertical_size) {
     src_view_area.height =
       current_image->info->picture.vertical_size - src_view_area.y;
+    new_view_area.height = src_view_area.height;
   }
 
   /* Keep either the height or the width constant. */ 
@@ -1378,10 +1382,10 @@ void check_x_events(yuv_image_t *current_image)
 	
 	m_ev.type = MsgEventQInputButtonPress;
 	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
-	  src_view_area.width / window.video_area.width +
+	  (int)src_view_area.width / (int)window.video_area.width +
 	  src_view_area.x;
 	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
-	  src_view_area.height / window.video_area.height +
+	  (int)src_view_area.height / (int)window.video_area.height +
 	  src_view_area.y;
 	m_ev.input.x_root = ev.xbutton.x_root;
 	m_ev.input.y_root = ev.xbutton.y_root;
@@ -1429,10 +1433,10 @@ void check_x_events(yuv_image_t *current_image)
 	
 	m_ev.type = MsgEventQInputButtonRelease;
 	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
-	  src_view_area.width / window.video_area.width +
+	  (int)src_view_area.width / (int)window.video_area.width +
 	  src_view_area.x;
 	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
-	  src_view_area.height / window.video_area.height +
+	  (int)src_view_area.height / (int)window.video_area.height +
 	  src_view_area.y;
 	m_ev.input.x_root = ev.xbutton.x_root;
 	m_ev.input.y_root = ev.xbutton.y_root;
