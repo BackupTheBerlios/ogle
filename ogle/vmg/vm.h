@@ -107,5 +107,8 @@ void vm_get_total_time(dvd_time_t *current_time);
 void vm_get_current_time(dvd_time_t *current_time, pci_t *pci);
 void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN);
 
+unsigned int bcd2int(unsigned int bcd);
+unsigned int int2bcd(unsigned int number);
+
 #endif /* VM_HV_INCLUDED */
 
