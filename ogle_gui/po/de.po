@@ -51,6 +51,13 @@ msgid ""
 "Martin Norback\n"
 "Bjorn Augustsson"
 msgstr ""
+"Authors:\n"
+"\n"
+"Björn Englund\n"
+"Håkan Hjort\n"
+"Vilhelm Bergman\n"
+"Martin Norbäck\n"
+"Björn Augustsson"
 
 #: src/callbacks.c:230
 #, c-format
