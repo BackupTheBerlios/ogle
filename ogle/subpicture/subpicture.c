@@ -19,60 +19,113 @@
  *                                                     
  */
 
+#ifndef NDEBUG
+#ifndef DEBUG
+#define NDEBUG
+#endif
+#endif
+
 #include <inttypes.h>
+#include <assert.h>
 #include <stdio.h>
 #include <errno.h>
 #include <malloc.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#ifdef WIN32
-#define ssize_t int
-int read(int, void*, unsigned int);
-void exit(int);
-int open(char*,int,...);
-#else
 #include <string.h>
 #include <unistd.h>
-#endif
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
 
 int fd;
 int aligned;
-unsigned int fieldoffset[2];
-unsigned int field=0;
+uint16_t fieldoffset[2];
+uint16_t field=0;
 
 uint8_t color[4];
 uint8_t contrast[4];
 uint8_t* buffer;
 
-const uint8_t hex[]=".123";
-uint8_t transferbuffer[10240];
-
+uint16_t x_start;
+uint16_t x_end;
+uint16_t y_start;
+uint16_t y_end;
 unsigned int width = 0;
 unsigned int height = 0;
-
 unsigned int x;
 unsigned int y;
 
-int subtitles=0;
-int spu_size;
+uint16_t spu_size;
 
 /* Variables pertaining to the x window */
-XImage picture_data = NULL;
+XImage *picture_data = NULL;
 char *data;
+Display* display;
+Visual* visual;
+unsigned int depth = 8;
 
-unsigned int get_byte (void)
-{
-  unsigned char byte;
-  byte = buffer[fieldoffset[field]++];
-  return byte;
+#ifdef DEBUG
+#define DPRINTF(level, text...) \
+if(debug > level) \
+{ \
+    fprintf(stderr, ## text); \
+}
+#else
+#define DPRINTF(level, text...)
+#endif
+
+#ifdef DEBUG
+#define DPRINTBITS(level, bits, value) \
+{ \
+  int n; \
+  for(n = 0; n < bits; n++) { \
+    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+  } \
+}
+#else
+#define DPRINTBITS(level, bits, value)
+#endif
+
+#ifdef DEBUG
+#define GETBYTES(a,b) getbytes(a,b)
+#else
+#define GETBYTES(a,b) getbytes(a)
+#endif
+
+static uint8_t *byte_pos;
+
+static inline void set_byte (uint8_t *byte) {
+  byte_pos = byte;
 }
 
-unsigned int get_nibble (void)
+#ifdef DEBUG
+uint32_t getbytes(unsigned int num, char *func)
+#else
+static inline uint32_t getbytes(unsigned int num)
+#endif
 {
-  static int next;
+  uint32_t result = 0;
+
+  assert(num <= 4);
+
+  while(num > 0) {
+    result <<= 8;
+    result |= *byte_pos;
+    byte_pos++;
+    num--;
+  }
+  DPRINTF(5, "%s getbytes(%u): %i, 0x%0*x, ", 
+          func, num, result, num*2, result);
+  DPRINTBITS(6, num*8, result);
+  return result;
+}
+
+static inline uint8_t get_nibble (void)
+{
+  uint8_t next = 0;
   if (aligned) {
-    next = get_byte ();
+    next = GETBYTES(1, "get_nibble (aligned)");
     aligned = 0;
     return next >> 4;
   } else {
@@ -84,50 +137,49 @@ unsigned int get_nibble (void)
 
 /* Start of a new picture */
 void initialize() {
-  if (picture_data != null) {
+  if (picture_data != NULL) {
     XDestroyImage(picture_data);
   } 
-  char *data = malloc(width*height);
-  /* Create an XImage to draw in very 8-bitish*/
+  /* Create an XImage to draw in very 8-bitish */
+  uint8_t *data = malloc(width*height);
   picture_data = XCreateImage(display, visual, depth, XYPixmap, 0, data,
-      width, height, 8, 0);
+                              width, height, 8, 0);
 }
 
 void send_rle (unsigned int vlc) {
   unsigned int length;
   static unsigned int colorid;
 
-  if(vlc==0) {   // new line
+  if(vlc==0) { // new line
     if (y >= height)
       return;
-    send_rle( ( (width-x) << 2) | 0); //background...
-
+    /* Fill current line with background color */
+    length = width-x;
+    colorid = 0; 
   } else {  // data
+    /* last two bits are colorid, the rest are run length */
     length = vlc >> 2;
     colorid = vlc & 3;
+  }
+  while (length-- && (x < width)) {
+    data[y*width + x] = color[colorid];
+    x++;
+  }
 
-    while (length-- && (x < width)) {
-      data[y*width + x] = color[colorid];
-      x++;
-    }
-
-    if(x>=width) {
-      x=0;
-      y++;
-      field = 1-field;
-      if(!aligned)
-        get_nibble();
-    }
+  if(x>=width) {
+    x=0;
+    y++;
+    field = 1-field;
+    if(!aligned)
+      get_nibble();
   }
 }
 
 int main (int argc, char *argv[]) {
-  unsigned char dummy;
+  uint8_t dummy;
 
-  int DCSQT_offset;
-  int i;
-  int old_i;
-  ssize_t num;
+  uint8_t command;
+  uint16_t DCSQT_offset;
 
   if (argc != 2)
     {
@@ -141,24 +193,22 @@ int main (int argc, char *argv[]) {
     exit(1);
   }
 
-  buffer = (unsigned char *)malloc(65536 * sizeof(unsigned char));
+  buffer = malloc(65536);
 
   for(;;) {
-    debug_and_rewind(16,0);
-
     set_byte(buffer);
 
     spu_size = GETBYTES(2, "spu_size");
     DPRINTF(3, "SPU size: 0x%04x\n", spu_size);
 
     DCSQT_offset = GETBYTES(2, "DCSQT_offset");
-    DPRINTF(3, "    DCSQT offset: 0x%04x\n", DCSQT_offset);
+    DPRINTF(3, "DCSQT offset: 0x%04x\n", DCSQT_offset);
 
     DPRINTF(3, "Display Control Sequence Table:\n");
 
     /* parse the DCSQT */
     set_byte(buffer+DCSQT_offset);
-    while (i < spu_size)
+    while (1)
       {
 	/* DCSQ */
 	int start_time;
@@ -184,10 +234,10 @@ int main (int argc, char *argv[]) {
               DPRINTF(3, "\t\t\t\tMenu...\n");
               break;
 	    case 0x01: /* display start */
-	      DPRINTF(3, "\t\t\t\tdisplay start");
+	      DPRINTF(3, "\t\t\t\tdisplay start\n");
 	      break;
 	    case 0x02: /* display stop */
-	      DPRINTF(3, "\t\t\t\tdisplay stop");
+	      DPRINTF(3, "\t\t\t\tdisplay stop\n");
 	      break;
 	    case 0x03: /* set colors */
 	      DPRINTF(3, "\t\t\t\tset colors");
@@ -196,6 +246,9 @@ int main (int argc, char *argv[]) {
 	      color[1] = (dummy>>4) & 0xf;
 	      color[2] = (dummy>>8) & 0xf;
 	      color[3] = (dummy>>12);
+              DPRINTF(4, "0x%x 0x%x 0x%x 0x%x",
+                      color[0], color[1], color[2], color[3]);
+              DPRINTF(3, "\n");
 	      break;
 	    case 0x04: /* set contrast */
 	      DPRINTF(3, "\t\t\t\tset contrast");
@@ -204,9 +257,12 @@ int main (int argc, char *argv[]) {
 	      contrast[1] = (dummy>>4) & 0xf;
 	      contrast[2] = (dummy>>8) & 0xf;
 	      contrast[3] = (dummy>>12);
+              DPRINTF(4, "0x%x 0x%x 0x%x 0x%x",
+                      contrast[0], contrast[1], contrast[2], contrast[3]);
+              DPRINTF(3, "\n");
 	      break;
 	    case 0x05: /* set sp screen position */
-	      fprintf(stderr, "\t\t\t\tset sp screen position");
+	      DPRINTF(3, "\t\t\t\tset sp screen position\n");
               dummy = GETBYTES(3, "x coordinates");
               x_start = dummy>>12;
               x_end   = dummy & 0xfff;
@@ -215,11 +271,16 @@ int main (int argc, char *argv[]) {
               y_end   = dummy & 0xfff;
               width  = x_end - x_start + 1;
               height = y_end - y_start + 1;
+              DPRINTF(4, "\t\t\t\t\tx_start=%i x_end=%i, y_start=%i, y_end=%i "
+                         "width=%i height=%i\n",
+                      x_start, x_end, y_start, y_end, width, height);
               break;
 	    case 0x06: /* set start address in PXD */
-              fprintf(stderr, "\t\t\t\tset start address in PXD");
+              DPRINTF(3, "\t\t\t\tset start address in PXD\n");
               fieldoffset[0] = GETBYTES(2, "field 0 start");
               fieldoffset[1] = GETBYTES(2, "field 1 start");
+              DPRINTF(4, "\t\t\t\t\tfield_0=%i field_1=%i\n",
+                  fieldoffset[0], fieldoffset[1]);
               break;
 	    default:
               fprintf(stderr,
@@ -229,21 +290,18 @@ int main (int argc, char *argv[]) {
 	      break;
 	    }
 	}
-	fprintf(stderr, "\t\tEnd of Command Sequence\n");
+	DPRINTF(3, "\t\tEnd of Command Sequence\n");
 	
 	if(last_DCSQ) {
-	  fprintf(stderr, "End of Display Control Sequence Table\n");
-	  if(spu_size-i != 0) {
-	    fprintf(stderr, "Skipping %d bytes to end of SPU\n",
-		    spu_size-i);
-	    memory_and_rewind(i, 32, 16);
-	  }
-	  i+=spu_size-i;
+	  DPRINTF(3, "End of Display Control Sequence Table\n");
+          break; // out of while loop
 	}
       }
 
     field=0;
     aligned = 1;
+    set_byte(buffer+4);
+
     fprintf(stderr, "\nReading picture data\n");
 	 
     initialize();
@@ -265,7 +323,6 @@ int main (int argc, char *argv[]) {
     }
     while (y < height )  // fill
       send_rle(0);
-    printf ("\"\n}\n");
   }
 
   free(buffer);
