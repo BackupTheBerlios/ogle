@@ -71,6 +71,17 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
     tmp[5] = tmp[4];
     tmp[4] = tmp[3];
     tmp[3] = swap;
+    
+    /* Then there are the two B2N_24(..) calls */
+#ifndef WORDS_BIGENDIAN
+    swap = tmp[0];
+    tmp[0] = tmp[2];
+    tmp[2] = swap;
+    
+    swap = tmp[4];
+    tmp[4] = tmp[6];
+    tmp[6] = swap;
+#endif
     memcpy(&(pci->hli.btnit[i]), tmp, sizeof(pci->hli.btnit[i]));
   }
 
