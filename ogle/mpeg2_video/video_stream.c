@@ -169,10 +169,10 @@ void sequence_header(void);
 void sequence_extension(void);
 void sequence_display_extension(void);
 void extension_and_user_data(unsigned int i);
-void picture_coding_extension(void);
+int  picture_coding_extension(void);
 void user_data(void);
 void group_of_pictures_header(void);
-void picture_header(void);
+int  picture_header(void);
 void picture_data(void);
 int  mpeg1_slice(void);
 void mpeg2_slice(void);
@@ -483,9 +483,15 @@ void video_sequence(void) {
 	  group_of_pictures_header();
 	  extension_and_user_data(1);
 	}
-	picture_header();
+	if(picture_header() == -1) {
+	  next_start_code();
+	  continue;  // Error, we need our picture header.
+	}
 	DINDENT(1);
-	picture_coding_extension();
+	if(picture_coding_extension() == -1) {
+	  next_start_code();
+	  continue;  // Error, we need the coding extension data (or ?) 
+	}
 	
 	extension_and_user_data(2);
 	
@@ -539,7 +545,10 @@ void video_sequence(void) {
 	group_of_pictures_header();
 	extension_and_user_data(1);
       }
-      picture_header();
+      if(picture_header() == -1) {
+	next_start_code();
+	continue;  // Error, we need out picture header
+      }
       extension_and_user_data(1);
       picture_data();
     } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE ||
@@ -1243,7 +1252,7 @@ void extension_and_user_data(const unsigned int i) {
 
 
 /* 6.2.3.1 Picture coding extension */
-void picture_coding_extension(void)
+int picture_coding_extension(void)
 {
   uint32_t extension_start_code;
   unsigned int m,n;
@@ -1251,6 +1260,12 @@ void picture_coding_extension(void)
   DPRINTFI(1, "picture_coding_extension()\n");
   DINDENT(2);
   extension_start_code = GETBITS(32, "extension_start_code");
+  if(extension_start_code != MPEG2_VS_EXTENSION_START_CODE) {
+    fprintf(stderr, "wrong start_code extension_start_code: %08x\n",
+	    extension_start_code);
+    DINDENT(-2);
+    return -1;
+  }
   pic.coding_ext.extension_start_code_identifier 
     = GETBITS(4, "extension_start_code_identifier");
 
@@ -1359,6 +1374,7 @@ void picture_coding_extension(void)
   }
   DINDENT(-2);
   next_start_code();
+  return 0;
 }
 
 
@@ -1370,6 +1386,7 @@ void user_data(void)
   DPRINTFI(1, "user_data()\n");
   DINDENT(2);
   user_data_start_code = GETBITS(32, "user_data_start_code");
+  /* It's safe, all callers have already tested for the correct start code */
   while(nextbits(24) != 0x000001) {
     GETBITS(8, "user_data");
   }
@@ -1419,7 +1436,7 @@ void group_of_pictures_header(void)
 
 
 /* 6.2.3 Picture header */
-void picture_header(void)
+int picture_header(void)
 {
   uint32_t picture_start_code;
 
@@ -1432,6 +1449,8 @@ void picture_header(void)
   if(picture_start_code != MPEG2_VS_PICTURE_START_CODE) {
     fprintf(stderr, "wrong start_code picture_start_code: %08x\n",
 	    picture_start_code);
+    DINDENT(-2);
+    return -1;
   }
   
   /*
@@ -1555,6 +1574,7 @@ void picture_header(void)
   
   DINDENT(-2);
   next_start_code();
+  return 0;
 }
 
 
