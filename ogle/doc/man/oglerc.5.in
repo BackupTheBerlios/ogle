@@ -88,7 +88,8 @@ DVD-ROM drive.
   </audio>
 
 <driver>
-  The audio driver to use, it can be one of 'oss', 'alsa', 'solaris', 'obsd'.
+  The audio driver to use, it can be one of 'oss', 'alsa', 'solaris', 'obsd' or 'null'.
+  If you choose 'null' no audio will be output. This can be useful if you don't have a soundcard.
 
 <path>
   The path to your audio device.
