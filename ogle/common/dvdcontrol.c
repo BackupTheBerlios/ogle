@@ -17,10 +17,10 @@
 /**
  * Internally seen type for the handle to a DVD navigator
  */
-typedef struct {
+struct DVDNav_s {
   MsgEventClient_t client;
   MsgEventQ_t *msgq;
-} DVDNav_t;
+};
 
 
 /**
