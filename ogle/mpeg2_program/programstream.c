@@ -69,9 +69,11 @@ if(debug > level) \
 
 #ifdef STATS
     static uint32_t stat_video_unaligned_packet_offset = 0;
-    static uint32_t stat_video_unaligned_packet_end = 0;
-    static uint32_t stat_video_n_packets = 0;
-    static uint32_t stat_n_packets = 0;
+    static uint32_t stat_video_unaligned_packet_end    = 0;
+    static uint32_t stat_video_n_packets               = 0;
+    static uint32_t stat_audio_n_packets               = 0;
+    static uint32_t stat_subpicture_n_packets          = 0;
+    static uint32_t stat_n_packets                     = 0;
 #endif //STATS
 
 void usage()
@@ -342,8 +344,6 @@ void push_stream_data(uint8_t stream_id, int len)
     struct off_len_packet body;
   } ol_pack = {PACK_TYPE_OFF_LEN};
 
-  //  ol_pack.type   = PACK_TYPE_OFF_LEN;
-
   ol_pack.body.offset = offs - (bits_left/8);
   ol_pack.body.length = len;
 
@@ -373,6 +373,11 @@ void push_stream_data(uint8_t stream_id, int len)
       DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
       if(*data == 0x80) {
 	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+
+#ifdef STATS
+	stat_audio_n_packets++;
+#endif //STATS
+	
       }
     }
     if(subtitle) {
@@ -384,6 +389,11 @@ void push_stream_data(uint8_t stream_id, int len)
             if(*data == subtitle_id ){ 
       	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
 	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+	
+#ifdef STATS
+	stat_subpicture_n_packets++;
+#endif //STATS
+
       }
     }
   } else {
@@ -730,17 +740,23 @@ void segvhandler (void)
   } else {
     fprintf(stderr, "Segmentation fault. Idiot.\n");
   }
+
 #ifdef STATS
   printf("\n----------------------------------------------\n");
   printf("Unaligned video packets:\t\t%u\n", 
 	 stat_video_unaligned_packet_offset);
-  printf("Video packets with unaligned ends\t%u\n",
+  printf("Video packets with unaligned ends:\t%u\n",
 	 stat_video_unaligned_packet_end);
   printf("Total video packets:\t\t\t%u\n", 
 	 stat_video_n_packets);
+  printf("Total audio packets:\t\t\t%u\n", 
+	 stat_audio_n_packets);
+  printf("Total subpicture packets:\t\t%u\n", 
+	 stat_subpicture_n_packets);
   printf("Total packets:\t\t\t\t%u\n",
 	 stat_n_packets);
 #endif //STATS
+
   exit(0);
 }
 
