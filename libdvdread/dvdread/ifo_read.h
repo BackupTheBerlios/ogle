@@ -111,7 +111,7 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *);
  * Reads in the first play program chain data, filling the
  * ifofile->first_play_pgc structure.  This data is only located in the video
  * manager information file.  This structure is mandatory, and must be included
- * in the VMGI file.
+ * in the VMGI file. **Possibly this is only optional.**
  */
 int ifoRead_FP_PGC(ifo_handle_t *);
 

@@ -317,6 +317,7 @@ static int ifoRead_VMG(ifo_handle_t *ifofile) {
   assert(vmgi_mat->vmgi_last_byte >= 341);
   assert(vmgi_mat->vmgi_last_byte / DVD_BLOCK_LEN <= 
          vmgi_mat->vmgi_last_sector);
+  /* It seems that first_play_pgc might be optional. */
   assert(vmgi_mat->first_play_pgc != 0 && 
          vmgi_mat->first_play_pgc < vmgi_mat->vmgi_last_byte);
   assert(vmgi_mat->vmgm_vobs == 0 || 
@@ -455,8 +456,8 @@ static int ifoRead_PGC_COMMAND_TBL(ifo_handle_t *ifofile,
   B2N_16(cmd_tbl->nr_of_post);
   B2N_16(cmd_tbl->nr_of_cell);
 
-  assert(cmd_tbl->nr_of_pre + cmd_tbl->nr_of_post + cmd_tbl->nr_of_cell<= 128);
-
+  assert(cmd_tbl->nr_of_pre + cmd_tbl->nr_of_post + cmd_tbl->nr_of_cell<= 255);
+     
   if(cmd_tbl->nr_of_pre != 0) {
     unsigned int pre_cmds_size  = cmd_tbl->nr_of_pre * COMMAND_DATA_SIZE;
     cmd_tbl->pre_cmds = (vm_cmd_t *)malloc(pre_cmds_size);
@@ -712,9 +713,12 @@ int ifoRead_FP_PGC(ifo_handle_t *ifofile) {
 
   if(!ifofile->vmgi_mat)
     return 0;
- 
-  if(ifofile->vmgi_mat->first_play_pgc == 0) /* mandatory */
-    return 0;
+  
+  /* It seems that first_play_pgc might be optional after all. */
+  if(ifofile->vmgi_mat->first_play_pgc == 0) { /* mandatory */
+    ifofile->first_play_pgc = 0;
+    return 0; /* change this to a 1 if it's optional. */
+  }
   
   ifofile->first_play_pgc = (pgc_t *)malloc(sizeof(pgc_t));
   if(!ifofile->first_play_pgc)
@@ -1154,7 +1158,7 @@ static int ifoRead_C_ADT_internal(ifo_handle_t *ifofile,
   
   /* assert(info_length / sizeof(cell_adr_t) >= c_adt->nr_of_vobs);
      Enemy of the State region 2 (de) has Titles where nr_of_vobs field
-     is to high, they high ones are never referenced though.
+     is to high, they high ones are never referenced though. */
   if(info_length / sizeof(cell_adr_t) < c_adt->nr_of_vobs) {
     fprintf(stderr, "libdvdread: *C_ADT nr_of_vobs > avaiable info entries\n");
     c_adt->nr_of_vobs = info_length / sizeof(cell_adr_t);
