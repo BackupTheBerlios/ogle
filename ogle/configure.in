@@ -44,13 +44,14 @@ AC_ARG_ENABLE(xv,
 if test x$use_xv = xyes; then
   saved_CPPFLAGS=$CPPFLAGS
   CPPFLAGS="$CPPFLAGS $X_CFLAGS"
-  AC_CHECK_HEADER(X11/extensions/Xv.h, 
-		  AC_DEFINE([HAVE_XV], 1, [X11 supports Xv]))
+  AC_CHECK_HEADER(X11/extensions/Xv.h, xv_header=yes, xv_header=no)
   CPPFLAGS=$saved_CPPFLAGS
   AC_CHECK_LIB(Xv, XvQueryExtension, 
-	       XEXT_LIB="$XEXT_LIB -lXv", 
+	       [ AC_DEFINE([HAVE_XV], 1, [X11 supports Xv])
+		 XEXT_LIB="$XEXT_LIB -lXv"
+	        ], 
 	       AC_MSG_WARN(You won't bw able to use Xv), 
-	       $X_LIBS -lXext $X_EXTRA_LIBS)
+	       $X_LIBS -lX11 -lXext $X_EXTRA_LIBS)
 fi
 AC_SUBST(XEXT_LIB)
 
@@ -161,7 +162,7 @@ AC_ARG_WITH(mlib,
     mlib_path=$with_libmlib
   fi)
 if test x$mlib_path != xno; then
-  AC_CHECK_LIB(mlib, main, 
+  AC_CHECK_LIB(mlib, mlib_VideoDCT8x8_S16_S16, 
 	       [ MLIB_LIBS="-L$mlib_path/lib -rpath $mlib_path/lib -lmlib"
                  MLIB_CFLAGS=-I$mlib_path/include
                  have_mlib=yes
