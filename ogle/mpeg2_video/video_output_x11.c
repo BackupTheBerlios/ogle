@@ -63,7 +63,6 @@ static unsigned int xv_num_formats;
 static XvAdaptorInfo *xv_adaptor_info;
 static XvImageFormatValues *xv_formats;
 static int xv_id;
-
 #endif /* HAVE_XV */
 
 typedef struct {
@@ -616,7 +615,7 @@ void display(yuv_image_t *current_image)
 	    scalemode_change = 0;	  
 	  }
 	  else { /* Scale size */
-#ifdef HAVE_MLIB
+#if defined(HAVE_MLIB) || defined(HAVE_XV)
 	    int x = atoi(&buff[0]);
 	    display_change_size(windows[0].image->horizontal_size * x, 
 				windows[0].image->vertical_size * x);
