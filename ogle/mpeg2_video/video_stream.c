@@ -56,8 +56,8 @@
 #endif
 #include <glib.h>
 
-#include "../include/common.h"
-#include "../include/timemath.h"
+#include "common.h"
+#include "timemath.h"
 #include "c_getbits.h"
 
 #ifndef SHM_SHARE_MMU

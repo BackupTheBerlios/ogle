@@ -15,6 +15,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+top_srcdir = @top_srcdir@
+top_builddir = ..
 CC=@CC@
 DFLAGS=@CFLAGS@ @DEFS@
 LDFLAGS=@LIBS@
@@ -22,7 +24,7 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 all: vmg_dump ifo_dump dump vm vmg
 
-vmg: ../common/timemath.o
+vmg: $(top_builddir)/common/timemath.o
 dump: print_ifo_vm.o vobdump.o vmcmd.o decoder.o
 ifo_dump: ifo_dump.o ifo_read.o ifo_print.o vmcmd.o
 vm: vm.o ifo_read.o ifo_print.o decoder.o nav_read.o nav_print.o nav.o vmcmd.o 

@@ -15,9 +15,18 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+top_srcdir = @top_srcdir@
+top_builddir = ..
 CC=@CC@
-CFLAGS= -g -Wall -O6 -mcpu=ultrasparc -mvis 
-LDFLAGS= -lX11 -lXext -lsocket -lnsl
-all:	subpicture
+DFLAGS=@CFLAGS@ @DEFS@
+LDFLAGS=@LIBS@
+CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
+
+all:	spu_wrap
+
+spu_wrap: $(top_builddir)/common/timemath.o
+
+subpicture:
+
 clean:
 	rm -f subpicture *.o

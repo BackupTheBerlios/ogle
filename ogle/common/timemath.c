@@ -3,7 +3,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 
-#include "../include/timemath.h"
+#include "timemath.h"
 
 
 #ifndef HAVE_CLOCK_GETTIME

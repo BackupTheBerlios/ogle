@@ -22,7 +22,7 @@
 #include "c_mlib.h"
 #endif
 
-#include "../include/common.h"
+#include "common.h"
 
 extern yuv_image_t *dst_image;
 extern yuv_image_t *fwd_ref_image;

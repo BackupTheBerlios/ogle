@@ -1,7 +1,10 @@
+#ifndef COMMON_H
+#define COMMON_H
+
 #include <inttypes.h>
 #include <semaphore.h>
 
-#include "../include/timemath.h"
+#include "timemath.h"
 
 /* "There's len bytes of data for you in your file at this offset." */
 struct off_len_packet {
@@ -88,3 +91,4 @@ typedef struct {
   playmode_t mode;
 } ctrl_data_t;
 
+#endif /* COMMON_H */

@@ -19,10 +19,10 @@
 #include <semaphore.h>
 #endif
 
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
-#include "../include/timemath.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
+#include "timemath.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -876,6 +876,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     /* mix spu and picture data */
     {
       int n;
+      
+      /* if total transparency do nothing */
       if(contrast != 0) {
 	uint32_t r,g,b;
 	r = color&0xff;
@@ -887,6 +889,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
 	
 	for(n = 0; n < length; n++,pixel++) {
 	  
+	  /* if no transparancy just overwrite */
 	  if(contrast == (0xf<<4)) {
 	    *pixel = color;
 	  } else {
@@ -901,30 +904,11 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
 	    
 	    *pixel = pb<<16 | pg<<8 | pr;
 	  }
-	  /*
-	    if(contrast != 0 && contrast) {
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
-	    pixel_data;
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
-	    pixel_data;
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
-	    pixel_data;
-	    } else {
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
-	    255;
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
-	    255;
-	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
-	    0;	  
-	    }
-	  */
 	}
+
       }
     }
-    /*
-      shm_buffer[shm_buf_pos++] = pixel_data;
-      shm_buffer[shm_buf_pos++] = length;
-    */
+
     x = x+length;
     
     if(x >= spu_info->width) {

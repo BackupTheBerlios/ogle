@@ -10,7 +10,7 @@
 #include <sys/stat.h>
 #include <sys/shm.h>
 
-#include "../include/common.h"
+#include "common.h"
 
 #include "ifo.h"
 #include "ifo_read.h"

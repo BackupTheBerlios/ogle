@@ -53,7 +53,7 @@
 #include "c_mlib.h"
 #endif
 
-#include "../include/common.h"
+#include "common.h"
 
 #include "c_getbits.h"
 #include "video_tables.h"

@@ -15,6 +15,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
+top_builddir = ..
+top_srcdir = @top_srcdir@
 CC=@CC@
 ifneq (@MLIB_LIBS@,)
 MLIB_OBJS=yuv2rgb_mlib.o
@@ -32,7 +34,7 @@ DFLAGS=@CFLAGS@ @DEFS@ @X_CFLAGS@ @MLIB_CFLAGS@ @GLIB_CFLAGS@
 LDFLAGS=@LIBS@ -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
-OBJS=video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o spu_mixer.o ../common/timemath.o $(MLIB_OBJS) $(MMX_OBJS) $(OTHER_OBJS)
+OBJS=video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o spu_mixer.o $(top_builddir)/common/timemath.o $(MLIB_OBJS) $(MMX_OBJS) $(OTHER_OBJS)
 
 video_stream: $(OBJS)
 

@@ -43,7 +43,7 @@
 
 #include <glib.h>
 
-#include "../include/common.h"
+#include "common.h"
 #include "video_types.h"
 #include "yuv2rgb.h"
 #include "screenshot.h"

@@ -12,9 +12,9 @@
 #include <sys/msg.h>
 #include <string.h>
 
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
 
 
 int wait_for_msg(cmdtype_t cmdtype);

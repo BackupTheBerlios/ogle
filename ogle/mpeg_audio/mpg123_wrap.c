@@ -19,11 +19,11 @@
 #include <sys/sem.h>
 #endif
 
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
-#include "../include/timemath.h"
-
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
+#include "timemath.h"
+#include "sync.h"
 
 int wait_for_msg(cmdtype_t cmdtype);
 int eval_msg(cmd_t *cmd);
@@ -31,8 +31,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
 
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr);
 void print_time_base_offset(uint64_t PTS, int scr_nr);
 
 
@@ -284,11 +282,11 @@ int get_q()
   
   if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
     if(PTS_DTS_flags && 0x2) {
-      set_time_base(PTS, scr_nr, time_offset);
+      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
   if(PTS_DTS_flags && 0x2) {
-    time_offset = get_time_base_offset(PTS, scr_nr);
+    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
   }
   prev_scr_nr = scr_nr;
   
@@ -300,7 +298,7 @@ int get_q()
     TIME_S(time_offset) = 0;
     TIME_SS(time_offset) = 0;
  
-    set_time_base(PTS, scr_nr, time_offset);
+    set_time_base(PTS, ctrl_time, scr_nr, time_offset);
   }
 
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
@@ -332,47 +330,6 @@ int get_q()
 
   return 0;
 }
-
-
-
-int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
-{
-  clocktime_t curtime, ptstime, modtime;
-  
-  PTS_TO_CLOCKTIME(ptstime, PTS)
-
-  clocktime_get(&curtime);
-  timeadd(&modtime, &curtime, &offset);
-  timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
-  ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
-  
-  fprintf(stderr, "mpeg audio: setting offset[%d]: %ld.%09ld\n",
-	  scr_nr,
-	  TIME_S(ctrl_time[scr_nr].realtime_offset),
-	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
-  
-  return 0;
-}
-
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  clocktime_t curtime, ptstime, predtime, offset;
-
-  PTS_TO_CLOCKTIME(ptstime, PTS);
-
-  clocktime_get(&curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-  
-  /*
-  fprintf(stderr, "\nmpeg audio: get offset: %ld.%09ld\n", 
-	  TIME_S(offset), 
-	  TIME_SS(offset));
-  */
-  return offset;
-}
-
 
 
 int attach_ctrl_shm(int shmid)

@@ -22,8 +22,8 @@
 #include <glib.h>
 #include <signal.h>
 
-#include "../include/common.h"
-#include "../include/timemath.h"
+#include "common.h"
+#include "timemath.h"
 #include "video_types.h"
 
 #include <time.h>

@@ -39,9 +39,10 @@
 
 
 #include "programstream.h"
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
+#include "mpeg.h"
 
 
 

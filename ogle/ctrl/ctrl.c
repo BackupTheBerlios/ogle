@@ -28,10 +28,10 @@
 #endif
 #endif
 
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
-#include "../mpeg2_program/programstream.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
+#include "mpeg.h"
 
 
 #ifndef SHM_SHARE_MMU

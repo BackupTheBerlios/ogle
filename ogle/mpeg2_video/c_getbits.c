@@ -37,10 +37,10 @@
 
 
 #include "c_getbits.h"
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
-#include "../include/timemath.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
+#include "timemath.h"
 
 
 #ifndef SHM_SHARE_MMU
@@ -73,7 +73,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int attach_ctrl_shm(int shmid);
 
 int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr);
 
 
 
@@ -614,7 +613,7 @@ int get_q()
     }
   }
   if(PTS_DTS_flags & 0x2) {
-    time_offset = get_time_base_offset(PTS, scr_nr);
+    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
   }
   prev_scr_nr = scr_nr;
 #endif
@@ -677,24 +676,6 @@ int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
   return 0;
 }
 
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  clocktime_t curtime, ptstime, predtime, offset;
-
-  PTS_TO_CLOCKTIME(ptstime, PTS);
-
-  clocktime_get(&curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-  
-  /*
-  fprintf(stderr, "\nvideo_stream: get offset: %ld.%09ld\n", 
-	  TIME_S(offset), 
-	  TIME_SS(offset));
-  */
-  return offset;
-}
 
 void print_time_offset(uint64_t PTS)
 {

@@ -19,9 +19,9 @@
 #define SHM_SHARE_MMU 0
 #endif
 
-#include "../include/common.h"
-#include "../include/msgtypes.h"
-#include "../include/queue.h"
+#include "common.h"
+#include "msgtypes.h"
+#include "queue.h"
 
 
 int wait_for_msg(cmdtype_t cmdtype);
@@ -32,7 +32,6 @@ int attach_ctrl_shm(int shmid);
 
 void print_time_base_offset(uint64_t PTS, int scr_nr);
 int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset);
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr);
 
 
 char *program_name;
@@ -312,7 +311,7 @@ int get_q()
     }
   }
   if(PTS_DTS_flags && 0x2) {
-    time_offset = get_time_base_offset(PTS, scr_nr);
+    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
   }
   prev_scr_nr = scr_nr;
   */
@@ -380,25 +379,6 @@ int set_time_base(uint64_t PTS, int scr_nr, clocktime_t offset)
 	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
   
   return 0;
-}
-
-clocktime_t get_time_base_offset(uint64_t PTS, int scr_nr)
-{
-  clocktime_t curtime, ptstime, predtime, offset;
-
-  PTS_TO_CLOCKTIME(ptstime, PTS);
-
-  clocktime_get(&curtime);
-  timeadd(&predtime, &(ctrl_time[scr_nr].realtime_offset), &ptstime);
-
-  timesub(&offset, &predtime, &curtime);
-  
-  /*
-  fprintf(stderr, "\nvmg: get offset: %ld.%09ld\n", 
-	  TIME_S(offset), 
-	  TIME_SS(offset));
-  */
-  return offset;
 }
 
 
