@@ -16,5 +16,5 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
 man_MANS = ogle.1 oglerc.5
-EXTRA_DIST = $(man_MANS)
+
 
