@@ -259,7 +259,7 @@ static int parse_oglerc(char *filename, cfg_video_t *video)
 
 int get_video_config(cfg_video_t **video)
 {
-  int r = 0;
+  int config_read = 0;
   char *home;
 
   *video = malloc(sizeof(cfg_video_t));
@@ -268,9 +268,7 @@ int get_video_config(cfg_video_t **video)
   memset(*video, 0, sizeof(cfg_video_t));
   
   if(parse_oglerc(CONFIG_FILE, *video) != -1) {
-    r |= 1;
-  } else {
-    ERROR("get_video_config(): Couldn't read "CONFIG_FILE"\n");
+    config_read |= 1;
   }
   
   home = getenv("HOME");
@@ -286,15 +284,22 @@ int get_video_config(cfg_video_t **video)
     strcat(rcpath, rcfile);
     
     if(parse_oglerc(rcpath, *video) != -1) {
-      r |= 2;
-    } else {
-      NOTE("get_video_config(): Couldn't read '%s'\n", rcpath);
+      config_read |= 2;
+    }
+    
+    if(!config_read) {
+      ERROR("get_video_config(): Couldn't read '%s'\n", rcpath);
     }
     
     free(rcpath);
   }
-     
-  return r;
+  
+  if(!config_read) {
+    ERROR("get_video_config(): Couldn't read "CONFIG_FILE"\n");
+    return -1;
+  }
+
+  return 0;
 }
 
 

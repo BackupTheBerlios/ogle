@@ -515,7 +515,7 @@ void init_config(Display *dpy)
 
 
   
-  if(get_video_config(&cfg_video) == 0) {
+  if(get_video_config(&cfg_video) == -1) {
     ERROR("init_config(): Couldn't read any config files\n");
   }
   

@@ -164,12 +164,12 @@ int interpret_oglerc(char *filename)
 
 int interpret_config(void)
 {
-  int r = 0;
+  int config_read = 0;
   char *home;
 
 
-  if((r+= interpret_oglerc(CONFIG_FILE)) == -1) {
-    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n");
+  if(interpret_oglerc(CONFIG_FILE) != -1) {
+    config_read |= 1;
   }
 
   home = getenv("HOME");
@@ -184,16 +184,22 @@ int interpret_config(void)
     strcat(rcpath, "/");
     strcat(rcpath, rcfile);
     
-    if((r+= interpret_oglerc(rcpath)) == -1) {
-      WARNING("interpret_config(): Couldn't read '%s'\n", rcpath);
+    if(interpret_oglerc(rcpath) != -1) {
+      config_read |= 2;
     }
     
+    if(!config_read) {
+      ERROR("interpret_config(): Couldn't read '%s'\n", rcpath);
+    }
     free(rcpath);
   }
-  
+
+  if(!config_read) {
+    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n");
+    return -1;
+  }
     
-  
-  return r;
+  return 0;
 }
 
 
