@@ -32,7 +32,6 @@
 #include "xsniffer.h"
 
 extern DVDNav_t *nav;
-static Display *display;
 
 
 void xsniff_init() {

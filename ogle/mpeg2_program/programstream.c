@@ -1508,18 +1508,7 @@ void MPEG2_program_stream()
 
 void segvhandler (int id)
 {
-  // If we got here we ran off the end of a mmapped file.
-  // Or it's some other bug. Remove the sigaction call in 
-  // main if you suspect this.
-  if (offs > infilelen) {
-    DPRINTF(1, "Reached end of mmapped file.\n");
-    // TODO
-    //
-    // loadinputfile( next_file );
-    // goto while(1)-loop in main.;
-  } else {
-    fprintf(stderr, "Segmentation fault. Idiot.\n");
-  }
+  fprintf(stderr, "programstream: Segmentation fault\n");
 
 #ifdef STATS
   printf("\n----------------------------------------------\n");

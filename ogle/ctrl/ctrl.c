@@ -665,7 +665,6 @@ int main(int argc, char *argv[])
   int c;
   MsgEventQ_t q;
   MsgEvent_t ev;
-  MsgEventClient_t rcpt;
 
   memset(&sig, 0, sizeof(struct sigaction));
   sig.sa_handler = int_handler;
@@ -888,7 +887,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     add_to_pidlist(pid);
   }
   
-  fprintf(stderr, "Started %s with pid %d\n", decoderstr, pid);
+  fprintf(stderr, "Started %s with pid %ld\n", decoderstr, (long)pid);
   //  starting_decoder = 0;
   return pid;
 
@@ -1267,7 +1266,7 @@ void int_handler(int sig)
   for(n = 0; n < num_pids; n++) {
     if((pid = pidlist[n]) != -1) {
       child_killed = 1;
-      fprintf(stderr, "killing child: %d\n", pid);
+      fprintf(stderr, "killing child: %ld\n", (long)pid);
       kill(pid, SIGINT);
     }
     if(!child_killed) {
@@ -1278,18 +1277,22 @@ void int_handler(int sig)
 }
 
 
-// freebsd compatibility
-// where are these defined on freebsd?
+/* FreeBSD compatibility
+   where are these defined on freebsd if at all? */
 #ifndef CLD_EXITED
-// from /usr/include/sys/siginfo.h on solaris
+/* from /usr/include/sys/siginfo.h on solaris */
 #define CLD_EXITED      1       /* child has exited */
 #define CLD_KILLED      2       /* child was killed */
 #define CLD_DUMPED      3       /* child has coredumped */
 #define CLD_TRAPPED     4       /* traced child has stopped */
 #define CLD_STOPPED     5       /* child has stopped on signal */
 #define CLD_CONTINUED   6       /* stopped child has continued */
-
 #endif
+#ifndef WCONTINUED 
+#define WCONTINUED 0
+#define WIFCONTINUED(x) 0
+#endif
+
 
 void sigchld_handler(int sig, siginfo_t *info, void* context)
 {
@@ -1306,30 +1309,30 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   }
   fprintf(stderr, "si_code: %d\n", info->si_code);
 
-  fprintf(stderr, "si_pid: %d\n", info->si_pid);
+  fprintf(stderr, "si_pid: %ld\n", (long)info->si_pid);
   
   switch(info->si_code) {
   case CLD_STOPPED:
-    fprintf(stderr, "ctrl: child: %d stopped\n", info->si_pid);
+    fprintf(stderr, "ctrl: child: %ld stopped\n", (long)info->si_pid);
     break;
   case CLD_CONTINUED:
-    fprintf(stderr, "ctrl: child: %d continued\n", info->si_pid);
+    fprintf(stderr, "ctrl: child: %ld continued\n", (long)info->si_pid);
     break;
   case CLD_KILLED:
-    fprintf(stderr, "ctrl: child: %d killed\n", info->si_pid);
+    fprintf(stderr, "ctrl: child: %ld killed\n", (long)info->si_pid);
     died = 1;
     break;
   case CLD_DUMPED:
-    fprintf(stderr, "ctrl: child: %d dumped\n", info->si_pid);
+    fprintf(stderr, "ctrl: child: %ld dumped\n", (long)info->si_pid);
     died = 1;
     break;
   case CLD_TRAPPED:
-    fprintf(stderr, "ctrl: child: %d trapped\n", info->si_pid);
+    fprintf(stderr, "ctrl: child: %ld trapped\n", (long)info->si_pid);
     died = 1;
     break;
   case CLD_EXITED:
-    fprintf(stderr, "ctrl: child: %d exited with %d\n",
-	    info->si_pid, info->si_status);
+    fprintf(stderr, "ctrl: child: %ld exited with %d\n",
+	    (long)info->si_pid, info->si_status);
     died = 1;
     break;
 #ifdef SI_NOINFO  //solaris only
@@ -1342,11 +1345,6 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 	    info->si_code);
     break;
   }
-
-#ifndef WCONTINUED 
-#define WCONTINUED 0
-#define WIFCONTINUED(x) 0
-#endif
 
   while(1) {
     if((pid =waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
@@ -1364,22 +1362,19 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   
   if(WIFEXITED(stat_loc)) {
     died = 1;
-    fprintf(stderr, "pid: %d exited with status: %d\n",
-	    pid,
-	    WEXITSTATUS(stat_loc));
+    fprintf(stderr, "pid: %ld exited with status: %d\n",
+	    (long)pid, WEXITSTATUS(stat_loc));
   } else if(WIFSIGNALED(stat_loc)) {
     died = 1;
-    fprintf(stderr, "pid: %d terminated on signal: %d\n",
-	    pid,
-	    WTERMSIG(stat_loc));
+    fprintf(stderr, "pid: %ld terminated on signal: %d\n",
+	    (long)pid, WTERMSIG(stat_loc));
   } else if(WIFSTOPPED(stat_loc)) {
-    fprintf(stderr, "pid: %d stopped on signal: %d\n",
-	    pid, 
-	    WSTOPSIG(stat_loc));
+    fprintf(stderr, "pid: %ld stopped on signal: %d\n",
+	    (long)pid, WSTOPSIG(stat_loc));
   } else if(WIFCONTINUED(stat_loc)) {
-    fprintf(stderr, "pid: %d continued\n", pid);
+    fprintf(stderr, "pid: %ld continued\n", (long)pid);
   } else {
-    fprintf(stderr, "pid: %d\n", pid);
+    fprintf(stderr, "pid: %ld\n", (long)pid);
   }
   if(died) {
     int n;
@@ -1389,7 +1384,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
     for(n = 0; n < num_pids; n++) {
       if((pid = pidlist[n]) != -1) {
 	child_killed = 1;
-	fprintf(stderr, "killing child: %d\n", pid);
+	fprintf(stderr, "killing child: %ld\n", (long)pid);
 	kill(pid, SIGINT);
       }
     }
@@ -1409,7 +1404,7 @@ void slay_children(void)
   for(n = 0; n < num_pids; n++) {
     if((pid = pidlist[n]) != -1) {
       child_killed = 2;
-      fprintf(stderr, "slaying child: %d\n", pid);
+      fprintf(stderr, "slaying child: %ld\n", (long)pid);
       kill(pid, SIGKILL);
     }
   }

@@ -170,12 +170,24 @@ extern MsgEventQ_t *msgq;
 extern MsgEventClient_t input_client;
 extern InputMask_t input_mask;
 
+/* All display modules shall define these functions */
+void display_init(yuv_image_t *picture_data,
+		  data_buf_head_t *picture_data_head,
+		  char *picture_buf_base);
+void display(yuv_image_t *current_image);
+void display_poll(yuv_image_t *current_image);
+void display_exit(void);
 
+/* Local prototypes */
 static void draw_win_xv(window_info *dwin);
 static void draw_win_x11(window_info *dwin);
 static void display_change_size(yuv_image_t *img, int new_width, 
 				int new_height, int resize_window);
 
+static Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
+{
+    return True;
+}
 
 static Cursor hidden_cursor;
 
@@ -266,9 +278,9 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
  * xv image and returns.
  *
  * The variable use_xv tells if Xv is used */
-void display_init_xv(yuv_image_t *picture_data,
-		     data_buf_head_t *picture_data_head,
-		     char *picture_buf_base) 
+static void display_init_xv(yuv_image_t *picture_data,
+			    data_buf_head_t *picture_data_head,
+			    char *picture_buf_base) 
 {
 #ifdef HAVE_XV
   int i, j;
@@ -388,7 +400,7 @@ void display_init_xv(yuv_image_t *picture_data,
  * structures (ximage creatd by XShmCreateImage).
  *
  * The variable use_xshm tells if XShm is used */
-void display_init_xshm()
+static void display_init_xshm()
 {
   
   /* Create shared memory image */
@@ -484,9 +496,9 @@ void display_init_xshm()
 
 
 
-Window display_init(yuv_image_t *picture_data,
-		    data_buf_head_t *picture_data_head,
-		    char *picture_buf_base)
+void display_init(yuv_image_t *picture_data,
+		  data_buf_head_t *picture_data_head,
+		  char *picture_buf_base)
 {
   int screen;
   Screen *scr;
@@ -670,26 +682,6 @@ Window display_init(yuv_image_t *picture_data,
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
   XStoreName(mydisplay, window.win, &title[0]);
   
-  
-  return window.win;
-}
-
-
-void display_exit(void) 
-{
-  // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
-  
-  // Need to add some test to se if we can detatch/free/destroy things
-  
-  XSync(mydisplay,True);
-  if(use_xshm)
-    XShmDetach(mydisplay, &shm_info);
-  XDestroyImage(window.ximage);
-  shmdt(shm_info.shmaddr);
-  shmctl(shm_info.shmid, IPC_RMID, 0);
-  
-  fprintf(stderr, "vo: removed shm segment\n");
-  display_process_exit();
 }
 
 
@@ -802,8 +794,8 @@ static void display_change_size(yuv_image_t *img, int new_width,
 }
 
 
-void display_adjust_size(yuv_image_t *current_image,
-			 int given_width, int given_height) {
+static void display_adjust_size(yuv_image_t *current_image,
+				int given_width, int given_height) {
   int sar_frac_n, sar_frac_d; 
   int64_t scale_frac_n, scale_frac_d;
   int base_width, base_height, max_width, max_height;
@@ -913,7 +905,7 @@ void display_adjust_size(yuv_image_t *current_image,
 
 
 
-void display_toggle_fullscreen(yuv_image_t *current_image) {
+static void display_toggle_fullscreen(yuv_image_t *current_image) {
   
   if(window.win_state != WINDOW_STATE_FULLSCREEN) {
     
@@ -927,14 +919,7 @@ void display_toggle_fullscreen(yuv_image_t *current_image) {
   
 }
 
-
-
-Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
-{
-    return True;
-}
-
-void check_x_events(yuv_image_t *current_image)
+static void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
   static clocktime_t prev_time;
@@ -1202,9 +1187,27 @@ void display(yuv_image_t *current_image)
   return;
 }
 
+void display_poll(yuv_image_t *current_image)
+{
+  check_x_events(current_image);
+}
 
-
-
+void display_exit(void) 
+{
+  // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
+  
+  // Need to add some test to se if we can detatch/free/destroy things
+  
+  XSync(mydisplay,True);
+  if(use_xshm)
+    XShmDetach(mydisplay, &shm_info);
+  XDestroyImage(window.ximage);
+  shmdt(shm_info.shmaddr);
+  shmctl(shm_info.shmid, IPC_RMID, 0);
+  
+  fprintf(stderr, "vo: removed shm segment\n");
+  display_process_exit();
+}
 
 
 static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
@@ -1492,7 +1495,6 @@ static void draw_win_x11(window_info *dwin)
 static void draw_win_xv(window_info *dwin)
 {
 #ifdef HAVE_XV
-  XWindowAttributes xattr;
   unsigned char *dst;
   
   dst = xv_image->data;
@@ -1520,16 +1522,21 @@ static void draw_win_xv(window_info *dwin)
     screenshot_yuv_jpg(dwin->image, dwin->ximage);
   }
   
-
-  XGetWindowAttributes(mydisplay, window.win, &xattr);
-
+  window.video_area.width = scale.image_width;
+  window.video_area.height = scale.image_height;
+  window.video_area.x = (int)(window.window_area.width - 
+			      window.video_area.width) / 2;
+  window.video_area.y = (int)(window.window_area.height -
+			      window.video_area.height) / 2;
+  
   XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
 		0, 0, 
-		dwin->image->info->picture.horizontal_size, 
+		dwin->image->info->picture.horizontal_size,
 		dwin->image->info->picture.vertical_size,
-		(xattr.width  - scale.image_width )/2, 
-		(xattr.height - scale.image_height)/2, 
-		scale.image_width, scale.image_height,
+		window.video_area.x,
+		window.video_area.y,
+		window.video_area.width,
+		window.video_area.height,
 		True);
   
   //XFlush(mydisplay); ??

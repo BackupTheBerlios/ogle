@@ -410,7 +410,10 @@ int get_q()
     clocktime_t apa = {0, 100000000};
     timesub(&apa, &time_offset, &apa);
     if(TIME_SS(apa) > 0) {
-      nanosleep(&apa, NULL);
+      struct timespec bepa;
+      bepa.tv_sec = TIME_S(time_offset);
+      bepa.tv_nsec = TIME_SS(time_offset) * (1000000000/CT_FRACTION);
+      nanosleep(&bepa, NULL);
     }
   }
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;

@@ -43,13 +43,14 @@
 #define SHM_SHARE_MMU 0
 #endif
 
+extern void display_init(yuv_image_t *picture_data,
+			 data_buf_head_t *picture_data_head,
+			 char *picture_buf_base);
 extern void display(yuv_image_t *current_image);
-extern Window display_init(yuv_image_t *picture_data,
-			   data_buf_head_t *picture_data_head,
-			   char *picture_buf_base);
+extern void display_poll(yuv_image_t *current_image);
 extern void display_exit(void);
 
-
+void redraw_request(void);
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
@@ -396,15 +397,14 @@ static void release_picture_buf(int id)
 
 }
 
+void alarm_handler(int sig) 
+{
+  display_poll(last_image_buf);
+}
 
 /* Erhum test... */
 clocktime_t first_time;
 int frame_nr = 0;
-
-static void alarm_handler(int sig)
-{
-  check_x_events(last_image_buf);
-}
 
 static void int_handler(int sig)
 {
@@ -414,7 +414,7 @@ static void int_handler(int sig)
 static void display_process()
 {
   clocktime_t real_time, prefered_time, frame_interval;
-  clocktime_t real_time2, diff, avg_time, oavg_time;
+  clocktime_t avg_time, oavg_time;
   clocktime_t calc_rt;
 #ifndef HAVE_CLOCK_GETTIME
   clocktime_t waittmp;
@@ -481,11 +481,10 @@ static void display_process()
     PTS_TO_CLOCKTIME(frame_interval, pinfos[buf_id].frame_interval);
 
     if(first) {
-      Window win;
       first = 0;
-      win = display_init(&image_bufs[buf_id],
-			 picture_ctrl_head,
-			 picture_buf_base);
+      display_init(&image_bufs[buf_id],
+		   picture_ctrl_head,
+		   picture_buf_base);
 
       //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
@@ -645,7 +644,6 @@ int main(int argc, char **argv)
 {
   MsgEvent_t ev;
   int c; 
-  int msg_sent = 0;
 
   program_name = argv[0];
   
