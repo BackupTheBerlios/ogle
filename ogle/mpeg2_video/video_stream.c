@@ -72,6 +72,7 @@ void video_sequence(void);
 void marker_bit(void);
 void sequence_header(void);
 void sequence_extension(void);
+void sequence_display_extension();
 void extension_and_user_data(unsigned int i);
 void picture_coding_extension(void);
 void user_data(void);
@@ -111,7 +112,6 @@ void picture_display_extension();
 void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
-void sequence_display_extension();
 
 uint32_t buf[BUF_SIZE_MAX];
 unsigned int buf_len = 0;
@@ -180,11 +180,11 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 }
   
 
+/* 5.2.1 Definition of bytealigned() function */
 int bytealigned(void)
 {
   return bytealign;
 }
-
 
 void back_word(void)
 {
@@ -266,6 +266,7 @@ uint32_t getbits(unsigned int nr)
   }
 }
 
+/* 5.2.2 Definition of nextbits() function */
 uint32_t nextbits(unsigned int nr)
 {
   uint32_t result;
@@ -340,6 +341,7 @@ int main(int argc, char **argv)
 
 
 
+/* 5.2.3 Definition of next_start_code() function */
 void next_start_code(void)
 {
   while(!bytealigned()) {
@@ -356,6 +358,7 @@ void resync(void) {
 
 }
 
+/* 6.2.2 Video Sequence */
 void video_sequence(void) {
   next_start_code();
   if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
@@ -477,6 +480,7 @@ typedef struct {
 
 sequence_t seq;
 
+/* 6.2.2.1 Sequence header */
 void sequence_header(void)
 {
   uint32_t sequence_header_code;
@@ -546,7 +550,7 @@ void sequence_header(void)
 
 }
 
-
+/* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
 
   uint32_t extension_start_code;
@@ -689,6 +693,7 @@ shmemerror:
   }
 }
 
+/* 6.2.2.2 Extension and user data */
 void extension_and_user_data(unsigned int i) {
   
   DPRINTF(2, "extension_and_user_data(%u)\n", i);
@@ -754,7 +759,7 @@ typedef struct {
 
 picture_t pic;
 
-
+/* 6.2.3.1 Picture coding extension */
 void picture_coding_extension(void)
 {
   uint32_t extension_start_code;
@@ -835,6 +840,7 @@ void picture_coding_extension(void)
   
 }
 
+/* 6.2.2.2.2 User data */
 void user_data(void)
 {
   uint32_t user_data_start_code;
@@ -852,6 +858,7 @@ void user_data(void)
   
 }
 
+/* 6.2.2.6 Group of pictures header */
 void group_of_pictures_header(void)
 {
   uint32_t group_start_code;
@@ -877,7 +884,7 @@ void group_of_pictures_header(void)
   
 }
 
-
+/* 6.2.3 Picture header */
 void picture_header(void)
 {
   uint32_t picture_start_code;
@@ -937,6 +944,7 @@ void picture_header(void)
 
 }
 
+/* 6.2.3.6 Picture data */
 void picture_data(void)
 {
   
@@ -1004,6 +1012,7 @@ void picture_data(void)
   next_start_code();
 }
 
+/* 6.2.2.2.1 Extension data */
 void extension_data(unsigned int i)
 {
 
@@ -1062,6 +1071,7 @@ typedef struct {
 
 slice_t slice_data;
 
+/* 6.2.4 Slice */
 void slice(void)
 {
   uint32_t slice_start_code;
@@ -1162,6 +1172,7 @@ typedef struct {
 
 macroblock_t mb;
 
+/* 6.2.5 Macroblock */
 void macroblock(void)
 {
   unsigned int i;
@@ -1505,7 +1516,7 @@ void macroblock(void)
 
 }
 
-
+/* 6.2.5.1 Macroblock modes */
 void macroblock_modes(void)
 {
   
@@ -1574,7 +1585,7 @@ void macroblock_modes(void)
   }
 }
 
-
+/* 6.2.5.3 Coded block pattern */
 void coded_block_pattern(void)
 {
   //  uint16_t coded_block_pattern_420;
@@ -1626,7 +1637,7 @@ int get_vlc(vlc_table_t *table, char *func) {
   return VLC_FAIL;
 }
 
-
+/* 6.2.6 Block */
 void block(unsigned int i)
 {
   uint16_t dct_dc_size_luminance;
@@ -1883,7 +1894,7 @@ void block(unsigned int i)
   }
 }
 
-
+/* 6.2.5.2 Motion vectors */
 void motion_vectors(unsigned int s)
 {
   
@@ -1985,7 +1996,7 @@ void motion_vectors(unsigned int s)
   }
 }
  
-
+/* 6.2.5.2.1 Motion vector */
 void motion_vector(int r, int s)
 {
   int16_t r_size;

@@ -12,6 +12,7 @@
 */
 
 
+/* Table 6-1  Start code values */
 #define MPEG2_VS_PICTURE_START_CODE     0x00000100
 #define MPEG2_VS_SLICE_START_CODE_LOWEST 0x00000101
 #define MPEG2_VS_SLICE_START_CODE_HIGHEST 0x000001AF
@@ -22,6 +23,7 @@
 #define MPEG2_VS_SEQUENCE_END_CODE      0x000001B7
 #define MPEG2_VS_GROUP_START_CODE       0x000001B8
 
+/* Table 6-2. extension_start_code_identifier codes. */
 #define MPEG2_VS_SEQUENCE_EXTENSION_ID                  0x1
 #define MPEG2_VS_SEQUENCE_DISPLAY_EXTENSION_ID          0x2
 #define MPEG2_VS_QUANT_MATRIX_EXTENSION_ID              0x3
@@ -31,6 +33,8 @@
 #define MPEG2_VS_PICTURE_SPATIAL_SCALABLE_EXTENSION_ID  0x9
 #define MPEG2_VS_PICTURE_TEMPORAL_SCALABLE_EXTENSION_ID 0xA
 
+/* Table 6-3. aspect_ratio_information TODO */
+/* Table 6-4 --- frame_rate_value TODO */
 
 typedef struct { 
 	int numberofbits;
