@@ -33,6 +33,7 @@ static uint32_t bits(int byte, int bit, int count) {
   return val;
 }
 
+
 /* Eval register code, can either be system or general register.
    SXXX_XXXX, where S is 1 if it is system register. */
 static uint16_t eval_reg(uint8_t reg) {
@@ -54,7 +55,20 @@ static uint16_t eval_reg_or_data(int imm, int byte) {
   }
 }
 
-/* Compare data using operation, return result from comparison. */
+/* Eval register or immediate data.
+   xBBB_BBBB, if immediate use all 7 bits for data else use
+   lower four bits for the general purpose register number. */
+/* Evaluates gprm or data depending on bit, data is in byte n */
+uint16_t eval_reg_or_data_2(int imm, int byte) {
+  if(imm) /* immediate */
+    return bits(byte, 1, 7);
+  else
+    return state->GPRM[bits(byte, 4, 4)];
+}
+
+
+/* Compare data using operation, return result from comparison. 
+   Helper function for the different if functions. */
 static bool eval_compare(uint8_t operation, uint16_t data1, uint16_t data2) {
   switch(operation) {
     case 1:
@@ -72,15 +86,14 @@ static bool eval_compare(uint8_t operation, uint16_t data1, uint16_t data2) {
     case 7:
       return data1 <  data2;
   }
-  fprintf(stderr,"eval_compare: should not happen\n");
-  //exit(1);
+  fprintf(stderr,"eval_compare: Invalid comparison code\n");
   return 0;
 }
 
 
-/* Evaluate the first version of if.
+/* Evaluate if version 1.
    Has comparison data in byte 3 and 4-5 (immediate or register) */
-static bool eval_if_version_1() {
+static bool eval_if_version_1(void) {
   uint8_t op = bits(1, 1, 3);
   if(op) {
     return eval_compare(op, eval_reg(bits(3, 0, 8)), 
@@ -89,8 +102,42 @@ static bool eval_if_version_1() {
   return 1;
 }
 
-/* Evaluate special instruction....this could mean goto
-   Return new row number; 0 if no new row, 256 if Break or -1 if UNKNOWN. */
+/* Evaluate if version 2.
+   This version only compares register which are in byte 6 and 7 */
+static bool eval_if_version_2(void) {
+  uint8_t op = bits(1, 1, 3);
+  if(op) {
+    return eval_compare(op, eval_reg(bits(6, 0, 8)), 
+                            eval_reg(bits(7, 0, 8)));
+  }
+  return 1;
+}
+
+/* Evaluate if version 3.
+   Has comparison data in byte 2 and 6-7 (immediate or register) */
+static bool eval_if_version_3(void) {
+  uint8_t op = bits(1, 1, 3);
+  if(op) {
+    return eval_compare(op, eval_reg(bits(2, 0, 8)), 
+                            eval_reg_or_data(bits(1, 0, 1), 6));
+  }
+  return 1;
+}
+
+/* Evaluate if version 4.
+   Has comparison data in byte 1 and 4-5 (immediate or register) 
+   The register in byte 1 is only the lowe nibble (4bits) */
+static bool eval_if_version_4(void) {
+  uint8_t op = bits(1, 1, 3);
+  if(op) {
+    return eval_compare(op, eval_reg(bits(1, 4, 4)), 
+                            eval_reg_or_data(bits(1, 0, 1), 4));
+  }
+  return 1;
+}
+
+/* Evaluate special instruction.... returns the new row/line number,
+   0 if no new row and 256 if Break. */
 static int eval_special_instruction(bool cond) {
   int line, level;
   
@@ -115,7 +162,7 @@ static int eval_special_instruction(bool cond) {
       }
       return cond ? line : 0;
   }
-  return -1;
+  return 0;
 }
 
 /* Evaluate link by subinstruction.
@@ -125,11 +172,10 @@ static bool eval_link_subins(bool cond, link_t *return_values) {
   uint16_t button = bits(6, 0, 6);
   uint8_t  linkop = bits(7, 3, 5);
   
-  if(linkop > 0x10) {
-    // Unknown Link by Sub-Instruction command
-    return 0;
-  }
-  // Assumes that the link_cmd_t enum has the same values as the LinkSIns codes.
+  if(linkop > 0x10)
+    return 0;    // Unknown Link by Sub-Instruction command
+
+  // Assumes that the link_cmd_t enum has the same values as the LinkSIns codes
   return_values->command = linkop;
   return_values->data1 = button;
   return cond;
@@ -168,16 +214,6 @@ static bool eval_link_instruction(bool cond, link_t *return_values) {
   return 0;
 }
 
-/* Evaluate if version 2.
-   This version only compares register which are in byte 6 and 7 */
-static bool eval_if_version_2() {
-  uint8_t op = bits(1, 1, 3);
-  if(op) {
-    return eval_compare(op, eval_reg(bits(6, 0, 8)), 
-                            eval_reg(bits(7, 0, 8)));
-  }
-  return 1;
-}
 
 /* Evaluate a jump instruction.
    returns 1 if jump or 0 if no jump
@@ -249,19 +285,12 @@ static bool eval_jump_instruction(bool cond, link_t *return_values) {
   return 0;
 }
 
-/* Evaluates gprm or data depending on bit, data is in byte n */
-uint16_t eval_reg_or_data_2(int imm, int byte) {
-  if(imm) /* immediate */
-    return bits(byte, 1, 7);
-  else
-    return state->GPRM[bits(byte, 4, 4)];
-}
-
 /* Evaluate a set sytem register instruction 
    May contain a link so return the same as eval_link */
 static bool eval_system_set(int cond, link_t *return_values) {
   int i;
   uint16_t data, data2;
+  
   switch(bits(0, 4, 4)) {
     case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
       for(i = 1; i <= 3; i++) {
@@ -307,16 +336,6 @@ static bool eval_system_set(int cond, link_t *return_values) {
   return 0;
 }
 
-/* Evaluate if version 3 
-   data is in bit 2 and 6-7*/
-static bool eval_if_version_3() {
-  uint8_t op = bits(1, 1, 3);
-  if(op) {
-    return eval_compare(op, eval_reg(bits(2, 0, 8)), 
-                            eval_reg_or_data(bits(1, 0, 1), 6));
-  }
-  return 1;
-}
 
 /* Evaluate set operation
    Sets the register given to the value indicated by op and data.
@@ -361,9 +380,8 @@ static void eval_set_op(int op, int reg, int reg2, int data) {
   }
 }
 
-/* Evaluate set instruction
-   May contain a link, so it returns the same as the eval_link */
-static bool eval_set(int cond, link_t *return_values) {
+/* Evaluate set instruction, combined with either Link or Compare. */
+static void eval_set_version_1(int cond) {
   uint8_t  op   = bits(0, 4, 4);
   uint8_t  reg  = bits(3, 4, 4); // Erhumm..
   uint8_t  reg2 = bits(5, 4, 4);
@@ -372,26 +390,11 @@ static bool eval_set(int cond, link_t *return_values) {
   if(cond) {
     eval_set_op(op, reg, reg2, data);
   }
-  if(bits(1,4,4)) {
-    return eval_link_instruction(cond, return_values);
-  }
-  return 0;
 }
 
 
-/* Evaluate if version 4 
-   reg is in byte 1 and data is in byte 4-5 */
-static bool eval_if_version_4() {
-  uint8_t op = bits(1, 1, 3);
-  if(op) {
-    return eval_compare(op, eval_reg(bits(1, 4, 4)), 
-                            eval_reg_or_data(bits(1, 0, 1), 4));
-  }
-  return 1;
-}
-
-/* Evaluate set instruction for Compare/Set/Link */
-static void eval_set_sub(int cond) {
+/* Evaluate set instruction, combined with both Link and Compare. */
+static void eval_set_version_2(int cond) {
   uint8_t  op   = bits(0, 4, 4);
   uint8_t  reg  = bits(1, 4, 4);
   uint8_t  reg2 = bits(3, 4, 4); // Erhumm..
@@ -401,7 +404,6 @@ static void eval_set_sub(int cond) {
     eval_set_op(op, reg, reg2, data);
   }
 }
-
 
 
 /* Evaluate a command
@@ -442,14 +444,17 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
       if(res)
 	res = -1;
       break;
-    case 3: // Set instructions
+    case 3: // Set instructions, either Compare or Link may be used
       cond = eval_if_version_3();
-      res = eval_set(cond, return_values);
+      eval_set_version_1(cond);
+      if(bits(1, 4, 4)) {
+	res = eval_link_instruction(cond, return_values);
+      }
       if(res)
 	res = -1;
       break;
     case 4: // Set, Compare -> Link Sub-Instruction
-      eval_set_sub(/*True*/ 1);
+      eval_set_version_2(/*True*/ 1);
       cond = eval_if_version_4();
       res = eval_link_subins(cond, return_values);
       if(res)
@@ -457,14 +462,14 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
       break;
     case 5: // Compare -> (Set and Link Sub-Instruction)
       cond = eval_if_version_4();
-      eval_set_sub(cond);
+      eval_set_version_2(cond);
       res = eval_link_subins(cond, return_values);
       if(res)
 	res = -1;
       break;
     case 6: // Compare -> Set, allways Link Sub-Instruction
       cond = eval_if_version_4();
-      eval_set_sub(cond);
+      eval_set_version_2(cond);
       res = eval_link_subins(/*True*/ 1, return_values);
       if(res)
 	res = -1;

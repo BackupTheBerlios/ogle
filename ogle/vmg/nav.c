@@ -525,7 +525,9 @@ void do_run(void) {
 	  
 	  // A button has already been activated, discard this event??
 	  
-	  if(/*have_pci && !jump_in_progress*/ 1) {
+	  if(cell->first_sector <= pci.pci_gi.nv_pck_lbn
+	     && cell->last_sector >= pci.pci_gi.nv_pck_lbn
+	     /*have_pci && !jump_in_progress*/) {
 	    /* Update selected/activated button, send highlight info to spu */
 	    /* Returns true if a button is activated */
 	    if(process_button(&ev.dvdctrl.cmd, &pci, &state.HL_BTNN_REG)) {
@@ -572,39 +574,17 @@ void do_run(void) {
 		  ev.dvdctrl.cmd.type);
 	  break;
 	case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
-	  {
-	    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
-#if 0 /* This is updated next time send_demux_sectors is called */	    
-	    MsgEvent_t send_ev;
-	    int sN;
-	    sN = get_Audio_stream(state.AST_REG);
-	    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
-	    send_ev.type = MsgEventQDemuxStreamChange;
-	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
-	    send_ev.demuxstreamchange.subtype = 0x80 | sN;
-	    if(send_demux(msgq, &send_ev) == -1) {
-	      fprintf(stderr, "vm: didn't set demuxstream\n");
-	    }
-#endif
-	  }
+	  state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
 	  break;
 	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
-	  {
-	    state.SPST_REG = ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+	  state.SPST_REG &= 0x40; // Keep the on/off bit.
+	  state.SPST_REG |= ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+	  break;
+	case DVDCtrlSetSubpictureState:
+	  if(ev.dvdctrl.cmd.subpicturestate.type == DVDTrue)
 	    state.SPST_REG = state.SPST_REG | 0x40; // Turn it on
-#if 0 /* This is updated next time send_demux_sectors is called */	    
-	    MsgEvent_t send_ev;
-	    int sN;
-	    sN = get_Spu_active_stream();
-	    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no spu_
-	    send_ev.type = MsgEventQDemuxStreamChange;
-	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
-	    send_ev.demuxstreamchange.subtype = 0x20 | sN;
-	    if(send_demux(msgq, &send_ev) == -1) {
-	      fprintf(stderr, "vm: didn't set demuxstream\n");
-	    }
-#endif
-	  }
+	  else
+	    state.SPST_REG = state.SPST_REG &= ~0x40; // Turn it off
 	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {
@@ -706,16 +686,18 @@ void do_run(void) {
       if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
 	/* XXX inte läsa till pci utan något annat minne? */
 	read_pci_packet(&pci, &buffer[1], len);
+	/* Is this the packet we are waiting for? */
 	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
 	  fprintf(stdout, "Droped packet\n");
 	  continue;
 	}
+	/*
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
-	  //fprintf(stdout, "Menu detected\n");
-	  //print_pci_packet(stdout, &pci);
+	  fprintf(stdout, "Menu detected\n");
+	  print_pci_packet(stdout, &pci);
 	}
-	
-	/* !!! Evaluate and Instantiate the new pci packets !!! */
+	*/
+	/* Evaluate and Instantiate the new pci packet */
 	process_pci(&pci, &state.HL_BTNN_REG);
 
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
