@@ -435,8 +435,6 @@ int vm_get_audio_stream(int audioN)
       streamN = 0;
   }
   
-  /* Should also check in vtsi/vmgi status that what kind of stream
-   * it is (ac3/lpcm/dts/sdds...) to find the right (sub)stream id */
   return streamN;
 }
 

@@ -216,16 +216,61 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     int sN = vm_get_audio_stream(state.AST_REG);
     if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
     if(sN != audio_stream_id) {
+      static uint8_t old_id = 0xbd;
+      static uint8_t old_subtype = 0x80;
+      uint8_t new_id;
+      uint8_t new_subtype;
+      audio_attr_t attr;
       audio_stream_id = sN;
       
-      DNOTE("sending audio demuxstream %d\n", sN);
+      new_id = 0;
+      new_subtype = 0;
       
-      ev.type = MsgEventQDemuxStreamChange;
-      ev.demuxstreamchange.stream_id = 0xbd; // AC3
-      ev.demuxstreamchange.subtype = 0x80 | audio_stream_id;
-      if(send_demux(msgq, &ev) == -1) {
-	ERROR("failed to send ac3 demuxstream\n");
+      attr = vm_get_audio_attr(sN);
+      
+      switch(attr.audio_format) {
+      case 0:
+	//af = DVD_AUDIO_FORMAT_AC3;
+	new_id = 0xbd; //private stream 1
+	new_subtype = 0x80 + audio_stream_id; // AC-3
+	break;
+      case 2:
+	//af = DVD_AUDIO_FORMAT_MPEG1;
+	new_id = 0xC0 + audio_stream_id; //mpeg audio
+      case 3:
+	//af = DVD_AUDIO_FORMAT_MPEG2;
+	new_id = 0xC0 + audio_stream_id; //mpeg audio
+	break;
+      case 4:
+	//af = DVD_AUDIO_FORMAT_LPCM;
+	new_id = 0xbd; //private stream 1
+	new_subtype = 0xA0 + audio_stream_id; // lpcm
+	break;
+      case 6:
+	//af = DVD_AUDIO_FORMAT_DTS;
+	new_id = 0xbd; //private stream 1
+	new_subtype = 0x88 + audio_stream_id; // dts
+	break;
+      default:
+	NOTE("please send a bug report, unknown Audio format!");
+	break;
       }
+      
+      
+      DNOTE("sending audio demuxstream %d\n", sN);
+      DNOTE("oid: %02x, ost: %02x, nid: %02x, nst: %02x\n",
+	    old_id, old_subtype, new_id, new_subtype);
+      ev.type = MsgEventQDemuxStreamChange2;
+      ev.demuxstreamchange2.old_stream_id = old_id;
+      ev.demuxstreamchange2.old_subtype = old_subtype;
+      ev.demuxstreamchange2.new_stream_id = new_id;
+      ev.demuxstreamchange2.new_subtype = new_subtype;
+      if(send_demux(msgq, &ev) == -1) {
+	ERROR("failed to send audio demuxstream\n");
+      }
+      
+      old_id = new_id;
+      old_subtype = new_subtype;
     }
   }
 
