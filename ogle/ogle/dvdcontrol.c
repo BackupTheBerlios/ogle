@@ -1496,7 +1496,7 @@ DVDResult_t DVDPauseOff(DVDNav_t *nav)
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDStop(DVDNav_t *nav)
 {
@@ -1513,20 +1513,31 @@ DVDResult_t DVDStop(DVDNav_t *nav)
 
 
 
-/** 
- * @todo Implement function.
+/**
+ * Select the default menu language
+ * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param Lang Specifies the language.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
  * @retval DVD_E_Ok Success.
- * @retval DVD_E_NotImplemented The function is not implemented.
+ * @retval DVD_E_Unspecified.
  */
 DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlDefaultMenuLanguageSelect;
+  ev.dvdctrl.cmd.defaultmenulanguageselect.langid = Lang;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
 }
 
 

@@ -65,10 +65,13 @@ typedef enum {
 
   DVDCtrlStop,
 
+  DVDCtrlDefaultMenuLanguageSelect,
+
   DVDCtrlAudioStreamChange,
   DVDCtrlSubpictureStreamChange,
   DVDCtrlSetSubpictureState,
   DVDCtrlAngleChange,
+
 
   /* infocmds */
   DVDCtrlGetCurrentAudio,
@@ -245,6 +248,14 @@ typedef struct {
 } DVDCtrlStopEvent_t;
 */
 
+
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDLangID_t langid;
+} DVDCtrlMenuLanguageEvent_t;
+
+
 typedef struct {
   DVDCtrlEventType_t type;
   DVDAudioStream_t streamnr;
@@ -368,6 +379,8 @@ typedef union {
   DVDCtrlPauseOffEvent_t pauseoff;
   DVDCtrlStopEvent_t stop;
   */
+
+  DVDCtrlMenuLanguageEvent_t defaultmenulanguageselect;
 
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
   DVDCtrlSubpictureStreamChangeEvent_t subpicturestreamchange;
