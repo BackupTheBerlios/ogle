@@ -166,6 +166,7 @@ yuv_image_t *dst_image;
 int last_gop_had_repeat_field_progressive_frame = 0;
 
 
+char *program_name;
 
 
 
@@ -284,6 +285,8 @@ int main(int argc, char **argv)
   int c;
   int output_client = 0;
   
+  program_name = argv[0];
+
   /* Parse command line options */
   while ((c = getopt(argc, argv, "d:r:f:m:hs")) != EOF) {
     switch (c) {
@@ -308,7 +311,7 @@ int main(int argc, char **argv)
 	      "  -d <level>   set debug level (default 0)\n"
 	      "  -r <buffers> set nr of buffers (default 3)\n"
 	      "  -s           disable shared memory\n", 
-	      argv[0]);
+	      program_name);
       return 1;
     }
   }
