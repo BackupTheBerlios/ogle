@@ -45,10 +45,10 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 #video_stream: video_mpeg1.o video_mpeg2.o video_motion.o c_mlib.o c_getbits.o screenshot.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o
 
 # Uncoment this to build for MMX
-video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mmx.o mmx_idct.o mmx_mlib.o c_getbits.o screenshot.o video_output_x11.o video_output.o yuv2rgb.o  video_tables.o
+#video_stream: video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mmx.o mmx_idct.o mmx_mlib.o c_getbits.o screenshot.o video_output_x11.o video_output.o yuv2rgb.o  video_tables.o
 
 # Uncoment this to build for MLIB 
-#video_stream: video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
+video_stream: video_stream.o video_mpeg1.o video_mpeg2.o video_motion.o yuv2rgb_mlib.o c_getbits.o video_output_x11.o video_output.o yuv2rgb.o video_tables.o screenshot.o /opt/SUNWmlib/lib/libmlib.a
 
 
 # Uncoment this to build for MLIB DGA
