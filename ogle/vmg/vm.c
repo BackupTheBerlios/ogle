@@ -1226,7 +1226,7 @@ static link_t process_command(link_t link_values)
       exit(1); // What should we do here??
       
     case JumpTT:
-      assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
+      assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN);
       if(get_TT(link_values.data1) == -1)
 	assert(0);
       link_values = play_PGC();
@@ -1437,6 +1437,10 @@ static int get_MENU(int menu)
   return get_PGC(get_ID(menu));
 }
 
+
+/***
+ * Search PGCIT for a PGC that has entry_id == id and return the PGCN of that.
+ */
 static int get_ID(int id)
 {
   int pgcN, i;
@@ -1448,8 +1452,10 @@ static int get_ID(int id)
   
   /* Get menu/title */
   for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
-    if((pgcit->pgci_srp[i].entry_id & 0x7f) == id) {
-      assert((pgcit->pgci_srp[i].entry_id & 0x80) == 0x80);
+    int entry_id = pgcit->pgci_srp[i].entry_id & 0x7F;
+    int entryPGC = pgcit->pgci_srp[i].entry_id & 0x80;
+    // Only 'enter' the one that has the entry flag set and is a match.
+    if(entryPGC && (entry_id == id)) {
       pgcN = i + 1;
       return pgcN;
     }
@@ -1459,7 +1465,10 @@ static int get_ID(int id)
 }
 
 
-
+/***
+ * Update the state so that pgcN is the current PGC.  Sets PGN to 1 and
+ * if we are in VTS_DOMAIN (really TT_DOM) updates the TT_PGC_REG.
+ */
 static int get_PGC(int pgcN)
 {
   pgcit_t *pgcit;
