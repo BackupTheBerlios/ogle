@@ -286,4 +286,21 @@ typedef struct {
 
 
 
+/* hack */
+
+typedef enum {
+  AspectModeSrcVM,
+  AspectModeSrcMPEG,
+  AspectModeSrcUser,
+  AspectModeSrcFillWindow
+} AspectModeSrc_t;
+
+typedef enum {
+  ZoomModeFullScreen,
+  ZoomModeSet,
+  ZoomModeResizeAllowed,
+  ZoomModeResizeDisallowed
+} ZoomMode_t;
+
+
 #endif /* DVD_H_INCLUDED */

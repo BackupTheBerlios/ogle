@@ -186,6 +186,18 @@ void* xsniff_mouse(void* args) {
 	    exit(0);
 	  }
 	  break;
+	case 'f':
+	  // fullscreen
+	  {
+	    static int fs = 0;
+	    fs = !fs;
+	    if(fs) {
+	      DVDSetAspectModeSrc(nav, AspectModeSrcFillWindow);
+	    } else {
+	      DVDSetAspectModeSrc(nav, AspectModeSrcMPEG);
+	    }
+	  }
+	  break;
 	default:
 	  break;
 	} /* end case KeyPress */

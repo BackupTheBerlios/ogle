@@ -37,6 +37,7 @@
  */
 struct DVDNav_s {
   MsgEventClient_t client;
+  MsgEventClient_t voclient;
   MsgEventQ_t *msgq;
 };
 
@@ -58,6 +59,30 @@ static MsgEventClient_t get_nav_client(MsgEventQ_t *msq)
   while(ev.type != MsgEventQGntCapability) {
     if(MsgNextEvent(msq, &ev) == -1) {
       fprintf(stderr, "dvdcontrol: get_nav_client\n");
+      return -1;
+    }
+  }
+  
+  return ev.gntcapability.capclient;
+}
+
+/**
+ * Get the id of the VideoOutput client.
+ */
+static MsgEventClient_t get_vo_client(MsgEventQ_t *msq)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQReqCapability;
+  ev.reqcapability.capability = VIDEO_OUTPUT;
+  
+  if(MsgSendEvent(msq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+    fprintf(stderr, "dvdcontrol: get_vo_client\n");
+    return -1;
+  }
+
+  while(ev.type != MsgEventQGntCapability) {
+    if(MsgNextEvent(msq, &ev) == -1) {
+      fprintf(stderr, "dvdcontrol: get_vo_client\n");
       return -1;
     }
   }
@@ -122,6 +147,8 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
   default:
     break;
   }
+  
+  (*nav)->voclient = CLIENT_NONE;
   
   return DVD_E_Ok;
 }
@@ -666,6 +693,66 @@ DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
  * @{
  */
 
+
+
+
+
+DVDResult_t DVDSetAspectModeSrc(DVDNav_t *nav, AspectModeSrc_t mode_src)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQSetAspectModeSrc;
+  ev.setaspectmodesrc.mode_src = mode_src;
+
+  if((nav->voclient == CLIENT_NONE) ||
+     (nav->voclient == -1)) {
+    nav->voclient = get_vo_client(nav->msgq);
+  }
+  switch(nav->voclient) {
+  case -1:
+  case CLIENT_NONE:
+    fprintf(stderr, "dvdctrl: voclient error\n");
+    return DVD_E_Unspecified;
+    break;
+  default:
+    break;
+  }
+  
+  if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
+
+DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
+			    uint16_t aspect_frac_n, uint16_t aspect_frac_d)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQSetSrcAspect;
+  ev.setsrcaspect.mode_src = mode_sender;
+  ev.setsrcaspect.aspect_frac_n = aspect_frac_n;
+  ev.setsrcaspect.aspect_frac_d = aspect_frac_d;
+  
+  if((nav->voclient == CLIENT_NONE) ||
+     (nav->voclient == -1)) {
+    nav->voclient = get_vo_client(nav->msgq);
+  }
+  switch(nav->voclient) {
+  case -1:
+  case CLIENT_NONE:
+    fprintf(stderr, "dvdctrl: voclient error\n");
+    return DVD_E_Unspecified;
+    break;
+  default:
+    break;
+  }
+  
+  if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
 
 
 /** 

@@ -76,6 +76,13 @@ DVDResult_t DVDGetXWindowID(DVDNav_t *nav,
 
 /* control commands */
 
+
+DVDResult_t DVDSetAspectModeSrc(DVDNav_t *nav, AspectModeSrc_t mode_src);
+
+DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
+			    uint16_t aspect_frac_n, uint16_t aspect_frac_d);
+
+
 DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path);
 
 DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav);

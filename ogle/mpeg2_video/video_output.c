@@ -57,6 +57,15 @@ int video_scr_nr;
 
 int process_interrupted = 0;
 
+
+
+AspectModeSrc_t aspect_mode;
+AspectModeSrc_t aspect_sender;
+
+uint16_t aspect_new_frac_n;
+uint16_t aspect_new_frac_d;
+
+
 static char *program_name;
 
 static int ctrl_data_shmid;
@@ -236,6 +245,14 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     else
       fprintf(stderr, "vo: capabilities not requested (%d)\n", 
               ev->gntcapability.capability);
+    break;
+  case MsgEventQSetAspectModeSrc:
+    aspect_mode = ev->setaspectmodesrc.mode_src;
+    break;
+  case MsgEventQSetSrcAspect:
+    aspect_sender = ev->setsrcaspect.mode_src;
+    aspect_new_frac_n = ev->setsrcaspect.aspect_frac_n;
+    aspect_new_frac_d = ev->setsrcaspect.aspect_frac_d;
     break;
   default:
     //fprintf(stderr, "vo: unrecognized event type: %d\n", ev->type);
