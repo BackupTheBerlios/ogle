@@ -114,6 +114,8 @@ int vm_reset(void) // , register_t regs)
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
+
+  return 0;
 }  
 
 
