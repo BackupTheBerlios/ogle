@@ -69,6 +69,8 @@ pgcit_t *pgcit;
 void get_TT(int tt);
 void get_VTS_TT(int vts, int tt);
 void get_VTS_PTT(int tt, int part);
+pgcit_t* get_VMGM_LU(char language[2]);
+void get_VMGM_MENU(int menu);
 void get_VMGM_PGC(int pgcN);
 void get_VTSM(int vts, int title, int menu);
 void get_PGC(int pgcN);
@@ -334,7 +336,12 @@ int main(int argc, char *argv[])
     
   case JumpSS_FP:
   case JumpSS_VMGM_MENU:
-    exit(-1);
+    assert(state.domain == VMGM_DOMAIN || 
+	   state.domain == VTSM_DOMAIN || 
+	   state.domain == FP_DOMAIN); //??    
+    state.domain = VMGM_DOMAIN;
+    get_VMGM_MENU(link_values.data1);
+    goto play_PGC;
   case JumpSS_VTSM:
     assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
     state.domain = VTSM_DOMAIN;   
@@ -383,6 +390,8 @@ void get_TT(int tt) {
   ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
   ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
   
+  assert(tt <= vmg_ptt_srpt.nr_of_srpts);
+  
   get_VTS_TT(vmg_ptt_srpt.title_info[tt-1].title_set_nr,
 	     vmg_ptt_srpt.title_info[tt-1].vts_ttn);
   //ifoFree_VMG_PTT_SRPT(&vmg_ptt_srpt);
@@ -390,7 +399,7 @@ void get_TT(int tt) {
 
 void get_VTS_TT(int vts, int tt) {
   char buffer[16];
-  snprintf(buffer, 16, "VTS_%02i_0.IFO", vts);
+  snprintf(buffer, 15, "VTS_%02i_0.IFO", vts);
   ifoClose();
   ifoOpen_VTS(&vtsi_mat, buffer);
   
@@ -403,6 +412,10 @@ void get_VTS_PTT(int tt, int part) {
   vts_ptt_srpt_t vts_ptt_srpt;
   
   ifoRead_VTS_PTT_SRPT(&vts_ptt_srpt, vtsi_mat.vts_ptt_srpt);
+  
+  assert(tt <= vts_ptt_srpt.nr_of_srpts);
+  assert(part <= vts_ptt_srpt.title_info[tt-1].nr_of_ptts);
+  
   state.pgcN = vts_ptt_srpt.title_info[tt-1].ptt_info[part-1].pgcn;
   state.pgN = vts_ptt_srpt.title_info[tt-1].ptt_info[part-1].pgn;
   state.cellN = 0;
@@ -415,31 +428,59 @@ void get_VTS_PTT(int tt, int part) {
 }
 
 
-
-void get_VMGM_PGC(int pgcN) {
-  int i;
+pgcit_t* get_VMGM_LU(char language[2]) {
   menu_pgci_ut_t pgci_ut;
-
+  int i;
+  
   ifoClose();
   ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
   
   ifoRead_MENU_PGCI_UT(&pgci_ut, vmgi_mat.vmgm_pgci_ut);
   i = 0;
   while(i < pgci_ut.nr_of_lang_units && 
-	memcmp(&pgci_ut.menu_lu[i].lang_code, lang, 2))
+	memcmp(&pgci_ut.menu_lu[i].lang_code, language, 2))
     i++;
   if(i == pgci_ut.nr_of_lang_units) {
     printf("** Wrong language\n");
     i = 0; //error?
   }
-  pgcit = pgci_ut.menu_lu[i].menu_pgcit;//? copy?
+  //How/when to call ifoFree_MENU_PGCI_UT
   
+  return pgci_ut.menu_lu[i].menu_pgcit;//? copy?
+}
+
+void get_VMGM_MENU(int menu) {
+  int i;
+  
+  pgcit = get_VMGM_LU(lang);
+  
+  i = 0;
+  while(i < pgcit->nr_of_pgci_srp && 
+	((pgcit->pgci_srp[i].pgc_category >> 24) & 0x7f) != menu)
+    i++;
+  if(i == pgcit->nr_of_pgci_srp) {
+    printf("** No such menu\n");
+    i = 0; // error!
+  }
+  state.pgcN = i + 1;
+  state.pgN = 0;
+  state.cellN = 0;
+  
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
+  //ifoFree_PGCIT(&pgcit);
+}
+
+
+void get_VMGM_PGC(int pgcN) {
+
+  pgcit = get_VMGM_LU(lang);
+   
   state.pgcN = pgcN;
   state.pgN = 0;
   state.cellN = 0;
   
   memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
-  //ifoFree_MENU_PGCI_UT(&pgci_ut);
+  //ifoFree_PGCIT(&pgcit);
 }
 
 void get_VTSM(int vts, int title, int menu) {

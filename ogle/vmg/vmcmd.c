@@ -114,8 +114,8 @@ print_set_op(uint8_t op) {
 }
 
 static void
-print_reg_or_data(int i, int byte) {
-  if (i) { // immediate
+print_reg_or_data(int immediate, int byte) {
+  if (immediate) {
     int i = bits(byte,0,16);
     printf("0x%x", i);
     if( isprint(i & 0xff) && isprint((i>>8) & 0xff) )
@@ -139,7 +139,9 @@ print_if_version_1() {
 
 static void
 print_special_instruction() {
-  switch(bits(1,4,4)) {
+  uint8_t op = bits(1,4,4);
+  
+  switch(op) {
     case 0: // NOP
       printf("Nop");
       break;
@@ -150,52 +152,54 @@ print_special_instruction() {
       printf("Break");
       break;
     case 3: // Parental level
-      printf("SetTmpPML %" PRIu8 ", Goto %" PRIu8, 
-          bits(6,4,4), bits(7,0,8));
+      printf("SetTmpPML %" PRIu8 ", Goto %" PRIu8, bits(6,4,4), bits(7,0,8));
       break;
-    default: // Unknown
+    default:
       printf("WARNING: Unknown special instruction (%i)", bits(1,4,4));
   }
 }
 
 static void
+print_linksub_instruction() {
+  int linkop = bits(7,3,5);
+  int button = bits(6,0,6);
+  
+  if(linkop <= 0x10 && link_table[linkop] != NULL)
+    printf("%s (button %" PRIu8 ")", link_table[linkop], button);
+  else
+    printf("WARNING: Unknown link instruction (%i)", linkop);
+}
+
+static void
 print_link_instruction() {
   uint8_t op = bits(1,4,4);
-  uint8_t but = bits(6,0,6);
-  if (op == 1) {
-    int linkop=bits(7,3,5);
-    if(linkop > 0x10 || link_table[linkop] == NULL) {
-      printf("WARNING: Unknown link instruction (%i)", linkop);
-    } else {
-      char *link = link_table[linkop];
-      printf("%s (button %" PRIu8 ")", link, but);
-    }
-  } else {
-    switch (op) {
-      case 4:
-        printf("LinkPGCN %" PRIu16, bits(6,1,15));
-        break;
-      case 5:
-        printf("LinkPTTN %" PRIu16 " (button %" PRIu8 ")",
-               bits(6,6,10), but);
-        break;
-      case 6:
-        printf("LinkPGN %" PRIu8 " (button %" PRIu8 ")",
-               bits(7,1,7), but);
-        break;
-      case 7:
-        printf("LinkCN %" PRIu8 " (button %" PRIu8 ")",
-               bits(7,0,8), but);
-        break;
-      default:
-        printf("WARNING: Unknown link instruction");
-    }
+  uint8_t button = bits(6,0,6);
+  
+  switch(op) {
+    case 1:
+      print_linksub_instruction();
+      break;
+    case 4:
+      printf("LinkPGCN %" PRIu16, bits(6,1,15));
+      break;
+    case 5:
+      printf("LinkPTT %" PRIu16 " (button %" PRIu8 ")", bits(6,6,10), button);
+      break;
+    case 6:
+      printf("LinkPGN %" PRIu8 " (button %" PRIu8 ")", bits(7,1,7), button);
+      break;
+    case 7:
+      printf("LinkCN %" PRIu8 " (button %" PRIu8 ")", bits(7,0,8), button);
+      break;
+    default:
+      printf("WARNING: Unknown link instruction");
   }
 }
 
 static void
 print_if_version_2 () {
   uint8_t op = (bits(1,1,3));
+  
   if(op) {
     printf("if (");
     print_reg(bits(6,0,8));
@@ -265,8 +269,8 @@ print_jump_instruction () {
 }
 
 static void
-print_reg_or_data_2(int i, int byte) {
-  if (i) { // immediate
+print_reg_or_data_2(int immediate, int byte) {
+  if (immediate) {
     printf("0x%x", bits(byte,1,7));
   } else {
     printf("g[%" PRIu8 "]", bits(byte,4,4));
@@ -277,7 +281,7 @@ static void
 print_system_set () {
   int i;
   switch(bits(0,4,4)) {
-    case 1: // 1 2 3
+    case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
       for(i = 1; i <= 3; i++) {
         if(bits(2+i,0,1)) {
           print_system_reg(i);
@@ -287,26 +291,36 @@ print_system_set () {
         }
       }
       break;
-    case 6: // 8
-      print_system_reg(8);
-
-      if (bits(0,3,1)) { // immediate
-        printf(" = 0x%x (button no %d)", bits(4,0,16), bits(4,0,6));
-      } else {
-        printf(" = g[%" PRIu8 "]", bits(5,4,4));
-      }
+    case 2: // Set system reg 9 & 10 (Navigation timer, Title PGC number)
+      print_system_reg(9);
+      printf(" = ");
+      print_reg_or_data(bits(0,3,1), 2);
+      printf(" ");
+      print_system_reg(10);
+      printf(" = %" PRIu8, bits(5,0,8)); // ??
       break;
-    case 3: // ?? Normal set (=) with reversed operands
-      printf("?? ");
-      print_reg(bits(5,0,8));
+    case 3: // Mode: Counter / Register + Set
+      printf ("SetMode ");
+      if (bits(5,0,1))
+	printf ("Counter ");
+      else
+	printf ("Register ");
+      print_reg(bits(5,4,4));
       print_set_op(0x1); // =
       print_reg_or_data(bits(0,3,1), 2);
       break;
-    default:
+    case 6: // Set system reg 8 (Highlitted button)
+      print_system_reg(8);
+      if (bits(0,3,1)) // immediate
+        printf(" = 0x%x (button no %d)", bits(4,0,16), bits(4,0,6));
+      else
+        printf(" = g[%" PRIu8 "]", bits(5,4,4));
+      break;
+  default:
       printf ("WARNING: Unknown system set instruction (%i)", bits(0,4,4));
   }
   if(bits(1,4,4)) {
-    printf(" ");
+    printf(", ");
     print_link_instruction();
   }
 }
@@ -330,8 +344,30 @@ print_set () {
   print_set_op(set_op);
   print_reg_or_data(bits(0,3,1), 4);
   if(bits(1,4,4)) {
-    printf(" ");
+    printf(", ");
     print_link_instruction();
+  }
+}
+
+static void
+print_set2 () {
+  uint8_t set_op = bits(0,4,4);
+  
+  print_reg(bits(1,4,4));
+  print_set_op(set_op);
+  print_reg_or_data(bits(0,3,1), 2);
+}
+
+static void
+print_if_version_4 () {
+  uint8_t op = (bits(1,1,3));
+  
+  if(op) {
+    printf("if (");
+    print_reg(bits(1,4,4));
+    print_cmp_op(op);
+    print_reg_or_data(bits(1,0,1), 4);
+    printf(") ");
   }
 }
 
@@ -364,6 +400,27 @@ vmcmd(uint8_t *bytes)  {
     case 3: // Set instructions
       print_if_version_3();
       print_set();
+      break;
+    case 4: // Set, Compare -> LinkSIns instructions
+      print_set2();
+      printf(", ");
+      print_if_version_4();
+      print_linksub_instruction();
+      break;
+    case 5: // Compare -> (Set and LinkSIns) instructions
+      print_if_version_4();
+      printf("{ ");
+      print_set2();
+      printf(", ");
+      print_linksub_instruction();
+      printf(" }");
+      break;
+    case 6: // Compare -> Set, always LinkSIns instructions
+      print_if_version_4();
+      printf("{ ");
+      print_set2();
+      printf(" } ");
+      print_linksub_instruction();
       break;
     default:
       printf("WARNING: Unknown instruction type (%i)", bits(0,0,3)); 

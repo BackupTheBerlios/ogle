@@ -442,7 +442,7 @@ void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut) {
   PUT(5, "Number of Menu Language Units (PGCI_LU): %3i\n",
       pgci_ut->nr_of_lang_units);
   for(i = 0; i < pgci_ut->nr_of_lang_units; i++) {
-    PUT(5, "Menu Language Code: %c%c\n",
+    PUT(5, "\nMenu Language Code: %c%c\n",
 	pgci_ut->menu_lu[i].lang_code[0],
 	pgci_ut->menu_lu[i].lang_code[1]);
     PUT(5, "Menu Existence: %02x\n", pgci_ut->menu_lu[i].exists);
