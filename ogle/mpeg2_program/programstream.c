@@ -13,50 +13,70 @@ unsigned int buf_start = 0;
 unsigned int buf_fill = 0;
 unsigned int bytes_read = 0;
 
+extern char *optarg;
+extern int optind, opterr, optopt;
 
 
 unsigned int nextbits(unsigned int nr_of_bits);
 
-
+int audio = 0;
+int video = 0;
+int subtitle = 0;
+int subtitle_id = 0;
 
 char *program_name;
 FILE *video_file;
 FILE *audio_file;
-int audio = 0;
-int video = 0;
+FILE *subtitle_file;
+
 
 usage()
 {
-  fprintf(stderr, "Usage: %s -v <video file> -a <audio file>\n", 
+  fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>]\n", 
 	  program_name);
 }
 
 main(int argc, char **argv)
 {
- 
+  int c; 
   program_name = argv[0];
-  
-  if(argc > 1) {
-  if(!strcmp(argv[1],"-v"))
-    video = 1;
 
-  if(!strcmp(argv[3], "-a"))
-    audio = 1;
-  }
-  if(video) {
-    if((video_file = fopen(argv[2], "w")) == NULL) {
-      perror("fopen");
-      exit(-1);
+  /* Parse command line options */
+  while ((c = getopt(argc, argv, "v:a:s:i:h?")) != EOF) {
+    switch (c) {
+    case 'v':
+      video_file = fopen(optarg,"w");
+      video=1;
+      break;
+    case 'a':
+      audio_file = fopen(optarg,"w");
+      audio=1;
+      break;
+    case 's':
+      subtitle_file = fopen(optarg,"w");
+      subtitle=1;
+      break;
+    case 'i':
+      subtitle_id =atoi(optarg);
+      if(! (subtitle_id>=0x20 && subtitle_id<=0x2f)) {
+	fprintf(stderr, "Invalid subtitle_id range.\n");
+	exit(1);
+      } 
+      break;
+    case 'h':
+    case '?':
+      usage();
+      return 1;
     }
-  } else {
-    video_file = stdout;
   }
-  
-  if(audio) {
-    if((audio_file = fopen(argv[4], "w")) == NULL) {
-      perror("fopen");
-      exit(-1);
+	
+  if(subtitle ^ !!subtitle_id) {  // both arguments needed.
+    if(!subtitle) {
+      fprintf(stderr, "No subtitle filename given.\n");
+    } else { 
+      fprintf(stderr, "No subtitle_id given.\n");
     }
+    exit(1);
   }
 
   while(1) {
@@ -188,9 +208,9 @@ pack()
       case 0xBE:
       case 0xBF:
 	is_PES = 1;
-      break;
+	break;
       case 0xBA:
-	//fprintf(stderr, "Pack Start Code\n");
+				//fprintf(stderr, "Pack Start Code\n");
 	is_PES = 0;
 	break;
       default:
@@ -202,7 +222,6 @@ pack()
     if(!is_PES) {
       break;
     }
-    
     
     PES_packet();
     
@@ -253,7 +272,7 @@ pack_header()
     fprintf(stderr, "*ph 01\n");
   }
 
-// 01ccc1cc cccccccc ccccc1cc cccccccc ccccc1ee eeeeeee1 mmmmmmmm mmmmmmmm mmmmmm11 rrrrrsss
+  // 01ccc1cc cccccccc ccccc1cc cccccccc ccccc1ee eeeeeee1 mmmmmmmm mmmmmmmm mmmmmm11 rrrrrsss
   
   system_clock_reference_base =
     (data[0]&0x38)<<27 | (data[0]&0x03)<<28 | (data[1])<<20 |
@@ -278,16 +297,16 @@ pack_header()
     }
   }
   /*
-  fprintf(stderr, "system_clock_reference_base: %lu\n",
-	  system_clock_reference_base);
-  fprintf(stderr, "system_clock_reference_extension: %u\n",
-	  system_clock_reference_extension);
-  fprintf(stderr, "program_mux_rate: %u\n",
-	  program_mux_rate);
-  fprintf(stderr, "pack_stuffing_length: %u\n",
-	  pack_stuffing_length);
+    fprintf(stderr, "system_clock_reference_base: %lu\n",
+    system_clock_reference_base);
+    fprintf(stderr, "system_clock_reference_extension: %u\n",
+    system_clock_reference_extension);
+    fprintf(stderr, "program_mux_rate: %u\n",
+    program_mux_rate);
+    fprintf(stderr, "pack_stuffing_length: %u\n",
+    pack_stuffing_length);
   
-  fprintf(stderr, "next_header: %08x\n", nextbits(32));
+    fprintf(stderr, "next_header: %08x\n", nextbits(32));
   */
   if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
     //fprintf(stderr, "Found System_Header\n");
@@ -333,13 +352,13 @@ system_header()
   system_audio_lock_flag = (data[6]>>7)&0x01;
 
   system_video_lock_flag = (data[6]>>6)&0x01;
-
+  
   video_bound = data[6]&0x1f;
   
   if(alloced == 1) {
     buf_free(8);
   }
-  /*
+#if 0
   fprintf(stderr, "header_length: %hu\n", header_length);
   fprintf(stderr, "rate_bound: %u\n", rate_bound);
   fprintf(stderr, "audio_bound: %u\n", audio_bound);
@@ -348,20 +367,21 @@ system_header()
   fprintf(stderr, "system_audio_lock_flag: %u\n", system_audio_lock_flag);
   fprintf(stderr, "system_video_lock_flag: %u\n", system_video_lock_flag);
   fprintf(stderr, "video_bound: %u\n", video_bound);
-  */
+#endif
+  
   //hhhhhhhh hhhhhhhh 1rrrrrrr rrrrrrrr rrrrrrr1 aaaaaafc av1vvvvv rrrrrrrr
   
   alloced = get_bytes(header_length-6, &data);
   {
     int n = 0;
     while(data[0+n*3]&0x80) {
-      /*
-	fprintf(stderr, "stream_id: %x\n", data[0+n*3]);
+#if 0
+      fprintf(stderr, "stream_id: %x\n", data[0+n*3]);
       fprintf(stderr, "P-STD_buffer_bound_scale: %u\n",
 	      (data[1]>>5)&0x01);
       fprintf(stderr, "P-STD_buffer_size_scale: %u\n",
-    	      (data[1]&0x1f)<<8 | (data[2]));
-      */
+	      (data[1]&0x1f)<<8 | (data[2]));
+#endif
       n++;
     }
     
@@ -527,13 +547,13 @@ PES_packet()
       pack_field_length = data[i+0];
       //fprintf(stderr,"*pack_header length: %u\n", pack_field_length);
       /*
-      {
+	{
 	int n;
 	for(n = 0; n < pack_field_length; n++) {
-	  fprintf(stderr, "%02x, ", data[i+n+1]);
+	fprintf(stderr, "%02x, ", data[i+n+1]);
 	}
 	fprintf(stderr, "\n");
-      }
+	}
       */
       i+=(pack_field_length+1);
     }
@@ -547,7 +567,7 @@ PES_packet()
       //fprintf(stderr, "*P-STD\n");
       i+=2;
     }      
-
+		
     if(PES_extension_field_flag == 0x01) {
       //fprintf(stderr, "*PES_extension_field\n");
       PES_extension_field_length = data[i+0]&0x7f;
@@ -555,17 +575,26 @@ PES_packet()
       
     }
     if(stream_id == 0xe0) {
-      fwrite(&data[i+0], PES_packet_length-i, 1, video_file);
+      if(video)
+	fwrite(&data[i+0], PES_packet_length-i, 1, video_file);
       //fprintf(stderr, "*len: %u\n", PES_packet_length-i);
     } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
       if(audio) {
 	if(data[i+0] == 0x80) {
 	  //fprintf(stderr, "%02x %02x\n", data[i], data[i+1]);
-	  fwrite(&data[i+4], PES_packet_length-i-4, 1, audio_file);
+	  fwrite(&data[i], PES_packet_length-i, 1, audio_file);
+	}
+      }
+      if(subtitle) {
+	//if(data[i] >= 0x20 && data[i]<=0x2f) {
+	//fprintf(stderr, "subtitle 0x%02x exists\n", data[i]);
+	//}
+	if(data[i+0] == subtitle_id ){ 
+	  fprintf(stderr, "subtitle %02x %02x\n", data[i], data[i+1]);
+	  fwrite(&data[i+1], PES_packet_length-i-1, 1, subtitle_file);
 	}
       }
     }
-
   } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
     //fprintf(stderr, "*PRIVATE_stream_2\n");
   } else if(stream_id == MPEG2_PADDING_STREAM) {
