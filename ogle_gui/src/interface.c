@@ -176,6 +176,13 @@ static GnomeUIInfo edit_menu_uiinfo[] =
 
 static GnomeUIInfo view_menu_uiinfo[] =
 {
+  {
+    GNOME_APP_UI_TOGGLEITEM, N_("Full screen"),
+    NULL,
+    on_full_screen_activate, NULL, NULL,
+    GNOME_APP_PIXMAP_NONE, NULL,
+    GDK_f, GDK_CONTROL_MASK, NULL
+  },
   GNOMEUIINFO_END
 };
 
@@ -335,13 +342,19 @@ create_app (void)
   gtk_object_set_data_full (GTK_OBJECT (app), "properties",
                             edit_menu_uiinfo[5].widget,
                             (GtkDestroyNotify) gtk_widget_unref);
-
+  */
   gtk_widget_set_name (menubar_uiinfo[2].widget, "view");
   gtk_widget_ref (menubar_uiinfo[2].widget);
   gtk_object_set_data_full (GTK_OBJECT (app), "view",
                             menubar_uiinfo[2].widget,
                             (GtkDestroyNotify) gtk_widget_unref);
-  */
+
+  gtk_widget_set_name (view_menu_uiinfo[0].widget, "full_screen");
+  gtk_widget_ref (view_menu_uiinfo[0].widget);
+  gtk_object_set_data_full (GTK_OBJECT (app), "full_screen",
+                            view_menu_uiinfo[0].widget,
+                            (GtkDestroyNotify) gtk_widget_unref);
+  
   gtk_widget_set_name (menubar_uiinfo[3].widget, "settings");
   gtk_widget_ref (menubar_uiinfo[3].widget);
   gtk_object_set_data_full (GTK_OBJECT (app), "settings",
