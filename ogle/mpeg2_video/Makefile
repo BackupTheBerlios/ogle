@@ -1,6 +1,6 @@
 CC=gcc
-CFLAGS=-g -Wall -O6 -I/opt/SUNWmlib/include
-LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl
+CFLAGS=-g -pg -Wall -O6 -mcpu=ultrasparc -I/opt/SUNWmlib/include
+LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl -ldl
 video_stream:
 clean:
 	rm -f video_stream *.o

@@ -71,6 +71,9 @@ if(debug > level) \
 
 
 unsigned int debug = 0;
+int show_window[3] = {1,1,1};
+int show_stat = 1;
+int run = 0;
 //prototypes
 int bytealigned(void);
 void back_word(void);
@@ -1107,8 +1110,10 @@ void picture_data(void)
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
-    memcpy(&ref1_mbs[0], &ref2_mbs[0], sizeof(mb)*45*36);
-    memcpy(&cur_mbs[0], &ref1_mbs[0], sizeof(mb)*45*36);
+    if(show_stat) {
+      memcpy(&ref1_mbs[0], &ref2_mbs[0], sizeof(mb)*45*36);
+      memcpy(&cur_mbs[0], &ref1_mbs[0], sizeof(mb)*45*36);
+    }
     break;
   }
  
@@ -1120,56 +1125,7 @@ void picture_data(void)
 
 
   frame_done();
-  /* display screen */
-  /*
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    mlib_VideoColorYUV2ABGR420(imagedata_ref1,
-			       ref_image1->y,
-			       ref_image1->u,
-			       ref_image1->v,
-			       seq.horizontal_size,
-			       seq.vertical_size,
-			       seq.horizontal_size*4, //TODO
-			     seq.horizontal_size,
-			       seq.horizontal_size/2);
-    
-    Display_Image(window_ref1, ximage_ref1, imagedata_ref1);
 
-
-    mlib_VideoColorYUV2ABGR420(imagedata_ref2,
-			       ref_image2->y,
-			       ref_image2->u,
-			       ref_image2->v,
-			       seq.horizontal_size,
-			       seq.vertical_size,
-			       seq.horizontal_size*4, //TODO
-			     seq.horizontal_size,
-			       seq.horizontal_size/2);
-    
-    Display_Image(window_ref2, ximage_ref2, imagedata_ref2);
-
-
-  case 0x3:
-    mlib_VideoColorYUV2ABGR420(ImageData,
-			       current_image->y,
-			       current_image->u,
-			       current_image->v,
-			       seq.horizontal_size,
-			       seq.vertical_size,
-			       seq.horizontal_size*4, //TODO
-			     seq.horizontal_size,
-			       seq.horizontal_size/2);
-    
-    
-    
-    Display_Image(mywindow, myximage, ImageData);
-    break;
-  default:
-    break;
-  }
-  */
   next_start_code();
 }
 
@@ -1347,10 +1303,14 @@ void macroblock(void)
       switch(pic.header.picture_coding_type) {
       case 0x1:
       case 0x2:
-	memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
+	if(show_stat) {
+	  memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
+	}
 	break;
       case 0x3:
-	memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
+	if(show_stat) {
+	  memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
+	}
 	break;
       }
     }
@@ -1663,10 +1623,14 @@ void macroblock(void)
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
-    memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
+    if(show_stat) {
+      memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
+      }
     break;
   case 0x3:
-    memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
+    if(show_stat) {
+      memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
+    }
     break;
 
   }
@@ -3327,9 +3291,12 @@ void frame_done()
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
-    draw_win(&windows[1]);
-    draw_win(&windows[2]);
-
+    if(show_window[1]) {
+      draw_win(&windows[1]);
+    }
+    if(show_window[2]) {
+      draw_win(&windows[2]);
+    }
     //compute_frame(ref_image1, imagedata_ref1);
     //add_grid(imagedata_ref1);
     //Display_Image(window_ref1, ximage_ref1, imagedata_ref1);
@@ -3339,7 +3306,9 @@ void frame_done()
     
     
   case 0x3:
-    draw_win(&windows[0]);
+    if(show_window[0]) {
+      draw_win(&windows[0]);
+    }
     //    compute_frame(current_image, ImageData);
     //Display_Image(mywindow, myximage, ImageData);
     break;
@@ -3349,15 +3318,24 @@ void frame_done()
 
   while(!nextframe) {
 
+    if(run) {
+      nextframe = 1;
+      if(XCheckMaskEvent(mydisplay, 0xFFFFFFFF, &ev) == False) {
+	continue;
+      }
+    } else {
       XNextEvent(mydisplay, &ev);
-
+    }
+      
       switch(ev.type) {
       case Expose:
 	{
 	  int n;
 	  for(n = 0; n < 3; n++) {
 	    if(windows[n].win == ev.xexpose.window) {
-	      draw_win(&(windows[n]));
+	      if(show_window[n]) {
+		draw_win(&(windows[n]));
+	      }
 	      break;
 	    }
 	  }
@@ -3468,7 +3446,11 @@ void frame_done()
 	{
 	  int n;
 	  char buff[2];
+	  static int debug_change = 0;
+	  static int window_change = 0;
+
 	  XLookupString(&(ev.xkey), buff, 2, NULL, NULL);
+	  buff[1] = '\0';
 	  switch(buff[0]) {
 	  case 'n':
 	    nextframe = 1;
@@ -3477,7 +3459,9 @@ void frame_done()
 	    for(n = 0; n < 3; n++) {
 	      if(ev.xkey.window == windows[n].win) {
 		windows[n].grid = !windows[n].grid;
-		draw_win(&(windows[n]));
+		if(show_window[n]) {
+		  draw_win(&(windows[n]));
+		}
 		break;
 	      }
 	    }
@@ -3486,14 +3470,48 @@ void frame_done()
 	    for(n = 0; n < 3; n++) {
 	      if(ev.xkey.window == windows[n].win) {
 		windows[n].color_grid = !windows[n].color_grid;
-		draw_win(&(windows[n]));
+		if(show_window[n]) {
+		  draw_win(&(windows[n]));
+		}
 		break;
 	      }
 	    }
 	    break;
+	  case 'd':
+	    debug_change = 2;
+	    break;
+	  case 'w':
+	    window_change = 2;
+	    break;
+	  case 's':
+	    show_stat = !show_stat;
+	    break;
+	  case 'r':
+	    run = !run;
+	    nextframe = 1;
+	    break;
 	  case 'q':
 	    exit_program();
 	    break;
+	  default:
+	    if(debug_change) {
+	      debug = atoi(&buff[0]);
+	    }
+	    if(window_change) {
+	      int w;
+	      w = atoi(&buff[0]);
+	      if((w >= 0) && (w < 3)) {
+		show_window[w] = !show_window[w];
+	      }
+	    }
+	    break;
+	    
+	  }
+	  if(debug_change > 0) {
+	    debug_change--;
+	  }
+	  if(window_change > 0) {
+	    window_change--;
 	  }
 	}
 	break;
