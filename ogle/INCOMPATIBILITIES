@@ -1,11 +1,14 @@
 SHM_SHARE_MMU (shmat): SOLARIS has it, LINUX does not
+just fixed by doing
+#ifndef SHM_SHARE_MMU
+#define SHM_SHARE_MMU 0
+#endif
 
 sem_init: SOLARIS needs -lrt or -lposix4, LINUX needs -lrt or -lpthread
 sem_init: so use -lrt
 
 clock_gettime: SOLARIS has it, LINUX has not (fallback to gettimeofday?)
 clock_gettiem: <time.h>, gettimeofday <sys/time.h>
-
 
 getopt: SOLARIS in <stdlib.h>, LINUX in <unistd.h>
 
