@@ -36,6 +36,11 @@
 #endif
 
 #ifndef NDEBUG
+#define CHECK_ZERO0(arg) \
+  if(arg != 0) { \
+    fprintf(stderr, "*** Zero check failed in %s:%i\n    for %s = 0x%x\n", \
+            __FILE__, __LINE__, # arg, arg); \
+  }
 #define CHECK_ZERO(arg) \
   if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
     unsigned int i_CZ; \
@@ -47,6 +52,7 @@
   }
 static const uint8_t my_friendly_zeros[2048];
 #else
+#define CHECK_ZERO0(arg) (void)(arg)
 #define CHECK_ZERO(arg) (void)(arg)
 #endif
 
@@ -425,10 +431,11 @@ static int ifoRead_VTS(ifo_handle_t *ifofile) {
   CHECK_ZERO(vtsi_mat->zero_18);
   CHECK_ZERO(vtsi_mat->zero_19);
   CHECK_ZERO(vtsi_mat->zero_20);
+  CHECK_ZERO(vtsi_mat->zero_21);
   CHECK_VALUE(vtsi_mat->vtsi_last_sector*2 <= vtsi_mat->vts_last_sector);
   CHECK_VALUE(vtsi_mat->vtsi_last_byte/DVD_BLOCK_LEN <= vtsi_mat->vtsi_last_sector);
   CHECK_VALUE(vtsi_mat->vtsm_vobs == 0 || 
-        (vtsi_mat->vtsm_vobs > vtsi_mat->vtsi_last_sector &&
+       (vtsi_mat->vtsm_vobs > vtsi_mat->vtsi_last_sector &&
          vtsi_mat->vtsm_vobs < vtsi_mat->vts_last_sector));
   CHECK_VALUE(vtsi_mat->vtstt_vobs == 0 || 
         (vtsi_mat->vtstt_vobs > vtsi_mat->vtsi_last_sector &&
@@ -452,7 +459,16 @@ static int ifoRead_VTS(ifo_handle_t *ifofile) {
   CHECK_VALUE(vtsi_mat->nr_of_vts_subp_streams <= 32);
   for(i = vtsi_mat->nr_of_vts_subp_streams; i < 32; i++)
     CHECK_ZERO(vtsi_mat->vts_subp_attr[i]);      
-
+  
+  for(i = 0; i < 8; i++) {
+    CHECK_ZERO0(vtsi_mat->vts_mu_audio_attr[i].zero1);
+    CHECK_ZERO0(vtsi_mat->vts_mu_audio_attr[i].zero2);
+    CHECK_ZERO0(vtsi_mat->vts_mu_audio_attr[i].zero3);
+    CHECK_ZERO0(vtsi_mat->vts_mu_audio_attr[i].zero4);
+    CHECK_ZERO0(vtsi_mat->vts_mu_audio_attr[i].zero5);
+    CHECK_ZERO(vtsi_mat->vts_mu_audio_attr[i].zero6);
+  }
+  
   return 1;
 }
 
@@ -935,6 +951,8 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
        of the vts_ptt_srpt structure. */
     CHECK_VALUE(data[i] + sizeof(ptt_info_t) <= vts_ptt_srpt->last_byte + 1 + 4);
   }
+ 
+  vts_ptt_srpt->ttu_offset = data;
   
   vts_ptt_srpt->title = malloc(vts_ptt_srpt->nr_of_srpts * sizeof(ttu_t));
   if(!vts_ptt_srpt->title) {
@@ -974,7 +992,6 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
         = *(uint16_t*)(((char *)data) + data[i] + 4*j + 2 - VTS_PTT_SRPT_SIZE);
     }
   }
-  free(data);
   
   for(i = 0; i < vts_ptt_srpt->nr_of_srpts; i++) {
     for(j = 0; j < vts_ptt_srpt->title[i].nr_of_ptts; j++) {
@@ -1005,6 +1022,7 @@ void ifoFree_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
     int i;
     for(i = 0; i < ifofile->vts_ptt_srpt->nr_of_srpts; i++)
       free(ifofile->vts_ptt_srpt->title[i].ptt);
+    free(ifofile->vts_ptt_srpt->ttu_offset);
     free(ifofile->vts_ptt_srpt->title);
     free(ifofile->vts_ptt_srpt);
     ifofile->vts_ptt_srpt = 0;
@@ -1015,7 +1033,7 @@ void ifoFree_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
 int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   ptl_mait_t *ptl_mait;
   int info_length;
-  unsigned int i;
+  unsigned int i, j;
 
   if(!ifofile)
     return 0;
@@ -1108,12 +1126,13 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
 
   if(ifofile->vtsi_mat->vts_tmapt == 0) { /* optional(?) */
     ifofile->vts_tmapt = NULL;
+    fprintf(stderr,"Please send bug report - no VTS_TMAPT ?? \n");
     return 1;
   }
   
   offset = ifofile->vtsi_mat->vts_tmapt * DVD_BLOCK_LEN;
   
-  if(!DVDFileSeek_(ifofile->file, offset))
+  if(!DVDFileSeek_(ifofile->file, offset)) 
     return 0;
   
   vts_tmapt = (vts_tmapt_t *)malloc(sizeof(vts_tmapt_t));
@@ -1142,6 +1161,8 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
     ifofile->vts_tmapt = NULL;
     return 0;
   }
+
+  vts_tmapt->tmap_offset = vts_tmap_srp;
   
   if(!(DVDReadBytes(ifofile->file, vts_tmap_srp, info_length))) {
     fprintf(stderr, "libdvdread: Unable to read VTS_TMAPT.\n");
@@ -1165,17 +1186,17 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
     ifofile->vts_tmapt = NULL;
     return 0;
   }
+
   memset(vts_tmapt->tmap, 0, info_length); /* So ifoFree_VTS_TMAPT works. */
   
   for(i = 0; i < vts_tmapt->nr_of_tmaps; i++) {
     if(!DVDFileSeek_(ifofile->file, offset + vts_tmap_srp[i])) {
-      free(vts_tmap_srp);
       ifoFree_VTS_TMAPT(ifofile);
       return 0;
     }
+
     if(!(DVDReadBytes(ifofile->file, &vts_tmapt->tmap[i], VTS_TMAP_SIZE))) {
       fprintf(stderr, "libdvdread: Unable to read VTS_TMAP.\n");
-      free(vts_tmap_srp);
       ifoFree_VTS_TMAPT(ifofile);
       return 0;
     }
@@ -1192,14 +1213,12 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
     
     vts_tmapt->tmap[i].map_ent = (map_ent_t *)malloc(info_length);
     if(!vts_tmapt->tmap[i].map_ent) {
-      free(vts_tmap_srp);
       ifoFree_VTS_TMAPT(ifofile);
       return 0;
     }
 
     if(!(DVDReadBytes(ifofile->file, vts_tmapt->tmap[i].map_ent, info_length))) {
       fprintf(stderr, "libdvdread: Unable to read VTS_TMAP_ENT.\n");
-      free(vts_tmap_srp);
       ifoFree_VTS_TMAPT(ifofile);
       return 0;
     }
@@ -1207,7 +1226,6 @@ int ifoRead_VTS_TMAPT(ifo_handle_t *ifofile) {
     for(j = 0; j < vts_tmapt->tmap[i].nr_of_entries; j++)
       B2N_32(vts_tmapt->tmap[i].map_ent[j]);
   }    
-  free(vts_tmap_srp);
   
   return 1;
 }
@@ -1223,6 +1241,7 @@ void ifoFree_VTS_TMAPT(ifo_handle_t *ifofile) {
       if(ifofile->vts_tmapt->tmap[i].map_ent)
 	free(ifofile->vts_tmapt->tmap[i].map_ent);
     free(ifofile->vts_tmapt->tmap);
+    free(ifofile->vts_tmapt->tmap_offset);
     free(ifofile->vts_tmapt);
     ifofile->vts_tmapt = NULL;
   }
@@ -1839,6 +1858,9 @@ int ifoRead_VTS_ATRT(ifo_handle_t *ifofile) {
     ifofile->vts_atrt = 0;
     return 0;
   }
+
+  vts_atrt->vts_atrt_offsets = data;   
+
   if(!(DVDReadBytes(ifofile->file, data, info_length))) {
     free(data);
     free(vts_atrt);
@@ -1873,7 +1895,6 @@ int ifoRead_VTS_ATRT(ifo_handle_t *ifofile) {
     CHECK_VALUE(offset + vts_atrt->vts[i].last_byte <= vts_atrt->last_byte + 1);
     // Is this check correct?
   }
-  free(data);
 
   return 1;
 }
@@ -1885,6 +1906,7 @@ void ifoFree_VTS_ATRT(ifo_handle_t *ifofile) {
   
   if(ifofile->vts_atrt) {
     free(ifofile->vts_atrt->vts);
+    free(ifofile->vts_atrt->vts_atrt_offsets);
     free(ifofile->vts_atrt);
     ifofile->vts_atrt = 0;
   }

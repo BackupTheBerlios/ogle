@@ -824,6 +824,8 @@ void ifoPrint_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt) {
 	 vts_ptt_srpt->nr_of_srpts, 
 	 vts_ptt_srpt->last_byte);
   for(i=0;i<vts_ptt_srpt->nr_of_srpts;i++) {
+    printf("\nVTS_PTT number %d has a offset %d relative to VTS_PTT_SRPT\n", 
+				i + 1, vts_ptt_srpt->ttu_offset[i]);
     for(j=0;j<vts_ptt_srpt->title[i].nr_of_ptts;j++) {
       printf("VTS_PTT_SRPT - Title %3i part %3i: PGC: %3i PG: %3i\n",
 	     i + 1, j + 1, 
@@ -873,10 +875,11 @@ void ifoPrint_VTS_TMAPT(vts_tmapt_t *vts_tmapt) {
   int i, j;
   
   printf("Number of VTS_TMAPS: %i\n", vts_tmapt->nr_of_tmaps);
-  //printf("Last byte: %i\n", vts_tmapt->last_byte);
-  
+  printf("Last byte: %i\n", vts_tmapt->last_byte);
+
   for(i = 0; i < vts_tmapt->nr_of_tmaps; i++) {
-    printf("TMAP %i\n", i);
+    printf("TMAP %i\n", i + 1);
+    printf("  offset %d relative to VTS_TMAPTI\n", vts_tmapt->tmap_offset[i]);
     printf("  Time unit (seconds): %i\n", vts_tmapt->tmap[i].tmu);
     printf("  Number of entries: %i\n", vts_tmapt->tmap[i].nr_of_entries);
     timeunit = vts_tmapt->tmap[i].tmu;
@@ -995,6 +998,8 @@ void ifoPrint_VTS_ATRT(vts_atrt_t *vts_atrt) {
   printf("Number of Video Title Sets: %3i\n", vts_atrt->nr_of_vtss);
   for(i = 0; i < vts_atrt->nr_of_vtss; i++) {
     printf("\nVideo Title Set %i\n", i + 1);
+    printf("  offset %d relative to VMG_VTS_ATRT\n", 
+	   vts_atrt->vts_atrt_offsets[i]);
     ifoPrint_VTS_ATTRIBUTES(&vts_atrt->vts[i]);
   }
 }
