@@ -360,7 +360,8 @@ void block_intra(unsigned int i)
       }
 #endif
       inverse_quantisation_sum += f; // The last bit is the same in f and -f.
-      mb.QFS[i] = sgn ? -f : f;
+      // mb.QFS[i] = sgn ? -f : f;
+      mb.QFS[i] = (f ^ -sgn) + sgn;
       
       n++;
     }
@@ -517,7 +518,8 @@ void block_non_intra(unsigned int b)
 #endif
       
       inverse_quantisation_sum += f; // The last bit is the same in f and -f.
-      mb.QFS[i] = sgn ? -f : f;
+      // mb.QFS[i] = sgn ? -f : f;
+      mb.QFS[i] = (f ^ -sgn) + sgn;
       
       n++;      
     }
