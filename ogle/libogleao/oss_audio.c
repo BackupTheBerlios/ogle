@@ -45,6 +45,8 @@
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
 
+#include <string.h>
+
 typedef struct oss_instance_s {
   ogle_ao_instance_t ao;
   int fd;
@@ -55,6 +57,7 @@ typedef struct oss_instance_s {
   int channels;
   int speed;
   int initialized;
+  char *dev;
 } oss_instance_t;
 
 static int log2(int val)
@@ -82,36 +85,46 @@ int oss_init(ogle_ao_instance_t *_instance,
   audio_buf_info info;
   
   if(instance->initialized) {
-    // SNDCTL_DSP_SYNC resets the audio device so we can set new parameters
-    ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
-    instance->initialized = 0;
-  }
-
-
-  // set fragment size if requested
-  // can only be done once after open
-
-  if(audio_info->fragment_size != -1) {
-    if(log2(audio_info->fragment_size) > 0xffff) {
-      fragment_size = 0xffff;
-    } else {
-      fragment_size = log2(audio_info->fragment_size);
-    }
-    if(audio_info->fragments != -1) {
-      if(audio_info->fragments > 0xffff) {
-	nr_fragments = 0xffff;
-      } else {
-	nr_fragments = audio_info->fragments;
+    if(getenv("OGLE_OSS_RESET_BUG")) {
+      fprintf(stderr, "oss_audio: closing/reopening %s\n", instance->dev);
+      close(instance->fd);
+      instance->fd = open(instance->dev, O_WRONLY);
+      if(instance->fd < 0) {
+	perror("open failed");
+	return -1;
       }
     } else {
-      nr_fragments = 0x7fff;
+      // SNDCTL_DSP_SYNC resets the audio device so we can set new parameters
+      ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
     }
+  } else {
     
-    fragment = (nr_fragments << 16) | fragment_size;
     
-    if(ioctl(instance->fd, SNDCTL_DSP_SETFRAGMENT, &fragment) == -1) {
-      perror("SNDCTL_DSP_SETFRAGMENT");
-      //this is not fatal
+    // set fragment size if requested
+    // can only be done once after open
+    
+    if(audio_info->fragment_size != -1) {
+      if(log2(audio_info->fragment_size) > 0xffff) {
+	fragment_size = 0xffff;
+      } else {
+	fragment_size = log2(audio_info->fragment_size);
+      }
+      if(audio_info->fragments != -1) {
+	if(audio_info->fragments > 0xffff) {
+	  nr_fragments = 0xffff;
+	} else {
+	  nr_fragments = audio_info->fragments;
+	}
+      } else {
+	nr_fragments = 0x7fff;
+      }
+      
+      fragment = (nr_fragments << 16) | fragment_size;
+    
+      if(ioctl(instance->fd, SNDCTL_DSP_SETFRAGMENT, &fragment) == -1) {
+	perror("SNDCTL_DSP_SETFRAGMENT");
+	//this is not fatal
+      }
     }
   }
 
@@ -417,7 +430,9 @@ static
 void oss_close(ogle_ao_instance_t *_instance)
 {
   oss_instance_t *instance = (oss_instance_t *)_instance;
-  
+  if(instance->dev) {
+    free(instance->dev);
+  }
   close(instance->fd);
 }
 
@@ -461,7 +476,7 @@ ogle_ao_instance_t *oss_open(char *dev)
     instance->ao.drain  = oss_drain;
     
     instance->initialized = 0;
-    
+    instance->dev = strdup(dev);
     instance->fd = open(dev, O_WRONLY);
     if(instance->fd < 0) {
       free(instance);
