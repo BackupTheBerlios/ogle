@@ -139,6 +139,8 @@ void* infileaddr;
 long  infilelen;
 uint32_t offs;
 
+char cur_filename[PATH_MAX+1];
+
 // #define DEBUG
 
 #ifdef DEBUG
@@ -623,10 +625,8 @@ void push_stream_data(uint8_t stream_id, int len,
 	  fwrite(&buf[offs-(bits_left/8)+4], len-4, 1,
 		 id_file(stream_id, subtype));
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
-	  fprintf(stderr, "FILE: %d\n",	 id_file(stream_id, subtype));
 	  fwrite(&buf[offs-(bits_left/8)+1], len-1, 1,
 		 id_file(stream_id, subtype));
-	  fflush(id_file(stream_id, subtype));
 	} else {
 	  fwrite(&buf[offs-(bits_left/8)], len, 1,
 		 id_file(stream_id, subtype));
@@ -1198,7 +1198,7 @@ void segvhandler (int id)
 
 void loadinputfile(char *infilename)
 {
-  struct stat statbuf;
+  static struct stat statbuf;
   int rv;
 
 #if 0
@@ -1208,21 +1208,30 @@ void loadinputfile(char *infilename)
   } lf_pack;
 #endif
 
+  if(buf != NULL) {
+    munmap(buf, statbuf.st_size);
+  }
+  
   infilefd = open(infilename, O_RDONLY);
   if(infilefd == -1) {
     perror(infilename);
     exit(1);
   }
+  
+  strcpy(cur_filename, infilename);
+
   rv = fstat(infilefd, &statbuf);
   if (rv == -1) {
     perror("fstat");
     exit(1);
   }
   buf = (uint8_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
+  close(infilefd);
   if(buf == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
+
   infilelen = statbuf.st_size;
 #ifdef HAVE_MADVISE
   rv = madvise(buf, infilelen, MADV_SEQUENTIAL);
@@ -1806,7 +1815,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   
   static int scr_nr = 0;
   
-  /* First find a entry in the big shared buffer pool. */
+  /* First find an entry in the big shared buffer pool. */
   
   data_buf_head = (data_buf_head_t *)data_buf_addr;
   data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
@@ -1849,7 +1858,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 	    data_elem_nr);
   }
   
-  /* If decremented earlier then increment it now to restor the normal 
+  /* If decremented earlier, then increment it now to restore the normal 
    * maximum free buffers for the queue. */
   for(n = 0; n < nr_waits; n++) {
     if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
@@ -1876,6 +1885,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elems[data_elem_nr].len = len;
   data_elems[data_elem_nr].q_addr = q_addr;
   data_elems[data_elem_nr].in_use = 1;
+  strcpy(data_elems[data_elem_nr].filename, cur_filename);
 
   if(scr_discontinuity) {
     scr_discontinuity = 0;

@@ -134,18 +134,21 @@ int main(int argc, char *argv[])
     }
   }
   
-  if(argc - optind != 1){
+  if(argc - optind > 1){
     usage();
     return 1;
   }
   
-  input_file = argv[optind];
+  if(argc - optind == 1){
+    input_file = argv[optind];
+  } else {
+    input_file = NULL;
+  }
   
-
   ctrl_data_shmid = create_ctrl_data();
   
   /* create msgq */
-
+  
   create_msgq();
   
 
@@ -155,7 +158,7 @@ int main(int argc, char *argv[])
 
   demux_pid = init_demux(msgqid_str);
   
-  {
+  if(input_file != NULL) {
     cmd_t *cmd;
     
     msg.mtype = MTYPE_DEMUX;
@@ -170,7 +173,7 @@ int main(int argc, char *argv[])
       perror("msgsnd");
     }
   }
-
+  
   
   while(1){
     wait_for_msg(CMD_ALL);
@@ -180,6 +183,7 @@ int main(int argc, char *argv[])
   
   return 0;
 }
+
 
 int chk_for_msg(void)
 {
@@ -774,7 +778,7 @@ int eval_msg(cmd_t *cmd)
 	    
 
 	    // temporary fix to mmap infile
-
+	    /*
 	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
 	    sendcmd->cmdtype = CMD_FILE_OPEN;
 
@@ -783,7 +787,7 @@ int eval_msg(cmd_t *cmd)
 	    
 	    send_msg(&sendmsg, sizeof(cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	    */
 
 	    // ac3 stream
 	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
@@ -813,7 +817,7 @@ int eval_msg(cmd_t *cmd)
 	    
 
 	    // temporary fix to mmap infile
-
+	    /*
 	    sendmsg.mtype = MTYPE_SPU_DECODE;
 	    sendcmd->cmdtype = CMD_FILE_OPEN;
 
@@ -822,7 +826,7 @@ int eval_msg(cmd_t *cmd)
 	    
 	    send_msg(&sendmsg, sizeof(cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	    */
 
 	    // ac3 stream
 	    sendmsg.mtype = MTYPE_SPU_DECODE;
@@ -853,7 +857,7 @@ int eval_msg(cmd_t *cmd)
 	  
 	  
 	  // temporary fix to mmap infile
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  
@@ -862,7 +866,7 @@ int eval_msg(cmd_t *cmd)
 	  
 	  send_msg(&sendmsg, sizeof(cmdtype_t) +
 		   strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	  */
 
 	  // mpeg audio stream
 	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
@@ -891,14 +895,14 @@ int eval_msg(cmd_t *cmd)
 		   sizeof(cmd_ctrl_data_t));
 	  
 	  // mpeg video stream
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
 		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  
+	  */
 	  
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
@@ -925,14 +929,14 @@ int eval_msg(cmd_t *cmd)
 		   sizeof(cmd_ctrl_data_t));
 	  
 	  // mpeg private stream 2 
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
 		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  
+	  */
 	  
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
 	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
@@ -1007,7 +1011,7 @@ int eval_msg(cmd_t *cmd)
 	    
 
 	    // temporary fix to mmap infile
-
+	    /*
 	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
 	    sendcmd->cmdtype = CMD_FILE_OPEN;
 
@@ -1016,7 +1020,7 @@ int eval_msg(cmd_t *cmd)
 	    
 	    send_msg(&sendmsg, sizeof(cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	    */
 
 	    // ac3 stream
 	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
@@ -1046,7 +1050,7 @@ int eval_msg(cmd_t *cmd)
 	    
 
 	    // temporary fix to mmap infile
-
+	    /*
 	    sendmsg.mtype = MTYPE_SPU_DECODE;
 	    sendcmd->cmdtype = CMD_FILE_OPEN;
 
@@ -1055,7 +1059,7 @@ int eval_msg(cmd_t *cmd)
 	    
 	    send_msg(&sendmsg, sizeof(cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	    */
 
 	    // ac3 stream
 	    sendmsg.mtype = MTYPE_SPU_DECODE;
@@ -1086,7 +1090,7 @@ int eval_msg(cmd_t *cmd)
 	  
 	  
 	  // temporary fix to mmap infile
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  
@@ -1095,7 +1099,7 @@ int eval_msg(cmd_t *cmd)
 	  
 	  send_msg(&sendmsg, sizeof(cmdtype_t) +
 		   strlen(sendcmd->cmd.file_open.file)+1);
-	    
+	  */
 
 	  // mpeg audio stream
 	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
@@ -1124,14 +1128,14 @@ int eval_msg(cmd_t *cmd)
 		   sizeof(cmd_ctrl_data_t));
 	  
 	  // mpeg video stream
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
 		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  
+	  */
 	  
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
 	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
@@ -1158,14 +1162,14 @@ int eval_msg(cmd_t *cmd)
 		   sizeof(cmd_ctrl_data_t));
 	  
 	  // mpeg private stream 2 
-	  
+	  /*
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
 	  sendcmd->cmdtype = CMD_FILE_OPEN;
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
 		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  
+	  */
 	  
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
 	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;

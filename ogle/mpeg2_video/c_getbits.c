@@ -97,18 +97,36 @@ uint64_t cur_word = 0;
 #endif
 
 
-
 #ifdef GETBITSMMAP // Support functions
-void setup_mmap(char *filename) {
+
+
+void change_file(char *new_filename)
+{
   int filefd;
-  struct stat statbuf;
+  static struct stat statbuf;
   int rv;
+  static char *cur_filename = NULL;
   
-  filefd = open(filename, O_RDONLY);
+  // if same filename do nothing
+  if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
+    return;
+  }
+
+  if(mmap_base != NULL) {
+    munmap(mmap_base, statbuf.st_size);
+  }
+  if(cur_filename != NULL) {
+    free(cur_filename);
+  }
+  
+  filefd = open(new_filename, O_RDONLY);
   if(filefd == -1) {
-    perror(filename);
+    perror(new_filename);
     exit(1);
   }
+
+
+  cur_filename = strdup(new_filename);
   rv = fstat(filefd, &statbuf);
   if(rv == -1) {
     perror("fstat");
@@ -116,10 +134,14 @@ void setup_mmap(char *filename) {
   }
   mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
 			      PROT_READ, MAP_SHARED, filefd,0);
+  close(filefd);
   if(mmap_base == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
+
+
+  
 #ifdef HAVE_MADVISE
   rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
   if(rv == -1) {
@@ -139,7 +161,7 @@ void get_next_packet()
     if(mmap_base == NULL) {
       static clocktime_t time_offset = { 0, 0 };
 
-      setup_mmap(infilename);
+      change_file(infilename);
       packet.offset = 0;
       packet.length = 1000000000;
 
@@ -164,9 +186,11 @@ void get_next_packet()
       get_q();
     } 
     
+    /*
     while(mmap_base == NULL) {
       wait_for_msg(CMD_FILE_OPEN);
     }
+    */
     while(stream_shmid == -1) {
       wait_for_msg(CMD_DECODE_STREAM_BUFFER);
     }
@@ -389,7 +413,7 @@ int eval_msg(cmd_t *cmd)
   case CMD_FILE_OPEN:
     //fprintf(stderr, "video_dec: got file open '%s'\n",
     //    cmd->cmd.file_open.file);
-    setup_mmap(cmd->cmd.file_open.file);
+    change_file(cmd->cmd.file_open.file);
     break;
   case CMD_DECODE_STREAM_BUFFER:
     //fprintf(stderr, "video_dec: got stream %x, %x buffer \n",
@@ -563,6 +587,8 @@ int get_q()
   }
   //#endif
   
+  change_file(data_elem->filename);
+  
   off = data_elem->off;
   len = data_elem->len;
   
@@ -575,6 +601,7 @@ int get_q()
   fprintf(stderr, "ac3: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
 	  PTS_DTS_flags, PTS, DTS, off, len);
   */
+
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
   return 0;

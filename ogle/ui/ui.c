@@ -241,7 +241,20 @@ int input() {
 	  (unsigned char)strtol(tok, NULL, 0);
       }
       
+    } else if(strcmp(tok, "file") == 0) {
+      
+      cmd = CTRLCMD_NONE;
+      
+      msg.mtype = MTYPE_DEMUX;
+      sendcmd->cmdtype = CMD_FILE_OPEN;
+      
+      tok = strtok(NULL, " ");
+      strcpy(sendcmd->cmd.file_open.file, tok);
+      
+      send_msg(&msg, sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+      
     }
+    
 
     
 
