@@ -2015,7 +2015,7 @@ void picture_data(void)
   /* now we can decode the picture if it shouldn't be dropped */
   if(!drop_frame) {
     /* Decode the slices. */
-    if( MPEG2 )
+    if( MPEG2 ) {
       do {
 	int slice_nr;
 	slice_nr = nextbits(32) & 0xff;
@@ -2026,7 +2026,7 @@ void picture_data(void)
 	next_start_code();      
       } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	      (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
-    else {
+    } else {
       do {
 	err = mpeg1_slice();
 	if(err == -1) {
