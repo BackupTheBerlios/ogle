@@ -165,7 +165,7 @@ if [ "$debug" = "1" ]; then
 	     done
              #the devices that can read DVD
 	     echo  -n "Valid DVD devices:"
-	     if [ -z $DVD_DEV ]; then
+	     if [ -z "$DVD_DEV" ]; then
 		 echo ""
 		 echo "WARNING: No DVD devices found"
 	     fi
