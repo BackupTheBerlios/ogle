@@ -35,6 +35,7 @@
     <sync>
       <type>odelay</type>
       <resample>no</resample>
+      <offset>0</offset>
     </sync>
   </audio>
   <video>

@@ -19,12 +19,17 @@
 <!ELEMENT level (#PCDATA)>
 <!ELEMENT liba52 (level|adjust_level|drc)*>
 
+<!ELEMENT type (#PCDATA)>
+<!ELEMENT resample (#PCDATA)>
+<!ELEMENT offset (#PCDATA)>
+<!ELEMENT sync (type|resample|offset)*>
+
 <!ELEMENT front (#PCDATA)>
 <!ELEMENT rear (#PCDATA)>
 <!ELEMENT sub (#PCDATA)>
 <!ELEMENT dolby (#PCDATA)>
 <!ELEMENT speakers (front | rear | sub | dolby)*>
-<!ELEMENT audio (device | speakers | liba52)*>
+<!ELEMENT audio (device | speakers | liba52 | sync)*>
 
 <!ELEMENT name (#PCDATA)>
 <!ELEMENT width (#PCDATA)>
