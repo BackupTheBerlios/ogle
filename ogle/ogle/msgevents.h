@@ -42,11 +42,47 @@ typedef int MsgEventQ_t;
 
 typedef long int MsgEventClient_t;
 
+#if 1
 typedef struct {
   int msqid;
   long int mtype;
 } MsgEventQ_t;
 
+#else
+
+/* more general version */
+typedef enum {
+  MsgEventQType_msgq,
+  MsgEventQType_socket;
+  MsgEventQType_pipe;
+} MsgEventQType_t;
+
+typedef struct {
+ 
+  union {
+    struct {
+      MsgEventQType_t type;
+    } any;
+
+    struct {
+      MsgEventQType_t type;
+      msqid;
+      long int mtype;
+    } msgq;
+    
+    struct {
+      MsgEventQType_t type;
+      int d;
+    } socket;
+    
+    struct {
+      MsgEventQType_t type;
+      int d;
+    } pipe;
+  };
+} MsgEventQ_t;
+
+#endif
 
 #endif
 

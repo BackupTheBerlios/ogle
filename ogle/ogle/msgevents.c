@@ -92,6 +92,7 @@ void PrintMsgEventType(MsgEventType_t type)
 }
 #endif
 
+//MsgEventQ_t *MsgOpen(MsgEventQType_t type, )
 MsgEventQ_t *MsgOpen(int msqid)
 {
   MsgEventQ_t *ret = NULL;
