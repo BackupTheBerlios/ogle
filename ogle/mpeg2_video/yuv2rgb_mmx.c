@@ -62,7 +62,7 @@ void  YUV2RGB420_MMX_16(uint8_t *out,
   col1 = cols + mod;
   mod += cols + mod;
   mod *= 2;
-  y = lum + cols*rows;
+  y = (uint8_t *)lum + cols*rows;
   x = 0;
 #ifdef HAVE_MMX
   __asm__ __volatile__(
