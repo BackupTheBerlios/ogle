@@ -6,7 +6,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui 0.8.4\n"
 "POT-Creation-Date: 2002-07-06 19:12+0200\n"
-"PO-Revision-Date: 2002-07-06 12:00+0100\n"
+"PO-Revision-Date: 2002-07-07 12:00+0100\n"
 "Last-Translator: Heiko Garrelts <hgarrelts@web.de>\n"
 "Language-Team: German <kiza@claws-and-paws.com>\n"
 "MIME-Version: 1.0\n"
@@ -1856,21 +1856,21 @@ msgstr "Hauptmenü"
 
 #: src/menu.c:51
 msgid "Title"
-msgstr "Titelmenü"
+msgstr "Titel"
 
 #: src/menu.c:52
 msgid "Resume"
 msgstr "Fortfahren"
 
 #: src/ptt.c:87
-#, fuzzy, c-format
+#, c-format
 msgid "Title %i"
-msgstr "Titelmenü"
+msgstr "Titel %i"
 
 #: src/ptt.c:93
-#, fuzzy, c-format
+#, c-format
 msgid "Chapter %i"
-msgstr "Kapitel"
+msgstr "Kapitel %i"
 
 #: pixmaps/glade-strings.c:10
 msgid "%P %%"
@@ -1974,19 +1974,19 @@ msgstr "Menü wählen..."
 
 #: pixmaps/glade-strings.c:85
 msgid "Skip backwards"
-msgstr "Track zurück"
+msgstr "Kapitel zurück"
 
 #: pixmaps/glade-strings.c:88
 msgid "Skip forwards"
-msgstr "Track vor"
+msgstr "Kapitel vor"
 
 #: pixmaps/glade-strings.c:91
 msgid "Step forwards"
-msgstr "Frame vor"
+msgstr "Bild vor"
 
 #: pixmaps/glade-strings.c:94
 msgid "Step reverse"
-msgstr "Frame zurück"
+msgstr "Bild zurück"
 
 #: pixmaps/glade-strings.c:97
 msgid "Stop"
@@ -2018,11 +2018,11 @@ msgstr "_Hilfe"
 
 #: pixmaps/glade-strings.c:118
 msgid "_Open..."
-msgstr "Öffnen"
+msgstr "Ö_ffnen"
 
 #: pixmaps/glade-strings.c:121
 msgid "_View"
-msgstr "Ansicht"
+msgstr "_Ansicht"
 
 #~ msgid "_PTT"
 #~ msgstr "_PTT"
