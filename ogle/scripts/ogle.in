@@ -349,10 +349,21 @@ export DVDP_VIDEO
 DVDP_VMG=$DVDP_ROOT/ogle_nav$nav_debug
 #DVDP_VMG=RUNNING
 export DVDP_VMG
-#DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
+if [ -z "$DVDP_SPU" -o ! -x "$DVDP_SPU" ]; then
+if [ -x $DVDP_ROOT/ogle_vout$vout_debug ]; then
 DVDP_SPU=$DVDP_ROOT/ogle_vout$vout_debug
+else
+DVDP_SPU=$exec_prefix/bin/ogle_vout$vout_debug
+fi
+fi
 export DVDP_SPU
+if [ -z "$DVDP_VIDEO_OUT" -o ! -x "$DVDP_VIDEO_OUT" ]; then
+if [ -x $DVDP_ROOT/ogle_vout$vout_debug ]; then
 DVDP_VIDEO_OUT=$DVDP_ROOT/ogle_vout$vout_debug
+else
+DVDP_VIDEO_OUT=$exec_prefix/bin/ogle_vout$vout_debug
+fi
+fi
 export DVDP_VIDEO_OUT
 if [ -x "$DVDP_UI" ]; then
   $DVDP_CTRL -u gui $param;
