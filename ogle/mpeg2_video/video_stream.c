@@ -1586,7 +1586,6 @@ void picture_data(void)
     MsgEvent_t ev;
     while(MsgCheckEvent(msgq, &ev) != -1) {
       handle_events(msgq, &ev);
-      fprintf(stderr, "/");
     }
     //chk_for_msg();
   }
