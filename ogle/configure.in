@@ -341,7 +341,7 @@ mad_path=""
 AC_ARG_WITH(libmad, 
   [  --with-libmad=path      specify the install prefix to libmad ], 
   [if test "x$with_libmad" = xno; then
-     AC_MSG_ERROR([You must have/use maddec])
+     AC_MSG_ERROR([You must have/use libmad])
    fi
    if test "x$with_libmad" != xyes; then
      mad_path=$with_libmad
@@ -370,7 +370,7 @@ dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
 CPPFLAGS="-w $CPPFLAGS $MAD_CFLAGS"
 AC_CHECK_HEADER(mad.h,, 
     [ AC_MSG_WARN([Can not find mad.h, need the libmad headers])
-      AC_MSG_ERROR([Install maddec(-dev) and/or specify it's location]) 
+      AC_MSG_ERROR([Install libmad and/or specify it's location]) 
     ])
 CPPFLAGS=$saved_CPPFLAGS
 
