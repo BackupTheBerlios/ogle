@@ -177,7 +177,7 @@ void print_btnit(FILE *out, btni_t *btni_table, int btngr_ns, int btn_ns) {
 	fprintf(out, "left %d, ", btni->left);
 	fprintf(out, "right %d\n", btni->right);
 	
-	vmcmd(btni->cmd);
+	vmcmd(&btni->cmd.bytes[0]);
 	fprintf(out, "\n");
       }
 }
@@ -231,11 +231,10 @@ void print_sml_pbi(FILE *out, sml_pbi_t *sml_pbi) {
 void print_sml_agli(FILE *out, sml_agli_t *sml_agli) {
   /* $$$ more code needed here */
 #if 1
-  int i, j;
+  int i;
   for(i = 0; i < 9; i++) {
-    for(j = 0; j < 6; j++)
-      fprintf(stdout, "%02x ", sml_agli->unknown[i][j]);
-    fprintf(stdout, "\n");
+    fprintf(stdout, "agl_c%d address: %04x size %02x\n", i,
+	    sml_agli->dsta[i].address, sml_agli->dsta[i].size);
   }
 #endif
 }
