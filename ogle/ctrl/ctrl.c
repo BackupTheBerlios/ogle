@@ -838,7 +838,7 @@ int init_decoder(char *msgqid_str, char *decoderstr)
       perror("execv decode");
       fprintf(stderr, "path: %s\n", decode_path);
     }
-    exit(-1);
+    exit(1);
     break;
   case -1:
     /* fork failed */
@@ -1287,7 +1287,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 
   if(waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)
      != info->si_pid) {
-    fprintf(stderr, "waitpid\n");
+    perror("waitpid");
   }
   if(WIFEXITED(stat_loc)) {
     fprintf(stderr, "pid: %d exited with status: %d\n",
