@@ -131,7 +131,7 @@ struct {
 
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
-static Display *mydisplay;
+static Display *mydisplay = NULL;
 static GC mygc;
 static char title[100];
 static int color_depth, pixel_stride, mode;
@@ -1231,15 +1231,20 @@ void display_exit(void)
   // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
   
   // Need to add some test to se if we can detatch/free/destroy things
-  
-  XSync(mydisplay,True);
-  if(use_xshm)
-    XShmDetach(mydisplay, &shm_info);
-  XDestroyImage(window.ximage);
-  shmdt(shm_info.shmaddr);
-  shmctl(shm_info.shmid, IPC_RMID, 0);
-  
-  fprintf(stderr, "vo: removed shm segment\n");
+
+  if(mydisplay) {
+    XSync(mydisplay,True);
+    if(use_xshm)
+      XShmDetach(mydisplay, &shm_info);
+    if(window.ximage != 0)
+      XDestroyImage(window.ximage);
+    if(shm_info.shmaddr > 0)
+      shmdt(shm_info.shmaddr);
+    if(shm_info.shmid > 0) {
+      shmctl(shm_info.shmid, IPC_RMID, 0);
+      fprintf(stderr, "vo: removed shm segment\n");
+    }
+  }
   display_process_exit();
 }
 

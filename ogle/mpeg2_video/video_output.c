@@ -403,6 +403,7 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 	  break;
 	default:
 	  perror("vo: waiting for notification");
+	  // might never have had dispay_init called
 	  display_exit(); //clean up and exit
 	  break;
 	}
@@ -447,6 +448,7 @@ static int get_next_picture_buf_id()
 
     while(!picture_q_elems[elem].in_use) {
       if(process_interrupted) {
+	// might never have had dispay_init called
 	display_exit();
       }
       timer.it_value.tv_usec = 100000; //0.1 sec
@@ -459,6 +461,7 @@ static int get_next_picture_buf_id()
 	  break;
 	default:
 	  perror("vo: waiting for notification");
+	  // might never have had dispay_init called?
 	  display_exit(); //clean up and exit
 	  break;
 	}
@@ -821,7 +824,7 @@ int main(int argc, char **argv)
     
     if((msgq = MsgOpen(msgqid)) == NULL) {
       fprintf(stderr, "vo: couldn't get message q\n");
-      exit(-1);
+      exit(1);
     }
     
     register_event_handler(handle_events);
