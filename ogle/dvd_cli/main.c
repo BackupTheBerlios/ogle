@@ -87,7 +87,6 @@ main (int argc, char *argv[])
   }
   
   {
-    unsigned long windowid;
     DVDResult_t res;
     res = DVDSetDVDRoot(nav, dvd_path);
     if(res != DVD_E_Ok) {
