@@ -1022,15 +1022,10 @@ int macroblock_modes(void)
   DPRINTF(3, "macroblock_modes\n");
 
   if(pic.header.picture_coding_type == PIC_CODING_TYPE_I) {
-    /* I-picture */
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
-
   } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
-    /* P-picture */
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
-
   } else if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
-    /* B-picture */
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
   } else {
     fprintf(stderr, "*** Unsupported picture type %02x\n", 
@@ -1039,22 +1034,12 @@ int macroblock_modes(void)
     // should not be tested / handled here
   }
   
-  if(mb.modes.macroblock_type == VLC_FAIL) {
-    return -1;
-  }
-  
-  mb.modes.macroblock_quant = mb.modes.macroblock_type & MACROBLOCK_QUANT;
-  mb.modes.macroblock_motion_forward = mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD;
-  mb.modes.macroblock_motion_backward = mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD;
-  mb.modes.macroblock_pattern = mb.modes.macroblock_type & MACROBLOCK_PATTERN;
-  mb.modes.macroblock_intra = mb.modes.macroblock_type & MACROBLOCK_INTRA;
-  mb.modes.spatial_temporal_weight_code_flag =
-    mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG;
+  if(mb.modes.macroblock_type == VLC_FAIL) return -1;
   
   DPRINTF(5, "spatial_temporal_weight_code_flag: %01x\n", 
-	  mb.modes.spatial_temporal_weight_code_flag);
+	  !!(mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG));
 
-  if((mb.modes.spatial_temporal_weight_code_flag == 1) &&
+  if((mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG) &&
      (1 /*spatial_temporal_weight_code_table_index != 0*/)) {
     mb.modes.spatial_temporal_weight_code 
       = GETBITS(2, "spatial_temporal_weight_code");
@@ -1147,23 +1132,24 @@ void mpeg2_slice(void)
   seq.mb_column = -1;
   
   do {
-    mb.macroblock_address_increment = 0;
+    unsigned int macroblock_address_increment = 0;
+    
     while(nextbits(11) == 0x008) {
       GETBITS(11, "macroblock_escape");
-      mb.macroblock_address_increment += 33;
+      macroblock_address_increment += 33;
     }
-    mb.macroblock_address_increment 
+    macroblock_address_increment 
       += get_vlc(table_b1, "macroblock_address_increment");
     
     if(seq.mb_column == -1) {
       /* The first macroblock is coded. I.e. no skipped blocks, they must have
 	 been in another slice with the same startcode (vertical position). */ 
-      mb.macroblock_address_increment = 1;
+      macroblock_address_increment = 1;
     }
     /* In MPEG-2 ML@MP a slice never span rows. */
-    seq.mb_column += mb.macroblock_address_increment;
+    seq.mb_column += macroblock_address_increment;
     /* Subtract one to get the number of skipped blocks instead. */
-    mb.macroblock_address_increment -= 1;
+    macroblock_address_increment -= 1;
 	
     DPRINTFI(4, " Macroblock: %d, row: %d, col: %d\n",
 	     (seq.mb_row * seq.mb_width) + seq.mb_column,
@@ -1171,72 +1157,65 @@ void mpeg2_slice(void)
 	     seq.mb_column);
     
 #ifdef DEBUG
-    if(mb.macroblock_address_increment > 0) {
+    if(macroblock_address_increment) {
       DPRINTF(3, "Skipped %d macroblocks\n",
-	      mb.macroblock_address_increment + 1);
+	      macroblock_address_increment + 1);
     }
 #endif
     
-    
-    if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
-      /* In a P-picture when a macroblock is skipped */
-      if(mb.macroblock_address_increment > 0) {
-	reset_PMV();
-	reset_vectors();
-      }
-    }
-    
-    
     /* 7.6.6 Skipped Macroblocks */
-    if(mb.macroblock_address_increment > 0) {
+    if(macroblock_address_increment) {
       /* Skipped blocks never have any DCT coefficients (pattern). */
       
       switch(pic.header.picture_coding_type) {
       case PIC_CODING_TYPE_P:
 	DPRINTFI(4, "skipped in P-picture\n");
+	/* In a P-picture when a macroblock is skipped */
+	reset_PMV();
+	reset_vectors();
 	/* mlib is broken!!! 
 	{
-	   int x = (seq.mb_column-mb.macroblock_address_increment);
+	   int x = (seq.mb_column-macroblock_address_increment);
 	   int y = seq.mb_row;
 	   int offs_y = x * 16 + y * 16 * seq.mb_width * 16;
 	   int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
 	   mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
 				   &fwd_ref_image->y[offs_y], 
-				   mb.macroblock_address_increment*16, 
+				   macroblock_address_increment*16, 
 				   16, (seq.mb_width * 16));
 	   mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
 				   &fwd_ref_image->u[offs_uv],
-				   mb.macroblock_address_increment*8,
+				   macroblock_address_increment*8,
 				   8, (seq.mb_width * 16)/2);
 	   mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
 				   &fwd_ref_image->v[offs_uv],
-				   mb.macroblock_address_increment*8,
+				   macroblock_address_increment*8,
 				   8, (seq.mb_width * 16)/2);
         }
 	*/
 	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	  int x,y;
+	  unsigned int x, y;
 	  /* 7.6.6.2 P frame picture */
-	  x = (seq.mb_column-mb.macroblock_address_increment)*16;
+	  x = (seq.mb_column-macroblock_address_increment)*16;
 	  for(y = seq.mb_row*16; y < (seq.mb_row+1)*16; y++) {
 	    memcpy(&dst_image->y[y*(seq.mb_width*16)+x], 
 		   &fwd_ref_image->y[y*(seq.mb_width*16)+x], 
-		   mb.macroblock_address_increment*16);
+		   macroblock_address_increment*16);
 	  }
-	  x = (seq.mb_column-mb.macroblock_address_increment)*8;
+	  x = (seq.mb_column-macroblock_address_increment)*8;
 	  for(y = seq.mb_row*8; y < (seq.mb_row+1)*8; y++) {
 	    memcpy(&dst_image->u[y*(seq.mb_width*16)/2+x], 
 		   &fwd_ref_image->u[y*(seq.mb_width*16)/2+x], 
-		   mb.macroblock_address_increment*8);
+		   macroblock_address_increment*8);
 	  }
 	  for(y = seq.mb_row*8; y < (seq.mb_row+1)*8; y++) {
 	    memcpy(&dst_image->v[y*(seq.mb_width*16)/2+x], 
 		   &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
-		   mb.macroblock_address_increment*8);
+		   macroblock_address_increment*8);
 	  }
 	} else {
-	   // Optimize this case too?  Maybe move all this to video_motion
-	  int old_col = seq.mb_column;
+	  // Optimize this case too?  Maybe move all this to video_motion
+	  unsigned int old_col = seq.mb_column;
 	  /* 7.6.6.1 P field picture*/
 	  // Are these two needed/wanted?
 	  mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
@@ -1249,7 +1228,7 @@ void mpeg2_slice(void)
 	    (pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1);
 	  
 	  /* Set mb_column so that motion_comp will use the right adress */
-	  for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment;
+	  for(seq.mb_column = seq.mb_column-macroblock_address_increment;
 	      seq.mb_column < old_col; seq.mb_column++) {
 	    motion_comp();
 	  }
@@ -1260,7 +1239,7 @@ void mpeg2_slice(void)
       case PIC_CODING_TYPE_B:
 	DPRINTFI(4, "skipped in B-frame\n");
 	{
-	  int old_col = seq.mb_column;
+	  unsigned int old_col = seq.mb_column;
 	  // The previos macroblocks vectors are used.
 	  if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
 	    /* 7.6.6.4  B frame picture */
@@ -1281,7 +1260,7 @@ void mpeg2_slice(void)
 	  }
 	  
 	  /* Set mb_column so that motion_comp will use the right adress */
-	  for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment;
+	  for(seq.mb_column = seq.mb_column-macroblock_address_increment;
 	      seq.mb_column < old_col; seq.mb_column++) {
 	    motion_comp();
 	  }
@@ -1294,29 +1273,15 @@ void mpeg2_slice(void)
 	//return; ?? 
 	break;
       }
+      
+      reset_dc_dct_pred();      
     }
     
-    
-    if(macroblock_modes() == -1) {
-      return;
-      //exit_program(1);
-    }
+    if(macroblock_modes() == -1) return;
   
-    if(!(mb.modes.macroblock_type & MACROBLOCK_INTRA)) {
-      reset_dc_dct_pred();  
-      DPRINTFI(4, "non_intra macroblock\n");
-    }
-    
-    if(mb.macroblock_address_increment > 0) {
-      reset_dc_dct_pred();
-      DPRINTFI(4, "skipped block\n");
-    }
-    
-    
     if(mb.modes.macroblock_type & MACROBLOCK_QUANT) {
       mb.quantiser_scale = 
-	q_scale
-	  [pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
+	q_scale[pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
     }
     
     if((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) ||
@@ -1346,6 +1311,8 @@ void mpeg2_slice(void)
 	pic.PMV[1][0][0] = pic.PMV[0][0][0];
       }
     } else {
+      DPRINTFI(4, "non_intra macroblock\n");
+      reset_dc_dct_pred();  
       switch(mb.prediction_type) {
       case PRED_TYPE_FIELD_BASED:
 	/* When used in a PIC_STRUCT_FRAME_PICTURE nothing is to be updated. */
@@ -1416,7 +1383,6 @@ void mpeg2_slice(void)
 	    pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
 	}
 	mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
-	mb.modes.macroblock_motion_forward = 1; // REMOVE me
 	mb.vector[0][0][0] = 0;
 	mb.vector[0][0][1] = 0;
 	mb.vector[1][0][0] = 0;
@@ -1510,6 +1476,7 @@ void mpeg2_slice(void)
 	    motion_comp_add_coeff(i);
 	  }
 	}
+#if 0
 	if(seq.ext.chroma_format == 0x02) {
 	  for(i = 6; i < 8; i++) {
 	    if(mb.coded_block_pattern_1 & (1<<(7-i))) {
@@ -1528,6 +1495,7 @@ void mpeg2_slice(void)
 	    }
 	  }
 	}
+#endif
       }
     }
   } while(((seq.mb_column + 1) < seq.mb_width) && (nextbits(23) != 0));
