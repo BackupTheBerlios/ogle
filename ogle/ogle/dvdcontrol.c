@@ -134,12 +134,10 @@ static MsgEventClient_t get_vo_client(MsgEventQ_t *msq)
  * Get a connection to the DVD navigator
  * @todo something
  */
-#ifdef SOCKIPC
-DVDResult_t DVDOpenNav(DVDNav_t **nav, char* msgqid) {
-#else
-DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
-#endif
+DVDResult_t DVDOpenNav(DVDNav_t **nav, char* msgq_str) {
   MsgEvent_t ev;
+  MsgEventQType_t msgq_type;
+  char *msgqid;
 
   *nav = (DVDNav_t *)malloc(sizeof(DVDNav_t));
   if(*nav == NULL) {
@@ -147,19 +145,18 @@ DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
   }
   (*nav)->serial = 0;
 
-#ifdef SOCKIPC
+  
+  if(get_msgqtype(msgq_str, &msgq_type, &msgqid) == -1) {
+    fprintf(stderr, "DVDOpenMav: unknown msgq type: %s\n", msgq_str);
+    return 1;
+  }
+
   if(((*nav)->msgq = MsgOpen(MsgEventQType_socket, 
 			     msgqid, strlen(msgqid))) == NULL) {
     free(*nav);
     return DVD_E_Unspecified;
   }
 
-#else
-  if(((*nav)->msgq = MsgOpen(msgqid)) == NULL) {
-    free(*nav);
-    return DVD_E_Unspecified;
-  }
-#endif
   
   ev.type = MsgEventQRegister;
   ev.registercaps.capabilities = UI_DVD_GUI;
@@ -247,6 +244,37 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
 	  (str == NULL ? "" : ":"),
 	  errstr);
 
+}
+
+
+/**
+ * Get the filedescriptor(s) used by libdvdread, poll/select on them
+ * to know when you need to call DVDNextEvent.
+ * When not needed anymore the pointer returned in fds should be
+ * free()d
+ */
+DVDResult_t DVDInternalConnectionNumbers(DVDNav_t *nav, int **fds, int *count)
+{
+  int *ret_fds;
+  int ret_count;
+
+  switch(nav->msgq->type) {
+  case MsgEventQType_socket:
+    ret_count = 1;
+    ret_fds = malloc(sizeof(int)*ret_count);
+    if(ret_fds == NULL) {
+      return DVD_E_NOMEM;
+    }
+    *ret_fds = nav->msgq->socket.sd;
+    *fds = ret_fds;
+    *count = ret_count;
+    return DVD_E_Ok;
+    break;
+  default:  
+    break;
+  }
+  
+  return DVD_E_NotImplemented; 
 }
 
 
@@ -1168,8 +1196,42 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
 
 /** @} end of dvdinfo */
 
+
+static void msgqinput_to_dvdinput(DVDEvent_t *ev, MsgEvent_t *mev)
+{
+  switch(mev->type) {
+  case MsgEventQInputButtonPress:
+    ev->type = DVDEventInputButtonPress;
+    break;
+  case MsgEventQInputButtonRelease:
+    ev->type = DVDEventInputButtonRelease;
+    break;
+  case MsgEventQInputPointerMotion:
+    ev->type = DVDEventInputPointerMotion;
+    break;
+  case MsgEventQInputKeyPress:
+    ev->type = DVDEventInputKeyPress;
+    break;
+  case MsgEventQInputKeyRelease:
+    ev->type = DVDEventInputKeyRelease;
+    break;
+  default:
+    break;
+  }
+
+  ev->input.serial = 0;
+  ev->input.x = mev->input.x;
+  ev->input.y = mev->input.y;
+  ev->input.x_root = mev->input.x_root;
+  ev->input.y_root = mev->input.y_root;
+  ev->input.mod_mask = mev->input.mod_mask;
+  ev->input.input = mev->input.input;
+  ev->input.time = mev->input.time;
+  
+}
+
 /** 
- * @todo Remove this function.
+ * @todo Something.
  *
  * @param nav Specifies the connection to the DVD navigator.
  * @param ev is the returned message in case DVD_E_Ok is returned.
@@ -1180,29 +1242,32 @@ DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_Unspecified. Failure.
  */
-DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
+DVDResult_t DVDNextEvent(DVDNav_t *nav, DVDEvent_t *ev)
 {
-  
-  if(MsgNextEvent(nav->msgq, ev) == -1) {
+  MsgEvent_t mev;
+  if(MsgNextEvent(nav->msgq, &mev) == -1) {
     return DVD_E_Unspecified;
   }
-  
+
+  switch(mev.type) {
+  case MsgEventQDVDCtrl:
+    *ev = *(DVDEvent_t *)&mev.dvdctrl.cmd;
+    break;
+  case MsgEventQInputButtonPress:
+  case MsgEventQInputButtonRelease:
+  case MsgEventQInputPointerMotion:
+  case MsgEventQInputKeyPress:
+  case MsgEventQInputKeyRelease:
+    msgqinput_to_dvdinput(ev, &mev);
+    break;
+  default:
+    fprintf(stderr, "DVDNextEvent not a valid event %d\n", mev.type);
+    return DVD_E_Unspecified;  
+    break;
+  }
   return DVD_E_Ok;  
 } 
 
-#ifndef SOCKIPC
-#if (defined(BSD) && (BSD >= 199306))
-DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev)
-{
-  
-  if(MsgNextEventNonBlocking(nav->msgq, ev) == -1) {
-    return DVD_E_Unspecified;
-  }
-  
-  return DVD_E_Ok;
-} 
-#endif
-#endif
 
 DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask)
 {
