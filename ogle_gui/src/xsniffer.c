@@ -52,13 +52,13 @@ void* xsniff_mouse(void* args) {
 	int i = 5;
 	Bool b;
 
-	usleep(100000);  // wait for 0.1 s
+	usleep(50000);  // wait for 0.05 s
 	b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	while(b == True && i >= 0) {
 	  i--;
 	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
 	}
-	fprintf(stderr, "MotionNotify: (%d,%d)\n", ev.xbutton.x, ev.xbutton.y);
+
 	res = DVDMouseSelect(nav, ev.xbutton.x, ev.xbutton.y);
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
@@ -70,8 +70,7 @@ void* xsniff_mouse(void* args) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
-	  fprintf(stderr, "ButtonPress: (%d,%d)\n",
-		  ev.xbutton.x, ev.xbutton.y);
+
 	  res = DVDMouseActivate(nav, ev.xbutton.x, ev.xbutton.y);
 	  if(res != DVD_E_Ok) {
 	    fprintf(stderr, "DVDMouseActivate failed. Returned: %d\n", res);
@@ -96,7 +95,6 @@ void* xsniff_mouse(void* args) {
 
 	switch(keysym) {
 	case XK_Up:
-	  fprintf(stderr, "UP\n");
 	  DVDUpperButtonSelect(nav);	  
 	  break;
 	case XK_Down:
