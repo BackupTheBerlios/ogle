@@ -194,7 +194,7 @@ void  YUV2RGB420_MMX_16(uint8_t *out,
          "addl           $8,                     %6\n"
          "por            %%mm0,                  %%mm3\n"
 
-         "movq           %mm4,                   %%mm5\n"
+         "movq           %%mm4,                  %%mm5\n"
 
          "punpcklwd      %%mm3,                  %%mm4\n"
          "punpckhwd      %%mm3,                  %%mm5\n"

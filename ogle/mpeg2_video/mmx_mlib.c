@@ -18,7 +18,7 @@
 #include <inttypes.h>
 #include "mmx.h"
 
-extern void IDCT_mmx(int16_t *,int16_t *);
+extern void IDCT_mmx(int16_t *);
 
 static uint64_t ones = 0x0001000100010001ULL;
 static uint64_t twos = 0x0002000200020002ULL;
@@ -1394,53 +1394,53 @@ mlib_VideoIDCT8x8_S16_S16(int16_t *block,
   */
   
   movq_m2r(*coeffs, mm0);
-  movq_m2r(*(coeffs+8), mm1);
+  movq_m2r(*(coeffs+4), mm1);
   psllw_i2r(4, mm0);
-  movq_m2r(*(coeffs+16), mm2);
+  movq_m2r(*(coeffs+8), mm2);
   psllw_i2r(4, mm1);
-  movq_m2r(*(coeffs+24), mm3);
+  movq_m2r(*(coeffs+12), mm3);
   psllw_i2r(4, mm2);
-  movq_m2r(*(coeffs+32), mm4);
+  movq_m2r(*(coeffs+16), mm4);
   psllw_i2r(4, mm3);
-  movq_m2r(*(coeffs+40), mm5);
+  movq_m2r(*(coeffs+20), mm5);
   psllw_i2r(4, mm4);
-  movq_m2r(*(coeffs+48), mm6);
+  movq_m2r(*(coeffs+24), mm6);
   psllw_i2r(4, mm5);
-  movq_m2r(*(coeffs+56), mm7);
+  movq_m2r(*(coeffs+28), mm7);
   psllw_i2r(4, mm6);
   psllw_i2r(4, mm7);
   movq_r2m(mm0, *block);
-  movq_r2m(mm0, *(block+8));
-  movq_r2m(mm0, *(block+16));
-  movq_r2m(mm0, *(block+24));
-  movq_r2m(mm0, *(block+32));
-  movq_r2m(mm0, *(block+40));
-  movq_r2m(mm0, *(block+48));
-  movq_r2m(mm0, *(block+56));
-  movq_m2r(*(coeffs+64), mm0);
-  movq_m2r(*(coeffs+72), mm1);
+  movq_r2m(mm1, *(block+4));
+  movq_r2m(mm2, *(block+8));
+  movq_r2m(mm3, *(block+12));
+  movq_r2m(mm4, *(block+16));
+  movq_r2m(mm5, *(block+20));
+  movq_r2m(mm6, *(block+24));
+  movq_r2m(mm7, *(block+28));
+  movq_m2r(*(coeffs+32), mm0);
+  movq_m2r(*(coeffs+36), mm1);
   psllw_i2r(4, mm0);
-  movq_m2r(*(coeffs+80), mm2);
+  movq_m2r(*(coeffs+40), mm2);
   psllw_i2r(4, mm1);
-  movq_m2r(*(coeffs+88), mm3);
+  movq_m2r(*(coeffs+44), mm3);
   psllw_i2r(4, mm2);
-  movq_m2r(*(coeffs+96), mm4);
+  movq_m2r(*(coeffs+48), mm4);
   psllw_i2r(4, mm3);
-  movq_m2r(*(coeffs+104), mm5);
+  movq_m2r(*(coeffs+52), mm5);
   psllw_i2r(4, mm4);
-  movq_m2r(*(coeffs+112), mm6);
+  movq_m2r(*(coeffs+56), mm6);
   psllw_i2r(4, mm5);
-  movq_m2r(*(coeffs+120), mm7);
+  movq_m2r(*(coeffs+60), mm7);
   psllw_i2r(4, mm6);
   psllw_i2r(4, mm7);
-  movq_r2m(mm0, *(block+64));
-  movq_r2m(mm0, *(block+72));
-  movq_r2m(mm0, *(block+80));
-  movq_r2m(mm0, *(block+88));
-  movq_r2m(mm0, *(block+96));
-  movq_r2m(mm0, *(block+104));
-  movq_r2m(mm0, *(block+112));
-  movq_r2m(mm0, *(block+120));
+  movq_r2m(mm0, *(block+32));
+  movq_r2m(mm1, *(block+36));
+  movq_r2m(mm2, *(block+40));
+  movq_r2m(mm3, *(block+44));
+  movq_r2m(mm4, *(block+48));
+  movq_r2m(mm5, *(block+52));
+  movq_r2m(mm6, *(block+56));
+  movq_r2m(mm7, *(block+60));
 	
   IDCT_mmx( block );
 }
@@ -1463,25 +1463,74 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
   int x,y;
   const int n = 8;
   const int jump = stride - n;
-  
+
+  movq_m2r(*coeffs, mm0);
+  movq_m2r(*(coeffs+4), mm1);
+  psllw_i2r(4, mm0);
+  movq_m2r(*(coeffs+8), mm2);
+  psllw_i2r(4, mm1);
+  movq_m2r(*(coeffs+12), mm3);
+  psllw_i2r(4, mm2);
+  movq_m2r(*(coeffs+16), mm4);
+  psllw_i2r(4, mm3);
+  movq_m2r(*(coeffs+20), mm5);
+  psllw_i2r(4, mm4);
+  movq_m2r(*(coeffs+24), mm6);
+  psllw_i2r(4, mm5);
+  movq_m2r(*(coeffs+28), mm7);
+  psllw_i2r(4, mm6);
+  psllw_i2r(4, mm7);
+  movq_r2m(mm0, *coeffs);
+  movq_r2m(mm1, *(coeffs+4));
+  movq_r2m(mm2, *(coeffs+8));
+  movq_r2m(mm3, *(coeffs+12));
+  movq_r2m(mm4, *(coeffs+16));
+  movq_r2m(mm5, *(coeffs+20));
+  movq_r2m(mm6, *(coeffs+24));
+  movq_r2m(mm7, *(coeffs+28));
+  movq_m2r(*(coeffs+32), mm0);
+  movq_m2r(*(coeffs+36), mm1);
+  psllw_i2r(4, mm0);
+  movq_m2r(*(coeffs+40), mm2);
+  psllw_i2r(4, mm1);
+  movq_m2r(*(coeffs+44), mm3);
+  psllw_i2r(4, mm2);
+  movq_m2r(*(coeffs+48), mm4);
+  psllw_i2r(4, mm3);
+  movq_m2r(*(coeffs+52), mm5);
+  psllw_i2r(4, mm4);
+  movq_m2r(*(coeffs+56), mm6);
+  psllw_i2r(4, mm5);
+  movq_m2r(*(coeffs+60), mm7);
+  psllw_i2r(4, mm6);
+  psllw_i2r(4, mm7);
+  movq_r2m(mm0, *(coeffs+32));
+  movq_r2m(mm1, *(coeffs+36));
+  movq_r2m(mm2, *(coeffs+40));
+  movq_r2m(mm3, *(coeffs+44));
+  movq_r2m(mm4, *(coeffs+48));
+  movq_r2m(mm5, *(coeffs+52));
+  movq_r2m(mm6, *(coeffs+56));
+  movq_r2m(mm7, *(coeffs+60));
+
   IDCT_mmx( coeffs );
   
 #ifndef HAVE_MMX
   for (y = 0; y < n; y++) {
     for (x = 0; x < n; x++)
-      *block++ = clip_to_u8(*block + *coeffs++);
+      *block++ = clip_to_u8(*coeffs++);
     block += jump;
   }
 #else  
-  pxor_r2r(mm0,mm0);             // load 0 into mm0
+  pxor_r2r(mm0, mm0);             // load 0 into mm0
   
   for (y = 0; y < n; y++) {
     for (x = 0; x < n/8; x++) {
-      movq_m2r(*coeffs,mm1);         // load 4 mc words (mc0)
-      movq_m2r(*(coeffs+4),mm2);     // load next 4 mc words (mc1)
+      movq_m2r(*coeffs, mm1);         // load 4 mc words (mc0)
+      movq_m2r(*(coeffs+4), mm2);     // load next 4 mc words (mc1)
       
-      packuswb_r2r(mm2,mm1);         // pack (w/ saturation)
-      movq_r2m(mm1,*block);          // store result in curr
+      packuswb_r2r(mm2, mm1);         // pack (w/ saturation)
+      movq_r2m(mm1, *block);          // store result in curr
       
       block  += stride;
       coeffs += n;

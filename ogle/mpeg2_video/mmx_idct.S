@@ -18,57 +18,6 @@ IDCT_mmx:
 	pushl	 %ecx
 	pushl	 %esi
 	movl 8(%ebp),%esi		/* source/dest matrix */
-#if 0
-	movl 12(%ebp),%ecx		/* source matrix */
-	movq (%ecx), %mm0
-	movq 8(%ecx), %mm1
-	psllw $4, %mm0
-	movq 16(%ecx), %mm2
-	psllw $4, %mm1
-	movq 24(%ecx), %mm3
-	psllw $4, %mm2
-	movq 32(%ecx), %mm4
-	psllw $4, %mm3
-	movq 40(%ecx), %mm5
-	psllw $4, %mm4
-	movq 48(%ecx), %mm6
-	psllw $4, %mm5
-	movq 56(%ecx), %mm7
-	psllw $4, %mm6
-	psllw $4, %mm7
-	movq %mm0,  (%esi)
-	movq %mm1, 8(%esi)
-	movq %mm2,16(%esi)
-	movq %mm3,24(%esi)
-	movq %mm4,32(%esi)
-	movq %mm5,40(%esi)
-	movq %mm6,48(%esi)
-	movq %mm7,56(%esi)
-	movq 64(%ecx), %mm0
-	movq 72(%ecx), %mm1
-	psllw $4, %mm0
-	movq 80(%ecx), %mm2
-	psllw $4, %mm1
-	movq 88(%ecx), %mm3
-	psllw $4, %mm2
-	movq 96(%ecx), %mm4
-	psllw $4, %mm3
-	movq 104(%ecx), %mm5
-	psllw $4, %mm4
-	movq 112(%ecx), %mm6
-	psllw $4, %mm5
-	movq 120(%ecx), %mm7
-	psllw $4, %mm6
-	psllw $4, %mm7
-	movq %mm0,64(%esi)
-	movq %mm1,72(%esi)
-	movq %mm2,80(%esi)
-	movq %mm3,88(%esi)
-	movq %mm4,96(%esi)
-	movq %mm5,104(%esi)
-	movq %mm6,112(%esi)
-	movq %mm7,120(%esi)
-#endif
 	
 	leal preSC, %ecx
 /* 

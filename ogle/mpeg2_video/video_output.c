@@ -24,80 +24,8 @@
 #include <glib.h>
 
 #include "../include/common.h"
-
+#include "video_types.h"
 #include "yuv2rgb.h"
-
-
-/* This is a verbal copy of the types from video_strean.c for debug/stats */
-
-
-
-
-typedef struct {
-  uint16_t macroblock_type;
-  uint8_t spatial_temporal_weight_code;
-  uint8_t frame_motion_type;
-  uint8_t field_motion_type;
-  uint8_t dct_type;
-
-  uint8_t macroblock_quant;
-  uint8_t macroblock_motion_forward;
-  uint8_t macroblock_motion_backward;
-  uint8_t macroblock_pattern;
-  uint8_t macroblock_intra;
-  uint8_t spatial_temporal_weight_code_flag;
-  
-} macroblock_modes_t;
-
-
-
-typedef struct {
-  uint16_t macroblock_escape;
-  uint16_t macroblock_address_increment;
-  //  uint8_t quantiser_scale_code; // in slice_data
-  macroblock_modes_t modes; 
-  
-  uint8_t pattern_code[12];
-  uint8_t cbp;
-  uint8_t coded_block_pattern_1;
-  uint8_t coded_block_pattern_2;
-  uint16_t dc_dct_pred[3];
-
-  int16_t dmv;
-  int16_t mv_format;
-  int16_t prediction_type;
-  
-  int16_t dmvector[2];
-  int16_t motion_code[2][2][2];
-  int16_t motion_residual[2][2][2];
-  int16_t vector[2][2][2];
-
-
-  //  int16_t f[6][8*8] __attribute__ ((aligned (8)));
-
-  //int16_t f[6][8*8]; // CC
-
-  int8_t motion_vector_count;
-  int8_t motion_vertical_field_select[2][2];
-
-  int16_t delta[2][2][2];
-
-  int8_t skipped;
-
-  uint8_t quantiser_scale;
-  int intra_dc_mult;
-
-  int16_t QFS[64]  __attribute__ ((aligned (8)));
-  //int16_t QF[8][8];
-  //int16_t F_bis[8][8];
-} macroblock_t;
-
-/* End copy */
-
-
-
-
-
 
 
 
@@ -980,7 +908,7 @@ void draw_win(debug_win *dwin)
   
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
 	  horizontal_size, vertical_size, 
-	  horizontal_size*(bpp/8), horizontal_size, horizontal_size/2 );
+	  /*horizontal_size*/720*(bpp/8), horizontal_size, horizontal_size/2 );
     
   if(dwin->grid) {
     if(dwin->color_grid) {
