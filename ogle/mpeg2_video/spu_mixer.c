@@ -18,6 +18,7 @@
 
 #include <inttypes.h>
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/mman.h>
@@ -105,6 +106,10 @@ static int initialized = 0;
 
 static uint32_t palette_yuv[16];
 static uint32_t palette_rgb[16];
+static uint32_t *palette;
+static void (*mix_function)(uint32_t color, uint32_t contrast, 
+			    unsigned int len, uint8_t* pixel,
+			    int, uint8_t*, uint8_t*) = NULL;
 
 static highlight_t highlight = {{0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450};
 
@@ -721,10 +726,12 @@ static void decode_dcsq(spu_handle_t *spu_info)
 }
 
 static void display_mix_function_bgr16(uint32_t color, uint32_t contrast, 
-				       unsigned int length, uint16_t *pixel)
+                                       unsigned int length, uint8_t *data,
+                                       int notused1, uint8_t *notused2, uint8_t *notused3)
 {
   uint32_t invcontrast = 256 - contrast;
   int n;
+  uint16_t *pixel =(uint16_t*) data;
   
   /* if total transparency do nothing */
   if(contrast != 0) {
@@ -758,10 +765,12 @@ static void display_mix_function_bgr16(uint32_t color, uint32_t contrast,
 }
 
 static void display_mix_function_bgr24(uint32_t color, uint32_t contrast, 
-				       unsigned int length, uint8_t *pixel)
+                                       unsigned int length, uint8_t *data,
+                                       int notused1, uint8_t *notused2, uint8_t *notused3)
 {
   uint32_t invcontrast = 256 - contrast;
   int n;
+  uint8_t *pixel =(uint8_t*) data;
   
   /* if total transparency do nothing */
   if(contrast != 0) {
@@ -795,10 +804,12 @@ static void display_mix_function_bgr24(uint32_t color, uint32_t contrast,
 }
 
 static void display_mix_function_bgr32(uint32_t color, uint32_t contrast, 
-				       unsigned int length, uint32_t *pixel)
+                                       unsigned int length, uint8_t *data,
+                                       int notused1, uint8_t *notused2, uint8_t *notused3)
 {
   uint32_t invcontrast = 256 - contrast;
   int n;
+  uint32_t *pixel =(uint32_t*) data;
   
   /* if total transparency do nothing */
   if(contrast != 0) {
@@ -905,7 +916,7 @@ static void display_mix_function_yuv(uint32_t color, uint32_t contrast,
 
 static void decode_display_data(spu_handle_t *spu_info, char *data, 
 				int pixel_stride, int line_stride,
-				int blendyuv, int image_stride) 
+                                int image_stride) 
 {
   unsigned int x;
   unsigned int y;
@@ -927,8 +938,6 @@ static void decode_display_data(spu_handle_t *spu_info, char *data,
     unsigned int vlc;
     unsigned int length;
     unsigned int colorid;
-    uint32_t color;
-    uint32_t contrast;
     
     /*
     DPRINTF(6, "fieldoffset[0]: %d, fieldoffset[1]: %d, DCSQT_offset: %d\n",
@@ -969,7 +978,7 @@ static void decode_display_data(spu_handle_t *spu_info, char *data,
     length = vlc >> 2;
     
     if(length == 0) {
-      /* Fill current line with background color */
+      /* Fill to the end of the current line */
       length = spu_info->width - x;
     }
     if(length+x > spu_info->width) {
@@ -979,61 +988,97 @@ static void decode_display_data(spu_handle_t *spu_info, char *data,
     
     colorid = vlc & 3;
     
-    if(spu_info->has_highlight
-       && (y+spu_info->y_start >= highlight.y_start &&
-	   y+spu_info->y_start <= highlight.y_end &&
-	   x+spu_info->x_start + length >= highlight.x_start &&
-	   x+spu_info->x_start <= highlight.x_end)) {
-      color = highlight.color[colorid];
-      contrast = highlight.contrast[colorid]<<4;
-    } else {
-      color = spu_info->color[colorid];
-      contrast = spu_info->contrast[colorid]<<4;
-    }
-    
     /* mix spu and picture data */
-
-    /* Only blend if not totally transparent. */
-    if(contrast != 0) {
-      unsigned int line_y;
-      char *addr;
       
-      line_y = (y + spu_info->y_start) * line_stride;
+    // FIXME, only tested for yuv blending now 
+    /*problems with 're-evaluation'*/
+#ifndef MAX
+#define MAX(x,y) (((x) > (y)) ? (x) : (y))
+#endif
+#ifndef MIN
+#define MIN(x,y) (((x) < (y)) ? (x) : (y))
+#endif
+    {
+      const unsigned int line_y = (y + spu_info->y_start) * line_stride;
       // (width * bpp) == line_stride (for rgb or yuv)
-      addr = data + line_y + (x + spu_info->x_start) * pixel_stride;
-    
-      if(!blendyuv) {
-	/* Change this to call though a function pointer.. ? */
-	switch(pixel_stride) {
-	case 1: 
-	case 2:
-	  display_mix_function_bgr16(palette_rgb[color], 
-				     contrast, length, (uint16_t *)addr);
-	  break;
-	case 3:
-	  // Not supported yet.
-	  display_mix_function_bgr24(palette_rgb[color], 
-				     contrast, length, (uint8_t *)addr);
-	  break;
-	case 4:
-	  display_mix_function_bgr32(palette_rgb[color], 
-				     contrast, length, (uint32_t *)addr);
-	  break;
+      
+      // bpp == 1
+      // line_uv == line_y/4 ?
+      // yes if we make sure to only use the info for even lines..
+      // data_u = data + (width * bpp) * height;
+      // data_v = data + (width * bpp) * height * 5/4;
+      // (width * bpp) == yuv_line_stride
+
+
+      // we have 3 regions per line
+      // llllhhhhrrrr
+      // l = left of highlight region   spu_info->color/contrast
+      // h = highlight region           hli_info->color/contrast
+      // r = right of highlight region  spu_info->color/contrast
+      
+      // we only have to take into account 3 regions if this rle
+      // falls into a highlight area
+      if(spu_info->has_highlight && 
+	 (y + spu_info->y_start >= highlight.y_start) &&
+	 (y + spu_info->y_start <= highlight.y_end) &&
+	 (x + spu_info->x_start + length > highlight.x_start) &&
+	 (x + spu_info->x_start <= highlight.x_end)) {
+	uint32_t color, contrast;
+	char *addr, *addr_u;
+	unsigned int x_start;
+        int llength, hlength, rlength;
+	
+        // display l-region
+	x_start = x + spu_info->x_start;
+        llength = highlight.x_start - x_start;
+        if(llength > 0) {
+	  assert(llength <= length);
+	  addr = data + line_y + x_start * pixel_stride;
+	  addr_u = data + image_stride + line_y/4 + x_start / 2;
+	  color = spu_info->color[colorid];
+	  contrast = spu_info->contrast[colorid]<<4;
+	  mix_function(palette[color], contrast, llength, addr, 
+		       field, addr_u, addr_u + image_stride / 4);       
+        }
+	
+        // display h-region 
+        x_start = MAX(highlight.x_start, x + spu_info->x_start);
+	hlength = MIN(x + spu_info->x_start + length - x_start, 
+		      (highlight.x_end - x_start) + 1);
+        if(hlength > 0) { // there should always be an h-region
+	  assert(hlength <= length);
+	  addr = data + line_y + x_start * pixel_stride;
+	  addr_u = data + image_stride + line_y/4 + x_start / 2;
+	  color = highlight.color[colorid];
+	  contrast = highlight.contrast[colorid]<<4;
+	  mix_function(palette[color], contrast, hlength, addr, 
+		       field, addr_u, addr_u + image_stride / 4);
 	}
+	
+        // display r-region
+	x_start = highlight.x_end + 1;
+        rlength = x + spu_info->x_start + length - x_start;
+        if(rlength > 0) {
+	  assert(rlength <= length);
+	  addr = data + line_y + x_start * pixel_stride;
+	  addr_u = data + image_stride + line_y/4 + x_start / 2;
+	  color = spu_info->color[colorid];
+	  contrast = spu_info->contrast[colorid]<<4;
+	  mix_function(palette[color], contrast, rlength, addr, 
+		       field, addr_u, addr_u + image_stride / 4);       
+	}
+	
       } else {
-	char *addr_u, *addr_v;
-	// bpp == 1
-	// line_uv == line_y/4 ?
-	// yes if we make sure to only use the info for even lines..
-	// data_u = data + (width * bpp) * height;
-	// data_v = data + (width * bpp) * height * 5/4;
-	// (width * bpp) == yuv_line_stride
-	addr_u = data + image_stride + line_y/4 + (x + spu_info->x_start) / 2;
-	addr_v = addr_u + image_stride / 4;
+        // no highlight 
+	const unsigned int x_start = x + spu_info->x_start;
+        char *const addr = data + line_y + x_start * pixel_stride;
+        char *const addr_u = data + image_stride + line_y/4 + x_start / 2;
+	const uint32_t color = spu_info->color[colorid];
+        const uint32_t contrast = spu_info->contrast[colorid]<<4;
 	// sinc bpp==1 addr1 will be even/odd for even/odd pixels..
 	// for even/odd lines we still need the field variable
-	display_mix_function_yuv(palette_yuv[color], contrast, length, addr, 
-				 field, addr_u, addr_v);       
+        mix_function(palette[color], contrast, length, addr, 
+		     field, addr_u, addr_u + image_stride / 4);       
       }
     }
     
@@ -1175,8 +1220,23 @@ void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
 
 
   if(spu_info.display_start /* || spu_info.menu */) {
+    
+    palette = palette_rgb;
+    switch(pixel_stride) {
+    case 1:
+    case 2: 
+      mix_function = display_mix_function_bgr16;
+      break;
+    case 3: 
+      mix_function = display_mix_function_bgr24;
+      break;
+    case 4: 
+      mix_function = display_mix_function_bgr32;
+      break;
+    }
+    
     decode_display_data(&spu_info, data, pixel_stride, pixel_stride*width, 
-			0, pixel_stride*width*height);
+                        pixel_stride*width*height);
   }
 }
 
@@ -1217,6 +1277,10 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
     int width = img->info->picture.padded_width;
     int height = img->info->picture.padded_height;
     //DNOTE("decoding data\n");
+    
+    palette      = palette_yuv;
+    mix_function = display_mix_function_yuv;
+    
     //ugly hack
     if(img->info->is_reference) {
       int size;
@@ -1224,10 +1288,10 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
       memcpy(reserv->y, img->y, size);
       memcpy(reserv->u, img->u, size/4);
       memcpy(reserv->v, img->v, size/4);
-      decode_display_data(&spu_info, reserv->y, 1, width, 1, width*height);
+      decode_display_data(&spu_info, reserv->y, 1, width, width*height);
       return 1;
     } else {
-      decode_display_data(&spu_info, img->y, 1, width, 1, width*height);
+      decode_display_data(&spu_info, img->y, 1, width, width*height);
       return 0;
     }
   }
