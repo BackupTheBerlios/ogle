@@ -799,7 +799,7 @@ mlib_VideoInterpAveXY_U8_U8_16x8(
       int32_t field_stride) 
 {
    mlib_VideoInterpAveXY_U8_U8_MxN(
-      16, 16,
+      16, 8,
       curr_block,
       ref_block,
       frame_stride,
