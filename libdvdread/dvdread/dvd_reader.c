@@ -240,7 +240,8 @@ dvd_reader_t *DVDOpen( const char *path )
     int ret, have_css;
     char *dev_name = 0;
 
-    if( !path ) return 0;
+    if( path == NULL )
+      return 0;
 
     ret = stat( path, &fileinfo );
     if( ret < 0 ) {
@@ -397,7 +398,6 @@ void DVDClose( dvd_reader_t *dvd )
         if( dvd->dev ) DVDinput_close( dvd->dev );
         if( dvd->path_root ) free( dvd->path_root );
         free( dvd );
-        dvd = 0;
     }
 }
 
@@ -645,6 +645,10 @@ dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum,
 			 dvd_read_domain_t domain )
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
+    
+    /* Check arguments. */
+    if( dvd == NULL || titlenum < NULL )
+      return NULL;
 
     switch( domain ) {
     case DVD_READ_INFO_FILE:
@@ -678,7 +682,7 @@ dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum,
         break;
     default:
         fprintf( stderr, "libdvdread: Invalid domain for file open.\n" );
-        return 0;
+        return NULL;
     }
     
     if( dvd->isImageFile ) {
@@ -823,6 +827,10 @@ ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset,
 {
     int ret;
     
+    /* Check arguments. */
+    if( dvd_file == NULL || offset < 0 || data == NULL )
+      return -1;
+    
     /* Hack, and it will still fail for multiple opens in a threaded app ! */
     if( dvd_file->dvd->css_title != dvd_file->css_title ) {
       dvd_file->dvd->css_title = dvd_file->css_title;
@@ -846,11 +854,15 @@ ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset,
 
 int32_t DVDFileSeek( dvd_file_t *dvd_file, int32_t offset )
 {
-   if( offset > dvd_file->filesize * DVD_VIDEO_LB_LEN ) {
+    /* Check arguments. */
+    if( dvd_file == NULL || offset < 0 )
        return -1;
-   }
-   dvd_file->seek_pos = (uint32_t) offset;
-   return offset;
+    
+    if( offset > dvd_file->filesize * DVD_VIDEO_LB_LEN ) {
+       return -1;
+    }
+    dvd_file->seek_pos = (uint32_t) offset;
+    return offset;
 }
 
 ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
@@ -859,6 +871,10 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
     unsigned int numsec, seek_sector, seek_byte;
     int ret;
     
+    /* Check arguments. */
+    if( dvd_file == NULL || data == NULL )
+      return -1;
+
     seek_sector = dvd_file->seek_pos / DVD_VIDEO_LB_LEN;
     seek_byte   = dvd_file->seek_pos % DVD_VIDEO_LB_LEN;
 
@@ -884,8 +900,8 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
         free( secbuf );
         return ret < 0 ? ret : 0;
     }
-    
-    memcpy( data, &(secbuf[ seek_byte ]), byte_size);
+
+    memcpy( data, &(secbuf[ seek_byte ]), byte_size );
     free( secbuf );
 
     dvd_file->seek_pos += byte_size;
@@ -894,5 +910,9 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
 
 ssize_t DVDFileSize( dvd_file_t *dvd_file )
 {
+    /* Check arguments. */
+    if( dvd_file == NULL )
+      return -1;
+    
     return dvd_file->filesize;
 }
