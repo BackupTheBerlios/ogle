@@ -32,7 +32,7 @@
 
 #ifdef GETBITSMMAP // Mmap i/o
 void setup_mmap(char *);
-void get_next_packet();
+void get_next_packet(void);
 extern uint32_t *buf;
 extern uint32_t buf_size;
 extern uint32_t packet_offset;
