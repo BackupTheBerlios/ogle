@@ -61,7 +61,7 @@ GC statgc;
 int bpp, mode;
 XWindowAttributes attribs;
 
-#define READ_SIZE 1024*8
+#define READ_SIZE 1024*8*9765
 #define ALLOC_SIZE 2048
 #define BUF_SIZE_MAX 1024*8
 
@@ -421,7 +421,7 @@ uint32_t getbits(unsigned int nr)
 #endif
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
-  bits_left -=nr;
+  bits_left -= nr;
   if(bits_left <= 32) {
     if(offs >= buf_size)
       read_buf();
@@ -447,7 +447,7 @@ uint32_t getbits(unsigned int nr)
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = (cur_word << 32) | new_word;
-    bits_left = bits_left+32;
+    bits_left += 32;
   }
   return result;
 }
@@ -577,25 +577,26 @@ void setup_mmap(char *filename) {
 
 void get_next_packet()
 {
-  uint32_t packet_type;
-  struct off_len_packet ol_packet;
+  struct { 
+    uint32_t type;
+    uint32_t offset;
+    uint32_t length;
+  } ol_packet;
   
-  fread(&packet_type, 4, 1, infile);
+  fread(&ol_packet, 12, 1, infile);
   
-  if(packet_type == PACK_TYPE_OFF_LEN) {
-    fread(&ol_packet, 8, 1, infile);
-  
+  if(ol_packet.type == PACK_TYPE_OFF_LEN) {
+    
     packet.offset = ol_packet.offset;
     packet.length = ol_packet.length;
 
     return;
   }
-  else if( packet_type == PACK_TYPE_LOAD_FILE ) {
-    uint32_t length;
+  else if( ol_packet.type == PACK_TYPE_LOAD_FILE ) {
     char filename[200];
-    
-    fread(&length, 4, 1, infile);
-    fread(&filename, length, 1, infile);
+    int length = ol_packet.offset;           // Use lots of trickery here...
+    memcpy( filename, &ol_packet.length, 4);
+    fread(filename+4, length-4, 1, infile);
     filename[length] = 0;
 
     setup_mmap( filename );
@@ -608,13 +609,6 @@ void read_buf()
   // How many bytes are there left? (0, 1, 2 or 3).
   int end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
   int i = 0;
-#ifdef DEBUG
-  DPRINTF(0, "-- read_buf --\n");
-  if( (64 - bits_left) < 32 )
-    DPRINTF(0, "read_buf: assert 1 failed\n");
-  if( end_bytes < 0 )
-    DPRINTF(0, "read_buf: assert 5 failed\n");
-#endif
   
   // Read them, as we have at least 32 bits free they will fit.
   while( i < end_bytes ) {
@@ -633,11 +627,6 @@ void read_buf()
     start_bytes = (4 - ((long)packet_base % 4)) % 4; 
     i = 0;
     
-#ifdef DEBUG
-  if( (64 - bits_left) < 24 )
-    DPRINTF(0, "read_buf: assert 2 failed\n");
-#endif
-    
     // Read them, as we have at least 24 bits free they will fit.
     while( i < start_bytes ) {
       cur_word 
@@ -649,13 +638,6 @@ void read_buf()
     buf_size = (packet.length - start_bytes) / 4;// number of 32 bit words
     offs = 0;
 
-#ifdef DEBUG
-  if( ((long)buf & 0x3) != 0 )
-    DPRINTF(0, "read_buf: assert 3 failed\n");
-  if( (uint8_t *)&buf[buf_size] < &packet_base[packet.length] )
-    DPRINTF(0, "read_buf: assert 6 failed\n");
-#endif
-     
     if(bits_left <= 32) {
       uint32_t new_word = buf[offs++];
       cur_word = (cur_word << 32) | new_word;
@@ -668,12 +650,6 @@ void read_buf()
     // align the buff[ ] pointer to a 4 byte boundary.
     // Fake it so that we still are at the end of the packet but make
     // sure that we don't read the last bytes again.
-    
-#ifdef DEBUG
-    if( bits_left >= 32 )
-      DPRINTF(0, "read_buf: assert 4 failed\n");
-#endif
-    DPRINTF(0, "Hepp! Stora buffertricket.\n" );
     
     packet.length -= end_bytes;
   }
@@ -1953,17 +1929,23 @@ void macroblock(void)
       DPRINTF(3,"skipped in P-frame\n");
       for(x = (seq.mb_column-mb.macroblock_address_increment+1)*16, y = seq.mb_row*16;
 	  y < (seq.mb_row+1)*16; y++) {
-	memcpy(&dst_image->y[y*720+x], &ref_image1->y[y*720+x], (mb.macroblock_address_increment-1)*16);
+	memcpy(&dst_image->y[y*seq.horizontal_size+x], 
+	       &ref_image1->y[y*seq.horizontal_size+x], 
+	       (mb.macroblock_address_increment-1)*16);
       }
       
       for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, y = seq.mb_row*8;
 	  y < (seq.mb_row+1)*8; y++) {
-	memcpy(&dst_image->u[y*720/2+x], &ref_image1->u[y*720/2+x], (mb.macroblock_address_increment-1)*8);
+	memcpy(&dst_image->u[y*seq.horizontal_size/2+x], 
+	       &ref_image1->u[y*seq.horizontal_size/2+x], 
+	       (mb.macroblock_address_increment-1)*8);
       }
       
       for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, y = seq.mb_row*8;
 	  y < (seq.mb_row+1)*8; y++) {
-	memcpy(&dst_image->v[y*720/2+x], &ref_image1->v[y*720/2+x], (mb.macroblock_address_increment-1)*8);
+	memcpy(&dst_image->v[y*seq.horizontal_size/2+x], 
+	       &ref_image1->v[y*seq.horizontal_size/2+x], 
+	       (mb.macroblock_address_increment-1)*8);
       }
       
       break;
@@ -1972,6 +1954,11 @@ void macroblock(void)
       for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
 	  seq.mb_column < old_col; seq.mb_column++) {
 	if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+	  {
+	    int i;
+	    for(i = 0; i < 12; i++)    // !!!!! Why is this needed ???
+	      mb.pattern_code[i] = 0;
+	  }
 	  /* 7.6.6.4  B frame picture */
 	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
 	  mb.motion_vector_count = 1;
@@ -2900,11 +2887,10 @@ void block_intra(unsigned int i)
       
       DPRINTF(3, "pattern_code(%d) set\n", i);
       
+      // Reset all coefficients to 0.
       for(m=0;m<16;m++) {
-	*(((int64_t *)mb.QFS) + m) = 0L;  // !!! Ugly hack !!!
+	memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
       }
-      //memset( mb.F_bis, 0, 64 * sizeof( int16_t ) );
-      
       
       if(i < 4) {
 	dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
@@ -3115,14 +3101,8 @@ void block_intra(unsigned int i)
 
 void block_non_intra(unsigned int b)
 {
-  uint8_t cc;
   uint8_t i;
   int f;
-  /* Table 7-1. Definition of cc, colour component index */ 
-  if(b < 4)
-    cc = 0;
-  else
-    cc = (b%2)+1;
 
 #ifdef STATS
   stats_block_non_intra_nr++;
@@ -3138,11 +3118,10 @@ void block_non_intra(unsigned int b)
     
     DPRINTF(3, "pattern_code(%d) set\n", b);
     
+    // Reset all coefficients to 0.
     for(m=0;m<16;m++) {
-      *(((int64_t *)mb.QFS) + m) = 0L;  // !!! Ugly hack !!!
+      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
     }
-    //memset( mb.F_bis, 0, 64 * sizeof( int16_t ) );
-    
     
     /* 7.2.2.4 Summary */
     
@@ -3264,7 +3243,9 @@ void block_non_intra(unsigned int b)
 #endif
 
 	if(f > 2047) {
-	  //	  fprintf(stderr,"clip");
+#ifdef DEBUG
+	  DPRINTF(0, "!!! qfs clipping  !!!");
+#endif
 	  //	  if( sgn )
 	  //	    fprintf(stderr,"==2048");
 	  f = 2047;
