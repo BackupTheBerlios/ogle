@@ -117,7 +117,7 @@ DVDResult_t DVDButtonSelect(int msgqid, int Button)
   
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_BUTTON_NR;	
-  cmd->cmd.dvdctrl_cmd.button_nr = button;
+  cmd->cmd.dvdctrl_cmd.button_nr = Button;
 
   send_cmd(msgqid, &msg);
 
@@ -132,7 +132,7 @@ DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button)
   
   cmd->cmdtype = CMD_DVDCTRL_CMD;
   cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR;	
-  cmd->cmd.dvdctrl_cmd.button_nr = button;
+  cmd->cmd.dvdctrl_cmd.button_nr = Button;
 
   send_cmd(msgqid, &msg);
 
@@ -141,12 +141,34 @@ DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button)
 
 DVDResult_t DVDMouseSelect(int msgqid, int x, int y)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)&msg.mtext;
+  
+  cmd->cmdtype = CMD_DVDCTRL_CMD;
+  cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_CHECK_MOUSE_SELECT;
+  cmd->cmd.dvdctrl_cmd.mouse_x = (unsigned int) x;
+  cmd->cmd.dvdctrl_cmd.mouse_y = (unsigned int) y;
+  
+  send_cmd(msgqid, &msg);
+
+  return DVD_E_OK;
 }
 
 DVDResult_t DVDMouseActivate(int msgqid, int x, int y)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)&msg.mtext;
+  
+  cmd->cmdtype = CMD_DVDCTRL_CMD;
+  cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_CHECK_MOUSE_ACTIVATE;
+  cmd->cmd.dvdctrl_cmd.mouse_x = (unsigned int) x;
+  cmd->cmd.dvdctrl_cmd.mouse_y = (unsigned int) y;
+
+  send_cmd(msgqid, &msg);
+
+  return DVD_E_OK;
 }
 
 DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t MenuId)
@@ -178,7 +200,7 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
 {
   const char *errstr;
 
-  switch(errcode) {
+  switch(ErrCode) {
   case DVD_E_OK:
     errstr = DVD_E_OK_STR;
     break;
