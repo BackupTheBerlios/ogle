@@ -56,7 +56,7 @@ int main(int argc, char *argv[])
   }
 
   for(i = 0; i < 16; i++) {
-    printf( "%02X", disc_id[i] );
+    printf( "%02x", disc_id[i] );
   }
   printf( "\n" );
 
