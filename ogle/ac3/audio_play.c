@@ -116,7 +116,9 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	  
 	  clocktime_get(&real_time);
 	  PTS_TO_CLOCKTIME(scr_time, PTS);
-	  
+	  // add constant offset
+	  timeadd(&scr_time, &scr_time, &s->offset);
+
 	  calc_realtime_left_to_scrtime(&t1,
 					&real_time,
 					&scr_time,
@@ -256,7 +258,8 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
     static clocktime_t last_rt = { -1, 0 };
     static clocktime_t in_outputbuf = { 0, 0 };
     static clocktime_t delay = { 0, 0 };
-    clocktime_t real_time, sleep_time;
+    clocktime_t sleep_time = {0, 0};
+    clocktime_t real_time;
 
     if(odelay_fail) {
       ERROR("odelay failed, falling back to clock sync\n");
@@ -295,12 +298,21 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
       
       if(TIME_S(delay_time) > 0 || TIME_SS(delay_time) > TIME_SS(buf_time)) {
 	timesub(&sleep_time, &delay_time, &buf_time); 
-      }
-
+      } 
+      /*
+      fprintf(stderr, "sleep: %ld.%09ld, delay_time: %ld.%09ld\n",
+	      TIME_S(sleep_time),
+	      TIME_SS(sleep_time),
+	      TIME_S(delay_time),
+	      TIME_SS(delay_time));
+      */
       
       if(pts_valid) {
 	clocktime_t t1, t2;
 	PTS_TO_CLOCKTIME(scr_time, PTS);
+
+	//add constant offset
+	timeadd(&scr_time, &scr_time, &s->offset);
 	
 	calc_realtime_left_to_scrtime(&t1,
 				      &real_time,
@@ -330,7 +342,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	  }
 	  
 	  timeadd(&delay_time, &delay_time, &real_time);
-	  
+
 	  set_sync_point(&ctrl_time[scr_nr],
 			 &delay_time,
 			 &scr_time,
@@ -376,10 +388,10 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
       
       timeadd(&delay, &delay, &in_outputbuf);
       
-      
+      /*
       fprintf(stderr, "delay: %ld.%09ld\n",
 	      TIME_S(delay), TIME_SS(delay));
-      
+      */
     } else {
       TIME_S(delay) = 0;
       TIME_SS(delay) = 0;

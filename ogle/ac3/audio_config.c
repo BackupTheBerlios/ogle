@@ -29,6 +29,8 @@ audio_config_t *audio_config_init(void)
 {
   audio_config_t *conf;
   char *type;
+  int ms_offset;
+  
   conf = malloc(sizeof(audio_config_t));
   
   conf->format.nr_channels = 0;
@@ -49,7 +51,13 @@ audio_config_t *audio_config_init(void)
     conf->sync.type = SyncType_odelay;
   }
   conf->sync.resample = get_sync_resample();
-  
+  ms_offset = get_sync_offset();
+  if(ms_offset > 999 || ms_offset < -999) {
+    ms_offset = 0;
+  }
+  TIME_S(conf->sync.offset) = 0;
+  TIME_SS(conf->sync.offset) = ms_offset * CT_FRACTION/1000;
+
   return conf;
 }
 

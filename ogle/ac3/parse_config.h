@@ -34,5 +34,6 @@ int get_a52_drc(void);
 
 char *get_sync_type(void);
 int get_sync_resample(void);
+int get_sync_offset(void);
 
 #endif /* PARSE_CONFIG_H */

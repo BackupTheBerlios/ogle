@@ -22,6 +22,7 @@
 #include <stdlib.h>
 
 #include <libogleao/ogle_ao.h>
+#include "timemath.h"
 
 typedef enum {
   ChannelType_Left = 1,
@@ -62,6 +63,7 @@ typedef struct {
   int samples_added;
   SyncType_t type;
   int resample;
+  clocktime_t offset;
 } audio_sync_t;
 
 typedef struct {

@@ -48,6 +48,7 @@ static char *audio_driver = NULL;
 /* sync */
 static char *sync_type = NULL;
 static int sync_resample = 0;
+static int sync_offset = 0;
 
 char *get_audio_driver(void)
 {
@@ -203,6 +204,11 @@ int get_sync_resample(void)
   return sync_resample;
 }
 
+int get_sync_offset(void)
+{
+  return sync_offset;
+}
+
 
 static void parse_sync(xmlDocPtr doc, xmlNodePtr cur)
 {
@@ -227,6 +233,10 @@ static void parse_sync(xmlDocPtr doc, xmlNodePtr cur)
 	  } else {
 	    sync_resample = 0;
 	  }
+	}
+      } else if(!strcmp("offset", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+          sync_offset = atoi(s);
 	}
       }
 
