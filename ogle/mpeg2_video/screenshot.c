@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "jpeglib.h"
+#include <jpeglib.h>
 #include <setjmp.h>
 #include <X11/Xlib.h>
 
