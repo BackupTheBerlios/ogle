@@ -745,6 +745,30 @@ static void do_run(void) {
 	    state.SPST_REG &= ~0x40; // Turn it off
 	  NOTE("DVDCtrlSetSubpictureState 0x%x\n", state.SPST_REG);
 	  break;
+	case DVDCtrlGetTitles:
+	  {
+	    MsgEvent_t send_ev;
+	    int titles;
+	    titles = vm_get_titles();
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlGetTitles;
+	    send_ev.dvdctrl.cmd.titles.titles = titles;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+	  }
+	  break;
+	case DVDCtrlGetPTTsForTitle:
+	  {
+	    MsgEvent_t send_ev;
+            int ptts, title;
+	    title = ev.dvdctrl.cmd.parts.title;
+            ptts = vm_get_ptts_for_title(title);
+            send_ev.type = MsgEventQDVDCtrl;
+            send_ev.dvdctrl.cmd.type = DVDCtrlGetPTTsForTitle;
+	    send_ev.dvdctrl.cmd.parts.title = title;
+	    send_ev.dvdctrl.cmd.parts.ptts = ptts;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+	  }
+	  break;
 	case DVDCtrlGetCurrentAudio:
 	  {
 	    MsgEvent_t send_ev;
