@@ -220,13 +220,12 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 
 
 int get_vlc(const vlc_table_t *table, char *func) {
-  int pos=0;
   int numberofbits;
   int vlc;
   
   vlc = nextbits(16);
   while(1) {
-    numberofbits = table[pos].numberofbits;
+    numberofbits = table->numberofbits;
     if(numberofbits == VLC_FAIL) {
 #if 0
       fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching " 
@@ -237,14 +236,14 @@ int get_vlc(const vlc_table_t *table, char *func) {
 #endif
       return VLC_FAIL;
     }
-    if(table[pos].vlc == (vlc>>(16-numberofbits)))
+    if(table->vlc == (vlc>>(16-numberofbits)))
       break;
-    pos++;
+    table++;
   }
   DPRINTF(3, "get_vlc(%s): len: %d, vlc: %d, val: %d\n",
-	  func, numberofbits, table[pos].vlc, table[pos].value);
+	  func, numberofbits, table->vlc, table->value);
   dropbits(numberofbits);
-  return table[pos].value;
+  return table->value;
 }
 
 
