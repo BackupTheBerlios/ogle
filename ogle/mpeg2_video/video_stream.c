@@ -1146,10 +1146,10 @@ void picture_data(void)
   
   DPRINTF(2," switching buffers\n");
   
-
-  memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
-  memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
-  memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
+  // HH - 2000-02-10
+  //memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
+  //memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
+  //memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
 
   switch(pic.header.picture_coding_type) {
   case 0x1:
@@ -1712,10 +1712,11 @@ void macroblock(void)
     break;
 
   }
-
-  motion_comp();
-
   
+  // HH - 2000-02-10
+  // Intra blocks are already handled directly in block()
+  if( !mb.modes.macroblock_intra )
+    motion_comp();
 
 }
 
@@ -2510,11 +2511,46 @@ void block(unsigned int i)
 #endif
     
     
-    mlib_VideoIDCT_IEEE_S16_S16(mb.f[i], (mlib_s16 *)mb.F_bis);      
-    
+    // HH - 2000-02-10
+    if(mb.modes.macroblock_intra) {
+      int x = seq.mb_column;
+      int y = seq.mb_row;
+      int width = seq.horizontal_size;
+      int d, stride;
+      uint8_t *dst;
+      if (mb.modes.dct_type) {
+	d = 1;
+	stride = width * 2;
+      } else {
+	d = 8;
+	stride = width;
+      }
+      
+      
+      if( i < 4 ) {
+	dst = &dst_image->y[x * 16 + y * width * 16];
+	if( i & 1 ) 
+	  dst += 8;
+	if( i >= 2 ) 
+	  dst += width * d;
+      }
+      else {
+	stride = width / 2;
+	if( i == 4 )
+	  dst = &dst_image->u[x * 8 + y * width/2 * 8];
+	else
+	  dst = &dst_image->v[x * 8 + y * width/2 * 8];
+      }
+      mlib_VideoIDCT_U8_S16(dst, (mlib_s16 *)mb.F_bis, stride);
+    }
+    else
+      mlib_VideoIDCT_S16_S16(mb.f[i], (mlib_s16 *)mb.F_bis);      
+    // end HH - 2000-02-10
+	
   } else {
     // pattern[i] == 0
     
+    // !!! Is this needed ?? 
     memset(mb.f[i], 0, 64*sizeof(int16_t));
     
   }
