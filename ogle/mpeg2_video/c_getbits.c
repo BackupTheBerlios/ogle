@@ -162,7 +162,6 @@ static void change_file(char *new_filename)
 
 void get_next_packet()
 {
-  MsgEvent_t ev;
   if(msgqid == -1) {
     if(mmap_base == NULL) {
       static clocktime_t time_offset = { 0, 0 };
@@ -404,12 +403,9 @@ int get_q()
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
-  data_buf_head_t *data_head;
   data_elem_t *data_elems;
-  static data_elem_t *data_elem;
+  data_elem_t *data_elem;
   int elem;
-  static int delayed_posts = 0;
-  int n;
   MsgEvent_t ev;
   //  uint8_t PTS_DTS_flags;
   //  uint64_t PTS;
@@ -427,10 +423,13 @@ int get_q()
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
+  data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
   
-  // release prev elem
-
-  if(have_buf > 50) {
+  // release prev elem 
+  // if we have 50 or the last packet indicated a compleat video unit
+  if(have_buf > 50 
+     || (have_buf && (data_elems[q_elems[elem].data_elem_index].flowcmd 
+		      == FlowCtrlCompleteVideoUnit))) {
     int n;
     int m;
     data_elem_t *delem;
@@ -459,8 +458,8 @@ int get_q()
 
     q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
     elem = q_head->read_nr;  
-
   }
+  
   if(have_buf) {
     q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
     elem = q_head->read_nr;  
@@ -478,7 +477,6 @@ int get_q()
 
   have_buf++;
 
-  data_head = (data_buf_head_t *)data_buf_shmaddr;
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
 
   data_elem = &data_elems[q_elems[elem].data_elem_index];
@@ -499,7 +497,7 @@ int get_q()
   len = data_elem->len;
   
   switch(data_elem->flowcmd) {
-  case 1:
+  case FlowCtrlCompleteVideoUnit:
     if(mmap_base != dummy_buf) {
       tmp_base = mmap_base;
       mmap_base = dummy_buf;
@@ -507,7 +505,7 @@ int get_q()
       len = 8;
     }
     break;
-  case 0:
+  case FlowCtrlNone:
   default:
     if(mmap_base == dummy_buf) {
       mmap_base = tmp_base;
