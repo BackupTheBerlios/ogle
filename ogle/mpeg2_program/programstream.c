@@ -251,7 +251,8 @@ int dvd_open_root(char *path)
 {
   
   if((dvdroot = DVDOpen(path)) == NULL) {
-    FATAL("%s", "Couldn't open dvd\n");
+    FATAL("Couldn't open dvd at %s: (%d) %s\n",
+	  path, errno, strerror(errno));
     exit(1);
   }
   

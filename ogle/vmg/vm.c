@@ -22,6 +22,7 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <assert.h>
+#include <errno.h>
 
 #include "ogle/dvd.h"
 #include "ogle/dvdevents.h"
@@ -181,7 +182,8 @@ int vm_init(char *dvdroot) // , register_t regs)
 {
   dvd = DVDOpen(dvdroot);
   if(!dvd) {
-    ERROR("%s", "faild to open/read the DVD\n");
+    ERROR("failed to open/read the DVD at %s: (%d) %s\n",
+    	  dvdroot, errno, strerror(errno));
     return -1;
   }
 
@@ -191,7 +193,8 @@ int vm_init(char *dvdroot) // , register_t regs)
   
   vmgi = ifoOpenVMGI(dvd);
   if(!vmgi) {
-    ERROR("%s", "faild to read VIDEO_TS.IFO\n");
+    ERROR("failed to read VIDEO_TS.IFO: (%d) %s\n",
+	  errno, strerror(errno));
     return -1;
   }
   if(!ifoRead_FP_PGC(vmgi)) {

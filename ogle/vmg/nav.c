@@ -371,7 +371,7 @@ static void send_highlight(int x_start, int y_start, int x_end, int y_end,
     ev.spuhighlight.contrast[i] = 0xf & (btn_coli >> (4*i));
 
   if(send_spu(msgq, &ev) == -1) {
-    ERROR("%s", "faild sending highlight info\n");
+    ERROR("%s", "failed sending highlight info\n");
   }
 }
 
