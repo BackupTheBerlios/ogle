@@ -170,6 +170,8 @@ static void init_ogle_shm(void)
   ogle_shm_initialized = 1;
 }
 
+static char *no_pshm_str = "OGLE_USE_POSIX_SHM=0";
+
 /*
  * This is called from the ogle_shm* functions when they fail on
  * ENOSYS (function not implemented. 
@@ -179,10 +181,12 @@ static void init_ogle_shm(void)
  * the ogle_sysv* functions instead.
  */
 static void revert_to_sysv(void)
-{
+{  
   WARNING("%s", "Reverting to SYSV shm\n");
   use_posix_shm = 0;
+  putenv(no_pshm_str);
 }
+ 
 
 /*
  * Creates a shared memory object
@@ -220,7 +224,7 @@ int ogle_shmget(int size, int mode)
     if((fd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, mode)) == -1) {
       switch(errno) {
       case ENOSYS:
-	//shm_open not implemented, revert ot sysv shm
+	//shm_open not implemented, revert to sysv shm
 	WARNING("ogle_shmget, shm_open '%s': %s\n", shmname, strerror(errno));
 	revert_to_sysv();
 	return ogle_sysv_shmget(size, mode);
@@ -411,6 +415,57 @@ int ogle_shmdt(void *shmaddr)
     return -1;
   }
   
+  return 0;
+}
+
+/*
+ * Returns 1 if POSIX shm will be  used or 0 if SYSV shm.
+ * Should be called first, before any other processes that use ogle_shm
+ * are fork()'d
+ */
+int ogle_shm_init(void)
+{
+  char shmname[64];
+  int fd;
+
+  if(!ogle_shm_initialized) {
+    init_ogle_shm();
+  }
+  
+  if(!use_posix_shm) {
+    return 0;
+  }
+  
+  snprintf(shmname, sizeof(shmname),
+	   "%s.%08x", shmid_prefix, getpid());
+  
+  if((fd = shm_open(shmname, O_RDWR | O_CREAT | O_EXCL, 0600)) == -1) {
+    switch(errno) {
+    case ENOSYS:
+      //shm_open not implemented, revert to sysv shm
+      WARNING("ogle_shm_init, shm_open: %s\n", strerror(errno));
+      revert_to_sysv();
+      return 0;
+      break;
+    default:
+      ERROR("ogle_shm_init, shm_open '%s': %d %s\n",
+	    shmname, errno, strerror(errno));
+      break;
+    }
+  } else {
+    close(fd);
+    shm_unlink(shmname);      
+  }
+
+  //shm_open works
+  
+  return 1;
+}
+
+#else
+
+int ogle_shm_init(void)
+{
   return 0;
 }
 

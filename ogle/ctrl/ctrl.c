@@ -856,7 +856,9 @@ int main(int argc, char *argv[])
   
   /* Print the version info so that we get it with bug reports. */
   NOTE("%s %s\n", PACKAGE, VERSION);
-  
+
+  ogle_shm_init();
+
   ctrl_data_shmid = create_ctrl_data();
 
 #ifdef SOCKIPC

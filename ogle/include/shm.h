@@ -17,6 +17,8 @@ int ogle_shmdt(void *shmaddr);
 
 #endif //HAVE_POSIX_SHM
 
+int ogle_shm_init(void);
+
 int ogle_sysv_shmget(size_t size, int mode);
 void *ogle_sysv_shmat(int shmid);
 int ogle_sysv_shmdt(void *shmaddr);
