@@ -67,6 +67,7 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_mandir}/man*/*
 
 %files devel
+%defattr(-, root, root)
 %{_includedir}/*
 %{_libdir}/ogle/*.so
 %{_libdir}/ogle/*.la
