@@ -51,8 +51,10 @@
 #else
 #ifdef HAVE_MMX
 #include "mmx.h"
-#endif
+#include "mmx_mlib.h"
+#else
 #include "c_mlib.h"
+#endif
 #endif
 
 #include "common.h"

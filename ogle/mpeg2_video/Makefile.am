@@ -22,7 +22,7 @@ if USE_ALTIVEC
 ALTIVECSOURCES=altivec_mlib.c
 else
 if USE_MMX
-MMXSOURCES=yuv2rgb_mmx.c mmx_idct.S mmx_mlib.c mmx.h
+MMXSOURCES=yuv2rgb_mmx.c idct_mmx.c mmx_mlib.c mmx_mlib.h mmx.h
 else
 CSOURCES=c_mlib.c c_mlib.h
 endif
@@ -36,7 +36,7 @@ endif
 
 EXTRA_DIST = \
 	yuv2rgb_mlib.c yuv2rgb_mlib.h \
-	yuv2rgb_mmx.c yuv2rgb_mmx.h mmx_idct.S mmx_mlib.c mmx.h \
+	yuv2rgb_mmx.c yuv2rgb_mmx.h mmx.h mmx_mlib.h mmx_mlib.c idct_mmx.c \
 	altivec_mlib.c \
 	c_mlib.c c_mlib.h \
 	ffb_asm.s ffb_asm.h

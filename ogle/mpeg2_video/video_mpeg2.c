@@ -37,8 +37,10 @@
 #else
 #ifdef HAVE_MMX
 #include "mmx.h"
-#endif
+#include "mmx_mlib.h"
+#else
 #include "c_mlib.h"
+#endif
 #endif
 
 #include "common.h"
@@ -1460,7 +1462,6 @@ void mpeg2_slice(void)
 	    if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD)
 	      dst += stride/2;
 	  }
-	  
 	  mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
 	}
       }
