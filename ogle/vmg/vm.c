@@ -238,6 +238,54 @@ int vm_prev_pg(void)
   return vm_top_pg();
 }
 
+int vm_jump_ptt(int pttN)
+{
+  link_t link_values;
+  
+  //check domain!!
+  
+  if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, pttN) == -1)
+    return 0;
+  
+  link_values = play_PGC();
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Something changed, Jump
+}
+
+int vm_jump_title_ptt(int titleN, int pttN)
+{
+  link_t link_values;
+  
+  //check domain?!?
+  
+  if(get_TT_PTT(titleN, pttN) == -1)
+    return 0;
+  
+  link_values = play_PGC();
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Something changed, Jump
+}
+
+int vm_jump_title(int titleN)
+{
+  link_t link_values;
+  
+  //check domain?
+  
+  if(get_TT(titleN) == -1)
+    return 0;
+  
+  link_values = play_PGC();
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
+  return 1; // Something changed, Jump
+}
+
 
 static domain_t menuid2domain(DVDMenuID_t menuid)
 {
@@ -1149,8 +1197,6 @@ static link_t process_command(link_t link_values)
 
 
 
-
-
 static int get_TT(int tt)
 {  
   assert(tt <= vmgi->tt_srpt->nr_of_srpts);
@@ -1159,6 +1205,21 @@ static int get_TT(int tt)
   
   return get_VTS_TT(vmgi->tt_srpt->title[tt - 1].title_set_nr,
 		    vmgi->tt_srpt->title[tt - 1].vts_ttn);
+}
+
+
+static int get_TT_PTT(int tt, int ptt)
+{  
+  assert(tt <= vmgi->tt_srpt->nr_of_srpts);
+  
+  state.TTN_REG = tt;
+  
+  // Add this check for use call of this code.
+  //assert(part <= vtsi->vts_ptt_srpt->title[vts_ttn - 1].nr_of_ptts);
+  
+  return get_VTS_PTT(vmgi->tt_srpt->title[tt - 1].title_set_nr,
+		     vmgi->tt_srpt->title[tt - 1].vts_ttn, 
+		     ptt);
 }
 
 

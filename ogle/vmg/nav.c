@@ -713,8 +713,15 @@ static void do_run(void) {
 	  break;
 	  
 	case DVDCtrlPTTSearch:
+	  res = vm_jump_ptt(ev.dvdctrl.cmd.pttsearch.ptt);
+	  break;
 	case DVDCtrlPTTPlay:
+	  res = vm_jump_title_ptt(ev.dvdctrl.cmd.pttplay.title,
+				  ev.dvdctrl.cmd.pttplay.ptt);
+	  break;	
 	case DVDCtrlTitlePlay:
+	  res = vm_jump_title(ev.dvdctrl.cmd.titleplay.title);
+	  break;
 	case DVDCtrlTimeSearch:
 	case DVDCtrlTimePlay:
 	  DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
