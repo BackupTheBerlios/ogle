@@ -41,6 +41,11 @@
 #define SHM_SHARE_MMU 0
 #endif
 
+/* SA_SIGINFO isn't implemented yet on for example NetBSD */
+#if !defined(SA_SIGINFO)
+#define siginfo_t void
+#endif
+
 int create_msgq();
 int init_decoder(char *msgqid_str, char *decoderstr);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
@@ -676,8 +681,12 @@ int main(int argc, char *argv[])
     perror("sigaction1");
   }
 
+#if defined(SA_SIGINFO)
   sig.sa_sigaction = sigchld_handler;
   sig.sa_flags = SA_SIGINFO;
+#else
+  sig.sa_handler = (sig_t)sigchld_handler;
+#endif
   if(sigaction(SIGCHLD, &sig, NULL) == -1) {
     perror("sigaction2");
   }
@@ -1306,8 +1315,9 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
    */
   int stat_loc;
   int died = 0;
-  pid_t pid;
-
+  pid_t wpid, pid;
+  
+#if defined(SA_SIGINFO)
   fprintf(stderr, "ctrl: sigchldhandler got signal %d\n", info->si_signo);
   if(info->si_errno) {
     fprintf(stderr, "ctrl: error: %s\n", strerror(info->si_errno));
@@ -1340,7 +1350,7 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 	    (long)info->si_pid, info->si_status);
     died = 1;
     break;
-#ifdef SI_NOINFO  //solaris only
+#if defined(SI_NOINFO)  // Solaris only
    case SI_NOINFO:
     fprintf(stderr, "ctrl: sigchld with no info\n");
     break;
@@ -1350,16 +1360,19 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 	    info->si_code);
     break;
   }
-
+  wpid = info->si_pid;
+#else /* defined(SA_SIGINFO) */
+  wpid = -1;
+#endif
+  
   while(1) {
-    if((pid =waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
-      perror("waitpid");
+    if((pid = waitpid(wpid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
+      perror("ctrl: waitpid");
       switch(errno) {
       case EINTR:
 	continue;
-	break;
       default:
-	break;
+	return;
       }
     }
     break;
