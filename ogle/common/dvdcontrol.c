@@ -1,6 +1,8 @@
 #include <unistd.h>
 #include <stdio.h>
+#include <sys/msg.h>
 
+#include "msgtypes.h"
 #include "dvdcontrol.h"
 
 
@@ -168,13 +170,13 @@ DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t lang)
 }
 
 
-const static char DVD_E_OK_STR = "OK";
-const static char DVD_E_NOT_IMPLEMENTED_STR = "Not Implemented";
-const static char DVD_E_NO_SUCH_ERROR_STR = "No such error code";
+const static char DVD_E_OK_STR[] = "OK";
+const static char DVD_E_NOT_IMPLEMENTED_STR[] = "Not Implemented";
+const static char DVD_E_NO_SUCH_ERROR_STR[] = "No such error code";
 
 void DVDPerror(const char *str, DVDResult_t errcode)
 {
-  char *errstr;
+  const char *errstr;
 
   switch(errcode) {
   case DVD_E_OK:
