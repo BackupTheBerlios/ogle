@@ -2,13 +2,9 @@
 #define DVDCONTROL_H
 
 #include <dvd.h>
-#include <msgevents.h>
 
-typedef struct {
-  MsgEventClient_t client;
-  MsgEventQ_t *msgq;
-} DVDNav_t;
 
+typedef struct DVDNav_s DVDNav_t;
 
 DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid);
 DVDResult_t DVDCloseNav(DVDNav_t *nav);
