@@ -32,13 +32,6 @@
 #include <inttypes.h>
 #include "ifo.h" // vm_cmd_t
 
-#define BLOCK_SIZE 2048
-typedef struct
-{
-  uint32_t bit_position;
-  uint8_t bytes [BLOCK_SIZE];
-} buffer_t;
-
 
 #define PCI_BYTES 0x3d4
 #define DSI_BYTES 0x3fa

@@ -494,12 +494,6 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
 
 
 
-typedef struct
-{
-  uint32_t bit_position;
-  uint8_t bytes [2048];
-} buffer_t;
-
 void print_bits(int num, uint8_t bits) {
   int i;
   for(i = 0; i < num; i++)

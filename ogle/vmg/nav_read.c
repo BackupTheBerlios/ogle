@@ -37,13 +37,14 @@
 #endif
 
 
-void read_pci_packet(pci_t *pci, buffer_t *buffer) {
+void read_pci_packet(pci_t *pci, char *buffer, int len) {
   int i, j, k;
   
   assert(sizeof(pci_t) == PCI_BYTES - 1); // -1 for substream id
+  if(len < sizeof(pci_t))
+    return; // XXX
   
-  memcpy(pci, &(buffer->bytes [buffer->bit_position>>3]), sizeof(pci_t));
-  buffer->bit_position += 8 * (PCI_BYTES - 1);
+  memcpy(pci, buffer, sizeof(pci_t));
   
   /* -- endian conversions ------------------------------------------------- */
   
@@ -143,13 +144,15 @@ void read_pci_packet(pci_t *pci, buffer_t *buffer) {
 #endif
 }
 
-void read_dsi_packet(dsi_t *dsi, buffer_t *buffer) {
+void read_dsi_packet(dsi_t *dsi, char *buffer, int len) {
+  int i;
   
   assert(sizeof(dsi_t) == DSI_BYTES - 1); // -1 for substream id
   
-  memcpy(dsi, &buffer->bytes [buffer->bit_position>>3], sizeof(dsi_t));
-  buffer->bit_position += 8 * (DSI_BYTES - 1);
+  if(len < sizeof(dsi_t))
+    return; // XXX
   
+  memcpy(dsi, buffer, sizeof(dsi_t));
   
   /* FIXME: Endian conversions & asserts */
   
@@ -165,7 +168,17 @@ void read_dsi_packet(dsi_t *dsi, buffer_t *buffer) {
   B2N_16(dsi->dsi_gi.vobu_vob_idn);
   B2N_32(dsi->dsi_gi.c_eltm);
   
-  
+  /* dsi sml pbi */
+  B2N_16(dsi->sml_pbi.category);
+  B2N_32(dsi->sml_pbi.ilvu_ea);
+  B2N_32(dsi->sml_pbi.ilvu_sa);
+  B2N_16(dsi->sml_pbi.size);
+    
+  /* dsi sml agl */
+  for(i = 0; i <= 9; i++) {
+    B2N_32(dsi->sml_agli.dsta[i].address);
+    B2N_16(dsi->sml_agli.dsta[i].size);
+  }
   
   /* -- asserts ------------------------------------------------------------ */
   

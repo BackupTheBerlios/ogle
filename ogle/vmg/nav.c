@@ -44,13 +44,13 @@ int eval_msg(mq_cmd_t *cmd);
 int wait_init_msg(void);
 int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
 
-static void get_next_nav_packet(char *buffer) {
+static int get_next_nav_packet(char *buffer) {
   static int init_done = 0;
   if(!init_done) {
     wait_init_msg();
     init_done = 1;
   }
-  get_q(buffer);
+  return get_q(buffer);
 }
 
 static void send_demux_sectors(int start_sector, int nr_sectors) {
@@ -249,7 +249,8 @@ int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
 
 vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
 		   dvd_state_t *state) {
-  buffer_t buffer;
+  char buffer[2048];
+  int len;
   pci_t pci;
   dsi_t dsi;
   vm_cmd_t cmd;
@@ -270,15 +271,13 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
     send_demux_sectors(cell->first_sector + block, 1); 
     block++;
     
-    get_next_nav_packet(&buffer.bytes[0]);
-    assert(buffer.bytes[0] == PS2_PCI_SUBSTREAM_ID);
-    buffer.bit_position = 8; // First byte is SUBSTREAM_ID
-    read_pci_packet(&pci, &buffer);
+    len = get_next_nav_packet(&buffer[0]);
+    assert(buffer[0] == PS2_PCI_SUBSTREAM_ID);
+    read_pci_packet(&pci, &buffer[1], len);
     
-    get_next_nav_packet(&buffer.bytes[0]);
-    assert(buffer.bytes[0] == PS2_DSI_SUBSTREAM_ID);
-    buffer.bit_position = 8; // First byte is SUBSTREAM_ID
-    read_dsi_packet(&dsi, &buffer);
+    len = get_next_nav_packet(&buffer[0]);
+    assert(buffer[0] == PS2_DSI_SUBSTREAM_ID);
+    read_dsi_packet(&dsi, &buffer[1], len);
     
     if(pci.hli.hl_gi.hli_ss & 0x03) {
       fprintf(stdout, "Menu detected\n");

@@ -27,6 +27,14 @@
 #include "nav_read.h"
 #include "nav_print.h"
 
+#define BLOCK_SIZE 2048
+typedef struct
+{
+  uint32_t bit_position;
+  uint8_t bytes [BLOCK_SIZE];
+} buffer_t;
+
+
 int debug = 8;
 char *program_name;
 
@@ -55,11 +63,13 @@ void parse_vmg_data (FILE *in)
     buffer.bit_position = 8;
     
     if(substream == PS2_PCI_SUBSTREAM_ID) {
-      read_pci_packet(&pci, &buffer);
+      read_pci_packet(&pci, &buffer.bytes[0], PCI_BYTES - 1);
+      buffer.bit_position += 8 * (PCI_BYTES - 1);
       print_pci_packet(stdout, &pci);
     }
     else if(substream == PS2_DSI_SUBSTREAM_ID) {
-      read_dsi_packet(&dsi, &buffer);
+      read_dsi_packet(&dsi, &buffer.bytes[0], DSI_BYTES - 1);
+      buffer.bit_position += 8 * (DSI_BYTES - 1);
       print_dsi_packet(stdout, &dsi);
     }
     else {
