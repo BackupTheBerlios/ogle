@@ -5,3 +5,4 @@ all:
 	cd ac3 && ${MAKE}
 	cd mpeg_audio && ${MAKE}
 	cd vmg && ${MAKE}
+	cd ui && ${MAKE}
