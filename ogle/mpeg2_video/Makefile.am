@@ -49,6 +49,7 @@ video_output_SOURCES = \
 	yuv2rgb.c yuv2rgb.h \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
+	wm_state.c wm_state.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
 
 video_stream_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la

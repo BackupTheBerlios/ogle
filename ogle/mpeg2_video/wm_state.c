@@ -8,13 +8,12 @@
 #include <X11/keysym.h>
 #include <X11/Xatom.h>
 
+#include <inttypes.h>
+
+
 #include "wm_state.h"
 
 
-typedef enum {
-  WINDOW_STATE_NORMAL,
-  WINDOW_STATE_FULLSCREEN
-} WindowState_t;
 
 static WindowState_t current_state = WINDOW_STATE_NORMAL;
 
@@ -27,7 +26,7 @@ typedef struct {
 
 static geometry_t normal_state_geometry;
 
-static unsigned long req_serial; /* used for error handling */
+static unsigned long req_serial;        /* used for error handling */
 static int (*prev_xerrhandler)(Display *dpy, XErrorEvent *ev);
 
 static void remove_motif_decorations(Display *dpy, Window win);
@@ -43,6 +42,7 @@ static char *wm_name = NULL;
 
 
 #define MWM_HINTS_DECORATIONS   (1L << 1)
+
 typedef struct {
   uint32_t flags;
   uint32_t functions;
@@ -157,7 +157,10 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     normal_state_geometry.y = dest_y_ret - y;
     
     fprintf(stderr, "x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
-	    x, y, *width_return, *height_return, bwidth, depth);
+	    x, y,
+	    normal_state_geometry.width,
+	    normal_state_geometry.height,
+	    bwidth, depth);
     
   }
   // We have to be unmapped to change motif decoration hints 
@@ -804,6 +807,7 @@ int ChangeWindowState(Display *dpy, Window win,
 {
   Window root_return;
   int x_return, y_return;
+  unsigned int w_return, h_return;
   unsigned int bw_return, d_return;
 
   if(state != current_state) {
@@ -829,13 +833,23 @@ int ChangeWindowState(Display *dpy, Window win,
       fprintf(stderr, "unknown window state\n");
       break;
     }
-    
-    XGetGeometry(dpy, win, &root_return,
-		 &x_return, &y_return,
-		 width_return, height_return,
-		 &bw_return, &d_return);
-    
-    return 1;
+  }
+  
+  XGetGeometry(dpy, win, &root_return,
+	       &x_return, &y_return,
+	       &w_return, &h_return,
+	       &bw_return, &d_return);
+  
+  if(width_return != NULL) {
+    *width_return = w_return;
+  }
+  
+  if(height_return != NULL) {
+    *height_return = h_return;
+  }
+  
+  return 1;
+  
 }
 
 

@@ -46,6 +46,7 @@
 #include "video_types.h"
 #include "yuv2rgb.h"
 #include "screenshot.h"
+#include "wm_state.h"
 
 #define SPU
 #ifdef SPU
@@ -758,11 +759,18 @@ void display_toggle_fullscreen(yuv_image_t *current_image) {
   /* Toggle the state of the fullscreen flag. */    
   scale.fullscreen = !scale.fullscreen;
   
-  if(!scale.fullscreen) {
+  if(scale.fullscreen) {
+    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN,
+		      NULL, NULL);
+  } else {
+    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_NORMAL,
+		      NULL, NULL);
     display_adjust_size(current_image, -1, -1);
     XSync(mydisplay, True);
   }
   
+
+#if 0
   /* Unmap window. */
   XUnmapWindow(mydisplay, window.win);
   XSync(mydisplay, True); // ? Is this needed?
@@ -853,7 +861,8 @@ void display_toggle_fullscreen(yuv_image_t *current_image) {
     }
     while (xev.type != MapNotify || xev.xmap.event != window.win);
   }
-  
+
+
   if(scale.fullscreen) {
     XResizeWindow(mydisplay, window.win, 
 		  /* Change theses to be more careful for xinerama and.. */
@@ -865,6 +874,9 @@ void display_toggle_fullscreen(yuv_image_t *current_image) {
   }
   
   XSync(mydisplay, False);
+
+#endif
+  
 }
 
 
