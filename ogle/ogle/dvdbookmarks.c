@@ -19,7 +19,7 @@ struct DVDBookmark_s {
   xmlDocPtr doc;
 };
 
-static xmlDocPtr new_bookmark_doc(char *dvdid_str)
+static xmlDocPtr new_bookmark_doc(const char *dvdid_str)
 {
   xmlDocPtr doc;
   xmlNodePtr node;
@@ -75,7 +75,8 @@ static xmlNodePtr get_bookmark(xmlDocPtr doc, xmlNodePtr cur, int nr)
  * the failure was file related.
  *
  */
-DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *dir, int create)
+DVDBookmark_t *DVDBookmarkOpen(const unsigned char dvdid[16],
+			       const char *dir, int create)
 {
   DVDBookmark_t *bm;
   char *home = NULL;
@@ -243,7 +244,7 @@ int DVDBookmarkGetNr(DVDBookmark_t *bm)
  */
 int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
 		   char **navstate, char **usercomment,
-		   char *appname, char **appinfo)
+		   const char *appname, char **appinfo)
 {
   xmlNodePtr cur;
   xmlChar *data;
@@ -316,8 +317,8 @@ int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
  * @return 0 on success, -1 on failure.
  */
 int DVDBookmarkAdd(DVDBookmark_t *bm,
-		   char *navstate, char *usercomment,
-		   char *appname, char *appinfo)
+		   const char *navstate, const char *usercomment,
+		   const char *appname, const char *appinfo)
 {
   xmlNodePtr cur;
 

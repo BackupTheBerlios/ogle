@@ -4,15 +4,15 @@
 /* helper functions */
 typedef struct DVDBookmark_s DVDBookmark_t;
 
-DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16],
-			       char *file, int create);
+DVDBookmark_t *DVDBookmarkOpen(const unsigned char dvdid[16],
+			       const char *file, int create);
 int DVDBookmarkGetNr(DVDBookmark_t *bm);
 int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
 		   char **navstate, char **usercomment,
-		   char *appname, char **appinfo);
+		   const char *appname, char **appinfo);
 int DVDBookmarkAdd(DVDBookmark_t *bm,
-		   char *navstate, char *usercomment,
-		   char *appname, char *appinfo);
+		   const char *navstate, const char *usercomment,
+		   const char *appname, const char *appinfo);
 int DVDBookmarkRemove(DVDBookmark_t *bm, int nr);
 int DVDBookmarkSave(DVDBookmark_t *bm, int compressed);
 void DVDBookmarkClose(DVDBookmark_t *bm);
