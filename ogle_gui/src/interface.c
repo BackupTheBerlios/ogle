@@ -924,14 +924,19 @@ GtkWidget*
 create_about (void)
 {
   const gchar *authors[] = {
+    "Björn Englund",
+    "Håkan Hjort",
+    "Vilhelm Bergman",
+    "Martin Norbäck",
+    "Björn Augustsson",
     NULL
   };
   GtkWidget *about;
 
   about = gnome_about_new ("Ogle", VERSION,
-			   "",
+			   "Copyright 2000, 2001 Authors",
 			   authors,
-			   "",
+			   "http://www.dtek.chalmers.se/~dvd/",
 			   NULL);
   gtk_widget_set_name (about, "about");
   gtk_object_set_data (GTK_OBJECT (about), "about", about);
