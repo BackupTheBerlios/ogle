@@ -57,7 +57,7 @@ dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
   [  --with-dvdcontrol=DIR   Specify the install prefix to libdvdcontrol ], 
   if test x$withval = xno; then
-    AC_MSG_ERROR([* You must use libdvdcontrol, it's a part of Ogle])
+    [AC_MSG_ERROR([* You must use libdvdcontrol, it's a part of Ogle])]
   fi
   if test x$withval != xyes; then
     dvd_path=$withval
