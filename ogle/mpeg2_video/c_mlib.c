@@ -19,11 +19,12 @@
 #include <inttypes.h>
 #include "c_mlib.h"
 
-static inline uint8_t
-clip_to_u8 (int16_t value)
+static inline unsigned int
+clip_to_u8 (int value)
 {
   //return value < 0 ? 0 : (value > 255 ? 255 : value);
-  return ((uint16_t)value) > 256 ? value < 0 ? 0 : 255 : value;
+  //return ((uint16_t)value) > 256 ? value < 0 ? 0 : 255 : value;
+  return ((unsigned)value) > 256 ? ( 255 & ~(value >> 31) ) : value;
 }
 
 void
