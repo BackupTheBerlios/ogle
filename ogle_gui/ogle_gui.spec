@@ -1,6 +1,6 @@
 Summary: A GNOME interface for the ogle DVD player.
 Name: ogle_gui
-Version: 0.8.3
+Version: 0.8.4
 Release: ogle1
 Vendor: Ogle
 Packager: Ogle developer team
@@ -9,8 +9,8 @@ License: GPL
 Group: Applications/Multimedia
 Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
-Requires: ogle >= 0.8.2, gtk+ >= 1.2.0, libxml2, libglade, libglade.so.0
-BuildRequires: ogle-devel >= 0.8.2, gtk+-devel >= 1.2.0, libxml2-devel >= 2.4.19, libglade-devel
+Requires: ogle >= 0.8.4, gtk+ >= 1.2.0, libxml2, libglade, libglade.so.0
+BuildRequires: ogle-devel >= 0.8.4, gtk+-devel >= 1.2.0, libxml2-devel >= 2.4.19, libglade-devel
 
 %description
 This is a GNOME interface for the ogle DVD player.  Install this if you want
@@ -55,6 +55,9 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_datadir}/gnome/apps/Multimedia/ogle.desktop
 
 %changelog
+* Sun Jun 30 2002 Björn Englund <d4bjorn@dtek.chalmers.se>
+- Updated version to 0.8.4
+
 * Mon Jun 10 2002 Martin Norbäck <d95mback@dtek.chalmers.se>
 - Updated version to 0.8.3
 
