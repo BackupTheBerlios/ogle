@@ -32,6 +32,17 @@
 #include <sys/soundcard.h>
 #endif
 
+#if defined(__FreeBSD__)
+#ifndef AFMT_S16_NE
+#include <machine/endian.h>
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define AFMT_S16_NE AFMT_S16_LE
+#else
+#define AFMT_S16_NE AFMT_S16_BE
+#endif
+#endif
+#endif
+
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
 
@@ -64,7 +75,7 @@ int oss_init(ogle_ao_instance_t *_instance,
   case OGLE_AO_ENCODING_LINEAR:
     switch(audio_info->sample_resolution) {
       case 16:
-        sample_format = AFMT_S16_LE;
+        sample_format = AFMT_S16_NE;
         break;
       default:
         return -1;
