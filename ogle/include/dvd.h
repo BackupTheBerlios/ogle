@@ -5,6 +5,7 @@
 
 typedef enum {
   DVD_E_Ok = 0,
+  DVD_E_Unspecified = 127,
   DVD_E_NotImplemented = 128
 } DVDResult_t;
 
