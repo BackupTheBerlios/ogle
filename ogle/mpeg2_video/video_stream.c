@@ -11,6 +11,7 @@
 #include <mlib_status.h>
 #include <mlib_sys.h>
 #include <mlib_video.h>
+#include <mlib_algebra.h>
 
 
 #include <X11/Xlib.h>
@@ -42,6 +43,13 @@ Window mywindow;
 Window window_ref1;
 Window window_ref2;
 Window window_stat;
+
+
+double time_pic[4] = { 0.0, 0.0, 0.0, 0.0};
+double time_max[4] = { 0.0, 0.0, 0.0, 0.0};
+double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
+double num_pic[4] = { 0.0, 0.0, 0.0, 0.0};
+
 
 GC mygc;
 GC statgc;
@@ -154,7 +162,7 @@ uint32_t cur_word = 0;
 
 uint8_t bytealign = 1;
 
-
+uint8_t new_scaled = 0;
 
 
 
@@ -210,7 +218,7 @@ typedef struct {
 
   int8_t skipped;
 
-  int quantiser_scale;
+  int16_t quantiser_scale;
   int intra_dc_mult;
 
   int16_t QFS[64];
@@ -311,17 +319,7 @@ void next_word(void)
     if(!fread(&buf[buf_pos], 1, 4, infile)) {
       if(feof(infile)) {
 	fprintf(stderr, "*End Of File\n");
-	fprintf(stderr, "get_dct average: %f\n", (double)total_pos/(double)total_calls);
-	{
-	  int n;
-	  double percent = 0.0;
-	  
-	  for(n = 0; n < 128; n++) {
-	    fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
-		    percent+=(double)dctstat[n]/(double)total_calls);
-	  }
-	}
-	exit(0);
+	exit_program();
       } else {
 	fprintf(stderr, "**File Error\n");
 	exit(0);
@@ -558,8 +556,12 @@ typedef struct {
   uint8_t non_intra_quantiser_matrix[64];
   
   /***/
-  uint8_t intra_inverse_quantiser_matrix[8][8];
-  uint8_t non_intra_inverse_quantiser_matrix[8][8];
+  int16_t intra_inverse_quantiser_matrix[8][8];
+  int16_t non_intra_inverse_quantiser_matrix[8][8];
+
+  /***/
+  int16_t scaled_intra_inverse_quantiser_matrix[8][8];
+
 } sequence_header_t;
 
 
@@ -1172,24 +1174,87 @@ void picture_data(void)
   
 
   {
+    static int first = 1;
     static int frame_nr = 0;
     static struct timeval tv;
     static struct timeval otv;
+    static struct timeval tva;
+    static struct timeval otva;
+    double diff;
     
-    if(frame_nr == 0) {
-      frame_nr = 50;
-      otv.tv_sec = tv.tv_sec;
-      otv.tv_usec = tv.tv_usec;
-      gettimeofday(&tv, NULL);
-      fprintf(stderr, "frame rate: %f fps\n",
-	      (double)100.0/(((double)(tv.tv_sec)+
-			      (double)(tv.tv_usec)/1000000.0)-
-			     ((double)otv.tv_sec+
-			      (double)(otv.tv_usec)/1000000.0)));
+    otv.tv_sec = tv.tv_sec;
+    otv.tv_usec = tv.tv_usec;
+    
+    gettimeofday(&tv, NULL);
+    
+    diff = (((double)tv.tv_sec + (double)(tv.tv_usec)/1000000.0)-
+	    ((double)otv.tv_sec + (double)(otv.tv_usec)/1000000.0));
+    
+    if(first) {
+      first = 0;
+      gettimeofday(&tva, NULL);
+      frame_nr = 25;
+    } else {
+      switch(pic.header.picture_coding_type) {
+      case 0x1:
+	time_pic[0] += diff;
+	num_pic[0]++;
+	if(diff > time_max[0]) {
+	  time_max[0] = diff;
+	}
+	if(diff < time_min[0]) {
+	  time_min[0] = diff;
+	}
+	break;
+      case 0x2:
+	time_pic[1] += diff;
+	num_pic[1]++;
+	if(diff > time_max[1]) {
+	  time_max[1] = diff;
+	}
+	if(diff < time_min[1]) {
+	  time_min[1] = diff;
+	}
+	break;
+      case 0x3:
+	time_pic[2] += diff;
+	num_pic[2]++;
+	if(diff > time_max[2]) {
+	  time_max[2] = diff;
+	}
+	if(diff < time_min[2]) {
+	  time_min[2] = diff;
+	}
+	break;
+      }
+      time_pic[3] += diff;
+      num_pic[3]++;
+      if(diff > time_max[3]) {
+	time_max[3] = diff;
+      }
+      if(diff < time_min[3]) {
+	time_min[3] = diff;
+      }
+
       
+      if(frame_nr == 0) {
+	
+	frame_nr = 25;
+	otva.tv_sec = tva.tv_sec;
+	otva.tv_usec = tva.tv_usec;
+	gettimeofday(&tva, NULL);
+	
+	fprintf(stderr, "frame rate: %f fps\n",
+		25.0/(((double)tva.tv_sec+
+		       (double)(tva.tv_usec)/1000000.0)-
+		      ((double)otva.tv_sec+
+		       (double)(otva.tv_usec)/1000000.0))
+		);
+	
+	
+      }
+      frame_nr--;
     }
-    
-    frame_nr--;
     
   }
 
@@ -1296,6 +1361,7 @@ void slice(void)
   /** opt4 **/
   mb.quantiser_scale =
     q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+  new_scaled = 1;
   /**/
 
   if(nextbits(1) == 1) {
@@ -1461,6 +1527,7 @@ void macroblock(void)
     mb.quantiser_scale =
       q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
     /**/
+    new_scaled = 1;
   }
   if(mb.modes.macroblock_motion_forward ||
      (mb.modes.macroblock_intra &&
@@ -1862,6 +1929,8 @@ void inverse_scan()
 /* inverse quantisation  (currently only supports 4:2:0)*/
 /* 7.4.5 Summary */
 
+#define OPT7
+#ifndef OPT7
 void inverse_quantisation()
 {
   int v, u;
@@ -1957,6 +2026,108 @@ void inverse_quantisation()
   
   
 }
+
+#else
+
+void inverse_quantisation()
+{
+  int v, u;
+  //#define OPT9 //mycket s{mre
+#ifdef OPT9
+  double sum;
+#else
+  int sum;
+#endif
+  int16_t sat = 16;
+  
+  if(mb.modes.macroblock_intra) {
+#define OPT8
+#ifdef OPT8
+    if(new_scaled) {
+      mlib_VectorMulS_S16_S16_Sat((int16_t *)(seq.header.scaled_intra_inverse_quantiser_matrix),
+			      (int16_t *)(seq.header.intra_inverse_quantiser_matrix), 
+			      (int16_t *)&mb.quantiser_scale,
+			      64);
+      new_scaled = 0;
+    }
+    mlib_VectorMul_S16_S16_Sat((int16_t *)(mb.F_bis), (int16_t *)(mb.QF), (int16_t *)(seq.header.scaled_intra_inverse_quantiser_matrix), 64);
+#else
+
+    mlib_VectorMul_S16_S16_Sat((int16_t *)(mb.F_bis), (int16_t *)(mb.QF), (int16_t *)(seq.header.intra_inverse_quantiser_matrix), 64);
+    mlib_VectorMulS_S16_Sat((int16_t *)(mb.F_bis), (int16_t *)&mb.quantiser_scale, 64);
+
+#endif
+    for(v = 0; v < 8; v++) {
+      for(u = 0; u<8; u++) {
+	mb.F_bis[v][u] = mb.F_bis[v][u]/16;
+      }
+    }
+    mb.F_bis[0][0] = mb.intra_dc_mult * mb.QF[0][0];
+    if(mb.F_bis[0][0] > 2047) {
+      mb.F_bis[0][0] = 2047;
+    } else if(mb.F_bis[0][0] < -2048) {
+      mb.F_bis[0][0] = -2048;
+    }
+    
+    
+    sum = 0;
+
+#ifdef OPT9
+
+    mlib_VectorSumAbs_S16_Sat(&sum, (int16_t *)(mb.F_bis), 64);
+
+#else
+
+    for(v=0; v<8; v++) {
+      for(u=0; u<8; u++) {
+	sum = sum+mb.F_bis[v][u];
+      }
+    }
+    
+#endif
+    
+  } else {
+    for(v = 0; v < 8; v++) {
+      for(u = 0; u<8; u++) {
+	// other coefficients
+	
+	mb.F_bis[v][u] =
+	  (((mb.QF[v][u]*2)+(mb.QF[v][u] > 0 ? 1: (mb.QF[v][u] < 0 ? -1 : 0))) *
+	   seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	   mb.quantiser_scale)/32;
+	
+      }
+    }
+    
+    //mlib_VectorMulS_S16_Sat((int16_t *)(mb.F_bis), &sat, 64);
+    sum = 0;
+    for(v=0; v<8; v++) {
+      for(u=0; u<8; u++) {
+	if(mb.F_bis[v][u] > 2047) {
+	  mb.F_bis[v][u] = 2047;
+	} else if(mb.F_bis[v][u] < -2048) {
+	  mb.F_bis[v][u] = -2048;
+	}
+	sum = sum+mb.F_bis[v][u];
+      }
+    }
+    
+  }
+  
+  
+  if(((int)(sum) & 1) == 0) {
+    if((mb.F_bis[7][7]&1) != 0) {
+      mb.F_bis[7][7] = mb.F_bis[7][7]-1;
+    } else {
+      mb.F_bis[7][7] = mb.F_bis[7][7]+1;
+    }
+  }
+  
+  
+}
+
+#endif
+
 
 
 void variable_length_decoding(int i, int cc)
@@ -2551,7 +2722,7 @@ void block(unsigned int i)
     // pattern[i] == 0
     
     // !!! Is this needed ?? 
-    memset(mb.f[i], 0, 64*sizeof(int16_t));
+    //memset(mb.f[i], 0, 64*sizeof(int16_t));
     
   }
 }
@@ -4185,15 +4356,26 @@ void exit_program()
   shmctl (shm_info_ref1.shmid, IPC_RMID, 0);
   shmctl (shm_info_ref2.shmid, IPC_RMID, 0);
 
-	{
-	  int n;
-	  double percent = 0.0;
-	  
-	  for(n = 0; n < 128; n++) {
-	    fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
-		    percent+=(double)dctstat[n]/(double)total_calls);
-	  }
-	}
+  {
+    int n;
+    /*
+    double percent = 0.0;
+    
+    for(n = 0; n < 128; n++) {
+      fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
+	      percent+=(double)dctstat[n]/(double)total_calls);
+    }
 
+    */
+    for(n=0; n<4; n++) {
+      fprintf(stderr,"frames: %.0f\n", num_pic[n]);
+      fprintf(stderr,"max time: %.4f\n", time_max[n]);
+      fprintf(stderr,"min time: %.4f\n", time_min[n]);
+      fprintf(stderr,"fps: %.4f\n", num_pic[n]/time_pic[n]);
+    }
+  }
+
+  
+ 
   exit(0);
 }

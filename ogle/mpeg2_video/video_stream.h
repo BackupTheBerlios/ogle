@@ -576,7 +576,7 @@ const uint8_t scan[2][8][8] = {
 };
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */
-int16_t q_scale[32][2] = {
+uint8_t q_scale[32][2] = {
   { 255, 255 },
   { 2, 1 },
   { 4, 2 },
@@ -614,7 +614,7 @@ int16_t q_scale[32][2] = {
 
 
 /* 6.3.7 Quant matrix extension */
-uint8_t default_intra_inverse_quantiser_matrix[8][8] = {
+int16_t default_intra_inverse_quantiser_matrix[8][8] = {
   { 8, 16, 19, 22, 26, 27, 29, 34 },
   { 16, 16, 22, 24, 27, 29, 34, 37 },
   { 19, 22, 26, 27, 29, 34, 34, 38 },
@@ -625,7 +625,7 @@ uint8_t default_intra_inverse_quantiser_matrix[8][8] = {
   { 27, 29, 35, 38, 46, 56, 69, 83 }
 };
 
-uint8_t default_non_intra_inverse_quantiser_matrix[8][8] = {
+int16_t default_non_intra_inverse_quantiser_matrix[8][8] = {
   { 16, 16, 16, 16, 16, 16, 16, 16 },
   { 16, 16, 16, 16, 16, 16, 16, 16 },
   { 16, 16, 16, 16, 16, 16, 16, 16 },
