@@ -1,3 +1,9 @@
+Version 0.9.2
+  Add support for BSD/OS. Make sure that the raw device is used on all
+  BSD variants for the CSS ioctls to work correctly.  Small bug fix for
+  access to mounted DVD via soft-links and a malloc/free mistake.
+  Increase an assert level for pgcn numbers in the part of title list.
+  
 Version 0.9.1
   Change the way the endian swaps are defined and make sure Solaris x86 works.
   Fix from Juergen Keil for a bug that caused libdvdread to close random fds.

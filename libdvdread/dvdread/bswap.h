@@ -48,12 +48,13 @@
 #define B2N_32(x) x = swap32(x)
 #define B2N_64(x) x = swap64(x)
 
-/* This is a slow but portable implementation */
-/* FreeBSD and Solaris don't have <byteswap.h> or any other such 
+/* This is a slow but portable implementation, it has multiple evaluation 
+ * problems so beware.
+ * FreeBSD and Solaris don't have <byteswap.h> or any other such 
  * functionality! 
  */
 
-#elif defined(__FreeBSD__) || defined(__sun) 
+#elif defined(__FreeBSD__) || defined(__sun) || defined(__bsdi__)
 #define B2N_16(x) \
  x = ((((x) & 0xff00) >> 8) | \
       (((x) & 0x00ff) << 8))

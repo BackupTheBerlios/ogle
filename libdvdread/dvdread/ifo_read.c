@@ -967,7 +967,7 @@ int ifoRead_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
     assert(vts_ptt_srpt->title[i].nr_of_ptts < 1000); // ??
     for(j = 0; j < vts_ptt_srpt->title[i].nr_of_ptts; j++) {
       assert(vts_ptt_srpt->title[i].ptt[j].pgcn != 0 );
-      assert(vts_ptt_srpt->title[i].ptt[j].pgcn < 100); // ??
+      assert(vts_ptt_srpt->title[i].ptt[j].pgcn < 1000); // ??
       assert(vts_ptt_srpt->title[i].ptt[j].pgn != 0);
       assert(vts_ptt_srpt->title[i].ptt[j].pgn < 100); // ??
     }

@@ -29,21 +29,31 @@
 #include <dlfcn.h>
 #include <dirent.h>
 
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__bsdi__)
+#define SYS_BSD 1
+#endif
+
 #if defined(__sun)
 #include <sys/mnttab.h>
-#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#elif defined(SYS_BSD)
 #include <fstab.h>
 #elif defined(__linux__)
 #include <mntent.h>
 #endif
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(SYS_BSD)
 typedef off_t off64_t;
 #define lseek64 lseek
 #define stat64 stat
 #endif
 
-#include "dvdcss.h"
+/* #include "dvdcss.h" */
+typedef struct dvdcss_s* dvdcss_handle;
+#define DVDCSS_NOFLAGS         0
+#define DVDCSS_INIT_QUIET      (1 << 0)
+#define DVDCSS_INIT_DEBUG      (1 << 1)
+#define DVDCSS_READ_DECRYPT    (1 << 0)
+
 #include "dvd_udf.h"
 #include "dvd_reader.h"
 
@@ -100,7 +110,7 @@ struct dvd_file_s {
 static void setupCSS( void )
 {
     if( !dvdcss_library ) {
-	dvdcss_library = dlopen( "libdvdcss.so", RTLD_LAZY );
+	dvdcss_library = dlopen( "libdvdcss.so.0", RTLD_LAZY );
 
 	if( !dvdcss_library ) {
             fprintf( stderr, "libdvdread: Can't open libdvdcss: %s.\n",
@@ -170,7 +180,7 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 	gettimeofday(&all_s, NULL);
 	
 	for( title = 0; title < 100; title++ ) {
-	  gettimeofday( &t_s, NULL );
+	    gettimeofday( &t_s, NULL );
 	    if( title == 0 ) {
 	        sprintf( filename, "/VIDEO_TS/VIDEO_TS.VOB" );
 	    } else {
@@ -184,10 +194,10 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 		if( dvdcss_title( dvd->dev, (int)start ) < 0 ) {
 		    fprintf( stderr, "libdvdread: Error cracking CSS key!!\n");
 		}
+		gettimeofday( &t_e, NULL );
+		fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
+			 (long int) t_e.tv_sec - t_s.tv_sec );
 	    }
-	    gettimeofday( &t_e, NULL );
-	    fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
-		     (long int) t_e.tv_sec - t_s.tv_sec );
 	    
 	    if( title == 0 ) continue;
 	    
@@ -229,7 +239,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location )
     int fd = -1;
 
     setupCSS();
-
+    
     if( dvdcss_library ) {
         dev = dvdcss_open( (char *) location, DVDCSS_INIT_DEBUG );
         if( !dev ) {
@@ -273,38 +283,46 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
 }
 
 #if defined(__sun)
+/* /dev/rdsk/c0t6d0s0 (link to /devices/...)
+   /vol/dev/rdsk/c0t6d0/??
+   /vol/rdsk/<name> */
 static char *sun_block2char( const char *path )
 {
-  char *new_path;
-  
-  /* Must contain "/dsk/" */ 
-  if( !strstr( path, "/dsk/" ) ) return (char *) path;
-  
-  /* Replace "/dsk/" with "/rdsk/" */
-  new_path = malloc( strlen(path) + 2 );
-  strcpy( new_path, path );
-  strcpy( strstr( new_path, "/dsk/" ), "" );
-  strcat( new_path, "/rdsk/" );
-  strcat( new_path, strstr( path, "/dsk/" ) + strlen( "/dsk/" ) );
-  
-  return new_path;
+    char *new_path;
+
+    /* Must contain "/dsk/" */ 
+    if( !strstr( path, "/dsk/" ) ) return (char *) strdup( path );
+
+    /* Replace "/dsk/" with "/rdsk/" */
+    new_path = malloc( strlen(path) + 2 );
+    strcpy( new_path, path );
+    strcpy( strstr( new_path, "/dsk/" ), "" );
+    strcat( new_path, "/rdsk/" );
+    strcat( new_path, strstr( path, "/dsk/" ) + strlen( "/dsk/" ) );
+
+    return new_path;
 }
 #endif
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
+#if defined(SYS_BSD)
+/* FreeBSD /dev/(r)(a)cd0 (a is for atapi, should work without r)
+   OpenBSD /dev/rcd0c
+   NetBSD  /dev/rcd0d or /dev/rcd0c (for non x86)
+   BSD/OS  /dev/sr0 (if not mounted) or /dev/rsr0 */
 static char *bsd_block2char( const char *path )
 {
-  char *new_path;
-  
-  /* Must contain "/dev/cd" */ 
-  if( !strstr( path, "/dev/cd" ) ) return (char *) path;
-  
-  /* Replace "/dev/cd" with "/dev/rcd" */
-  new_path = malloc( strlen(path) + 2 );
-  strcpy( new_path, "/dev/rcd" ) );
-  strcat( new_path, path + strlen( "/dev/cd" ) );
-  
-  return new_path;
+    char *new_path;
+
+    /* If it doesn't start with "/dev/" or does start with "/dev/r" exit */ 
+    if( !strncmp( path, "/dev/",  5 ) || strncmp( path, "/dev/r", 6 ) ) 
+      return (char *) strdup( path );
+
+    /* Replace "/dev/" with "/dev/r" */
+    new_path = malloc( strlen(path) + 2 );
+    strcpy( new_path, "/dev/r" );
+    strcat( new_path, path + strlen( "/dev/" ) );
+
+    return new_path;
 }
 #endif
 
@@ -314,62 +332,48 @@ dvd_reader_t *DVDOpen( const char *path )
     int ret;
 
     if( !path ) return 0;
-    
+
     ret = stat64( path, &fileinfo );
     if( ret < 0 ) {
-        /* If we can't stat the file, give up */
-        fprintf( stderr, "libdvdread: Can't stat %s.\n", path );
+	/* If we can't stat the file, give up */
+	fprintf( stderr, "libdvdread: Can't stat %s\n", path );
 	perror("");
-        return 0;
+	return 0;
     }
-    
+
     /* First check if this is a block/char device or a file*/
     if( S_ISBLK( fileinfo.st_mode ) || 
 	S_ISCHR( fileinfo.st_mode ) || 
 	S_ISREG( fileinfo.st_mode ) ) {
 
-        /**
-         * Block devices and regular files are assumed to be DVD-Video images.
-         */
-#ifdef __sun
-        return DVDOpenImageFile( sun_block2char( path ) );
+	/**
+	 * Block devices and regular files are assumed to be DVD-Video images.
+	 */
+#if defined(__sun)
+	return DVDOpenImageFile( sun_block2char( path ) );
+#elif defined(SYS_BSD)
+	return DVDOpenImageFile( bsd_block2char( path ) );
 #else
-        return DVDOpenImageFile( path );
+	return DVDOpenImageFile( path );
 #endif
-	
+
     } else if( S_ISDIR( fileinfo.st_mode ) ) {
-        dvd_reader_t *auth_drive = 0;
-        char *path_copy = strdup( path );
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-        struct fstab* fe;
+	dvd_reader_t *auth_drive = 0;
+	char *path_copy;
+#if defined(SYS_BSD)
+	struct fstab* fe;
 #elif defined(__sun) || defined(__linux__)
-        FILE *mntfile;
+	FILE *mntfile;
 #endif
-	
-        /**
-         * If we're being asked to open a directory, check if that directory
-	 * is the mountpoint for a DVD-ROM which we can use instead.
-         */
 
-        /* XXX: We should scream real loud here. */
-        if( !path_copy ) return 0;
+	/* XXX: We should scream real loud here. */
+	if( !(path_copy = strdup( path ) ) ) return 0;
 
-        if( strlen( path_copy ) > 1 ) {
-	    if( path[ strlen( path_copy ) - 1 ] == '/' ) 
-	        path_copy[ strlen( path_copy ) - 1 ] = '\0';
-        }
-
-        if( strlen( path_copy ) > 9 ) {
-	    if( !strcasecmp( &(path_copy[ strlen( path_copy ) - 9 ]), 
-			     "/video_ts" ) ) {
-                path_copy[ strlen( path_copy ) - 9 ] = '\0';
-            }
-        }
-	
 	/* Resolve any symlinks and get the absolut dir name. */
 	{
 	    char *new_path;
 	    int cdir = open( ".", O_RDONLY );
+	    
 	    if( cdir >= 0 ) {
 		chdir( path_copy );
 		new_path = getcwd( NULL, PATH_MAX );
@@ -381,9 +385,26 @@ dvd_reader_t *DVDOpen( const char *path )
 		}
 	    }
 	}
-	
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__)
-        if( ( fe = getfsfile( path_copy ) ) ) {
+
+	/**
+	 * If we're being asked to open a directory, check if that directory
+	 * is the mountpoint for a DVD-ROM which we can use instead.
+	 */
+
+	if( strlen( path_copy ) > 1 ) {
+	    if( path[ strlen( path_copy ) - 1 ] == '/' ) 
+		path_copy[ strlen( path_copy ) - 1 ] = '\0';
+	}
+
+	if( strlen( path_copy ) > 9 ) {
+	    if( !strcasecmp( &(path_copy[ strlen( path_copy ) - 9 ]), 
+			     "/video_ts" ) ) {
+	      path_copy[ strlen( path_copy ) - 9 ] = '\0';
+	    }
+	}
+
+#if defined(SYS_BSD)
+	if( ( fe = getfsfile( path_copy ) ) ) {
 	    char *dev_name = bsd_block2char( fe->fs_spec );
 	    fprintf( stderr,
 		     "libdvdread: Attempting to use device %s"
@@ -392,27 +413,27 @@ dvd_reader_t *DVDOpen( const char *path )
 		     fe->fs_file );
 	    auth_drive = DVDOpenImageFile( dev_name );
 	    free( dev_name );
-        }
+	}
 #elif defined(__sun)
-        mntfile = fopen( MNTTAB, "r" );
-        if( mntfile ) {
-            struct mnttab mp;
-            int res;
-   
-            while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
-                if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
+	mntfile = fopen( MNTTAB, "r" );
+	if( mntfile ) {
+	    struct mnttab mp;
+	    int res;
+
+	    while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
+		if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
 		    char *dev_name = sun_block2char( mp.mnt_special );
 		    fprintf( stderr, 
 			     "libdvdread: Attempting to use device %s"
-                             " mounted on %s for CSS authentication\n",
-                             dev_name,
+			     " mounted on %s for CSS authentication\n",
+			     dev_name,
 			     mp.mnt_mountp );
-                    auth_drive = DVDOpenImageFile( dev_name );
+		    auth_drive = DVDOpenImageFile( dev_name );
 		    free( dev_name );
-                    break;
-                }
-            }
-            fclose( mntfile );
+		    break;
+		}
+	    }
+	    fclose( mntfile );
 	}
 #elif defined(__linux__)
         mntfile = fopen( MOUNTED, "r" );
@@ -446,14 +467,14 @@ dvd_reader_t *DVDOpen( const char *path )
         if( auth_drive ) return auth_drive;
 
         /**
-         * Otherwise, we now open the directory tree.
+         * Otherwise, we now try to open the directory tree instead.
          */
 	fprintf( stderr, "libdvdread: Using normal filesystem access.\n" );
         return DVDOpenPath( path );
     }
 
     /* If it's none of the above, screw it. */
-    fprintf( stderr, "libdvdread: Could not open path %s\n", path );
+    fprintf( stderr, "libdvdread: Could not open %s\n", path );
     return 0;
 }
 
