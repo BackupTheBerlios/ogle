@@ -36,6 +36,7 @@
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
+#include "spu_mixer.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -119,8 +120,11 @@ extern int msgqid;
 extern MsgEventQ_t *msgq;
 
 static int flush_to_scrid = -1;
+static int rgbmode,pixelstride;
 
 #define MAX_BUF_SIZE 65536
+#define MODE_RGB  0x1
+#define MODE_BGR  0x2
 
 
 extern void redraw_request(void);
@@ -165,9 +169,13 @@ static uint32_t yuv2rgb(uint32_t yuv_color)
     Er = 255;
   if(Er < 0)
     Er = 0;
-  
-  result = (Eb << 16) | (Eg << 8) | Er;
-  
+
+  if( rgbmode == MODE_BGR ) {
+    result = (Eb << 16) | (Eg << 8) | Er;
+  } else {
+    result = (Er << 16) | (Eg << 8) | Eb;  
+  }
+
   return result;
 }
 
@@ -742,7 +750,7 @@ static void display_mix_function_bgr16(uint32_t color, uint32_t contrast,
     
     /* if no transparancy just overwrite */
     if(contrast == (0xf<<4)) {
-      uint16_t color2 = ((b << 8) & 0xf800) | ((g << 3) & 0x0770) | (r >> 3);
+      uint16_t color2 = ((b << 8) & 0xf800) | ((g << 3) & 0x07e0) | (r >> 3);
       for(n = 0; n < length; n++, pixel++) {
 	*pixel = color2;
       }
@@ -751,14 +759,14 @@ static void display_mix_function_bgr16(uint32_t color, uint32_t contrast,
 	unsigned int pr, pg, pb;
 	uint16_t source = *pixel;
 	pr = (source & 0x001f) << 3;
-	pg = (source & 0x0770) >> 3; // or 0x037 >> 2, 0x076 >> 3 ???
+	pg = (source & 0x07e0) >> 3; // or 0x037 >> 2, 0x076 >> 3 ???
 	pb = (source & 0xf800) >> 8; // (source >> 8) & 0xf8;
 	
 	pr = (pr * invcontrast + r * contrast) >> 8;
 	pg = (pg * invcontrast + g * contrast) >> 8;
 	pb = (pb * invcontrast + b * contrast) >> 8;
 	
-	*pixel = ((pb << 8) & 0xf800) | ((pg << 3) & 0x0770) | (pr >> 3);
+	*pixel = ((pb << 8) & 0xf800) | ((pg << 3) & 0x07e0) | (pr >> 3);
       }
     }
   }
@@ -1185,7 +1193,30 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
   return 0;
 }
 
-void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
+/* ps - pixelstride in bits (only handles 16, 24, or 32 bits)
+ * mode - rgbmode ( 1 rgb, 2 bgr)
+ */
+void mix_subpicture_init(int ps,int mode)
+{
+  rgbmode=mode;
+  
+  pixelstride=ps/8;
+  
+  switch(pixelstride) {
+  case 1:
+  case 2: 
+    mix_function = display_mix_function_bgr16;
+    break;
+  case 3: 
+    mix_function = display_mix_function_bgr24;
+    break;
+  case 4: 
+    mix_function = display_mix_function_bgr32;
+    break;
+  }
+}
+
+void mix_subpicture_rgb(char *data, int width, int height)
 {
   /*
    * Check for, and execute all pending spu command sequences.
@@ -1222,21 +1253,10 @@ void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
   if(spu_info.display_start /* || spu_info.menu */) {
     
     palette = palette_rgb;
-    switch(pixel_stride) {
-    case 1:
-    case 2: 
-      mix_function = display_mix_function_bgr16;
-      break;
-    case 3: 
-      mix_function = display_mix_function_bgr24;
-      break;
-    case 4: 
-      mix_function = display_mix_function_bgr32;
-      break;
-    }
-    
-    decode_display_data(&spu_info, data, pixel_stride, pixel_stride*width, 
-                        pixel_stride*width*height);
+
+    decode_display_data(&spu_info, data, pixelstride, pixelstride*width, 
+                        pixelstride*width*height);
+
   }
 }
 

@@ -21,7 +21,8 @@
 
 
 //ugly hack
-void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride);
+void mix_subpicture_init(int pixel_stride,int mode);
+void mix_subpicture_rgb(char *data, int width, int height);
 int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv);
 
 int init_spu(void);

@@ -490,6 +490,10 @@ static void display_init_xshm()
   pixel_stride = window.ximage->bits_per_pixel;
 
   // If we have blue in the lowest bit then obviously RGB 
+  fprintf(stderr, "red_mask: %08x\n", window.ximage->red_mask);
+  fprintf(stderr, "blue_mask: %08x\n", window.ximage->blue_mask);
+  fprintf(stderr, "green_mask: %08x\n", window.ximage->green_mask);
+ 
   mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
   /*
     #ifdef WORDS_BIGENDIAN 
@@ -503,6 +507,7 @@ static void display_init_xshm()
     }
   */
   yuv2rgb_init(pixel_stride, mode);
+  mix_subpicture_init(pixel_stride, mode);
 }
 
 
@@ -1891,10 +1896,8 @@ static void draw_win_x11(window_info *dwin)
     
 #ifdef SPU
     if(msgqid != -1) {
-      mix_subpicture_rgb((char *)&rgb_fb[fb_area.y*2048+fb_area.x], 2048,
-			 fb_area.height, 
-			 4); 
-      // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
+      mix_subpicture_rgb((char *)&rgb_fb[fb_area.y*2048+fb_area.x],
+			 2048, fb_area.height); 
     }
 #endif
     }
@@ -1914,10 +1917,9 @@ static void draw_win_x11(window_info *dwin)
   
 #ifdef SPU
   if(msgqid != -1) {
-    mix_subpicture_rgb(address, dwin->image->info->picture.padded_width,
-		       dwin->image->info->picture.padded_height, 
-		       (pixel_stride/8)); 
-    // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
+    mix_subpicture_rgb(address,
+		       dwin->image->info->picture.padded_width,
+		       dwin->image->info->picture.padded_height); 
   }
 #endif
   
