@@ -526,14 +526,14 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
     button_nr = pci->hli.hl_gi.btn_ns;
   }
 
-  /* FIXME TODO XXX $$$ */
-  
-  /* Determine the correct area and send the information to the spu decoder. */
-  /* Possible optimization: don't send if its the same as last time. 
-     same, as in same hli info, same button number and same select/action state
-     Note this send a highlight even if hli_ss == 0, it then turns the
-     highlight off. */
-  {
+  /* Determine the correct highlight and send the information to the spu. */
+  if((pci->hli.hl_gi.hli_ss & 0x03) == 0 || 
+     button_nr > pci->hli.hl_gi.btn_ns) {
+    /* Turn off the highlight. */
+    send_highlight(0, 0, 0, 0, 0 /* Transparent */);
+  } else {
+    /* Possible optimization: don't send if its the same as last time. 
+       As in same hli info, same button number and same select/action state. */
     btni_t *button = &pci->hli.btnit[button_nr - 1];
     send_highlight(button->x_start, button->y_start, 
 		   button->x_end, button->y_end, 
