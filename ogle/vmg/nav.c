@@ -1031,16 +1031,20 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
   case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
     {
       MsgEvent_t send_ev;
+      DVDSubpictureAttributes_t *s_attr;
       int streamN = ev.dvdctrl.cmd.subpictureattributes.streamnr;
       send_ev.type = MsgEventQDVDCtrl;
       send_ev.dvdctrl.cmd.type = DVDCtrlSubpictureAttributes;
       send_ev.dvdctrl.cmd.subpictureattributes.streamnr = streamN;
+      s_attr = &send_ev.dvdctrl.cmd.subpictureattributes.attr;
+
       {
 	subp_attr_t attr = vm_get_subp_attr(streamN);
-	memset(&send_ev.dvdctrl.cmd.subpictureattributes.attr, 0, 
-	       sizeof(DVDSubpictureAttributes_t)); //TBD
-	send_ev.dvdctrl.cmd.subpictureattributes.attr.Language 
-	  = attr.lang_code;
+	memset(s_attr, 0, sizeof(DVDSubpictureAttributes_t));
+	s_attr->Type  = attr.type;
+	s_attr->CodingMode  = attr.code_mode;
+	s_attr->Language  = attr.lang_code;
+	s_attr->LanguageExtension  = attr.lang_extension;
       }
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }	  
