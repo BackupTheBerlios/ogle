@@ -38,7 +38,7 @@ AC_SUBST(PACKAGE_PIXMAPS_DIR)
 
 dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
-  [  --with-dvdcontol=DIR    Specify prefix to the dvdcontrol lib ], 
+  [  --with-dvdcontrol=DIR   Specify the install prefix to libdvdcontrol ], 
   if test x$withval = xno; then
     AC_MSG_ERROR([You must have/use libdvdcontrol])
   fi
