@@ -699,22 +699,20 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
   
   static int sample_rate;
   static int flags;
-  static int last_output_flags = 0;
-  int bit_rate;
   int print_skip = 0, print_error = 0;
   
   while(start < end) {
     *bufptr++ = *start++;
     if(bufptr == bufpos) {
       if(bufpos == buf + 7) {
-	int length;
+	int coded_flags, bit_rate, length;
 	
 	if(print_error) {
 	  fprintf(stderr, "a52_decoder: error while decoding, restarting\n");
 	  print_error = 0;
 	}
 
-	length = a52_syncinfo(buf, &flags, &sample_rate, &bit_rate);
+	length = a52_syncinfo(buf, &coded_flags, &sample_rate, &bit_rate);
 	if(!length) {
 	  print_skip = 1;
 	  for(bufptr = buf; bufptr < buf + 6; bufptr++)
@@ -729,40 +727,48 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	  print_skip = 0;
 	  fprintf(stderr, "a52_decoder: skipped data to find a valid frame\n");
 	}
-	
+ 	
+	/* Verify or set the sample rate and retrive flags, level and bias */
 	if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
 	  fprintf(stderr, "a52_decoder: ao_setup() error\n");
-	  goto error;
+          open_output(get_speaker_flags());
+	  if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
+	    goto error;
+	    //exit(1);
+	  }
+	  fprintf(stderr, "a52_decoder: ao_setup() averted\n");
 	}
 	
 
-	flags = speaker_flags | A52_ADJUST_LEVEL;
+	flags |= A52_ADJUST_LEVEL;
 	memset(&state, 0, sizeof(a52_state_t));
+	/* flags (speaker) [in/out] level [in/out] bias [in] */
 	if(a52_frame(&state, buf, &flags, &level, bias)) {
 	  fprintf(stderr, "a52_decoder: a52_frame() error\n");
 	  goto error;
 	}
-        if(flags != last_output_flags) {
-          open_output(flags);
-          last_output_flags = flags;
-          if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
-            fprintf(stderr, "ao_setup() error\n");
-            goto error;
-          }
-        }
 
 	if(disable_dynrng)
 	  a52_dynrng(&state, NULL, NULL);
 	for(i = 0; i < 6; i++) {
-
 	  if(a52_block(&state, samples)) {
 	    fprintf(stderr, "a52_decoder: a52_block() error\n");
 	    goto error;
 	  }
-
+	  /* flags (output from decoder) verified by ao_play */
 	  if(ao_play(output, flags, samples)) {
+	    int flags2;
+	    sample_t level2, bias2; // Dummy parameters
 	    fprintf(stderr, "a52_decoder: ao_play() error\n");
-	    goto error;
+	    /* re-open... */
+	    open_output(get_speaker_flags());
+	    /* re-setup (set sample rate) */
+	    if(ao_setup(output, sample_rate, &flags2, &level2, &bias2))
+	      goto error;
+	    /* set the output mode to what ever flags is (hopefully) */
+	    if(ao_play(output, flags, samples))
+	      goto error;
+	    fprintf(stderr, "a52_decoder: ao_play() averted\n");
 	  }
 	  blocks++;
 	}
