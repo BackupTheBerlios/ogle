@@ -30,8 +30,17 @@ typedef enum {
   ChannelType_Surround = 0x20,
   ChannelType_LFE = 0x40,
   ChannelType_CenterSurround = 0x80,
-  ChannelType_Mono = 0x100
+  ChannelType_Mono = 0x100,
+  ChannelType_AC3 =  0x10000,
+  ChannelType_DTS =  0x20000,
+  ChannelType_MPEG = 0x40000,
+  ChannelType_LPCM = 0x80000
 } ChannelType_t;
+
+typedef enum {
+  ChannelTypeMask_Channels = 0x1ff, 
+  ChannelTypeMask_Streams = 0xf0000
+} ChannelTypeMask_t;
 
 char *channeltype_str(ChannelType_t chtype);
 

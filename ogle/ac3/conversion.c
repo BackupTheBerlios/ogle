@@ -68,10 +68,10 @@ int init_sample_conversion(adec_handle_t *h,
   int n;
   int output_frame_size = h->config->dst_format.sample_frame_size;
 
-  if(src_format->sample_format == SampleFormat_AC3frame) {
+  if(src_format->sample_format == SampleFormat_AC3Frame) {
     
-    if(h->output_buf_size < 6144 + 8) {
-      h->output_buf_size = 6144 + 8;
+    if(h->output_buf_size < 256*6*2*2) {
+      h->output_buf_size = 256*6*2*2;
       h->output_buf = realloc(h->output_buf, h->output_buf_size);
       if(h->output_buf == NULL) {
 	FATAL("init_sample_conversion2, realloc failed\n");
@@ -123,7 +123,7 @@ int init_sample_conversion(adec_handle_t *h,
   case SampleFormat_MadFixed:
     conversion_routine = 2;
     break;
-  case SampleFormat_AC3frame:
+  case SampleFormat_AC3Frame:
     conversion_routine = 3;
     break;
   case SampleFormat_Unsigned:
@@ -273,13 +273,14 @@ static const struct frmsize_s frmsizecod_tbl[64] =
   { 640 ,{1280 ,1394 ,1920 } }
 };
 
-static int convert_ac3frame_to_iec958frame(uint16_t *ac3, uint16_t *iec958,
-					   int nr_samples)
+static int convert_ac3frame_to_iec61937frame(uint16_t *ac3,
+					     uint16_t *iec61937,
+					     int nr_samples)
 {
   int i;
   
   uint32_t syncword, crc1, fscod,frmsizecod,bsid,bsmod,frame_size;
-  uint8_t *data_out = (uint8_t *)iec958;
+  uint8_t *data_out = (uint8_t *)iec61937;
   uint8_t *data_in = (uint8_t *)ac3;
   int frame_bytes;
   
@@ -300,7 +301,7 @@ static int convert_ac3frame_to_iec958frame(uint16_t *ac3, uint16_t *iec958,
   swab(data_in, &data_out[8], frame_size * 2 );
   //  fprintf(stderr, "frame_size: %d\n", frame_size);
   frame_bytes = frame_size * 2 + 8;
-  memset(&data_out[frame_bytes], 0, 6144+8 - frame_bytes);
+  memset(&data_out[frame_bytes], 0, 256*6*2*2 - frame_bytes);
 
   return 0;
 }
@@ -330,10 +331,10 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
     h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
     break;
   case 3:
-    convert_ac3frame_to_iec958frame(samples,
-				    h->output_buf_ptr, 
-				    nr_samples);
-    h->output_buf_ptr += 6144; // 2ch 2byte
+    convert_ac3frame_to_iec61937frame(samples,
+				      (uint16_t *)h->output_buf_ptr, 
+				      nr_samples);
+    h->output_buf_ptr += 256*6*2*2; // 2ch 16bit 48kHz (256*6 samples)
     
     break;
   }

@@ -25,8 +25,20 @@
 	<name>default</name>
       </alsa>
     </device>
-<!-- if you have a multichannel card, uncomment/edit this part 
+<!-- if you have a multichannel card or spdif, uncomment/edit this part 
     <speakers>
+      <channel_config>
+	<chtype>AC3</chtype>
+      </channel_config>
+      <channel_config>
+	<chtype>DTS</chtype>
+      </channel_config>
+      <channel_config>
+	<chtype>MPEG</chtype>
+      </channel_config>
+      <channel_config>
+	<chtype>LPCM</chtype>
+      </channel_config>
       <channel_config>
 	<chtype>Left</chtype>
 	<chtype>Right</chtype>

@@ -83,7 +83,10 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
     for(m = 0; m < nr_ch; m++) {
       chtypemask_avail |= configs[n].chtype[m];
     }
-    if((chtypemask_avail & chtypemask_wanted) == chtypemask_wanted) {
+    if(((chtypemask_avail & chtypemask_wanted)
+	== (chtypemask_wanted & ChannelTypeMask_Channels)) ||
+       ((chtypemask_avail & chtypemask_wanted)
+	== (chtypemask_wanted & ChannelTypeMask_Streams))) {
       chconf = &configs[n];
       break;
     }
@@ -125,16 +128,21 @@ int audio_config(audio_config_t *aconf,
   // free_config should be called when config not needed more
   config = get_config(src_chtypemask);
   if(config) {
-    if(1 /*ac3 -> spdif*/) {
-      aconf->dst_format.sample_resolution = 2;
-      aconf->dst_format.nr_channels = 2;
-      aconf->dst_format.ch_array = 
-	realloc(aconf->dst_format.ch_array, 
-		sizeof(ChannelType_t) * 2);
-      aconf->dst_format.ch_array[0] = ChannelType_Left;
-      aconf->dst_format.ch_array[1] = ChannelType_Right;
-    
+    if((config->nr_ch > 0) && (config->chtype[0] & ChannelTypeMask_Streams)) {
+      if(config->chtype[0] == ChannelType_AC3) {
+	aconf->dst_format.sample_resolution = 2;
+	aconf->dst_format.nr_channels = 2;
+	aconf->dst_format.ch_array = 
+	  realloc(aconf->dst_format.ch_array, 
+		  sizeof(ChannelType_t) * 2);
+	aconf->dst_format.ch_array[0] = ChannelType_AC3;
+	aconf->dst_format.ch_array[1] = ChannelType_AC3;
+	aconf->dst_format.sample_format = SampleFormat_IEC61937;
+      } else {
+	FATAL("channel type: %d not implemented\n", config->chtype[0]);
+      }
     } else {
+      aconf->dst_format.sample_format = SampleFormat_LPCM;
       output_channels = config->nr_ch;
       if(aconf->dst_format.nr_channels != output_channels) {
 	aconf->dst_format.ch_array = 
@@ -147,7 +155,16 @@ int audio_config(audio_config_t *aconf,
 	aconf->dst_format.ch_array[n] = config->chtype[n];
       }
     }
+  } else {
+    aconf->dst_format.sample_format = SampleFormat_LPCM;
+    aconf->dst_format.sample_resolution = 2;
+    aconf->dst_format.nr_channels = 0;
+    if(aconf->dst_format.ch_array) {
+      free(aconf->dst_format.ch_array);
+      aconf->dst_format.ch_array = NULL;
+    }
   }
+  
   
   {
     ao_driver_t *drivers;
@@ -197,16 +214,16 @@ int audio_config(audio_config_t *aconf,
     aconf->ainfo->chlist = NULL;
   }
 
-  if(1 /* ac3 -> spdif*/ ) {
+  if(aconf->dst_format.sample_format == SampleFormat_IEC61937) {
     aconf->ainfo->sample_rate = sample_rate;
     aconf->ainfo->sample_resolution = sample_resolution;
     aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
     aconf->ainfo->channels = aconf->dst_format.nr_channels;
-    aconf->ainfo->encoding = OGLE_AO_ENCODING_IEC958;
+    aconf->ainfo->encoding = OGLE_AO_ENCODING_IEC61937;
     aconf->ainfo->fragment_size = frag_size;
     aconf->ainfo->fragments = -1;  // don't limit
   } else {
-
+    
     aconf->ainfo->sample_rate = sample_rate;
     aconf->ainfo->sample_resolution = sample_resolution;
     aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;

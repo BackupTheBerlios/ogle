@@ -142,6 +142,7 @@ int get_channel_configs(channel_config_t **conf)
 static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
 				 channel_config_t *conf)
 {
+  int first = 1;
   xmlChar *s = NULL;
   
   cur = cur->xmlChildrenNode;
@@ -168,6 +169,14 @@ static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
 	    ct = ChannelType_CenterSurround;
 	  } else if(!strcmp("0", s)) {
 	    ct = ChannelType_Null;
+	  } else if(!strcmp("AC3", s)) {
+	    ct = ChannelType_AC3;
+	  } else if(!strcmp("DTS", s)) {
+	    ct = ChannelType_DTS;
+	  } else if(!strcmp("MPEG", s)) {
+	    ct = ChannelType_MPEG;
+	  } else if(!strcmp("LPCM", s)) {
+	    ct = ChannelType_LPCM;
 	  } else {
 	    ct = ChannelType_Unspecified;
 	    WARNING("'%s' is not a valid <chtype>\n", s); 
@@ -186,6 +195,7 @@ static void parse_channel_config(xmlDocPtr doc, xmlNodePtr cur,
       if(s) {
 	free(s);
       }
+      first = 0;
     }
     cur = cur->next;
   }

@@ -54,6 +54,7 @@ typedef struct {
   int disable_dynrng;
   sample_t level;
   int adjust_level;
+  SampleFormat_t output_format;
 } adec_a52_handle_t;
 
 
@@ -130,6 +131,7 @@ int config_to_a52flags(audio_config_t *conf)
     return A52_2F2R | hasLFE;
   case ChannelType_Left | ChannelType_Center | ChannelType_Right | ChannelType_LeftSurround | ChannelType_RightSurround:
     return A52_3F2R | hasLFE;
+  case ChannelType_AC3:
   default:
   }
   return A52_3F2R | hasLFE; // Some strange sound configuration...
@@ -260,7 +262,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	if((new_availflags != handle->availflags) || 
 	   (new_sample_rate != handle->sample_rate)) {
 	  ChannelType_t chtypemask;
-	  
+	  SampleFormat_t format;
 	  //fprintf(stderr, "new flags\n");
 
 	  handle->availflags = new_availflags;
@@ -271,12 +273,22 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	  chtypemask = a52flags_to_channels(handle->availflags);
 	  audio_config(handle->handle.config, chtypemask,
 		       handle->sample_rate, 16);
+	  format = handle->handle.config->dst_format.sample_format;
+	  switch(format) {
+	  case SampleFormat_IEC61937:
+	    handle->output_format = SampleFormat_AC3Frame;
+	  case SampleFormat_LPCM:
+	    handle->output_format = SampleFormat_A52float;
+	  default:
+	    WARNING("unknown sample format %d\n", format); 
+	    handle->output_format = SampleFormat_A52float;
+	  }
 	  //change config into a52dec flags
 	  handle->output_flags = config_to_a52flags(handle->handle.config);
 	}
 	
       }
-    } else if(0 /*analog*/){
+    } else if(handle->output_format == SampleFormat_A52float) {
       int i;
       int flags;
       sample_t level; // Hack for the float_to_int function
@@ -305,8 +317,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       }
 
       if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
-	fprintf(stderr, "a52_frame error\n");
-	//DNOTE("a52_frame() error\n");
+	DNOTE("a52_frame() error\n");
 	goto error;
       }
 
@@ -343,8 +354,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       for(i = 0; i < 6; i++) {
 
 	if(a52_block(handle->state)) {
-	  fprintf(stderr, "a52_block error\n");
-	  //DNOTE("a52_block() error\n");
+	  DNOTE("a52_block() error\n");
 	  goto error;
 	}
 	convert_samples((adec_handle_t *)handle, handle->samples, 256);
@@ -379,8 +389,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       handle->buf_ptr = handle->coded_buf;
       handle->bytes_needed = 7;
 
-    } else if(1 /*iec958*/) {
-      int i;
+    } else if(handle->output_format == SampleFormat_AC3Frame) {
       int flags;
       sample_t level; // Hack for the float_to_int function
       int bias = 384;
@@ -393,8 +402,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 
 
       if(a52_frame(handle->state, handle->coded_buf, &flags, &level, bias)) {
-	fprintf(stderr, "a52_frame error\n");
-	//DNOTE("a52_frame() error\n");
+	DNOTE("a52_frame() error\n");
 	goto error2;
       }
 
@@ -407,7 +415,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	
 	new_format.sample_rate = handle->sample_rate;
 	new_format.sample_resolution = 16;
-	new_format.sample_format = SampleFormat_AC3frame;
+	new_format.sample_format = SampleFormat_AC3Frame;
 	init_sample_conversion((adec_handle_t *)handle, &new_format, 256*6);
       }
 
@@ -493,18 +501,18 @@ adec_handle_t *init_a52(void)
 
     handle->state = a52_init(accel);
     if(handle->state == NULL) {
-        fprintf(stderr, "A/52 init failed\n");
+        FATAL("A/52 init failed\n");
         exit(1);
     }
     handle->samples = a52_samples(handle->state);
     if(handle->samples == NULL) {
-        fprintf(stderr, "A/52 samples failed\n");
+        FATAL("A/52 samples failed\n");
         exit(1);
     }
   }
   handle->disable_dynrng = !get_a52_drc();
   handle->level = (sample_t)get_a52_level();
   handle->adjust_level = 1;
-  
+
   return (adec_handle_t *)handle;
 }

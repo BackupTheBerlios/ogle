@@ -123,8 +123,9 @@ int oss_init(ogle_ao_instance_t *_instance,
         break;
     }
     break;
-  case OGLE_AO_ENCODING_IEC958:
-    sample_format = AFMT_AC3; //this is iec958 (handles pcm/ac3/dts/...)
+  case OGLE_AO_ENCODING_IEC61937:
+    sample_format = AFMT_AC3; // this is iec61937
+                              // handles ac3/dts/... over iec60958 (spdif)
     audio_info->sample_resolution = 16;
     break;
   default:
