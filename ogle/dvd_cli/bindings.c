@@ -238,17 +238,17 @@ typedef struct {
   void *arg;
 } ks_map_t;
 
-unsigned int ks_maps_index = 0;
-unsigned int nr_ks_maps = 0;
+static unsigned int ks_maps_index = 0;
+static unsigned int nr_ks_maps = 0;
 
-ks_map_t *ks_maps;
+static ks_map_t *ks_maps;
 
 typedef struct {
   char *str;
   void (*fun)(void);
 } action_mapping_t;
 
-action_mapping_t actions[] = {
+static action_mapping_t actions[] = {
   { "Play", actionPlay },
   { "PauseToggle", actionPauseToggle },
   { "Stop", NULL },
