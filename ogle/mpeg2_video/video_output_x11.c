@@ -210,12 +210,14 @@ void display_init(int padded_width, int padded_height,
 				 4, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
+  fprintf(stderr, "Window id: 0x%lx\n", windows[0].win);
+  
   window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
 				    hint.x, hint.y, 200, 200, 0,
 				    0, 0);
 
   XSelectInput(mydisplay, windows[0].win, StructureNotifyMask | KeyPressMask 
-	       | ButtonPressMask | ExposureMask);
+	       | ExposureMask);
   XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask 
 	       | ButtonPressMask | ExposureMask);
 
@@ -485,7 +487,7 @@ void display_change_size(int new_width, int new_height) {
   
   /* Turn on events */
   XSelectInput(mydisplay, windows[0].win, StructureNotifyMask 
-	       | KeyPressMask | ButtonPressMask | ExposureMask);
+	       | KeyPressMask | ExposureMask);
 }
 
 void display_exit(void) 
