@@ -32,6 +32,10 @@
       <adjust_level>no</adjust_level>
       <drc>no</drc>
     </liba52>
+    <sync>
+      <type>odelay</type>
+      <resample>no</resample>
+    </sync>
   </audio>
   <video>
     <display>

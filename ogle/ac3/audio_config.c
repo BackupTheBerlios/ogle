@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <string.h>
 
 #include "parse_config.h"
 #include "audio_config.h"
@@ -27,7 +28,7 @@
 audio_config_t *audio_config_init(void)
 {
   audio_config_t *conf;
-  
+  char *type;
   conf = malloc(sizeof(audio_config_t));
   
   conf->format.nr_channels = 0;
@@ -40,6 +41,15 @@ audio_config_t *audio_config_init(void)
   conf->sync.max_sync_diff = 0;
   conf->sync.prev_delay = -1;
   conf->sync.samples_added = 0;
+
+  type = get_sync_type();
+  if(!strcmp(type, "clock")) {
+    conf->sync.type = SyncType_clock;
+  } else {
+    conf->sync.type = SyncType_odelay;
+  }
+  conf->sync.resample = get_sync_resample();
+  
   return conf;
 }
 

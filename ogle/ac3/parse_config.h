@@ -32,4 +32,7 @@ double get_a52_level(void);
 int get_a52_adjust_level(void);
 int get_a52_drc(void);
 
+char *get_sync_type(void);
+int get_sync_resample(void);
+
 #endif /* PARSE_CONFIG_H */

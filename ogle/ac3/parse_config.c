@@ -32,7 +32,7 @@
 
 
 /* Put all of these in a struct that is returned instead */
-static char *audio_device;
+static char *audio_device = NULL;
 /* number of speakers */
 static int front = 2;
 static int rear = 0;
@@ -44,6 +44,10 @@ static int a52_adjust_level = 0;
 static int a52_drc = 0;
 
 static char *audio_driver = NULL;
+
+/* sync */
+static char *sync_type = NULL;
+static int sync_resample = 0;
 
 char *get_audio_driver(void)
 {
@@ -189,6 +193,54 @@ static void parse_liba52(xmlDocPtr doc, xmlNodePtr cur)
 }
 
 
+char *get_sync_type(void)
+{
+  return sync_type;
+}
+
+int get_sync_resample(void)
+{
+  return sync_resample;
+}
+
+
+static void parse_sync(xmlDocPtr doc, xmlNodePtr cur)
+{
+  xmlChar *s = NULL;
+  
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("type", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(sync_type != NULL) {
+	    free(sync_type);
+	  }
+	  sync_type = strdup(s);
+	}
+      } else if(!strcmp("resample", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(!strcmp("yes", s)) {
+	    sync_resample = 1;
+	  } else {
+	    sync_resample = 0;
+	  }
+	}
+      }
+
+      if(s) {
+	free(s);
+	s = NULL;
+      }
+      
+    }
+    cur = cur->next;
+  }
+}
+
+
 static void parse_audio(xmlDocPtr doc, xmlNodePtr cur)
 {
   cur = cur->xmlChildrenNode;
@@ -202,6 +254,8 @@ static void parse_audio(xmlDocPtr doc, xmlNodePtr cur)
         parse_speakers(doc, cur);
       } else if(!strcmp("liba52", cur->name)) {
         parse_liba52(doc, cur);
+      } else if(!strcmp("sync", cur->name)) {
+        parse_sync(doc, cur);
       }
     }
     cur = cur->next;

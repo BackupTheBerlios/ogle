@@ -261,7 +261,7 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   	*samples_return = avail;
 	//printf("remaining : %d\n", avail);
 	
-	return 1;
+	return 0;
 }
 
 static

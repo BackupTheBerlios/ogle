@@ -147,7 +147,7 @@ int oss_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 
   *samples_return = odelay / instance->sample_frame_size;
 
-  return 1;
+  return 0;
 }
 
 static

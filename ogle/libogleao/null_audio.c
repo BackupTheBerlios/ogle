@@ -123,7 +123,7 @@ int null_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   
   *samples_return = 0;
 
-  return 1;
+  return 0;
 }
 
 static

@@ -49,12 +49,19 @@ typedef struct {
   int sample_resolution;
 } audio_format_t;
 
+typedef enum {
+  SyncType_odelay,
+  SyncType_clock
+} SyncType_t;
+
 typedef struct {
   int delay_resolution;
   int delay_resolution_set;
   int max_sync_diff;
   int prev_delay;
   int samples_added;
+  SyncType_t type;
+  int resample;
 } audio_sync_t;
 
 typedef struct {

@@ -162,7 +162,7 @@ int obsd_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   
   *samples_return = odelay;
 
-  return 1;
+  return 0;
 }
 
 static
