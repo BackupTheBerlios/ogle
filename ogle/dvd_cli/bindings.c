@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include <ogle/dvdcontrol.h>
 #include <ogle/msgevents.h>
