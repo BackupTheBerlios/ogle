@@ -626,15 +626,17 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
       struct timeval tv;
       int r;
       int rlen;
+      int nfds;
 
       FD_ZERO(&rfds);
-      FD_SET(q->socket.sd);
+      FD_SET(q->socket.sd, &rfds);
+      nfds = q->socket.sd + 1;
       tv.tv_sec = 0;
       tv.tv_usec = 0;
 
       from_addr_len = sizeof(from_addr);
 
-      r = select(q->socket.sd, &rfds, NULL, NULL, &tv);
+      r = select(nfds, &rfds, NULL, NULL, &tv);
       if(r > 0) {
 	if(FD_ISSET(q->socket.sd, &rfds)) {
 	  if((rlen = recvfrom(q->socket.sd, (void *)&msg,
