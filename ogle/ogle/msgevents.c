@@ -133,8 +133,7 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
     if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
 	      q->mtype, 0) == -1) {
       switch(errno) {
-      case EINTR:  // interrupted by syscall, try again
-	continue;
+      case EINTR:  // interrupted by syscall, return
 	break;
       default:
 	perror("MsgNextEvent");
