@@ -511,7 +511,12 @@ static void eval_set_version_3(int cond)
   uint8_t  op   = bits(0, 4, 4);
   uint8_t  reg  = bits(1, 4, 4); // GPRM
   uint8_t  reg2 = bits(2, 0, 8); // GPRM or SPRM
-  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 2); // or IMM
+  uint16_t data;
+  if(bits(0, 3, 1)) { // immediate
+    data = bits(2, 0, 16);
+  } else {
+    data = eval_reg(reg2);
+  }
 
   if(cond) {
     eval_set_op(op, reg, reg2, data);
