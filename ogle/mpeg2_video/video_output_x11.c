@@ -135,6 +135,7 @@ static Display *mydisplay = NULL;
 static int screen_nr;
 static GC mygc;
 static char title[100];
+
 static int color_depth, pixel_stride, mode;
 
 
@@ -662,14 +663,16 @@ void display_init(int padded_width, int padded_height,
 {
   static int initialized = 0;
   Screen *scr;
-  XSizeHints hint;
+  XSizeHints *size_hints;
+  XClassHint *class_hints;
+  char *string;
   XEvent xev;
   XGCValues xgcv;
   Colormap theCmap;
   XWindowAttributes attribs;
   XSetWindowAttributes xswa;
   unsigned long xswamask;
-
+  XTextProperty window_name_prop, icon_name_prop;
   scale.image_width = padded_width;
   scale.image_height = padded_height;
   
@@ -707,11 +710,13 @@ void display_init(int padded_width, int padded_height,
     XMatchVisualInfo(mydisplay, screen_nr, color_depth, TrueColor, &vinfo);
     //DNOTE("X11 visual id is %lx\n", vinfo.visualid);
     
-    hint.x = 0;
-    hint.y = 0;
-    hint.width = scale.image_width;
-    hint.height = scale.image_height;
-    hint.flags = PPosition | PSize;
+    size_hints = XAllocSizeHints();
+    
+    size_hints->x = 0;
+    size_hints->y = 0;
+    size_hints->width = scale.image_width;
+    size_hints->height = scale.image_height;
+    size_hints->flags = /*PPosition |*/ PSize;
     
     theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen_nr), 
 				vinfo.visual, AllocNone);
@@ -724,7 +729,8 @@ void display_init(int padded_width, int padded_height,
     window.win_state = WINDOW_STATE_NORMAL;
     
     window.win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen_nr),
-			       hint.x, hint.y, hint.width, hint.height, 
+			       size_hints->x, size_hints->y,
+			       size_hints->width, size_hints->height, 
 			       4, color_depth, CopyFromParent, vinfo.visual, 
 			       xswamask, &xswa);
     
@@ -736,10 +742,27 @@ void display_init(int padded_width, int padded_height,
     create_transparent_cursor(mydisplay, window.win);
     
     /* Tell other applications/the window manager about us. */
-    snprintf(&title[0], 99, "Ogle v%s", VERSION);
-    XSetStandardProperties(mydisplay, window.win, &title[0], &title[0], 
-			   None, NULL, 0, &hint);
     
+    class_hints = XAllocClassHint();
+    class_hints->res_class = "Ogle";
+    
+    string = &title[0];
+
+    snprintf(&title[0], 99, "Ogle");
+    XStringListToTextProperty(&string, 1, &icon_name_prop);
+
+    snprintf(&title[0], 99, "Ogle v%s", VERSION);
+    XStringListToTextProperty(&string, 1, &window_name_prop);
+    
+    XSetWMProperties(mydisplay, window.win,
+		     &window_name_prop,
+		     &icon_name_prop,
+		     NULL, 0,
+		     size_hints, NULL, class_hints);
+
+    XFree(class_hints);
+    XFree(size_hints);
+
     /* Map window. */
     XMapWindow(mydisplay, window.win);
     
@@ -830,7 +853,9 @@ void display_init(int padded_width, int padded_height,
     /* Let the user know what mode we are running in. */
     snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
 	     use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
-    XStoreName(mydisplay, window.win, &title[0]);
+
+    XStringListToTextProperty(&string, 1, &window_name_prop);
+    XSetWMName(mydisplay, window.win, &window_name_prop);
   }
   initialized = 1;
 }
