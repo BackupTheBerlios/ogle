@@ -1,9 +1,12 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(ac3/ac3dec_wrap.c)
+AM_INIT_AUTOMAKE(skrompf, 0.1)
+
 AC_CANONICAL_HOST
 
 dnl Checks for programs.
 AC_PROG_CC
+AC_PROG_RANLIB
 
 dnl Checks for libraries.
 
@@ -48,6 +51,7 @@ else
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
+AM_CONDITIONAL(MLIB_LIBS, test x$MLIB_LIBS != x)
 
 CFLAGS="$CFLAGS -Wall"
 
@@ -74,6 +78,7 @@ sparc)
 	CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
 esac
 AC_SUBST(USE_MMX)
+AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
 case "$host_os" in
 linux-gnu)
@@ -84,13 +89,9 @@ linux-gnu)
 	;;
 esac
 
-
-
-AC_CHECK_FUNCS(clock_gettime madvise)
-
-INCLUDES='-I. -I$(top_srcdir)/include -I- -I/usr/pd/include'
-dnl AC_SUBST(INCLUDES)
+INCLUDES='-I. -I$(top_srcdir)/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
-AC_OUTPUT(ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
+AC_CHECK_FUNCS(clock_gettime madvise)
+AC_OUTPUT(include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
 

@@ -15,27 +15,38 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-top_srcdir = @top_srcdir@
-top_builddir = ..
+bin_PROGRAMS = vmg dump ifo_dump vm vmg_dump
 
-CC=@CC@
-DFLAGS=@CFLAGS@ @DEFS@
-LDFLAGS=@LIBS@
-CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
+vmg_LDADD = $(top_builddir)/common/libcommon.a
+vmg_SOURCES = vmg.c com.c
 
-all: ifo_dump dump vmg vm vmg_dump
+dump_SOURCES = \
+	dump.c print_ifo_vm.c vobdump.c \
+	vmcmd.c vmcmd.h \
+	decoder.c decoder.h \
+	ifo.h
 
-vmg: $(top_builddir)/common/timemath.o $(top_builddir)/common/ip_sem.o com.o
-#vm.o ifo_read.o ifo_print.o decoder.o nav.o nav_read.o nav_print.o vmcmd.o
-dump: print_ifo_vm.o vobdump.o vmcmd.o decoder.o
-ifo_dump: ifo_dump.o ifo_read.o ifo_print.o vmcmd.o
-vm: vm.o ifo_read.o ifo_print.o decoder.o nav_read.o nav_print.o nav.o vmcmd.o com.o $(top_builddir)/common/ip_sem.o
-vmg_dump: vmg_dump.o nav_read.o nav_print.o nav.o vmcmd.o com.o $(top_builddir)/common/ip_sem.o
+ifo_dump_SOURCES = ifo_dump.c \
+	ifo_read.c ifo_read.h \
+	ifo_print.c ifo_print.h \
+	vmcmd.c ifo.h
 
+vm_LDADD = $(top_builddir)/common/libcommon.a
+vm_SOURCES = \
+	vm.c vm.h \
+	ifo_read.c ifo_read.h \
+	ifo_print.c ifo_print.h \
+	decoder.c decoder.h \
+	nav_read.c nav_read.h \
+	nav_print.c nav_print.h \
+	nav.c nav.h \
+	vmcmd.c vmcmd.h \
+	com.c ifo.h
 
-ifo_read.o: ifo.h ifo_read.c
-ifo_print.o: ifo.h ifo_print.c
-ifo_dump.o: ifo.h ifo_dump.c
-
-clean:
-	rm -f vmg vmg_dump ifo_dump dump vm *.o
+vmg_dump_SOURCES = vmg_dump.c \
+	nav_read.c nav_read.h \
+	nav_print.c nav_print.h \
+	nav.c nav.h \
+	vmcmd.c com.c 
+	vm.h
+vmg_dump_LDADD = $(top_builddir)/common/libcommon.a

@@ -15,17 +15,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-top_srcdir = @top_srcdir@
-top_builddir = ..
+INCLUDES = @GLIB_CFLAGS@
 
-CC=@CC@
-DFLAGS=@CFLAGS@ @DEFS@ @GLIB_CFLAGS@
-LDFLAGS=@LIBS@
-CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
-
-all:	programstream
-
-programstream: programstream.o $(top_builddir)/common/ip_sem.o
-
-clean:
-	rm -f programstream *.o
+bin_PROGRAMS = programstream
+programstream_SOURCES = programstream.c programstream.h
+programstream_LDADD = $(top_builddir)/common/libcommon.a

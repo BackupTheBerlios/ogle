@@ -15,19 +15,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-top_srcdir = @top_srcdir@
-top_builddir = ..
-
-CC=@CC@
-DFLAGS=@CFLAGS@ @DEFS@
-LDFLAGS=@LIBS@
-CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
-
-all:	spu_wrap
-
-spu_wrap: $(top_builddir)/common/timemath.o $(top_builddir)/common/ip_sem.o
-
-subpicture:
-
-clean:
-	rm -f subpicture *.o
+bin_PROGRAMS = ac3dec_wrap
+ac3dec_wrap_SOURCES = ac3dec_wrap.c
+ac3dec_wrap_LDADD = $(top_builddir)/common/libcommon.a

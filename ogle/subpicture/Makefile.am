@@ -15,17 +15,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-top_srcdir = @top_srcdir@
-top_builddir = ..
-
-CC=@CC@
-DFLAGS=@CFLAGS@ @DEFS@
-LDFLAGS=@LIBS@
-CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
-
-all: mpg123_wrap
-
-mpg123_wrap: $(top_builddir)/common/timemath.o $(top_builddir)/common/sync.o $(top_builddir)/common/ip_sem.o
-
-clean:
-	rm -f mpg123_wrap *.o
+bin_PROGRAMS = spu_wrap
+spu_wrap_SOURCES = spu_wrap.c
+spu_wrap_LDADD = $(top_builddir)/common/libcommon.a

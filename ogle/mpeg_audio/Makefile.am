@@ -15,14 +15,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-top_srcdir = @top_srcdir@
-CC=@CC@
-DFLAGS=@CFLAGS@ @DEFS@
-LDFLAGS=@LIBS@
-CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
-
-all: ui	
-
-clean:
-	rm -f ui *.o
-
+bin_PROGRAMS = mpg123_wrap
+mpg123_wrap_SOURCES = mpg123_wrap.c
+mpg123_wrap_LDADD = $(top_builddir)/common/libcommon.a
