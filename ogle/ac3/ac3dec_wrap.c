@@ -19,7 +19,6 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/shm.h>
@@ -194,64 +193,6 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 }
 
 
-static void change_file(char *new_filename)
-{
-  int filefd;
-  static struct stat statbuf;
-  int rv;
-  static char *cur_filename = NULL;
-
-  // maybe close file when null ?
-  if(new_filename == NULL) {
-    return;
-  }
-
-  if(new_filename[0] == '\0') {
-    return;
-  }
-
-  // if same filename do nothing
-  if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
-    return;
-  }
-
-  if(mmap_base != NULL) {
-    munmap(mmap_base, statbuf.st_size);
-  }
-  if(cur_filename != NULL) {
-    free(cur_filename);
-  }
-  
-  filefd = open(new_filename, O_RDONLY);
-  if(filefd == -1) {
-    perror(new_filename);
-    exit(1);
-  }
-
-
-  cur_filename = strdup(new_filename);
-  rv = fstat(filefd, &statbuf);
-  if(rv == -1) {
-    perror("fstat");
-    exit(1);
-  }
-  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
-			      PROT_READ, MAP_SHARED, filefd,0);
-  close(filefd);
-  if(mmap_base == MAP_FAILED) {
-    perror("mmap");
-    exit(1);
-  }
-  
-#ifdef HAVE_MADVISE
-  rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
-  if(rv == -1) {
-    perror("madvise");
-    exit(1);
-  }
-#endif
-
-}
 
 
 int attach_ctrl_shm(int shmid)
@@ -363,7 +304,6 @@ int get_q()
 
       q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
       
-      change_file(data_elem->filename);
       // release elem
       data_elem->in_use = 0;
       q_elems[elem].in_use = 0;
@@ -446,7 +386,6 @@ int get_q()
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
-  //change_file(data_elem->filename);
   
   //fwrite(mmap_base+off, len, 1, outfile);
   
