@@ -11,6 +11,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/msg.h>
+#include <errno.h>
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -26,6 +27,7 @@
 int send_msg(msg_t *msg, int mtext_size);
 int wait_init_msg(void);
 int wait_for_msg(cmdtype_t cmdtype);
+cmd_t *chk_for_msg(msg_t *msg);
 int eval_msg(cmd_t *cmd);
 int get_q();
 
@@ -93,6 +95,21 @@ int wait_for_msg(cmdtype_t cmdtype)
   return 0;
 }
 
+cmd_t *chk_for_msg(msg_t *msg)
+{
+  cmd_t *cmd;
+  cmd = (cmd_t *)(&msg->mtext);
+  cmd->cmdtype = CMD_NONE;
+  
+  if(msgrcv(msgqid, msg, sizeof(msg->mtext),
+	    MTYPE_DECODE_MPEG_PRIVATE_STREAM_2, IPC_NOWAIT) == -1) {
+    if(errno != ENOMSG) {
+      perror("vmg: msgrcv");
+    }
+    return NULL;
+  } 
+  return cmd;
+}
 
 
 int eval_msg(cmd_t *cmd)

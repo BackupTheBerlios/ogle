@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
     case 'h':
     case '?':
       usage();
-      return 1;
+      exit(1);
     }
   }
   
@@ -223,10 +223,11 @@ int main(int argc, char *argv[])
     }
     /* Still time or some thing */
     if(cell.category & 0xff00) {
-      if(((cell.category>>8) & 0xff) == 0xff) {
+      int time = (cell.category>>8) & 0xff;
+      if(time == 0xff) {
 	printf("-- Wait for user interaction --\n");
       } else {
-      //sleep(cell.category & 0xff00); // Really advance SCR clock..
+	sleep(time); // Really advance SCR clock..
       }
     }
     /* Deal with looking up and 'evaling' the Cell cmd, if any */
@@ -423,8 +424,8 @@ int main(int argc, char *argv[])
     goto play_PGC;
   
   }
-    
-  return;
+  
+  exit(0);
 }
 
 

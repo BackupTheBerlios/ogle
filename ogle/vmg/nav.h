@@ -1,23 +1,37 @@
 #ifndef __NAV_H__
 #define __NAV_H__
 
-#include <stdio.h>
+/* 
+ * Copyright (C) 2000 Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *
+ * The data structures in this file should represent the layout of the 
+ * pci and dsi packets as they are stored in the stream. 
+ * Information found by reading the source to VOBDUMP is the base for 
+ * the structure and names of these data types.
+ *
+ * VOBDUMP: a program for examining DVD .VOB filse
+ *
+ * Copyright 1998, 1999 Eric Smith <eric@brouhaha.com>
+ *
+ * VOBDUMP is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.  Note that I am not
+ * granting permission to redistribute or modify VOBDUMP under the
+ * terms of any later version of the General Public License.
+ *
+ * This program is distributed in the hope that it will be useful (or
+ * at least amusing), but WITHOUT ANY WARRANTY; without even the
+ * implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+ * PURPOSE.  See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <inttypes.h>
 
-#define PACK_START_CODE             0x000001ba
-#define SYSTEM_HEADER_START_CODE    0x000001bb
-#define PRIVATE_STREAM_1_START_CODE 0x000001bd
-#define PADDING_STREAM_START_CODE   0x000001be
-#define PRIVATE_STREAM_2_START_CODE 0x000001bf
-#define VIDEO_STREAM_START_CODE     0x000001e0
-#define AUDIO_STREAM_0_START_CODE   0x000001c0
-#define AUDIO_STREAM_7_START_CODE   0x000001c7
-#define AUDIO_STREAM_8_START_CODE   0x000001d0
-#define AUDIO_STREAM_15_START_CODE  0x000001d7
-
-
 #define BLOCK_SIZE 2048
-
 typedef struct
 {
   uint32_t bit_position;
@@ -25,17 +39,8 @@ typedef struct
 } buffer_t;
 
 
-
-uint32_t get_bits (buffer_t *buffer, uint32_t count);
-uint32_t peek_bits (buffer_t *buffer, uint32_t count);
-void unget_bits (buffer_t *buffer, uint32_t count);
-void skip_bits (buffer_t *buffer, uint32_t count);
-void expect_bits (FILE *out, buffer_t *buffer, uint32_t count, 
-		  uint32_t expected, char *description);
-void reserved_bits (FILE *out, buffer_t *buffer, uint32_t count);
-int bits_avail (buffer_t *buffer);
-
-
+#define PCI_BYTES 0x3d4
+#define DSI_BYTES 0x3fa
 
 #define PS2_PCI_SUBSTREAM_ID 0x00
 #define PS2_DSI_SUBSTREAM_ID 0x01
@@ -84,11 +89,11 @@ typedef struct {
   unsigned int zero3 : 1;
 #endif
   uint8_t btn_ofn;
-  uint8_t btn_ns; // only low 6 bits
+  uint8_t btn_ns;     // only low 6 bits
   uint8_t nsl_btn_ns; // only low 6 bits
   uint8_t zero5;
-  uint8_t fosl_btnn; // only low 6 bits
-  uint8_t foac_btnn; // only low 6 bits
+  uint8_t fosl_btnn;  // only low 6 bits
+  uint8_t foac_btnn;  // only low 6 bits
 } __attribute__ ((packed)) hl_gi_t;
 
 typedef struct {
@@ -139,7 +144,7 @@ typedef struct {
 typedef struct {
   hl_gi_t     hl_gi;
   btn_colit_t btn_colit;
-  btni_t     btnit[36];
+  btni_t      btnit[36];
 } __attribute__ ((packed)) hli_t;
 
 typedef struct {
@@ -148,6 +153,8 @@ typedef struct {
   hli_t       hli;
   uint8_t     zero1[189];
 } __attribute__ ((packed)) pci_t;
+
+
 
 
 
@@ -174,14 +181,14 @@ typedef struct {
 } __attribute__ ((packed)) sml_agli_t;
 
 typedef struct {
-  uint32_t unknown1; // Next (nv_pck_lbn+this value -> next vobu lbn)
-  uint32_t unknown2[20]; //Forwards
-  uint32_t unknown3[20]; //Backwars
-  uint32_t unknown4; // Previous (nv_pck_lbn-this value -> previous vobu lbn)
+  uint32_t unknown1;     // Next (nv_pck_lbn+this value -> next vobu lbn)
+  uint32_t unknown2[20]; // Forwards, time
+  uint32_t unknown3[20]; // Backwars, time
+  uint32_t unknown4;     // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
 } __attribute__ ((packed)) vobu_sri_t;
 
 typedef struct {
-  uint16_t offset; //  Highbit == signbit
+  uint16_t offset;      //  Highbit == signbit
   uint8_t unknown[142];
 } __attribute__ ((packed)) synci_t;
 

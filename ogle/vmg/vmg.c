@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
   
   while(1) {
     int len;
-    len = get_q(&buffer);
+    len = get_q(buffer);
     fwrite(&buffer, len, 1, outfile);
   }
 

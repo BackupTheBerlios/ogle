@@ -44,20 +44,22 @@ void parse_vmg_data (FILE *in)
     
     if(buffer.bit_position % 8 != 0)
       abort();
+    
     memmove(&buffer.bytes[0], &buffer.bytes[buffer.bit_position/8], left);
-    if(fread(&buffer.bytes[left], 1, BLOCK_SIZE - left, in) != BLOCK_SIZE - left) {
+    if(fread(&buffer.bytes[left], BLOCK_SIZE - left, 1, in) != 1) {
       perror("reading nav data");
       exit(1);
     }
-    buffer.bit_position = 0;
     
-    substream = get_bits (&buffer, 8);
-    if (substream == PS2_PCI_SUBSTREAM_ID) {
-      read_pci_packet(&pci, stdout, &buffer);
+    substream = buffer.bytes[0];
+    buffer.bit_position = 8;
+    
+    if(substream == PS2_PCI_SUBSTREAM_ID) {
+      read_pci_packet(&pci, &buffer);
       print_pci_packet(stdout, &pci);
     }
-    else if (substream == PS2_DSI_SUBSTREAM_ID) {
-      read_dsi_packet(&dsi, stdout, &buffer);
+    else if(substream == PS2_DSI_SUBSTREAM_ID) {
+      read_dsi_packet(&dsi, &buffer);
       print_dsi_packet(stdout, &dsi);
     }
     else {

@@ -1,4 +1,4 @@
-/* 
+/*
  * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>, 
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
@@ -346,10 +346,8 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   int i;
   
   fseek(ifo_file, offset, SEEK_SET);
-  fprintf(stderr, "ferror = %d, feof = %d\n", ferror(ifo_file), feof(ifo_file));  if((i = fread(pgc, PGC_SIZE, 1, ifo_file)) != 1) {
+  if((i = fread(pgc, PGC_SIZE, 1, ifo_file)) != 1) {
     perror("ifoRead PGC");
-    fprintf(stderr, "ferror = %d, feof = %d\n", ferror(ifo_file), feof(ifo_file));
-    fprintf(stderr, "retval = %d, offset = %d\n", i, offset);
     exit(1);
   }
   B2N_32(pgc->prohibited_ops);
