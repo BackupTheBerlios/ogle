@@ -395,7 +395,7 @@ int get_q()
 	/* offset valid */
 	if(PTS_DTS_flags & 0x2) {
 	  clocktime_t t1, t2;
-	  clocktime_t calc_scr_time;
+	  /* clocktime_t calc_scr_time; */
 	  
 
 	  if(TIME_S(last_rt) != -1) {
