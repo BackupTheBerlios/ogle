@@ -20,4 +20,4 @@ noinst_LIBRARIES = libcommon.a
 AM_CPPFLAGS = @TOP_INCLUDES@
 AM_CFLAGS = @O_CFLAGS@
 
-libcommon_a_SOURCES = sync.c timemath.c
+libcommon_a_SOURCES = sync.c timemath.c shm.c
