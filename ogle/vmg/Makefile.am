@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-bin_PROGRAMS = vmg vmg_dump vm dump ifo_dump
+bin_PROGRAMS = vmg vmg_dump nav dump ifo_dump
 
 vmg_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
@@ -31,10 +31,11 @@ dump_SOURCES = dump.c \
 ifo_dump_SOURCES = ifo_dump.c \
 	vmcmd.c
 
-vm_LDADD = $(top_builddir)/common/libcommon.a \
+nav_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
-vm_SOURCES = vm.c vm.h \
+nav_SOURCES = nav.c \
+	vm.c vm.h \
 	decoder.c decoder.h \
 	vmcmd.c vmcmd.h \
-	com.c nav.c
+	com.c
 

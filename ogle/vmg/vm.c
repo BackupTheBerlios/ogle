@@ -22,12 +22,10 @@
 
 extern void do_run(void); // nav.c 
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
+extern char *get_dvdroot(void); // com.c
 extern void wait_for_init(MsgEventQ_t *msgq); // com.c
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
 
-static int msgqid = -1;
-
-MsgEventQ_t *msgq;
 
 
 dvd_reader_t *dvd;
@@ -38,12 +36,9 @@ dvd_state_t state;
 
 
 
-int debug = 8; // Erhum..
-
-
 
 int vm_start(void);
-int vm_reset(void);
+int vm_reset(char *dvdroot);
 int vm_run(void);
 int vm_eval_cmd(vm_cmd_t *cmd);
 int vm_get_next_cell(void);
@@ -82,118 +77,16 @@ static int get_PGCN(void);
 
 
 
-char *program_name;
-
-void usage(void)
-{
-  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-m <msgqid>]\n", 
-          program_name);
-}
-
-int main(int argc, char *argv[])
-{
-  int c; 
-  
-  program_name = argv[0];
-  
-  /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:m:h?")) != EOF) {
-    switch (c) {
-    case 'd':
-      debug = atoi(optarg);
-      break;
-    case 'm':
-      msgqid = atoi(optarg);
-      break;
-    case 'h':
-    case '?':
-      usage();
-      exit(1);
-    }
-  }
-  
-  if(msgqid != -1) {
-    MsgEvent_t ev;
-    
-    if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "vm: couldn't get message q\n");
-      exit(-1);
-    }
-    
-    ev.type = MsgEventQRegister;
-    ev.registercaps.capabilities = DECODE_DVD_NAV;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
-      fprintf(stderr, "vm: register capabilities\n");
-    }
-    
-    ev.type = MsgEventQReqCapability;
-    ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
-      fprintf(stderr, "vm: didn't get demux cap\n");
-    }
-    
-    ev.type = MsgEventQReqCapability;
-    ev.reqcapability.capability = DECODE_DVD_SPU;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
-      fprintf(stderr, "vm: didn't get cap\n");
-    }
-    
-    wait_for_init(msgq);
-    
-    ev.type = MsgEventQDemuxStream;
-    ev.demuxstream.stream_id = 0xe0; // Mpeg2 Video 
-    ev.demuxstream.subtype = 0;    
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-    
-    ev.type = MsgEventQDemuxStream;
-    ev.demuxstream.stream_id = 0xbd; // AC3 1
-    ev.demuxstream.subtype = 0x80;    
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-    
-    ev.type = MsgEventQDemuxStream;
-    ev.demuxstream.stream_id = 0xbd; // SPU 1
-    ev.demuxstream.subtype = 0x20;    
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-    
-    ev.type = MsgEventQDemuxStream;
-    ev.demuxstream.stream_id = 0xbf; // NAV
-    ev.demuxstream.subtype = 0;    
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-    
-    
-  } else {
-    fprintf(stderr, "what?\n");
-  }
-  
-  dvd = DVDOpen("."); // Change me!
-  
-  /*  Call start here */
-  vm_reset();
-
-  do_run(); // In nav.c
-  
-  return -1;
-}
 
 
 
-
-
-int vm_reset(void)
+int vm_reset(char *dvdroot)
 { 
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
   memset(state.registers.GPRM, 0, sizeof(state.registers.GPRM));
   state.registers.SPRM[0] = ('e'<<8)|'n'; // Player Menu Languange code
-  state.AST_REG = 15;
+  state.AST_REG = 0; // 15 why?
   state.SPST_REG = 0; // 62 why?
   state.AGL_REG = 1;
   state.TTN_REG = 1;
@@ -217,6 +110,9 @@ int vm_reset(void)
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
+  
+  dvd = DVDOpen(dvdroot);
+
   vmgi = ifoOpenVMGI(dvd); // Check for error?
   
   return 0;

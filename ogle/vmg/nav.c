@@ -37,26 +37,114 @@ extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
-// vm.c
-extern MsgEventQ_t *msgq;
-extern dvd_state_t state;
-extern int vm_reset(void);
-extern int vm_start(void);
-extern int vm_eval_cmd(vm_cmd_t *cmd);
-extern int vm_get_next_cell();
-extern int vm_menu_call(int menuid, int block);
-extern int vm_resume(void);
-extern int vm_top_pg(void);
-extern int vm_next_pg(void);
-extern int vm_prev_pg(void);
-extern int vm_get_audio_stream(int audioN);
-extern int vm_get_subp_stream(int subpN);
-extern int vm_get_subp_active_stream(void);
-extern void vm_get_audio_info(int *num_avail, int *current);
-extern void vm_get_subp_info(int *num_avail, int *current);
-extern uint16_t vm_get_subp_lang(int streamN);
-extern uint16_t vm_get_audio_lang(int streamN);
 
+
+MsgEventQ_t *msgq;
+
+char *program_name;
+
+void usage(void)
+{
+  fprintf(stderr, "Usage: %s  [-d <debug_level>] [-m <msgqid>]\n", 
+          program_name);
+}
+
+int main(int argc, char *argv[])
+{
+  int msgqid = -1;
+  int c; 
+  
+  program_name = argv[0];
+  
+  /* Parse command line options */
+  while ((c = getopt(argc, argv, "m:h?")) != EOF) {
+    switch (c) {
+    case 'm':
+      msgqid = atoi(optarg);
+      break;
+    case 'h':
+    case '?':
+      usage();
+      exit(1);
+    }
+  }
+  
+  if(msgqid == -1) {
+    fprintf(stderr, "what?\n");
+    exit(1);
+  }
+  {
+    MsgEvent_t ev;
+    
+    if((msgq = MsgOpen(msgqid)) == NULL) {
+      fprintf(stderr, "nav: couldn't get message q\n");
+      exit(-1);
+    }
+    
+    ev.type = MsgEventQRegister;
+    ev.registercaps.capabilities = DECODE_DVD_NAV;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "nav: register capabilities\n");
+    }
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "nav: didn't get demux cap\n");
+    }
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = DECODE_DVD_SPU;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "nav: didn't get cap\n");
+    }
+    
+    wait_for_init(msgq);
+    
+    ev.type = MsgEventQDemuxDVDRoot;
+    strncpy(ev.demuxdvdroot.path, get_dvdroot(), sizeof(ev.demuxdvdroot.path));
+    ev.demuxdvdroot.path[sizeof(ev.demuxdvdroot.path)-1] = '\0';
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "nav: didn't set dvdroot\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xe0; // Mpeg1/2 Video 
+    ev.demuxstream.subtype = 0;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "nav: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbd; // AC3 1
+    ev.demuxstream.subtype = 0x80;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "nav: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbd; // SPU 1
+    ev.demuxstream.subtype = 0x20;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "nav: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbf; // NAV
+    ev.demuxstream.subtype = 0;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "nav: didn't set demuxstream\n");
+    }
+  }
+ 
+  
+  /*  Call start here */
+  vm_reset(get_dvdroot());
+
+  do_run();
+  
+  return 0;
+}
 
 
 /**
@@ -68,7 +156,7 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   static int audio_stream_id = -1;
   static int subp_stream_id = -1; // FIXME ??? static
   MsgEvent_t ev;
-
+  
 #if 1
   /* Tell the demuxer which audio track to demux */ 
   {
@@ -83,9 +171,9 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       ev.demuxstreamchange.stream_id = 0xbd; // AC3
       ev.demuxstreamchange.subtype = 0x80 | audio_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	fprintf(stderr, "nav: didn't set demuxstream\n");
+	fprintf(stderr, "nav: error, didn't set demuxstream\n");
       }
-      fprintf(stderr, "nav: sent\n");
+      fprintf(stderr, "nav: sent demux_stream\n");
     }
   }
 #endif
@@ -104,9 +192,9 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       ev.demuxstreamchange.stream_id = 0xbd; // SPU
       ev.demuxstreamchange.subtype = 0x20 | subp_stream_id;
       if(send_demux(msgq, &ev) == -1) {
-	fprintf(stderr, "nav: didn't set demuxstream\n");
+	fprintf(stderr, "nav: error, didn't set demuxstream\n");
       }
-      fprintf(stderr, "nav: sent\n");
+      fprintf(stderr, "nav: sent demux_stream\n");
     }
   }
 #endif
@@ -114,14 +202,33 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   fprintf(stderr, "nav: send_demux_sectors(%x, %x, %d)\n", 
           start_sector, nr_sectors, flush);
   */
+#if 0 // old code
   ev.type = MsgEventQPlayCtrl;
   ev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
   ev.playctrl.from = start_sector * 2048;
   ev.playctrl.to = (start_sector + nr_sectors) * 2048;
   ev.playctrl.flowcmd = flush;
   if(send_demux(msgq, &ev) == -1) {
-    fprintf(stderr, "nav: send_demux_sectors\n");
+    fprintf(stderr, "nav: error, send_demux_sectors\n");
   }
+#endif
+
+  ev.type = MsgEventQDemuxDVD;
+  if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN)
+    ev.demuxdvd.titlenum = 0;
+  else
+    ev.demuxdvd.titlenum = state.vtsN;
+  if(state.domain == VTS_DOMAIN)
+    ev.demuxdvd.domain = DVD_READ_TITLE_VOBS;
+  else
+    ev.demuxdvd.domain = DVD_READ_MENU_VOBS;
+  ev.demuxdvd.block_offset = start_sector;
+  ev.demuxdvd.block_count = nr_sectors;
+  ev.demuxdvd.flowcmd = flush;
+  if(send_demux(msgq, &ev) == -1) {
+    fprintf(stderr, "nav: error, send_demux_dvd\n");
+  }
+  //fprintf(stderr, "nav: sent demux_dvd (%d,%d)\n", start_sector, nr_sectors);
 }
 
 void send_use_file(char *file_name) {
@@ -339,40 +446,17 @@ void do_init_cell(int flush) {
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
   still_time = cell->still_time;
   
-  {
-    char vob_name[16];
-    // Make file name
-    if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-      snprintf(vob_name, 14, "VIDEO_TS.VOB");
-    } else {
-      char part = '0'; 
-      if(state.domain != VTSM_DOMAIN) // This is wrong
-	part += cell->first_sector/(1024  * 1024 * 1024 / 2048) + 1;
-      snprintf(vob_name, 14, "VTS_%02i_%c.VOB", state.vtsN, part);
-    }
-    printf("%s\t", vob_name);
-    printf("VOB ID: %3i, Cell ID: %3i at sector: 0x%08x - 0x%08x\n",
-	   state.pgc->cell_position_tbl[state.cellN - 1].vob_id_nr,
-	   state.pgc->cell_position_tbl[state.cellN - 1].cell_nr,
-	   cell->first_sector, cell->last_sector);
-
-    fprintf(stderr, "filename: %s\n", vob_name);
-    send_use_file(vob_name);
-  }
-  
   block = state.blockN;
   assert(cell->first_sector + block <= cell->last_vobu_start_sector);
-  
   
   /* Get the pci/dsi data */
   if(flush)
     send_demux_sectors(cell->first_sector + block, 1, FlowCtrlFlush);
   else
     send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
+  
   pending_lbn = cell->first_sector + block;
-
 }
-
 
 
 
@@ -380,12 +464,9 @@ void do_run(void) {
   pci_t pci;
   dsi_t dsi;
   
-  memset(&pci, 0, sizeof(pci_t));
-  memset(&dsi, 0, sizeof(dsi_t));
-  
   vm_start();
-  block = 0;
   do_init_cell(0);
+  pci.pci_gi.nv_pck_lbn = -1;
   dsi.dsi_gi.nv_pck_lbn = -1;
   
   
@@ -406,7 +487,7 @@ void do_run(void) {
 	 && dsi.dsi_gi.vobu_1stref_ea != 0 
 	 /* &&  there were video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
-	fprintf(stderr, "nav: flush_video = 1;\n");
+	fprintf(stderr, "nav: FlowCtrlCompleteVideoUnit = 1;\n");
       } else {
 	complete_video = FlowCtrlNone;
       }
@@ -493,7 +574,7 @@ void do_run(void) {
     if(!got_data) { // Then it must be a message (or error?)
       int res = 0;
       
-      //printf("nav: User input, MsgEvent.type: %d\n", ev.type);
+      printf("nav: User input, MsgEvent.type: %d\n", ev.type);
       
       /* User input events */
       
@@ -674,6 +755,12 @@ void do_run(void) {
 	break;
       default:
 	handle_events(msgq, &ev);
+	/* If( new dvdroot ) {
+	   vm_reset(get_dvdroot());
+	   block = 0;
+	   res = 1;
+	   }
+	*/
       }
       
       if(res != 0) {/* a jump has occured */
@@ -722,7 +809,10 @@ void do_run(void) {
 	//navPrint_DSI(&dsi);
 
       } else {
-	fprintf(stderr, "nav: Unknown NAV packet type");
+	int i;
+	fprintf(stderr, "nav: Unknown NAV packet type\n");
+	for(i=0;i<20;i++)
+	  printf("%02x ", buffer[i]);
       }
     }
     

@@ -48,6 +48,7 @@ static char *data_buf_shmaddr;
 
 static MsgEventClient_t demux_client = 0;
 static MsgEventClient_t spu_client = 0;
+static char *dvdroot;
 //MsgEventClient_t ui_client;
 
 
@@ -57,6 +58,10 @@ int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
 
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   return MsgSendEvent(msgq, spu_client, ev);
+}
+
+char *get_dvdroot(void) {
+  return dvdroot;
 }
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
@@ -93,6 +98,15 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
 	      ev->gntcapability.capability);
     break;
+  case MsgEventQDVDCtrlLong:
+    switch(ev->dvdctrllong.cmd.type) {
+    case DVDCtrlLongSetDVDRoot:
+      if(dvdroot)
+	free(dvdroot);
+      dvdroot = strdup(ev->dvdctrllong.cmd.dvdroot.path);
+      break;
+    }
+    break;
   default:
     fprintf(stderr, "*vmg: unrecognized event type (%d)\n", ev->type);
     break;
@@ -100,7 +114,7 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 }
 
 void wait_for_init(MsgEventQ_t *msgq) {
-  while(!demux_client || !spu_client) {
+  while(!demux_client || !spu_client || !dvdroot) {
     MsgEvent_t t_ev;
     MsgNextEvent(msgq, &t_ev);
     handle_events(msgq, &t_ev);
@@ -256,6 +270,7 @@ int get_q(MsgEventQ_t *msgq, char *buffer)
   data_elem_t *data_elem;
   int elem;
   
+  uint8_t *data_buffer;
   uint8_t PTS_DTS_flags;
   uint64_t PTS;
   uint64_t DTS;
@@ -295,6 +310,7 @@ int get_q(MsgEventQ_t *msgq, char *buffer)
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
+  data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
@@ -352,8 +368,8 @@ int get_q(MsgEventQ_t *msgq, char *buffer)
 	  PTS_DTS_flags, PTS, DTS, off, len);
   */
   
-  memcpy(buffer, mmap_base + off, len);
-  
+  //  memcpy(buffer, mmap_base + off, len);
+  memcpy(buffer, data_buffer + off, len);
   
   
   // release elem

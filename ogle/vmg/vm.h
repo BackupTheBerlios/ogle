@@ -56,3 +56,23 @@ typedef struct {
 #define PTL_REG      registers.SPRM[13]
 
 #endif /* VM_H */
+
+
+// vm.c
+dvd_state_t state;
+int vm_reset(char *dvdroot);
+int vm_start(void);
+int vm_eval_cmd(vm_cmd_t *cmd);
+int vm_get_next_cell();
+int vm_menu_call(DVDMenuID_t menuid, int block);
+int vm_resume(void);
+int vm_top_pg(void);
+int vm_next_pg(void);
+int vm_prev_pg(void);
+int vm_get_audio_stream(int audioN);
+int vm_get_subp_stream(int subpN);
+int vm_get_subp_active_stream(void);
+void vm_get_audio_info(int *num_avail, int *current);
+void vm_get_subp_info(int *num_avail, int *current);
+uint16_t vm_get_subp_lang(int streamN);
+uint16_t vm_get_audio_lang(int streamN);
