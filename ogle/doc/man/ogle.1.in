@@ -35,6 +35,7 @@ is still exprimental code be warned.  It's enable it by setting the
 environment variable USE_FFB2_YUV2RGB.
 .SH FILES
 @CONFIG_FILE@
+.br
 $HOME/.oglerc
 .SH "SEE ALSO"
 oglerc(5)
