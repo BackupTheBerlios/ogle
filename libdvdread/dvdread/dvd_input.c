@@ -29,7 +29,7 @@
 /* For libdvdcss */
 typedef struct dvdcss_s *dvdcss_handle;
 
-dvdcss_handle (*DVDcss_open)  (char *);
+dvdcss_handle (*DVDcss_open)  (const char *);
 int           (*DVDcss_close) (dvdcss_handle);
 int           (*DVDcss_seek)  (dvdcss_handle, int, int);
 int           (*DVDcss_title) (dvdcss_handle, int); 
@@ -50,7 +50,7 @@ struct dvd_input_s {
 /**
  * initialize and open a DVD device or file.
  */
-static dvd_input_t css_open(char *target)
+static dvd_input_t css_open(const char *target)
 {
   dvd_input_t dev;
   
@@ -129,7 +129,7 @@ static int css_close(dvd_input_t dev)
 /**
  * initialize and open a DVD device or file.
  */
-static dvd_input_t file_open(char *target)
+static dvd_input_t file_open(const char *target)
 {
   dvd_input_t dev;
   
@@ -157,7 +157,7 @@ static dvd_input_t file_open(char *target)
 static char *file_error(dvd_input_t dev)
 {
   /* use strerror(errno)? */
-  return (char *)"unknown error";
+  return "unknown error";
 }
 
 /**
@@ -198,10 +198,9 @@ static int file_read(dvd_input_t dev, void *buffer, int blocks, int flags)
     ret = read(dev->fd, buffer, len);
     
     if(ret < 0) {
-      /* One of the reads failed, too bad.
-	 We won't even bother returning the reads that went ok,
-	 and as in the posix spec the file postition is left
-	 unspecified after a failure */
+      /* One of the reads failed, too bad.  We won't even bother
+       * returning the reads that went ok, and as in the posix spec
+       * the file postition is left unspecified after a failure. */
       return ret;
     }
     
@@ -255,7 +254,7 @@ int DVDInputSetup(void)
 #else
 #define U_S
 #endif
-    DVDcss_open = (dvdcss_handle (*)(char*))
+    DVDcss_open = (dvdcss_handle (*)(const char*))
       dlsym(dvdcss_library, U_S "dvdcss_open");
     DVDcss_close = (int (*)(dvdcss_handle))
       dlsym(dvdcss_library, U_S "dvdcss_close");

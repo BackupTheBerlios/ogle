@@ -36,7 +36,7 @@ typedef struct dvd_input_s *dvd_input_t;
 /**
  * Pointers which will be filled either the input meathods functions.
  */
-dvd_input_t (*DVDinput_open)  (char *);
+dvd_input_t (*DVDinput_open)  (const char *);
 int         (*DVDinput_close) (dvd_input_t);
 int         (*DVDinput_seek)  (dvd_input_t, int, int);
 int         (*DVDinput_title) (dvd_input_t, int); 
