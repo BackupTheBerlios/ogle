@@ -399,9 +399,11 @@ int DVDBookmarkAdd(DVDBookmark_t *bm,
  * be able to supply application specific data in appinfo.
  * The appname "common" is used for standardized appinfo that all
  * players can read/use.
- * @param appinfo The appinfo data. If appinfo
+ * @param appinfo The appinfo data.
  * If there already is appinfo for the corresponding appname
  * it will be replaced.
+ * If you pass NULL or a pointer to the empty string ""
+ * the previous appinfo, if any, will be removed.
  * All char * should point to a nullterminated string.
  *
  * @return 0 on success, -1 on failure.
@@ -457,6 +459,61 @@ int DVDBookmarkSetAppInfo(DVDBookmark_t *bm,
     xmlNewProp(cur, "appname", appname);    
   }
 
+  return 0;						      
+}
+
+/**
+ * Set the usercomment in a bookmark.
+ *
+ * @param bm Handle from DVDBookmarkOpen.
+ * @param usercomment The comment.
+ * If there already is a usercomment, it will be replaced.
+ * Setting it to NULL or the empty string "" will remove a previous comment.
+ * All char * should point to a nullterminated string.
+ *
+ * @return 0 on success, -1 on failure.
+ */
+int DVDBookmarkSetUserComment(DVDBookmark_t *bm, int nr,
+			      const char *usercomment)
+{
+  xmlNodePtr cur;
+  xmlNodePtr cur_bm;
+  
+  if(!bm) {
+    return -1;
+  }
+
+  if((cur = xmlDocGetRootElement(bm->doc)) == NULL) {
+    return -1;
+  }
+
+  cur_bm = get_bookmark(bm->doc, cur, nr);
+  
+  cur = cur_bm;
+  if(cur == NULL) {
+    return -1;
+  }
+  
+  
+  //if there is a usercomment already remove it
+  cur = cur->xmlChildrenNode;
+  while(cur != NULL) {
+    xmlNodePtr next = cur->next;
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"usercomment"))) {
+      xmlUnlinkNode(cur);
+      xmlFreeNode(cur);
+    }
+    cur = next;
+  }
+
+  cur = cur_bm;
+  
+  if(usercomment && (usercomment[0] != '\0')) {
+    if((cur = xmlNewTextChild(cur,NULL, "usercomment", usercomment)) == NULL) {
+      return -1;
+    }
+  }
+  
   return 0;						      
 }
 
