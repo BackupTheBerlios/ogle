@@ -22,8 +22,9 @@
 
 #include <sys/types.h>
 
-/** @file
+/**
  * The DVD access interface.
+ *
  * This file contains the functions that form the interface to to
  * reading files located on a DVD.
  */
@@ -77,8 +78,9 @@ typedef struct dvd_file_s dvd_file_t;
 dvd_reader_t *DVDOpen( const char * );
 
 /**
- * Closes and cleans up the DVD reader object.  You must close all open files
- * before calling this function.
+ * Closes and cleans up the DVD reader object.
+ *
+ * You must close all open files before calling this function.
  *
  * @param dvd A read handle that should be closed.
  *
