@@ -56,13 +56,13 @@ void ifoPrint_time(int level, dvd_time_t *time) {
       time->frame_u & 0x3f);
   switch((time->frame_u >> 6) & 0x03) {
   case 0: 
-    rate = "(please send a bug report)";
+    rate = "(please send a bug report (0))";
     break;
   case 1:
     rate = "25.00";
     break;
   case 2:
-    rate = "(please send a bug report)";
+    rate = "(please send a bug report (2))";
     break;
   case 3:
     rate = "29.97";
@@ -321,7 +321,8 @@ void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
   if(isalpha((int)attr->lang_code[0]) && isalpha((int)attr->lang_code[1]))
     PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
   else
-    PUT(level, "%02x%02x ", attr->lang_code[0], attr->lang_code[1]);
+    PUT(level, "%02x%02x ", 0xff & (unsigned)(attr->lang_code[0]), 
+	0xff & (unsigned)(attr->lang_code[1]));
   
   PUT(level, "%d ", attr->zero1);
   PUT(level, "%d ", attr->zero2);
@@ -561,8 +562,55 @@ void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
   for(i=0;i<nr;i++) {
     /* lowest bit indicating cell command, lowest ?byte? cell command nr? */ 
     /* 0000xx00 might be still, play and then pause or repeat count */
-    PUT(5, "Cell: %3i category %08x ", i+1, cell_playback[i].category);
+    PUT(5, "Cell: %3i ", i+1);
     ifoPrint_time(5, &cell_playback[i].playback_time); PUT(5,"\n");
+    
+    //PUT(5, "category %08x ", cell_playback[i].category);
+    if(cell_playback[i].block_mode || cell_playback[i].block_type) {
+      char *s;
+      switch(cell_playback[i].block_mode) {
+      case 0:
+	s = "not a "; break;
+      case 1:
+	s = "the first "; break;
+      case 2:
+      default:
+	s = ""; break;
+      case 3:
+	s = "last "; break;
+      }
+      PUT(5, "%s cell in the block ", s);
+      
+      switch(cell_playback[i].block_type) {
+      case 0:
+	PUT(5, "not part of the block ");
+	break;
+      case 1:
+	PUT(5, "angle block ");
+	break;
+      case 2:
+      case 3:
+	PUT(5, "(send bug repport) ");
+	break;
+      }
+    }
+    if(cell_playback[i].seamless_play)
+      PUT(5, "presented seamlessly ");
+    if(cell_playback[i].interleaved)
+      PUT(5, "cell is interleaved ");
+    if(cell_playback[i].STC_discontinuty)
+      PUT(5, "STC_discontinuty ");
+    if(cell_playback[i].seamless_angle)
+      PUT(5, "only seamless angle ");
+    if(cell_playback[i].restricted)
+      PUT(5, "restricted cell ");
+    
+    if(cell_playback[i].still_time)
+      PUT(5, "still time %d ", cell_playback[i].still_time);
+    if(cell_playback[i].cell_cmd_nr)
+      PUT(5, " cell command %d", cell_playback[i].cell_cmd_nr);
+    PUT(5, "\n");
+	
     PUT(5, "\tStart sector: %08x\tFirst ILVU end  sector: %08x\n", 
 	cell_playback[i].first_sector, 
 	cell_playback[i].first_ilvu_end_sector);

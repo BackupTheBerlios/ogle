@@ -304,13 +304,15 @@ void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int o
     exit(1);
   }
   for(i = 0; i < nr; i++) {
-    B2N_32(cell_playback[i].category);
+    //B2N_32(cell_playback[i].category); Now a bitfield instead
     B2N_32(cell_playback[i].first_sector);
     B2N_32(cell_playback[i].first_ilvu_end_sector);
     B2N_32(cell_playback[i].last_vobu_start_sector);
     B2N_32(cell_playback[i].last_sector);
     
 #ifndef NDEBUG
+    assert(!cell_playback[i].unknown1);
+    assert(!cell_playback[i].unknown2);    
     // Changed < to <= because this was false in the movie 'Pi'.
     assert(cell_playback[i].last_vobu_start_sector <= 
 	   cell_playback[i].last_sector);

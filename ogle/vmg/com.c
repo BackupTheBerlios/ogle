@@ -25,12 +25,14 @@
 #include "msgevents.h"
 //#include "sync.h"
 
-int get_q();
-
-int attach_ctrl_shm(int shmid);
-int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
+void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
+int get_q(MsgEventQ_t *msgq, char *buffer);
+int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
+int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
 static void change_file(char *new_filename);
+static int attach_ctrl_shm(int shmid);
+static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 static char *mmap_base;
 
@@ -39,17 +41,35 @@ static ctrl_data_t *ctrl_data;
 static ctrl_time_t *ctrl_time;
 
 static int stream_shmid;
-static char *stream_shmaddr;
+static char *stream_shmaddr = NULL;
 
 static int data_buf_shmid;
 static char *data_buf_shmaddr;
 
-int msgqid = -1;
+MsgEventClient_t demux_client = 0;
+MsgEventClient_t spu_client = 0;
+//MsgEventClient_t ui_client;
 
-static MsgEventQ_t *msgq;
 
+int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
+  while(!demux_client) {
+    MsgEvent_t t_ev;
+    MsgNextEvent(msgq, &t_ev);
+    handle_events(msgq, &t_ev);
+  } 
+  return MsgSendEvent(msgq, demux_client, ev);
+}
 
-void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
+int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
+  while(!spu_client) {
+    MsgEvent_t t_ev;
+    MsgNextEvent(msgq, &t_ev);
+    handle_events(msgq, &t_ev);
+  }
+  return MsgSendEvent(msgq, spu_client, ev);
+}
+
+void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 {
   
   switch(ev->type) {
@@ -73,8 +93,18 @@ void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQCtrlData:
     attach_ctrl_shm(ev->ctrldata.shmid);
     break;
+  case MsgEventQGntCapability:
+    if((ev->gntcapability.capability & (DEMUX_MPEG2_PS | DEMUX_MPEG1))
+       == (DEMUX_MPEG2_PS | DEMUX_MPEG1))
+      demux_client = ev->gntcapability.capclient;
+    else if((ev->gntcapability.capability & DECODE_DVD_SPU) == DECODE_DVD_SPU)
+      spu_client = ev->gntcapability.capclient;
+    else
+      fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
+	      ev->gntcapability.capability);
+    break;
   default:
-    fprintf(stderr, "*vmg: unrecognized event type\n");
+    fprintf(stderr, "*vmg: unrecognized event type (%d)\n", ev->type);
     break;
   }
 }
@@ -129,7 +159,7 @@ static void change_file(char *new_filename)
 #endif
 }
 
-int attach_ctrl_shm(int shmid)
+static int attach_ctrl_shm(int shmid)
 {
   char *shmaddr;
   
@@ -147,7 +177,7 @@ int attach_ctrl_shm(int shmid)
   return 0;
 }
 
-int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
+static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
   q_head_t *q_head;
@@ -180,7 +210,7 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   return 0;
 }
 
-int get_q(char *buffer)
+int get_q(MsgEventQ_t *msgq, char *buffer)
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
@@ -203,6 +233,11 @@ int get_q(char *buffer)
   static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
   
+  while(stream_shmaddr == NULL) {
+    MsgNextEvent(msgq, &ev);
+    handle_events(msgq, &ev);
+  }    
+  
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
@@ -223,7 +258,7 @@ int get_q(char *buffer)
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
-  //  PTS = q_elems[elem].PTS;
+  //PTS = q_elems[elem].PTS;
   //DTS = q_elems[elem].DTS;
   SCR_flags = data_elem->SCR_flags;
   SCR_base = data_elem->SCR_base;
@@ -277,7 +312,7 @@ int get_q(char *buffer)
 	  PTS_DTS_flags, PTS, DTS, off, len);
   */
   
-  memcpy(buffer, mmap_base+off, len);
+  memcpy(buffer, mmap_base + off, len);
   
   
   

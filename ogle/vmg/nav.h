@@ -53,7 +53,7 @@ typedef struct {
 } __attribute__ ((packed)) pci_gi_t;
 
 
-typedef struct {
+typedef struct { /* non seamless angle information */
   uint32_t nsml_agl_dsta[9]; 
 } __attribute__ ((packed)) nsml_agli_t;
 
@@ -170,7 +170,7 @@ typedef struct { /* Seamless PlayBack Information */
   uint16_t category; // category of seamless VOBU
   /* Xyyy yyyy PREU flag        1b: VOBU is in preunit 
    *                            0b: VOBU is not in preunit
-   * yXyy yyyy ILVU flag        1b: VOBU is in ILVU   
+   * yXyy yyyy ILVU flag        1b: VOBU is in ILVU
    *                            0b: VOBU is not in ILVU described
    * yyXy yyyy Unit Start flag  1b: VOBU at the beginning of ILVU described
    *                            0b: VOBU not at the beginning
@@ -190,15 +190,49 @@ typedef struct { /* AnGLe Information for seamless playback */
   // Address and size of destination ILVU in AGL_X
   struct {
     uint32_t address; // Sector offset to next ILVU, high bit is before/after
-    uint16_t size;    // Byte size of the ILVU poited to by address.
+    uint16_t size;    // Byte size of the ILVU pointed to by address.
   } __attribute__ ((packed)) dsta[9];
 } __attribute__ ((packed)) sml_agli_t;
 
 typedef struct { /* VOBUnit SeaRch Information */
-  uint32_t unknown1;     // Next (nv_pck_lbn+this value -> next vobu lbn)
-  uint32_t unknown2[20]; // Forwards, time
-  uint32_t unknown3[20]; // Backwars, time
-  uint32_t unknown4;     // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
+  /*
+    bit 0: V_FWD_Exist1  0b: *Video data* does not exist in the address
+                         1b: *video data* exists in the VOBU on the address
+    bit 1: V_FWD_Exist2  indicates whether theres *video data* between 
+			 current vobu and last vobu.
+    if address = 3fff ffff -> vobu does not exist
+  */
+  
+  // 1     FWDI Video     VOBU start address with video data
+  uint32_t FWDI;     // Next (nv_pck_lbn+this value -> next vobu lbn)
+  /*
+     n = 0.5 seconds after presentationtime of current VOBU
+     2 n=240
+     3 120
+     4 60
+     5 20
+     6 15
+     7 14
+     ..
+     20 1
+     21 Next VOBU start addres
+     22 previous VOBU start address
+     23 - end backwards
+     23   n = 1
+     24 n = 2
+     ..
+     37 n = 15
+     38  20
+     39 60
+     40 120
+     41 240
+  */
+  uint32_t FWDA[19]; // Forwards, time
+  uint32_t next_vobu;
+  uint32_t prev_vobu;
+  uint32_t BWDA[19]; // Backwars, time
+  // 42 previous VOBU start address with video data.
+  uint32_t BWDI;     // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
 } __attribute__ ((packed)) vobu_sri_t;
 
 typedef struct { /* SYNChronous Information */ 

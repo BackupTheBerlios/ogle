@@ -19,9 +19,11 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <string.h>
 #include <assert.h>
 
-#include "msgtypes.h"
+//#include "msgtypes.h"
+#include "msgevents.h"
 
 #include "ifo.h" // vm_cmd_t
 #include "nav.h"
@@ -36,92 +38,92 @@
 
 #define COMMAND_BYTES 8
 
+extern MsgEventQ_t *msgq;
 
-int get_q(char *buffer);
-mq_cmd_t *chk_for_msg(mq_msg_t *msg);
-int send_msg(mq_msg_t *msg, int mtext_size);
-int eval_msg(mq_cmd_t *cmd);
-int wait_init_msg(void);
+extern int get_q(MsgEventQ_t *msgq, char *buffer);
+extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
+extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
+extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
+
 int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
 
 static int get_next_nav_packet(char *buffer) {
-  static int init_done = 0;
-  if(!init_done) {
-    wait_init_msg();
-    init_done = 1;
-  }
-  return get_q(buffer);
+  return get_q(msgq, buffer);
 }
 
 static void send_demux_sectors(int start_sector, int nr_sectors) {
-  mq_msg_t msg;
-  mq_cmd_t *sendcmd;
+  MsgEvent_t ev;
   
-  sendcmd = (mq_cmd_t *)&msg.mtext;
-  msg.mtype = MTYPE_CTL;
-  sendcmd->cmdtype = CMD_CTRL_CMD;
-  sendcmd->cmd.ctrl_cmd.ctrlcmd = CTRLCMD_PLAY_FROM_TO;
-  sendcmd->cmd.ctrl_cmd.off_from = start_sector * 2048;
-  sendcmd->cmd.ctrl_cmd.off_to = (start_sector + nr_sectors) * 2048;
-  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_cmd_t));
+  ev.type = MsgEventQPlayCtrl;
+  ev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
+  ev.playctrl.from = start_sector * 2048;
+  ev.playctrl.to = (start_sector + nr_sectors) * 2048;
+  
+  if(send_demux(msgq, &ev) == -1) {
+    fprintf(stderr, "vm: send_demux_sectors\n");
+  }
 }
 
 void send_use_file(char *file_name) {
-  mq_msg_t msg;
-  mq_cmd_t *sendcmd;
+  MsgEvent_t ev;
   
-  sendcmd = (mq_cmd_t *)&msg.mtext;
-  msg.mtype = MTYPE_DEMUX;
-  sendcmd->cmdtype = CMD_FILE_OPEN;
-  strcpy(&sendcmd->cmd.file_open.file[0], file_name);
-  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_file_open_t));
+  ev.type = MsgEventQChangeFile;
+  strncpy(ev.changefile.filename, file_name, PATH_MAX);
+  ev.changefile.filename[PATH_MAX] = '\0';
+  
+  if(send_demux(msgq, &ev) == -1) {
+    fprintf(stderr, "vm: send_use_file\n");
+  }
 }
 
 void set_spu_palette(uint32_t palette[16]) {
-  mq_msg_t msg;
-  mq_cmd_t *sendcmd;
+  MsgEvent_t ev;
   int n;
   
-  sendcmd = (mq_cmd_t *)&msg.mtext;
-  msg.mtype = MTYPE_SPU_DECODE;
-  sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
+  ev.type = MsgEventQSPUPalette;
   for(n = 0; n < 16; n++) {
-    sendcmd->cmd.spu_palette.colors[n] = palette[n];
+    ev.spupalette.colors[n] = palette[n];
   }
-  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_spu_palette_t));
+  
+  if(send_spu(msgq, &ev) == -1) {
+    fprintf(stderr, "vm: set_spu_palette\n");
+  }
 }
 
 void send_highlight(int x_start, int y_start, int x_end, int y_end, 
 		    uint32_t btn_coli) {
-  mq_msg_t msg;
-  mq_cmd_t *sendcmd;
+  MsgEvent_t ev;
   int n;
   
-  sendcmd = (mq_cmd_t *)&msg.mtext;
-  msg.mtype = MTYPE_SPU_DECODE;
-  sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
-  sendcmd->cmd.spu_highlight.x_start = x_start;
-  sendcmd->cmd.spu_highlight.y_start = y_start;
-  sendcmd->cmd.spu_highlight.x_end = x_end;
-  sendcmd->cmd.spu_highlight.y_end = y_end;
+  ev.type = MsgEventQSPUHighlight;
+  ev.spuhighlight.x_start = x_start;
+  ev.spuhighlight.y_start = y_start;
+  ev.spuhighlight.x_end = x_end;
+  ev.spuhighlight.y_end = y_end;
   for(n = 0; n < 4; n++)
-    sendcmd->cmd.spu_highlight.color[n] = 0xf & btn_coli>>(16 + 4*n);
+    ev.spuhighlight.color[n] = 0xf & (btn_coli >> (16 + 4*n));
   for(n = 0; n < 4; n++)
-    sendcmd->cmd.spu_highlight.contrast[n] = 0xf & btn_coli>>(4*n);
-  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_spu_highlight_t));
+    ev.spuhighlight.contrast[n] = 0xf & (btn_coli >> (4*n));
+
+  if(send_spu(msgq, &ev) == -1) {
+    fprintf(stderr, "vm: send_highlight\n");
+  }
 }
 
 
 static int process_pci(pci_t *pci, uint16_t *btn_nr) {
-  mq_msg_t msg;
   int is_action = 0;
   
   /* Check if this is alright, i.e. pci->hli.hl_gi.hli_ss == 1 only 
      for the first menu pic packet? What about looping menus */
+  
+  // FIXME TODO XXX $$$ Does not work for menu that only have one nav pack!
+  
   if(pci->hli.hl_gi.hli_ss == 1) {
     if(pci->hli.hl_gi.fosl_btnn != 0)
       *btn_nr = pci->hli.hl_gi.fosl_btnn;
   }
+  
   /* Paranoia.. */
   if((pci->hli.hl_gi.hli_ss & 0x03) != 0
      && *btn_nr > pci->hli.hl_gi.btn_ns) {
@@ -131,70 +133,59 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   /* Check for and read any user input */
   /* Must not consume events after a 'enter/click' event. (?) */
   while(!is_action) {
-    mq_cmd_t *cmd = chk_for_msg(&msg);
+    MsgEvent_t ev;
+    
     /* Exit when no more input. */
-
-    if(cmd == NULL)
+    if(MsgCheckEvent(msgq, &ev) == -1)
       break;
     
-    switch(cmd->cmdtype) {
-    case CMD_DVDCTRL_CMD:
-      fprintf(stderr, "vmg: dvdctrl_cmd.cmd %d\n", cmd->cmd.dvdctrl_cmd.cmd);
-      switch(cmd->cmd.dvdctrl_cmd.cmd) {
-      case DVDCTRL_CMD_UP_BUTTON:
+    switch(ev.type) {
+    case MsgEventQUserInput:
+      fprintf(stderr, "vmg: dvdctrl_cmd.cmd %d\n", ev.userinput.cmd);
+      switch(ev.userinput.cmd) {
+      case InputCmdButtonUp:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].up;
 	break;
-      case DVDCTRL_CMD_DOWN_BUTTON:
+      case InputCmdButtonDown:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].down;
 	break;
-      case DVDCTRL_CMD_LEFT_BUTTON:
+      case InputCmdButtonLeft:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].left;
 	break;
-      case DVDCTRL_CMD_RIGHT_BUTTON:
+      case InputCmdButtonRight:
 	*btn_nr = pci->hli.btnit[*btn_nr-1].right;
 	break;
-      case DVDCTRL_CMD_ACTIVATE_BUTTON:
+      case InputCmdButtonActivate:
 	is_action = 1;
 	break;
-      case DVDCTRL_CMD_SELECT_BUTTON_NR:
-	*btn_nr = cmd->cmd.dvdctrl_cmd.button_nr;
-	break;
-      case DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR:
-	*btn_nr = cmd->cmd.dvdctrl_cmd.button_nr;
+      case InputCmdButtonActivateNr:
 	is_action = 1;
+	/* Fall through */
+      case InputCmdButtonSelectNr:
+	*btn_nr = ev.userinput.button_nr;
 	break;
-      case DVDCTRL_CMD_CHECK_MOUSE_SELECT:
+      case InputCmdMouseActivate:
+      case InputCmdMouseMove:
 	{
 	  int button;
-	  unsigned int x = cmd->cmd.dvdctrl_cmd.mouse_x;
-	  unsigned int y = cmd->cmd.dvdctrl_cmd.mouse_y;
+	  unsigned int x = ev.userinput.mouse_x;
+	  unsigned int y = ev.userinput.mouse_y;
 	  
 	  button = mouse_over_hl(pci, x, y);
 	  if(button) {
 	    *btn_nr = button;
-	  }
-	}
-	break;
-      case DVDCTRL_CMD_CHECK_MOUSE_ACTIVATE:
-	{
-	  int button;
-	  unsigned int x = cmd->cmd.dvdctrl_cmd.mouse_x;
-	  unsigned int y = cmd->cmd.dvdctrl_cmd.mouse_y;
-	  
-	  button = mouse_over_hl(pci, x, y);
-	  if(button) {
-	    *btn_nr = button;
-	    is_action = 1;
+	    if(ev.userinput.cmd == InputCmdMouseActivate)
+	      is_action = 1;
 	  }
 	}
 	break;
       default:
-	fprintf(stderr, "vmg: Unknown dvdctrl_cmd.cmd\n");
+	fprintf(stderr, "vmg: Unknown ev.userinput.cmd\n");
 	break;
       }
       break;
     default:
-      eval_msg(cmd);
+      handle_events(msgq, &ev);
     }
     
     /* Must check if the current selected button has auto_action_mode !!! */
@@ -216,6 +207,7 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   
   /* If there is highlight information, determine the correct area and 
      send the information to the spu decoder. */
+  /* Possible optimization: don't send if its the same as last time. */
   if(pci->hli.hl_gi.hli_ss & 0x03) {
     btni_t *button;
     button = &pci->hli.btnit[*btn_nr - 1];
@@ -270,7 +262,6 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
   while(cell->first_sector + block <= cell->last_sector) {
     /* Get the pci/dsi data, always fist in a vobu. */
     send_demux_sectors(cell->first_sector + block, 1); 
-    block++;
     
     len = get_next_nav_packet(&buffer[0]);
     assert(buffer[0] == PS2_PCI_SUBSTREAM_ID);
@@ -289,19 +280,22 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
     res = process_pci(&pci, &sl_button_nr);
 
     /* Demux/play the content of this vobu */
-    /* Assume that the vobus are packed and continue after each other,
-       this isn't correct. Certanly not for multiangle at least. */
-    /* Needs to know the selected angle. */
-    send_demux_sectors(cell->first_sector + block, dsi.dsi_gi.vobu_ea);
-    block += dsi.dsi_gi.vobu_ea;
+    send_demux_sectors(cell->first_sector + block + 1, dsi.dsi_gi.vobu_ea);
     
+    /* Decide where the next vobu is.. top two bits are flags */  
+    if(0 /*angle && change_angle*/) {
+      ;
+    } else {
+      block += dsi.vobu_sri.next_vobu & 0x3fffffff;
+    }
+  
     if(res != 0) { /* Exit if we detected a button activation */
       break;
     }
   }
   
   /* Handle forced activate button here */
-  if(res != 0 && (pci.hli.hl_gi.hli_ss & 0x03) != 0) {
+  if(res == 0 && (pci.hli.hl_gi.hli_ss & 0x03) != 0) {
     if(pci.hli.hl_gi.foac_btnn != 0) {
       /* Forced action 0x3f is selected, otherwise use the specified button */
       if(pci.hli.hl_gi.foac_btnn != 0x3f && pci.hli.hl_gi.foac_btnn <= 36)
@@ -319,10 +313,10 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
     return cmd;
   }
   
-  /* Handle cell pause and still here */
-  if(cell->category & 0xff00) {
-    int time = (cell->category>>8) & 0xff;
-    if(time == 0xff) {
+  /* Handle cell pause and still time here */
+  if(cell->still_time) {
+    int time = cell->still_time;
+    if(time == 0xff) { /* Inf. still time */
       printf("-- Wait for user interaction --\n");
       while(res == 0) {
 	//should be nanosleep
@@ -338,6 +332,14 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
 	res = process_pci(&pci, &sl_button_nr);
       }
     }
+  }
+  
+  /* A co XXX */
+  if(res != 0) {
+    /* Save other state too (i.e maybe RSM info) */
+    state->registers.SPRM[8] = sl_button_nr << 10;
+    memcpy(&cmd, &pci.hli.btnit[sl_button_nr - 1].cmd, sizeof(vm_cmd_t));
+    return cmd;
   }
   
   /* Save other state too (i.e maybe RSM info) */

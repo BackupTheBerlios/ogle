@@ -182,7 +182,71 @@ typedef struct { // PGC Command Table
 typedef uint8_t __attribute__ ((packed)) pgc_program_map_t; 
 
 typedef struct { // Cell Playback Information
-  uint32_t category;
+  /*
+     the first one category of C_PBI has a lot of flags.
+     9 flags, cell type cell still time and cell command number
+    XX-- ----  Cel block mode
+     00: not in a block
+     01: the first cell in the block
+     10: a cell in the block
+     11: last cell in the block.
+    --XX ---- block type 
+     00: not part of a block
+     01: angle block
+     10: ??????????????
+     11: ??????????????
+     if block type 00b then Cel block mode shall also be 00b
+     you select one cell of the angleblock based on the setting of the
+     angle number system parameter.
+     an angle block is a block of cells. each cell is for one angle.
+     cells are interleaved to be able to do the seamless angle switching 
+     on 1,5 x speed drives with el cheapo hardware
+     e.x. cell 1 start sector 10 end sector 300, 
+          cell 2 start sector 20 end 315
+     You start play at either one depending on which angle you want
+    ---- Y--- seamless playback flag. 
+     0: cell not presented seamlessly
+     1: presented seamlessly
+    ---- -Y-- interleaved allocation flag: decribes wheter cell exists in 
+              contiguous block or interleaved block. (interleaved is not 
+              always angle block) 
+     0: contiguous
+     1: interleaved block
+    ---- --Y- STC discontinuity flag.
+     has something to do wich seamless playback..
+    ---- ---Y seamless angle flag. 
+     0: only non seamless angle change function shall be used
+        (nsml_agli, in pci, should be used)
+     1: only seamless angle change .... (sml_agli, in dsi, should be used)
+     
+    ---- ---- -X-- ----  -> Cell access restrion flag.
+  */
+  //uint32_t category;
+#ifdef WORDS_BIGENDIAN
+  unsigned int block_mode : 2;
+  unsigned int block_type : 2;
+  unsigned int seamless_play : 1;
+  unsigned int interleaved : 1;
+  unsigned int STC_discontinuty : 1;
+  unsigned int seamless_angle : 1;
+  
+  unsigned int unknown1 : 1;
+  unsigned int restricted : 1;
+  unsigned int unknown2 : 6;
+#else
+  unsigned int seamless_angle : 1;
+  unsigned int STC_discontinuty : 1;
+  unsigned int interleaved : 1;
+  unsigned int seamless_play : 1;
+  unsigned int block_type : 2;
+  unsigned int block_mode : 2;
+  
+  unsigned int unknown2 : 6;
+  unsigned int restricted : 1;
+  unsigned int unknown1 : 1;
+#endif
+  uint8_t still_time;
+  uint8_t cell_cmd_nr;
   dvd_time_t playback_time;
   uint32_t first_sector;
   uint32_t first_ilvu_end_sector;

@@ -11,6 +11,7 @@
 #include <sys/shm.h>
 
 #include "common.h"
+#include "msgevents.h"
 
 #include "ifo.h"
 #include "ifo_read.h"
@@ -21,8 +22,10 @@
 extern vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
 			  dvd_state_t *state); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
-extern int msgqid;
 
+static int msgqid = -1;
+
+MsgEventQ_t *msgq;
 
 #define PUT(level, text...) \
 if(level < debug) { \
@@ -92,6 +95,38 @@ int main(int argc, char *argv[])
       exit(1);
     }
   }
+  
+  if(msgqid != -1) {
+    MsgEvent_t ev;
+    
+    if((msgq = MsgOpen(msgqid)) == NULL) {
+      fprintf(stderr, "vm: couldn't get message q\n");
+      exit(-1);
+    }
+    
+    ev.type = MsgEventQRegister;
+    ev.registercaps.capabilities = DECODE_DVD_NAV;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "vm: register capabilities\n");
+    }
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "vm: didn't get demux cap\n");
+    }
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = DECODE_DVD_SPU;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "vm: didn't get cap\n");
+    }
+    
+  } else {
+    fprintf(stderr, "what?\n");
+  }
+
+  
   
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
@@ -207,12 +242,12 @@ int main(int argc, char *argv[])
     }
     
     /* Deal with a Cell cmd, if any */
-    if((cell.category & 0xff) != 0) {
-      int cell_cmd_nr = cell.category & 0xff;
+    if(cell.cell_cmd_nr != 0) {
       assert(pgc.pgc_command_tbl != NULL);
-      assert(pgc.pgc_command_tbl->nr_of_cell >= cell_cmd_nr);
-      ifoPrint_COMMAND(0, &pgc.pgc_command_tbl->cell_commands[cell_cmd_nr-1]);
-      if(eval(&pgc.pgc_command_tbl->cell_commands[cell_cmd_nr - 1], 
+      assert(pgc.pgc_command_tbl->nr_of_cell >= cell.cell_cmd_nr);
+      ifoPrint_COMMAND(0, &pgc.pgc_command_tbl->cell_commands[cell.cell_cmd_nr
+							     - 1]);
+      if(eval(&pgc.pgc_command_tbl->cell_commands[cell.cell_cmd_nr - 1], 
 	      1, &state.registers, &link_values)) {
 	goto process_jump;
       } else {
@@ -221,7 +256,7 @@ int main(int argc, char *argv[])
     }
 
     /* Where to continue after playing the cell... */
-    switch((cell.category & 0xff000000)>>24) {
+    switch(cell.block_type /* && cell.block_mode */) {
     default:
       state.cellN++;
     }

@@ -261,7 +261,7 @@ void print_vobu_sri(FILE *out, vobu_sri_t *vobu_sri) {
   int i;
   fprintf(out, "vobu_sri:\n");
   /* $$$ more code needed here */
-#if 1
+#if 0
   fprintf(stdout, "%08x\n", vobu_sri->unknown1);
   for(i = 0; i < 20; i++) {
     fprintf(stdout, "%08x ", vobu_sri->unknown2[i]);

@@ -22,6 +22,7 @@
 #include "timemath.h"
 //#include "sync.h"
 
+extern void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 extern int send_msg(mq_msg_t *msg, int mtext_size);
 extern int wait_for_msg(mq_cmdtype_t cmdtype);
 extern int eval_msg(mq_cmd_t *cmd);
@@ -31,7 +32,8 @@ extern int file_open(char *infile);
 extern int attach_ctrl_shm(int shmid);
 extern int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
-extern int msgqid;
+static int msgqid = -1;
+static MsgEventQ_t *msgq;
 
 char *program_name;
 
@@ -74,7 +76,24 @@ int main(int argc, char *argv[])
   
 
   if(msgqid != -1) {
-    wait_for_msg(CMD_DECODE_STREAM_BUFFER);
+    MsgEvent_t ev;
+    
+    if((msgq = MsgOpen(msgqid)) == NULL) {
+      fprintf(stderr, "ac3wrap: couldn't get message q\n");
+      exit(-1);
+    }
+    
+    ev.type = MsgEventQRegister;
+    ev.registercaps.capabilities = DECODE_DVD_NAV;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "ac3wrap: register capabilities\n");
+    }
+    
+    while(ev.type != MsgEventQDecodeStreamBuf) {
+      MsgNextEvent(msgq, &ev);
+      handle_events(msgq, &ev);
+    }
+  
   } else {
     fprintf(stderr, "what?\n");
   }

@@ -154,7 +154,7 @@ void read_dsi_packet(dsi_t *dsi, char *buffer, int len) {
   
   memcpy(dsi, buffer, sizeof(dsi_t));
   
-  /* FIXME: Endian conversions & asserts */
+  /* FIXME: Endian conversions & asserts are missing for some */
   
   /* -- endian conversions ------------------------------------------------- */
   

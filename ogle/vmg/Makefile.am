@@ -46,7 +46,6 @@ vm_SOURCES = \
 vmg_dump_SOURCES = vmg_dump.c \
 	nav_read.c nav_read.h \
 	nav_print.c nav_print.h \
-	nav.c nav.h \
-	vmcmd.c com.c 
-	vm.h
+	nav.h \
+	vmcmd.c vmcmd.h
 vmg_dump_LDADD = $(top_builddir)/common/libcommon.a
