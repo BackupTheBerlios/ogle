@@ -12,14 +12,28 @@ This program is used for getting and setting X11 Xv attributes such as
 XV_BRIGHTNESS, XV_CONTRAST, XV_SATURATION, XV_HUE, XV_COLORKEY, ...
 
 For this program to work, you must have a version of X11 with the
-Xvideo extension and a graphics card that has Xv graphics acceleration.
+XVideo extension and a graphics card that has Xv graphics acceleration.
 
 Note: On some cards XV_BRIGHTNESS and XV_CONTRAST are not listed among
 the available attributes, but they can still be set/changed.
 
 =head2 OPTIONS
 
-With no options, all parameters are displayed.
+With no options, all parameters are displayed. 
+
+Long options are handled by GNU getopts and follow those rules. In
+particular, options that are specified with a double dash (--) rather
+than a single dash (-), can be abbreviated as long as they are
+unique. Long parameters that need a value specified may have the
+parameter and the value separated with blank space or an optional
+equals sign (and no intervening space).
+
+For example the following are all equivalent:
+
+@PACKAGE@ -a XV_BRIGHTNESS
+@PACKAGE@ --attribute XV_BRIGHTNESS
+@PACKAGE@ --att XV_BRIGHTNESS
+@PACKAGE@ --att=XV_BRIGHTNESS
 
 Example:
 
@@ -33,18 +47,20 @@ Example:
      Max value: 16777215
      Current value: 66046
 
-=item -a I<attribute name>
+=over 
+
+=item {-a | --attribute} I<attribute name>
 
 Show value of attribute I<attribute name>
 
 Example:
 
-  > @PACKAGE@ -a XV_BRIGHTNESS
+  > xvattr -a XV_BRIGHTNESS
   XV_BRIGHTNESS = 24
 
 Z<>
 
-=item -a I<attribute name> -v I<value>
+=item {-a | --attribute} I<attribute name> [-v | --value] I<value>
 
 Set attribute I<attribute name> to value I<value>.
 
@@ -55,19 +71,50 @@ Example:
 
 Z<>
 
-=item -p I<port number>
+=item {-p | --port} I<port number> 
 
 Get the attribute on the specified port.  If -p is not set, the first
 available port is used.
 
+Example:
+
+  > xvattr -p 66
+  Found Xv 2.2
+  Adaptor: 0
+  Name: SIS Video Overlay
+   Port: 66
+    Name: XV_COLORKEY
+     Flags: XvGettable XvSettable 
+     Min value: 0
+     Max value: 16777215
+     Current value: 66046
+    Name: XV_BRIGHTNESS
+     Flags: XvGettable XvSettable 
+     Min value: -128
+     Max value: 127
+     Current value: 0
+    Name: XV_CONTRAST
+     Flags: XvGettable XvSettable 
+     Min value: 0
+     Max value: 255
+     Current value: 128
+
+=back
+
 =head1 AUTHOR
 
-Send bug reports to C<d4bjorn@dtek.chalmers.se>
+Björn Englund. Send bug reports to C<d4bjorn@dtek.chalmers.se>
+C<rocky@panix.com> turned the README into this document.
 
+
+=head1 SEE ALSO
+
+See also L<xvinfo> and L<XvQueryAdaptors>, L<XvSetPortAttribute>,
+and L<XvGetPortAttribute>.
 
 =head1 COPYRIGHT
 
-  Copyright (C) 2001,2002 Björn Englund
+  Copyright (C) 2001-2002 Björn Englund
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by

@@ -1,9 +1,11 @@
 # 
 
 bin_PROGRAMS = xvattr 
-xvattr_SOURCES = xvattr.c
+xvattr_SOURCES = xvattr.c getopt1.c
 
 xvattr_LDADD = $(X_LIBS) $(X_PRE_LIBS) $(X_EXTRA_LIBS) -lX11 -lXext
+
+noinst_HEADERS = getopt.h
 
 # Documentation
 EXT = 1

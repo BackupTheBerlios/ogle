@@ -1,5 +1,5 @@
 /* xvattr - get/set Xv attributes
- * Copyright (C) 2001 Björn Englund
+ * Copyright (C) 2001-2002 Björn Englund
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,15 +25,35 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xvlib.h>
 
+#include "getopt.h"
+
+static char *program_name;
+static const char *short_options = "a:v:p:h?V?";
+
+static struct option long_options[] = {
+  {"help"           , no_argument      , 0, 'h' },
+  {"attribute"      , required_argument, 0, 'a' },
+  {"port"           , required_argument, 0, 'p' },
+  {"value"          , required_argument, 0, 'v' },
+  {"version"        , no_argument,       0, 'V' }
+};
+
 extern char *optarg;
 
 
 void usage(void)
 {
-
-  fprintf(stderr, "usage: xvattr [-a <attribute name>] [-v <value>] [-p <port nr>] [-h]\n");
-  
+  fprintf(stderr, "usage: %s [-a <attribute name>] [-v <value>] [-p <port nr>]\n", program_name);
+  fprintf(stderr, "       %s {-p | --port} <port nr>\n", program_name);
+  fprintf(stderr, "       %s {-h | -help}\n", program_name);
+  fprintf(stderr, "       %s {-V | --version}\n", program_name);
 }
+
+void show_version(void)
+{
+  fprintf(stderr, "%s version %s\n", program_name, VERSION);
+}
+
 int main(int argc, char **argv)
 {
   Display *dpy;
@@ -47,22 +67,35 @@ int main(int argc, char **argv)
   unsigned int xv_version, xv_release;
   unsigned int xv_request_base, xv_event_base, xv_error_base;
 
+  int option_index = 0;
+  int seen_val = 0;
+  int seen_attr = 0;
+  
+  program_name = argv[0];
+
   dpy = XOpenDisplay(NULL);
   if(dpy == NULL) {
-    fprintf(stderr, "Couldn't open display\n");
+    fprintf(stderr, "%s: Couldn't open display\n", program_name);
     exit(-1);
   }
   
-  while((c = getopt(argc, argv, "a:v:p:h?")) != EOF) {
+  while((c = getopt_long(argc, argv, short_options,
+			 long_options, &option_index)) != EOF) {
     switch(c) {
     case 'a':
       attr_name = optarg;
+      seen_attr = 1;
       break;
     case 'v':
-      val = atoi(optarg);
+      sscanf(optarg, "%i", &val);
+      seen_val = 1;
+      break;
+    case 'V':
+      show_version();
+      exit(0);
       break;
     case 'p':
-      port_nr = atoi(optarg);
+      sscanf(optarg, "%i", &port_nr);
       break;
     default:
       usage();
@@ -70,11 +103,18 @@ int main(int argc, char **argv)
     }
   }
 
+  if (seen_val && !seen_attr) {
+    fprintf(stderr, "%s: you need to give an attribute to set a value.\n", 
+	    program_name);
+    exit(2);
+  }
+  
+
   if(XvQueryExtension(dpy, &xv_version, &xv_release, &xv_request_base,
 		      &xv_event_base, &xv_error_base) == Success) {
     fprintf(stdout, "Found Xv %d.%d\n", xv_version, xv_release);
   } else {
-    fprintf(stderr, "Xv not found\n");
+    fprintf(stderr, "%s: Xv not found\n", program_name);
     exit(-1);
   }
 
@@ -132,18 +172,18 @@ int main(int argc, char **argv)
     }
     if(val == -1111111) {
       if(XvGetPortAttribute(dpy, port_nr, attr_atom, &val) != Success) {
-	fprintf(stderr, "Couldn't get attribute\n");
+	fprintf(stderr, "%s: Couldn't get attribute\n", program_name);
 	exit(-1);
       }
       fprintf(stdout,"%s = %d\n", attr_name, val);
     } else {
       if(XvSetPortAttribute(dpy, port_nr, attr_atom, val) != Success) {
-	fprintf(stderr, "Couldn't set attribute\n");
+	fprintf(stderr, "%s: Couldn't set attribute\n", program_name);
 	exit(-1);
       }
       XFlush(dpy);
       if(XvGetPortAttribute(dpy, port_nr, attr_atom, &val) != Success) {
-	fprintf(stderr, "Couldn't get attribute\n");
+	fprintf(stderr, "%s: Couldn't get attribute\n", program_name);
 	exit(-1);
       }
       fprintf(stdout,"%s set to %d\n", attr_name, val);
