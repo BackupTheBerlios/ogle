@@ -1,5 +1,5 @@
 /* SKROMPF - A video player
- * Copyright (C) 2000 Björn Englund, Håkan Hjort, Martin Norbäck
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <string.h>
@@ -25,18 +26,20 @@
 #include <ogle/msgevents.h>
 #include <ogle/dvdevents.h>
 
-#include <dvdread/ifo_types.h> // vm_cmd_t
 #include <dvdread/nav_types.h>
 #include <dvdread/nav_read.h>
 #include <dvdread/nav_print.h>
 #include "vm.h"
 
-extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
+extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
 extern int get_q(MsgEventQ_t *msgq, char *buffer);
+extern void wait_for_init(MsgEventQ_t *msgq);
 extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
+extern char *get_dvdroot(void);
 
+void do_run(void);
 
 
 MsgEventQ_t *msgq;
@@ -297,7 +300,7 @@ int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
   return 0;
 }
 
-int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
+static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   /* Keep the button register value in a local variable. */
   uint16_t button_nr = (*btn_reg) >> 10;
   int is_action = 0;
@@ -417,7 +420,10 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
   /* FIXME TODO XXX $$$ */
   
   /* Determine the correct area and send the information to the spu decoder. */
-  /* Possible optimization: don't send if its the same as last time. */
+  /* Possible optimization: don't send if its the same as last time. 
+     same, as in same hli info, same button number and same select/action state
+     Note this send a highlight even if hli_ss == 0, it then turns the
+     highlight off. */
   {
     btni_t *button = &pci->hli.btnit[button_nr - 1];
     send_highlight(button->x_start, button->y_start, 
@@ -434,10 +440,13 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
 
 
 
+
 int pending_lbn;
 int block;
 int still_time;
 cell_playback_t *cell;
+
+
 
 
 
@@ -549,7 +558,7 @@ void do_run(void) {
       if(cell->first_sector + block <= cell->last_vobu_start_sector) {
 	got_data = wait_q(msgq, &ev); // Wait for a data packet or a message
       } else { 
-	/* Handle cell pause and still time here */
+	/* Handle cell still time here */
 	got_data = 0;
 	if(cell->still_time != 0xff)
 	  while(still_time && MsgCheckEvent(msgq, &ev)) {

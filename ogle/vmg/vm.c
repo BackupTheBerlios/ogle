@@ -1,17 +1,29 @@
-#include <inttypes.h>
+/* SKROMPF - A video player
+ * Copyright (C) 2000 Björn Englund, Håkan Hjort
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, 
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
-
+#include <inttypes.h>
 #include <assert.h>
-#include <sys/mman.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/shm.h>
 
 #include <ogle/msgevents.h>
-#include "common.h"
 
 #include <dvdread/ifo_types.h>
 #include <dvdread/ifo_read.h>
@@ -20,11 +32,7 @@
 #include "vmcmd.h"
 #include "vm.h"
 
-extern void do_run(void); // nav.c 
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
-extern char *get_dvdroot(void); // com.c
-extern void wait_for_init(MsgEventQ_t *msgq); // com.c
-extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
 
 
 
@@ -91,8 +99,8 @@ int vm_reset(char *dvdroot)
   state.AGL_REG = 1;
   state.TTN_REG = 1;
   state.VTS_TTN_REG = 1;
-  //state.PGC_REG = 0
-  state.PTT_REG = 1;
+  //state.TT_PGCN_REG = 0
+  state.PTTN_REG = 1;
   state.HL_BTNN_REG = 1 << 10;
 
   state.PTL_REG = 15; // Parental Level
@@ -298,8 +306,8 @@ int vm_resume(void)
   set_spu_palette(state.pgc->palette); // Erhum...
   
   /* These should never be set in SystemSpace and/or MenuSpace */ 
-  // state.TT_REG = state.rsm_tt;
-  // state.PGC_REG = state.rsm_pgcN;
+  // state.TTN_REG = state.rsm_tt;
+  // state.TT_PGCN_REG = state.rsm_pgcN;
   // state.HL_BTNN_REG = state.rsm_btnn;
   for(i = 0; i < 5; i++) {
     state.registers.SPRM[4 + i] = state.rsm_regs[i];
@@ -467,7 +475,7 @@ uint16_t vm_get_audio_lang(int streamN)
   return attr.lang_code;
 }
 
-// Must be called before domain is changed 
+// Must be called before domain is changed (get_PGCN())
 static void saveRSMinfo(int cellN, int blockN)
 {
   int i;
@@ -482,12 +490,50 @@ static void saveRSMinfo(int cellN, int blockN)
   state.rsm_vtsN = state.vtsN;
   state.rsm_pgcN = get_PGCN();
   
-  assert(state.rsm_pgcN == state.PGC_REG); // ??
+  //assert(state.rsm_pgcN == state.TT_PGCN_REG); // for VTS_DOMAIN
   
   for(i = 0; i < 5; i++) {
     state.rsm_regs[i] = state.registers.SPRM[4 + i];
   }
 }
+
+
+
+/* Figure out the correct pgN from the cell and update state. */ 
+static int set_PGN(void) {
+  int new_pgN = 0;
+  
+  while(new_pgN < state.pgc->nr_of_programs 
+	&& state.cellN >= state.pgc->pgc_program_map[new_pgN])
+    new_pgN++;
+  
+  if(new_pgN == state.pgc->nr_of_programs) /* We are at the last program */
+    if(state.cellN > state.pgc->nr_of_cells)
+      return 1; /* We are past the last cell */
+  
+  state.pgN = new_pgN;
+  
+  if(state.domain == VTS_DOMAIN) {
+    playback_type_t *pb_ty;
+    if(vmgi->tt_srpt == NULL)
+      ifoRead_TT_SRPT(vmgi);
+    pb_ty = &vmgi->tt_srpt->title_info[state.TTN_REG].pb_ty;
+    if(pb_ty->multi_or_random_pgc_title == /* One_Sequential_PGC_Title */ 0) {
+      if(vtsi->vts_ptt_srpt == NULL)
+	ifoRead_VTS_PTT_SRPT(vtsi);
+      assert(state.VTS_TTN_REG <= vtsi->vts_ptt_srpt->nr_of_srpts);
+      assert(get_PGCN() == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgcn);
+      assert(1 == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgn);
+      state.PTTN_REG = state.pgN;
+    }
+  }
+  
+  return 0;
+}
+
+
+
+
 
 static link_t play_PGC(void) 
 {    
@@ -551,7 +597,6 @@ static link_t play_Cell(void)
 {
   printf("play_Cell: state.cellN (%i)\n", state.cellN);
   
-  
   assert(state.cellN > 0);
   if(state.cellN > state.pgc->nr_of_cells) {
     printf("state.cellN (%i) == pgc->nr_of_cells + 1 (%i)\n", 
@@ -564,56 +609,56 @@ static link_t play_Cell(void)
   /* Multi angle/Interleaved */
   switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode) {
   case 0: // Normal
+    assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 0);
     break;
   case 1: // The first cell in the block
     switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_type) {
     case 0: // Not part of a block
       assert(0);
     case 1: // Angle block
-      /* Loop and check each cell instead? */
+      /* Loop and check each cell instead? So we don't get outsid the block. */
       state.cellN += state.AGL_REG - 1;
       assert(state.domain == VTSM_DOMAIN); // ??
       assert(state.cellN <= state.pgc->nr_of_cells);
       assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode != 0);
       assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 1);
       break;
-    case 2:
-    case 3:
+    case 2: // ??
+    case 3: // ??
     default:
+      fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
+	      state.pgc->cell_playback_tbl[state.cellN - 1].block_mode,
+	      state.pgc->cell_playback_tbl[state.cellN - 1].block_type);
     }
-    /* fall though */
-  case 2:
-  case 3:
-    // Might perhaps happen for RSM
+    break;
+  case 2: // Cell in the block
+  case 3: // Last cell in the block
+  // These might perhaps happen for RSM or LinkC commands?
   default:
-    fprintf(stderr, "Invalid/Unknown block_mode (%d), block_type (%d)\n",
-	    state.pgc->cell_playback_tbl[state.cellN - 1].block_mode,
-	    state.pgc->cell_playback_tbl[state.cellN - 1].block_type);
-  }
-
-  
-  /* Figure out the correct pgN for this cell and update the state. */ 
-  {
-    int i = 0; 
-    while(i <= state.pgc->nr_of_programs 
-	  && state.cellN >= state.pgc->pgc_program_map[i])
-      i++;
-    state.pgN = i;
+    fprintf(stderr, "Cell is in block but did not enter at first cell!\n");
   }
   
+  /* Updates state.pgN and PTTN_REG */
+  if(set_PGN()) {
+    /* Should not happen */
+    link_t tmp = {LinkTailPGC, /* Block in Cell */ 0, 0, 0};
+    assert(0);
+    return tmp;
+  }
   
   {
     link_t tmp = {PlayThis, /* Block in Cell */ 0, 0, 0};
     return tmp;
   }
-  
-}
 
+}
 
 static link_t play_Cell_post(void)
 {
   cell_playback_t *cell;
-    
+  
+  printf("play_Cell_post: state.cellN (%i)\n", state.cellN);
+  
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
   
   /* Still time is already taken care of before we get called. */
@@ -638,24 +683,41 @@ static link_t play_Cell_post(void)
   /* Multi angle/Interleaved */
   switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode) {
   case 0: // Normal
+    assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 0);
     state.cellN++;
     break;
   case 1: // The first cell in the block
   case 2: // A cell in the block
   case 3: // The last cell in the block
   default:
-    assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 1);
-    /* Skip the 'other' angles */
-    state.cellN++;
-    while(state.cellN <= state.pgc->nr_of_cells 
-	  && state.pgc->cell_playback_tbl[state.cellN - 1].block_mode >= 2) {
+    switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_type) {
+    case 0: // Not part of a block
+      assert(0);
+    case 1: // Angle block
+      /* Skip the 'other' angles */
       state.cellN++;
+      while(state.cellN <= state.pgc->nr_of_cells 
+	    && state.pgc->cell_playback_tbl[state.cellN - 1].block_mode >= 2) {
+	state.cellN++;
+      }
+      break;
+    case 2: // ??
+    case 3: // ??
+    default:
+      fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
+	      state.pgc->cell_playback_tbl[state.cellN - 1].block_mode,
+	      state.pgc->cell_playback_tbl[state.cellN - 1].block_type);
     }
     break;
   }
   
+  
+  /* Figure out the correct pgN for the new cell */ 
+  if(set_PGN())
+    play_PGC_post();
+
   return play_Cell();
-} 
+}
 
 
 static link_t play_PGC_post(void)
@@ -780,8 +842,8 @@ static link_t process_command(link_t link_values)
 	set_spu_palette(state.pgc->palette); // Erhum...
 	
 	/* These should never be set in SystemSpace and/or MenuSpace */ 
-	/* state.TT_REG = rsm_tt; ?? */
-	/* state.PGC_REG = state.rsm_pgcN; ?? */
+	/* state.TTN_REG = rsm_tt; ?? */
+	/* state.TT_PGCN_REG = state.rsm_pgcN; ?? */
 	for(i = 0; i < 5; i++) {
 	  state.registers.SPRM[4 + i] = state.rsm_regs[i];
 	}
@@ -845,7 +907,7 @@ static link_t process_command(link_t link_values)
       link_values = play_PGC();
       break;
     case JumpVTS_PTT:
-      assert(state.domain == VTSM_DOMAIN); //??
+      assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
       if(get_VTS_PTT(state.vtsN, link_values.data1, link_values.data2) == -1)
 	assert(3 == 4);
       link_values = play_PG();
@@ -974,7 +1036,6 @@ static int get_VTS_TT(int vtsN, int vts_ttn)
   assert(pgcN != -1);
   
   state.VTS_TTN_REG = vts_ttn;
-  state.PGC_REG = pgcN; // ??
   /* Any other registers? */
   
   return get_PGC(pgcN);
@@ -1001,8 +1062,7 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
   
   //state.TTN_REG = ?? 
   state.VTS_TTN_REG = vts_ttn;
-  state.PGC_REG = pgcN; // ??
-  state.PTT_REG = part; // ?? part or PG ? does it matter?
+  /* Any other registers? */
   
   state.pgN = pgN; // ??
   
@@ -1066,8 +1126,8 @@ static int get_PGC(int pgcN)
   state.pgc = pgcit->pgci_srp[pgcN - 1].pgc;
   
   if(state.domain == VTS_DOMAIN)
-    state.PGC_REG = pgcN; // ??  
-  
+    state.TT_PGCN_REG = pgcN;
+
   return 0;
 }
 

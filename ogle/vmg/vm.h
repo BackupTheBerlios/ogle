@@ -45,9 +45,9 @@ typedef struct {
 #define TTN_REG      registers.SPRM[4]
 // VTS Title Track Number
 #define VTS_TTN_REG  registers.SPRM[5]
-#define PGC_REG      registers.SPRM[6]
+#define TT_PGCN_REG  registers.SPRM[6]
 // Current Part of Title (PTT) number for (One_Sequential_PGC_Title)
-#define PTT_REG      registers.SPRM[7]
+#define PTTN_REG     registers.SPRM[7]
 
 // Highlighted Button Number (btn nr 1 == value 1024)
 #define HL_BTNN_REG  registers.SPRM[8]
