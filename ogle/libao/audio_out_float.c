@@ -82,5 +82,5 @@ ao_instance_t * ao_float_open (char *dev)
     return NULL;
   }
   
-  return &instance;
+  return &instance.ao;
 }
