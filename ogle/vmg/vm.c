@@ -986,8 +986,9 @@ static int next_PG(link_t *link_values)
       //return -1; // there is no next PG
       /* We think that the following makes more sense though. */
       *link_values = play_PGC_post();
+    } else {
+      *link_values = play_PGC();
     }
-    *link_values = play_PGC();
   } else {
     state.pgN += 1;
     *link_values = play_PG();
