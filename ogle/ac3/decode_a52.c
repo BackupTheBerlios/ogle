@@ -55,6 +55,7 @@ typedef struct {
   sample_t level;
   int adjust_level;
   SampleFormat_t output_format;
+  int stereo_mode;
 } adec_a52_handle_t;
 
 
@@ -69,7 +70,7 @@ int a52flags_to_channels(int flags)
     chtypemask = ChannelType_Left | ChannelType_Right;
     break;
   case A52_MONO:
-    chtypemask = ChannelType_Center;
+    chtypemask = ChannelType_Mono;
     break;
   case A52_STEREO:
   case A52_DOLBY:
@@ -104,7 +105,7 @@ int a52flags_to_channels(int flags)
 }
 
 static
-int config_to_a52flags(audio_config_t *conf)
+int config_to_a52flags(audio_config_t *conf, int stereo_mode)
 {
   int i;
   ChannelType_t chtypemask = 0;
@@ -117,10 +118,17 @@ int config_to_a52flags(audio_config_t *conf)
       chtypemask |= conf->dst_format.ch_array[i];
   }
   switch(chtypemask) {
-  case ChannelType_Center:
+  case ChannelType_Mono:
     return A52_MONO | hasLFE;
   case ChannelType_Left | ChannelType_Right:
-    return A52_STEREO | hasLFE; // or A52_CHANNEL or A52_DOLBY
+    switch(stereo_mode) {
+    case 0:                    // left right
+      return A52_3F2R | hasLFE;    // we say 3ch so no mixing will be done
+    case 1:                    // front channels mixed to stereo
+      return A52_STEREO | hasLFE; 
+    case 2:                    // all channels mixed to dolby stereo
+      return A52_DOLBY | hasLFE; 
+    }
   case ChannelType_Left | ChannelType_Center | ChannelType_Right:
     return A52_3F | hasLFE;
   case ChannelType_Left | ChannelType_Right | ChannelType_Surround:
@@ -290,7 +298,8 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
 	    break;
 	  }
 	  //change config into a52dec flags
-	  handle->output_flags = config_to_a52flags(handle->handle.config);
+	  handle->output_flags = config_to_a52flags(handle->handle.config,
+						    handle->stereo_mode);
 	}
 	
       }
@@ -519,6 +528,6 @@ adec_handle_t *init_a52(void)
   handle->disable_dynrng = !get_a52_drc();
   handle->level = (sample_t)get_a52_level();
   handle->adjust_level = 1;
-
+  handle->stereo_mode = get_a52_stereo_mode();
   return (adec_handle_t *)handle;
 }
