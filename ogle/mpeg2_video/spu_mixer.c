@@ -332,7 +332,14 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
   //DNOTE("spu_mixer: len: %d\n", len);
   //DNOTE("spu_mixer: readlen: %d\n", readlen);
   //DNOTE("spu_mixer: read_offset: %d\n", read_offset);
-
+  
+  if((readlen + read_offset) < len) {
+    if((PTS_DTS_flags & 0x2) && (readlen != 2)) {
+      read_offset = 0;
+      DNOTE("%s", "Invalid SPU packet?\n");
+      return -1;
+    }
+  }
   if((readlen + read_offset) > len) {
     cpy_len = len-read_offset;
     //DNOTE("spu_mixer: bigger than available\n");
@@ -419,6 +426,8 @@ static int get_data(uint8_t *databuf, int bufsize,
 	bytes_to_read -= r;
       } else if(r < 0) {
 	perror("read");
+	state = 0;
+	bytes_to_read = 0;
 	return -1;
       } else if(r == 0) {
 	/* no more elements in q at this moment */
@@ -428,10 +437,12 @@ static int get_data(uint8_t *databuf, int bufsize,
     }
     
     spu_size = (databuf[0]<<8) | databuf[1];
-    
+
     if(spu_size > bufsize) {
       // databuf not big enough
       ERROR("%s", "buffer too small\n");
+      state = 0;
+      bytes_to_read = 0;
       return -1;
     }
     
@@ -449,6 +460,8 @@ static int get_data(uint8_t *databuf, int bufsize,
       bytes_to_read -= r;
     } else if(r < 0) {
       perror("read");
+      state = 0;
+      bytes_to_read = 0;
       return -1;
     } else  {
       /* no more elements in q at this time */
@@ -1057,9 +1070,10 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
   if(spu_info->next_time == 0) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
+      unsigned char *b = spu_info->next_buffer;
       
-      if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
-		   &spu_info->base_time, &spu_info->scr_nr)) {
+      if(get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
+		   &spu_info->base_time, &spu_info->scr_nr) <= 0) {
 	if(flush_to_scrid != -1) {
 	  // FIXME: assumes order of src_nr
 	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
@@ -1119,7 +1133,7 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
   //  timesub(&errtime, &spu_info->next_time, &realtime);
 
   if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
-    //DNOTE("spu: errtime: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
+    //DNOTE("spu: errtime: %ld.%09ld\n",TIME_S(errtime),TIME_SS(errtime));
     return 1;
   }
   
@@ -1177,7 +1191,6 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
   if(!initialized) {
     return 0;
   }
-  
   while(next_spu_cmd_pending(&spu_info)) {
 
     if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
