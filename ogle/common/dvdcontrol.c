@@ -10,8 +10,17 @@
 #include <unistd.h>
 #include <sys/msg.h>
 
-#include "msgevents.h"
-#include "dvdcontrol.h"
+#include <msgevents.h>
+#include <dvdcontrol.h>
+
+
+/**
+ * Internally seen type for the handle to a DVD navigator
+ */
+typedef struct {
+  MsgEventClient_t client;
+  MsgEventQ_t *msgq;
+} DVDNav_t;
 
 
 /**

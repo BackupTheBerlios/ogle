@@ -3,7 +3,8 @@
 builddir = `pwd`
 
 noinst_LIBRARIES = libcommon.a  
-pkglib_LTLIBRARIES = libmsgcom.la libdvdcontrol.la 
+pkglib_LTLIBRARIES = libmsgcom.la libdvdcontrol.la
+pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h
 libcommon_a_SOURCES = ip_sem.c sync.c timemath.c
 libmsgcom_la_SOURCES = msgevents.c
 libdvdcontrol_la_SOURCES = dvdcontrol.c
