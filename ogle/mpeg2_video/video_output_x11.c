@@ -297,10 +297,10 @@ static void display_init_xv(int picture_buffer_shmid,
 			    int padded_width,
 			    int padded_height)
 {
+  int xv_found = 0;
 #ifdef HAVE_XV
   int i, j;
   int result;
-  int xv_found = 0;
 
   xv_port = 0; /* We have no port yet. */
   
