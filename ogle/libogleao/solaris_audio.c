@@ -44,44 +44,6 @@ typedef struct solaris_instance_s {
 } solaris_instance_t;
 
 
-/* The one directly exported function */
-ogle_ao_instance_t *ao_solaris_open(char *dev)
-{
-  return solaris_open(dev);
-}
-
-
-static 
-ogle_ao_instance_t *solaris_open(char *dev)
-{
-    solaris_instance_t *instance;
-    
-    instance = malloc(sizeof(solaris_instance_t));
-    if(instance == NULL)
-      return NULL;
-    
-    instance->ao.init   = solaris_init;
-    instance->ao.play   = solaris_play;
-    instance->ao.close  = solaris_close;
-    instance->ao.odelay = solaris_odelay;
-    instance->ao.flush  = solaris_flush;
-    instance->ao.drain  = solaris_drain;
-    
-    instance->initialized = 0;
-    instance->sample_rate = 0;
-    instance->samples_written = 0;
-    instance->sample_size = 0;
-    
-    instance->fd = open(dev, O_WRONLY);
-    if(instance->fd < 0) {
-      fprintf(stderr, "Can not open %s\n", dev);
-      free(instance);
-      return NULL;
-    }
-    
-    return (ogle_ao_instance_t *)instance;
-}
-
 static
 int solaris_init(ogle_ao_instance_t *_instance,
 		 ogle_ao_audio_info_t *audio_info)
@@ -131,7 +93,7 @@ int solaris_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
   solaris_instance_t *instance = (solaris_instance_t *)_instance;
   int written;
   
-  written = write(instance->fd, samples, nbyte)
+  written = write(instance->fd, samples, nbyte);
   if(written == -1) {
     perror("audio write");
     return -1;
@@ -238,6 +200,43 @@ int solaris_drain(ogle_ao_instance_t *_instance)
   ioctl(instance->fd, AUDIO_DRAIN, 0);
   
   return 0;
+}
+
+static 
+ogle_ao_instance_t *solaris_open(char *dev)
+{
+    solaris_instance_t *instance;
+    
+    instance = malloc(sizeof(solaris_instance_t));
+    if(instance == NULL)
+      return NULL;
+    
+    instance->ao.init   = solaris_init;
+    instance->ao.play   = solaris_play;
+    instance->ao.close  = solaris_close;
+    instance->ao.odelay = solaris_odelay;
+    instance->ao.flush  = solaris_flush;
+    instance->ao.drain  = solaris_drain;
+    
+    instance->initialized = 0;
+    instance->sample_rate = 0;
+    instance->samples_written = 0;
+    instance->sample_size = 0;
+    
+    instance->fd = open(dev, O_WRONLY);
+    if(instance->fd < 0) {
+      fprintf(stderr, "Can not open %s\n", dev);
+      free(instance);
+      return NULL;
+    }
+    
+    return (ogle_ao_instance_t *)instance;
+}
+
+/* The one directly exported function */
+ogle_ao_instance_t *ao_solaris_open(char *dev)
+{
+  return solaris_open(dev);
 }
 
 #endif
