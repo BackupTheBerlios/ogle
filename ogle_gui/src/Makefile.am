@@ -4,8 +4,8 @@ INCLUDES = \
 	-I$(top_srcdir)/intl \
 	$(DVD_INCLUDEDIR) \
 	$(GTK_CFLAGS) \
-	@LIBGLADE_CFLAGS@ \
-	@XML_CFLAGS@
+	@XML_CFLAGS@ \
+	@LIBGLADE_CFLAGS@
 
 # To get ogle_gui installed in the ogle pkglibdir
 pkglibdir=$(libdir)/ogle
