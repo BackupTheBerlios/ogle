@@ -32,10 +32,11 @@
 #include <inttypes.h>
 
 #include "yuv2rgb.h"
+#include "yuv2rgb_mmx.h"
 #include "yuv2rgb_mlib.h"
 #include "yuv2rgb_mmx.h"
 
-yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode);
+static yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode);
 
 yuv2rgb_fun yuv2rgb;
 
@@ -494,7 +495,7 @@ static void createCLUT(uint32_t bpp, uint32_t mode)
   }  
 }
 
-yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode) 
+static yuv2rgb_fun yuv2rgb_c_init(uint32_t bpp, uint32_t mode) 
 {  
   int i;
   
