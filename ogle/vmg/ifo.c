@@ -599,17 +599,21 @@ typedef struct
   uint8_t bytes [2048];
 } buffer_t;
 
-void ifoPrint_COMMAND(uint8_t *command) {
-  buffer_t buffer;
+void print_bits(int num, uint8_t bits) {
   int i;
-  memcpy(buffer.bytes, command, 8);
-  buffer.bit_position = 0;
+  for(i = 0; i < num; i++)
+    putchar('0' + (bits >> (num-i-1) & 1));
+}
 
-  printf("OMS:  ");
-  ifoPrintVMOP (buffer.bytes);
-  printf("\n");
-  printf("VDMP: ");
-  dump_command(stdout, buffer);
+void ifoPrint_COMMAND(int row, uint8_t *command) {
+  int i;
+
+  printf("(%03d) ", row + 1);
+  for(i=0;i<8;i++)
+    printf("%02x ", command[i]);
+  printf("| ");
+
+  vmcmd(command);
   printf("\n");
 }
 
@@ -623,21 +627,21 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_pre;i++) {
-      ifoPrint_COMMAND(cmd_tbl->pre_commands[i]);
+      ifoPrint_COMMAND(i, cmd_tbl->pre_commands[i]);
     }
   }
   PUT(5, "Number of Post commands: %i\n", cmd_tbl->nr_of_post);
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_post;i++) {
-      ifoPrint_COMMAND(cmd_tbl->post_commands[i]);
+      ifoPrint_COMMAND(i, cmd_tbl->post_commands[i]);
     }
   }
   PUT(5, "Number of Cell commands: %i\n", cmd_tbl->nr_of_cell);
   {
     int i;
     for(i=0;i<cmd_tbl->nr_of_cell;i++) {
-      ifoPrint_COMMAND(cmd_tbl->cell_commands[i]);
+      ifoPrint_COMMAND(i, cmd_tbl->cell_commands[i]);
     }
   }
 }
