@@ -303,9 +303,9 @@ void ifoRead_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr, int offset)
 }
 
 
-void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int offset) {
+void ifoRead_CELL_PLAYBACK_TBL(cell_playback_t *cell_playback, int nr, int offset) {
   int i;
-  int size = nr * sizeof(cell_playback_tbl_t);
+  int size = nr * sizeof(cell_playback_t);
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_playback, size, 1, ifo_file) != 1) {
@@ -332,9 +332,9 @@ void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int o
 }
 
 
-void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int offset) {
+void ifoRead_CELL_POSITION_TBL(cell_position_t *cell_position, int nr, int offset) {
   int i;
-  int size = nr * sizeof(cell_position_tbl_t);
+  int size = nr * sizeof(cell_position_t);
   
   fseek(ifo_file, offset, SEEK_SET);
   if(fread(cell_position, size, 1, ifo_file) != 1) {
@@ -420,7 +420,7 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   
   if(pgc->cell_playback_tbl_offset != 0) {
     pgc->cell_playback_tbl = malloc(pgc->nr_of_cells * 
-				    sizeof(cell_playback_tbl_t));
+				    sizeof(cell_playback_t));
     ifoRead_CELL_PLAYBACK_TBL(pgc->cell_playback_tbl, pgc->nr_of_cells,
 			      offset + pgc->cell_playback_tbl_offset);
   } else {
@@ -429,7 +429,7 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
   
   if(pgc->cell_position_tbl_offset != 0) {
     pgc->cell_position_tbl = malloc(pgc->nr_of_cells * 
-				    sizeof(cell_position_tbl_t));
+				    sizeof(cell_position_t));
     ifoRead_CELL_POSITION_TBL(pgc->cell_position_tbl, pgc->nr_of_cells, 
 			      offset + pgc->cell_position_tbl_offset);
   } else {

@@ -32,22 +32,22 @@
 #include "nav_print.h"
 #include "vm.h"
 
-
-/* these lengths in bytes, exclusive of start code and length */
-#define PCI_BYTES 0x3d4
-#define DSI_BYTES 0x3fa
-
-#define COMMAND_BYTES 8
-
-extern MsgEventQ_t *msgq;
-
 extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int get_q(MsgEventQ_t *msgq, char *buffer);
 extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
-int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
+// vm.c
+extern MsgEventQ_t *msgq;
+extern dvd_state_t state;
+extern int reset_vm(void);
+extern int start_vm(void);
+extern int eval_cmd(vm_cmd_t *cmd);
+extern int get_next_cell();
+
+
+
 
 
 static void send_demux_sectors(int start_sector, int nr_sectors, 
@@ -110,27 +110,40 @@ void send_highlight(int x_start, int y_start, int x_end, int y_end,
   }
 }
 
+/** 
+ * Check if mouse coords are over any highlighted area.
+ * 
+ * @return The button number if the the coordinate is enclosed in the area.
+ * Zero otherwise.
+ */
 
-int process_event(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_nr) {
+int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
+  int button = 1;
+  while(button <= pci->hli.hl_gi.btn_ns) {
+    if( (x >= pci->hli.btnit[button-1].x_start)
+	&& (x <= pci->hli.btnit[button-1].x_end) 
+	&& (y >= pci->hli.btnit[button-1].y_start) 
+	&& (y <= pci->hli.btnit[button-1].y_end )) 
+      return button;
+    button++;
+  }
+  return 0;
+}
+
+int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_nr) {
   int is_action = 0;
   
-  /* Check for and read any user input */
-  /* Must not consume events after a 'enter/click' event. (?) */
-  
-#if 0
-  // A button has already been activated, discard this event
-  if(is_action)
-    return is_action;
-#endif
-  
-  /* Do async user input processing. Like angles change, audio change, 
-   * subpicture change and answer attribute querry requests.
-   */
   /* MORE CODE HERE :) */
+  
+  /* Paranoia.. */
   
   // No highlight/button pci info to use
   if((pci->hli.hl_gi.hli_ss & 0x03) == 0)
     return 0;
+  // Selected buton > than max button ?
+  // FIXME $$$ check how btn_ofn affects things like this
+  if(*btn_nr > pci->hli.hl_gi.btn_ns)
+    *btn_nr = 1;
   
   switch(ce->type) {
   case DVDCtrlUpperButtonSelect:
@@ -175,6 +188,7 @@ int process_event(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_nr) {
     break;
   }
   
+  
   /* Must check if the current selected button has auto_action_mode !!! */
   switch(pci->hli.btnit[*btn_nr - 1].auto_action_mode) {
   case 0:
@@ -189,7 +203,9 @@ int process_event(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_nr) {
     fprintf(stderr, "Unknown auto_action_mode!! btn: %d\n", *btn_nr);
     exit(1);
   }
- 
+  
+  
+  /* If a new button has been selected or if one has been activated. */
   /* Determine the correct area and send the information to the spu decoder. */
   /* Possible optimization: don't send if its the same as last time. */
   {
@@ -201,6 +217,7 @@ int process_event(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_nr) {
   }
   return is_action;
 }
+
 
 static void process_pci(pci_t *pci, uint16_t *btn_nr) {
   
@@ -234,40 +251,17 @@ static void process_pci(pci_t *pci, uint16_t *btn_nr) {
   
 }
 
-/** 
- * Check if mouse coords are over any highlighted area.
- * 
- * @return The button number if the the coordinate is enclosed in the area.
- * Zero otherwise.
- */
-
-int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
-  int button = 1;
-  while(button <= pci->hli.hl_gi.btn_ns) {
-    if( (x >= pci->hli.btnit[button-1].x_start)
-	&& (x <= pci->hli.btnit[button-1].x_end) 
-	&& (y >= pci->hli.btnit[button-1].y_start) 
-	&& (y <= pci->hli.btnit[button-1].y_end )) 
-      return button;
-    button++;
-  }
-  return 0;
-}
 
 
-
-
-vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
+vm_cmd_t eval_cell(char *vob_name, cell_playback_t *cell, 
 		   int block, dvd_state_t *state) {
   char buffer[2048];
-  int len, pending_packets;
+  int len, pending_packets, still_time, res = 0;
   pci_t pci;
   dsi_t dsi;
   vm_cmd_t cmd;
-  int still_time;
-  int res = 0;
   /* To avoid having to do << 10 and >> 10 all the time we make a local copy */
-  uint16_t sl_button_nr = state->registers.SPRM[8] >> 10;
+  uint16_t sl_button_nr = state->HL_BTNN_REG >> 10;
 
   memset(&pci, 0, sizeof(pci_t));
   memset(&dsi, 0, sizeof(dsi_t));
@@ -327,6 +321,9 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
       switch(ev.type) {
       case MsgEventQDVDCtrl:
 	
+  /* Do async user input processing. Like angles change, audio change, 
+   * subpicture change and answer attribute querry requests.
+   */
 	switch(ev.dvdctrl.cmd.type) {
 	case DVDCtrlLeftButtonSelect:
 	case DVDCtrlRightButtonSelect:
@@ -341,7 +338,7 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
 	  // A button has already been activated, discard this event
 	  if(res == 0)
 	    /* Processes user input, and send highlight info to spu */
-	    res = process_event(&ev.dvdctrl.cmd, &pci, &sl_button_nr);
+	    res = process_button(&ev.dvdctrl.cmd, &pci, &sl_button_nr);
 	  break;
 	  
 	case DVDCtrlMenuCall:
@@ -504,21 +501,58 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
   /* FIXME TODO XXX $$$ */
   if(res == 1) {
     /* Save other state too (i.e maybe RSM info) */
-    state->registers.SPRM[8] = sl_button_nr << 10;
+    state->HL_BTNN_REG = sl_button_nr << 10;
     memcpy(&cmd, &pci.hli.btnit[sl_button_nr - 1].cmd, sizeof(vm_cmd_t));
     return cmd;
   }
   if(res == 2) { // Set resume info so that we can fail..
     /* Save other state too (i.e maybe RSM info) */
-    state->registers.SPRM[8] = sl_button_nr << 10;
+    state->HL_BTNN_REG = sl_button_nr << 10;
     state->rsm_blockN = block;
     /* cmd contains the command that the nav/ui want to run. */
     return cmd;
   }
   
   /* Save other state too (i.e maybe RSM info) */
-  state->registers.SPRM[8] = sl_button_nr << 10;
+  state->HL_BTNN_REG = sl_button_nr << 10;
   memset(&cmd, 0, sizeof(vm_cmd_t)); // mkNOP
   return cmd;
 }
 
+
+void do_run(void) {
+  
+  start_vm();
+  
+  /* For now we emulate to old system to be able to test */
+  while(1) {
+    vm_cmd_t cmd;
+    char name[16];
+    cell_playback_t *cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
+    
+    //DEBUG
+    {
+      ifoPrint_time(5, &cell->playback_time); printf("\n");
+      
+      // Make file name
+      if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
+	snprintf(name, 14, "VIDEO_TS.VOB");
+      } else {
+	char part = '0'; 
+	if(state.domain != VTSM_DOMAIN) // This is wrong
+	  part += cell->first_sector/(1024  * 1024 * 1024 / 2048) + 1;
+	snprintf(name, 14, "VTS_%02i_%c.VOB", state.vtsN, part);
+      }
+      printf("%s\t", name);
+      printf("VOB ID: %3i, Cell ID: %3i at sector: 0x%08x - 0x%08x\n",
+	     state.pgc->cell_position_tbl[state.cellN - 1].vob_id_nr,
+	     state.pgc->cell_position_tbl[state.cellN - 1].cell_nr,
+	     cell->first_sector, cell->last_sector);
+    }
+    
+    cmd = eval_cell(name, cell, /* rsm_block */ 0, &state);
+    
+    eval_cmd(&cmd); // Returns True if it caused a jump
+    get_next_cell();
+  }
+}  

@@ -554,7 +554,7 @@ void ifoPrint_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr) {
   }
 }
 
-void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
+void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_t *cell_playback, int nr) {
   int i;
   if(cell_playback == NULL) {
     PUT(5, "No Cell Playback info present\n");
@@ -621,7 +621,7 @@ void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
   }
 }
 
-void ifoPrint_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr) {
+void ifoPrint_CELL_POSITION_TBL(cell_position_t *cell_position, int nr) {
   int i;
   if(cell_position == NULL) {
     PUT(5, "No Cell Position info present\n");

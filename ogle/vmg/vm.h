@@ -16,13 +16,21 @@ typedef enum {
 */
 typedef struct {
   registers_t registers;
+  
+  pgc_t *pgc; // either this or *pgc is enough?
+  
   domain_t domain;
-  int pgN;
+  int vtsN; // 0 is vmgm?
+  int pgcN; // either this or *pgc is enough. Which to use?
+  int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN;
+
+  /* Resume info */
   int rsm_vtsN;
+  int rsm_blockN; /* of nav_packet */
+  uint16_t rsm_regs[5];
   int rsm_pgcN;
   int rsm_cellN;
-  int rsm_blockN;
 } dvd_state_t;
 
 
@@ -37,6 +45,12 @@ typedef struct {
 // VTS Title Track Number
 #define VTS_TTN_REG  registers.SPRM[5]
 #define PGC_REG      registers.SPRM[6]
+// Current Part of Title (PTT) number for (One_Sequential_PGC_Title)
+#define PTT_REG      registers.SPRM[7]
+
+// Highlighted Button Number (btn nr 1 == value 1024)
+#define HL_BTNN_REG  registers.SPRM[8]
+
 // Parental Level
 #define PTL_REG      registers.SPRM[13]
 

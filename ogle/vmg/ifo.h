@@ -252,13 +252,13 @@ typedef struct { // Cell Playback Information
   uint32_t first_ilvu_end_sector;
   uint32_t last_vobu_start_sector;
   uint32_t last_sector;
-} __attribute__ ((packed)) cell_playback_tbl_t;
+} __attribute__ ((packed)) cell_playback_t;
 
 typedef struct { // Cell Position Information
   uint16_t vob_id_nr;
   uint8_t  zero_1;
   uint8_t  cell_nr;
-} __attribute__ ((packed)) cell_position_tbl_t;
+} __attribute__ ((packed)) cell_position_t;
 
 typedef struct { // Program Chain Information
   uint16_t zero_1;
@@ -283,8 +283,8 @@ typedef struct { // Program Chain Information
   uint16_t cell_position_tbl_offset;
   pgc_command_tbl_t *pgc_command_tbl;
   pgc_program_map_t  *pgc_program_map;
-  cell_playback_tbl_t *cell_playback_tbl;
-  cell_position_tbl_t *cell_position_tbl;
+  cell_playback_t *cell_playback_tbl;
+  cell_position_t *cell_position_tbl;
 } __attribute__ ((packed)) pgc_t;
 #define PGC_SIZE 236
 
