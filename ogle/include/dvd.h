@@ -3,11 +3,27 @@
 
 #include <inttypes.h>
 
+/**
+ * Possible return values from DVD functions.
+ */
 typedef enum {
-  DVD_E_Ok = 0,
-  DVD_E_Unspecified = 127,
-  DVD_E_NotImplemented = 128
+  DVD_E_Ok = 0,               /**< Success, No Error */
+  DVD_E_Unspecified = 127,    /**< An Error */
+  DVD_E_NotImplemented = 128,  /**< The function is not implemented */
+  DVD_E_NOMEM
 } DVDResult_t;
+
+
+/**
+ * DVD Domain
+ */
+typedef enum {
+  DVD_DOMAIN_FirstPlay,  /**< First Play Domain */
+  DVD_DOMAIN_VMG,        /**< Video Manager Domain */
+  DVD_DOMAIN_VTSMenu,    /**< Video Title Set Menu Domain */
+  DVD_DOMAIN_VTSTitle,   /**< Video Title Set Domain */
+  DVD_DOMAIN_Stop,       /**< Stop Domain */
+} DVDDomain_t;
 
 /**
  * DVD Menu
@@ -21,6 +37,9 @@ typedef enum {
   DVD_MENU_Part       = 7  /**< TBD */
 } DVDMenuID_t;
 
+/**
+ * User operations
+ */
 typedef enum {
   UOP_FLAG_TitleOrTimePlay            = 0x00000001, 
   UOP_FLAG_ChapterSearchOrPlay        = 0x00000002, 
@@ -49,8 +68,14 @@ typedef enum {
   UOP_FLAG_VideoPresModeChange        = 0x01000000 
 } DVDUOP_t;
 
+/**
+ * Language ID
+ */
 typedef uint16_t DVDLangID_t;
 
+/**
+ * Register
+ */
 typedef uint16_t DVDRegister_t;
 
 typedef enum {

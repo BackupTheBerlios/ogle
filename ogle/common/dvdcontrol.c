@@ -1,15 +1,22 @@
-#include <unistd.h>
+/** @file
+ * DVD navigator interface.
+ * This file contains the functions that form the interface to
+ * the DVD navigator. These are the functions a user interface
+ * should use to control DVD playback.
+ */
+
+#include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <sys/msg.h>
 
 #include "msgevents.h"
 #include "dvdcontrol.h"
 
 
-//TODO alloc handles for each pid?
-static MsgEventQ_t *msgq;
-static MsgEventClient_t nav_client;
-
+/**
+ * Get the id of the DVD navigator client.
+ */
 static MsgEventClient_t get_nav_client(MsgEventQ_t *msq)
 {
   MsgEvent_t ev;
@@ -28,426 +35,79 @@ static MsgEventClient_t get_nav_client(MsgEventQ_t *msq)
   return ev.gntcapability.capclient;
 }
 
-DVDResult_t DVDOpen(int msgqid) {
+
+/** @defgroup dvdnav DVD navigator functions
+ * These functions are used for controlling playback of a DVD.
+ *
+ * The functions are divided into two groups,
+ * the @link dvdinfo DVD information functions @endlink and the
+ * the @link dvdctrl DVD control functions @endlink. 
+ *
+ * Before using any of these, a connection to the DVD navigator
+ * must be created by using the DVDOpenNav() function.
+ * 
+ * When the connection is not needed anymore the
+ * DVDCloseNav() function should be used.
+ *
+ * The return values from these functions may be used as
+ * an argument to DVDPerror() to generate
+ * human readable error messages.
+ * @{
+ */
+
+
+/**
+ * Get a connection to the DVD navigator
+ * @todo something
+ */
+DVDResult_t DVDOpenNav(DVDNav_t **nav, int msgqid) {
   
-  if(msgq != NULL) {
-    fprintf(stderr, "dvdcontrol: allready open\n");
+  *nav = (DVDNav_t *)malloc(sizeof(DVDNav_t));
+  if(*nav == NULL) {
+    return DVD_E_NOMEM;
+  }
+  
+  if(((*nav)->msgq = MsgOpen(msgqid)) == NULL) {
+    free(*nav);
+    return DVD_E_Unspecified;
+  }
+
+  (*nav)->client = get_nav_client((*nav)->msgq);
+  
+  if((*nav)->client == CLIENT_NONE) {
+    free(*nav);
     return DVD_E_Unspecified;
   }
   
-  if((msgq = MsgOpen(msgqid)) == NULL) {
+  return DVD_E_Ok;
+}
+
+/**
+ * Close the connection to the DVD navigator.
+ * @todo something
+ */
+DVDResult_t DVDCloseNav(DVDNav_t *nav) {
+  
+  if(nav->msgq == NULL) {
+    fprintf(stderr, "dvdcontrol: already closed\n");
     return DVD_E_Unspecified;
   }
-
-  nav_client = get_nav_client(msgq);
   
-  if(nav_client == CLIENT_NONE) {
-    return DVD_E_Unspecified;
-  }
+  MsgClose(nav->msgq);
+  
+  nav = NULL;
   
   return DVD_E_Ok;
 }
-
-
-/*** info commands ***/
-
-DVDResult_t DVDGetAllGPRMs(const DVDGPRMArray_t *Registers)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetAllSPRMs(const DVDSPRMArray_t *Registers)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetCurrentUOPS(const DVDUOP_t *uop)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetAudioAttributes(DVDAudioStream_t StreamNr,
-				  const DVDAudioAttributes_t *Attr)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetAudioLanguage(DVDAudioStream_t StreamNr,
-				const DVDLangID_t *Language)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetCurrentAudio(const int *StreamsAvailable,
-			       const DVDAudioStream_t *CurrentStream)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDIsAudioStreamEnabled(DVDAudioStream_t StreamNr,
-				    const DVDBool_t *Enabled)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetDefaultAudioLanguage(const DVDLangID_t *Language,
-				       const DVDAudioLangExt_t *AudioExtension)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetCurrentAngle(const int *AnglesAvailable,
-			       const DVDAngle_t *CurrentAngle)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDGetCurrentVideoAttributes(const DVDVideoAttributes_t *Attr)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-/*** end info commands ***/
-
-
-
-/*** control commands ***/
-
-DVDResult_t DVDLeftButtonSelect(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlLeftButtonSelect;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDRightButtonSelect(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlRightButtonSelect;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDUpperButtonSelect(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlUpperButtonSelect;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDLowerButtonSelect(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlLowerButtonSelect;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDButtonActivate(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlButtonActivate;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDButtonSelect(int Button)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlButtonSelect;
-  ev.dvdctrl.cmd.button.nr = Button;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDButtonSelectAndActivate(int Button)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlButtonSelectAndActivate;
-  ev.dvdctrl.cmd.button.nr = Button;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDMouseSelect(int x, int y)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlMouseSelect;
-  ev.dvdctrl.cmd.mouse.x = x;
-  ev.dvdctrl.cmd.mouse.y = y;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDMouseActivate(int x, int y)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlMouseActivate;
-  ev.dvdctrl.cmd.mouse.x = x;
-  ev.dvdctrl.cmd.mouse.y = y;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDMenuCall(DVDMenuID_t MenuId)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlMenuCall;
-  ev.dvdctrl.cmd.menucall.menuid = MenuId;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDResume(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlResume;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-DVDResult_t DVDGoUp(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlGoUp;
-  
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDForwardScan(double Speed)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlForwardScan;
-  ev.dvdctrl.cmd.scan.speed = Speed;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDBackwardScan(double Speed)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlBackwardScan;
-  ev.dvdctrl.cmd.scan.speed = Speed;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDNextPGSearch(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlNextPGSearch;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDPrevPGSearch(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlPrevPGSearch;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDTopPGSearch(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlTopPGSearch;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDPTTSearch(DVDPTT_t PTT)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlPTTSearch;
-  ev.dvdctrl.cmd.pttsearch.ptt = PTT;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDPTTPlay(DVDTitle_t Title, DVDPTT_t PTT)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlPTTPlay;
-  ev.dvdctrl.cmd.pttplay.title = Title;
-  ev.dvdctrl.cmd.pttplay.ptt = PTT;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDTitlePlay(DVDTitle_t Title)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlTitlePlay;
-  ev.dvdctrl.cmd.titleplay.title = Title;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDTimeSearch(DVDTimecode_t time)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
-  ev.dvdctrl.cmd.timesearch.time = time;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDTimePlay(DVDTitle_t Title, DVDTimecode_t time)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
-  ev.dvdctrl.cmd.timeplay.title = Title;
-  ev.dvdctrl.cmd.timeplay.time = time;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDPauseOn(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlPauseOn;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDPauseOff(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlPauseOff;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-DVDResult_t DVDStop(void)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQDVDCtrl;
-  ev.dvdctrl.cmd.type = DVDCtrlStop;
-
-  MsgSendEvent(msgq, nav_client, &ev);
-  
-  return DVD_E_Ok;
-}
-
-
-
-DVDResult_t DVDDefaultMenuLanguageSelect(DVDLangID_t Lang)
-{
-  return DVD_E_NotImplemented;
-}
-
-
-DVDResult_t DVDAudioStreamChange(DVDAudioStream_t StreamNr)
-{
-  return DVD_E_NotImplemented;
-}
-
-/*** end control commands ***/
-
 
 const static char DVD_E_Ok_STR[] = "OK";
 const static char DVD_E_Unspecified_STR[] = "Unspecified";
 const static char DVD_E_NotImplemented_STR[] = "Not Implemented";
 const static char DVD_E_NoSuchError_STR[] = "No such error code";
 
+/**
+ * Print DVD error messages
+ */
 void DVDPerror(const char *str, DVDResult_t ErrCode)
 {
   const char *errstr;
@@ -473,3 +133,836 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
 	  errstr);
 
 }
+
+
+/** @defgroup dvdinfo DVD information functions
+ * These functions are used for getting information from
+ * the DVD navigator.
+ *
+ * These functions send queries to the DVD navigator which
+ * then returns the requested information about the
+ * state of the DVD navigator or attributes of the DVD.
+ * The @link dvdctrl DVD control functions @endlink provides the functions
+ * for controlling the DVD navigator.
+ * @{
+ */
+
+/**
+ * Get the contents of all General Parameters
+ * @todo implement function
+ */
+DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, const DVDGPRMArray_t *Registers)
+{
+  return DVD_E_NotImplemented;
+}
+
+/**
+ * Get the contents of all System Parameters
+ * @todo implement function
+ */
+DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, const DVDSPRMArray_t *Registers)
+{
+  return DVD_E_NotImplemented;
+}
+
+/**
+ * Get the current allowed user operations
+ * @todo implement function
+ */
+DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
+{
+  return DVD_E_NotImplemented;
+}
+
+/**
+ * Get the attributes of the specified audio stream.
+ * @todo Implement function.
+ * 
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies the audio stream which attributes
+ * will be retrieved.
+ * @param Attr Points to where the attributes of the specified
+ * audio stream will be written.
+ *
+ * @return If successful DVD_E_Ok is returned and the attributes
+ * pointed to by Attr have been updated. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented. 
+ */
+DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
+				  const DVDAudioAttributes_t *Attr)
+{
+  return DVD_E_NotImplemented;
+}
+
+/** 
+ * Get the language of an audio stream.
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param StreamNr Specifies the audio stream which laguage code
+ * will be retrieved.
+ * @param Language Points to where the language code of the
+ * specified audio stream will be written.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
+				const DVDLangID_t *Language)
+{
+  return DVD_E_NotImplemented;
+}
+
+/** 
+ * Get the number of available audio streams and the current
+ * @todo Implement function.
+ * @param nav Specifies the connection to the DVD navigator.
+ */
+DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, const int *StreamsAvailable,
+			       const DVDAudioStream_t *CurrentStream)
+{
+  return DVD_E_NotImplemented;
+}
+
+/**
+ * Check if an audio stream is enabled
+ * @todo Implement function.
+ * @param nav Specifies the connection to the DVD navigator.
+ */
+DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
+				    const DVDBool_t *Enabled)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
+				       const DVDLangID_t *Language,
+				       const DVDAudioLangExt_t *AudioExtension)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, const int *AnglesAvailable,
+			       const DVDAngle_t *CurrentAngle)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
+					 const DVDVideoAttributes_t *Attr)
+{
+  return DVD_E_NotImplemented;
+}
+
+/** @} end of dvdinfo */
+
+
+
+/** @defgroup dvdctrl DVD control functions
+ * These functions are used for controlling the
+ * DVD navigator.
+ *
+ * These functions send commands and state information
+ * to the DVD navigator. The DVD navigator performs the requested
+ * actions if possible and updates the state.
+ * The @link dvdinfo DVD information functions @endlink provides
+ * the functions for getting information from the DVD navigator.
+ * @{
+ */
+
+
+/** 
+ * Selects the button to the left of the current one.
+ * @todo add mode return values
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlLeftButtonSelect;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/**
+ * Selects the button to the right of the current one.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDRightButtonSelect(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlRightButtonSelect;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects the button above the current one.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlUpperButtonSelect;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects the button below the current one.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDLowerButtonSelect(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlLowerButtonSelect;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Activates the button currently selected.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDButtonActivate(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlButtonActivate;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects the specified button.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Button Specifies the button to select.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDButtonSelect(DVDNav_t *nav, int Button)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlButtonSelect;
+  ev.dvdctrl.cmd.button.nr = Button;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects and activates the specified button.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Button Specifies the button to select and activate.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDButtonSelectAndActivate(DVDNav_t *nav, int Button)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlButtonSelectAndActivate;
+  ev.dvdctrl.cmd.button.nr = Button;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects the button at the specified position.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param x Specifies the x coordinate.
+ * @param y Specifies the y coordinate.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDMouseSelect(DVDNav_t *nav, int x, int y)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlMouseSelect;
+  ev.dvdctrl.cmd.mouse.x = x;
+  ev.dvdctrl.cmd.mouse.y = y;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Selects and activates the button at the specified position.
+ * @todo add mode return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param x Specifies the x coordinate.
+ * @param y Specifies the y coordinate.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDMouseActivate(DVDNav_t *nav, int x, int y)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlMouseActivate;
+  ev.dvdctrl.cmd.mouse.x = x;
+  ev.dvdctrl.cmd.mouse.y = y;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Jumps to the specified menu.
+ * @todo add more return values
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param MenuId Specifies the menu to display.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDMenuCall(DVDNav_t *nav, DVDMenuID_t MenuId)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlMenuCall;
+  ev.dvdctrl.cmd.menucall.menuid = MenuId;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Resumes playback.
+ * @todo add more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDResume(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlResume;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Go up one level
+ * @todo better description.
+ * @todo add more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGoUp(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGoUp;
+  
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Play forward at specified speed.
+ * @todo better description.
+ * @todo add more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Speed Specifies the speed of play.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDForwardScan(DVDNav_t *nav, double Speed)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlForwardScan;
+  ev.dvdctrl.cmd.scan.speed = Speed;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * Play backward at specified speed.
+ * @todo better description.
+ * @todo add more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param Speed Specifies the speed of play.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDBackwardScan(DVDNav_t *nav, double Speed)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlBackwardScan;
+  ev.dvdctrl.cmd.scan.speed = Speed;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDNextPGSearch(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlNextPGSearch;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDPrevPGSearch(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPrevPGSearch;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDTopPGSearch(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlTopPGSearch;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDPTTSearch(DVDNav_t *nav, DVDPTT_t PTT)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPTTSearch;
+  ev.dvdctrl.cmd.pttsearch.ptt = PTT;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDPTTPlay(DVDNav_t *nav, DVDTitle_t Title, DVDPTT_t PTT)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPTTPlay;
+  ev.dvdctrl.cmd.pttplay.title = Title;
+  ev.dvdctrl.cmd.pttplay.ptt = PTT;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDTitlePlay(DVDNav_t *nav, DVDTitle_t Title)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlTitlePlay;
+  ev.dvdctrl.cmd.titleplay.title = Title;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDTimeSearch(DVDNav_t *nav, DVDTimecode_t time)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
+  ev.dvdctrl.cmd.timesearch.time = time;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlTimeSearch;
+  ev.dvdctrl.cmd.timeplay.title = Title;
+  ev.dvdctrl.cmd.timeplay.time = time;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDPauseOn(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPauseOn;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDPauseOff(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlPauseOff;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDStop(DVDNav_t *nav)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlStop;
+
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
+
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
+{
+  return DVD_E_NotImplemented;
+}
+
+/** @} end of dvdctrl */
+
+/** @} end of dvdnav */
