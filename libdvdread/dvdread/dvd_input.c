@@ -17,11 +17,12 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111, USA.
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <dlfcn.h>
 
 #include "dvd_reader.h"
 #include "dvd_input.h"
@@ -34,16 +35,26 @@ int         (*DVDinput_title) (dvd_input_t, int);
 int         (*DVDinput_read)  (dvd_input_t, void *, int, int);
 char *      (*DVDinput_error) (dvd_input_t);
 
-/* For libdvdcss */
+#ifdef HAVE_DVDCSS_DVDCSS_H
+/* linking to libdvdcss */
+#include <dvdcss/dvdcss.h>
+#define DVDcss_open(a) dvdcss_open((char*)(a))
+#define DVDcss_close   dvdcss_close
+#define DVDcss_seek    dvdcss_seek
+#define DVDcss_title   dvdcss_title
+#define DVDcss_read    dvdcss_read
+#define DVDcss_error   dvdcss_error
+#else
+/* dlopening libdvdcss */
+#include <dlfcn.h>
 typedef struct dvdcss_s *dvdcss_handle;
-
 dvdcss_handle (*DVDcss_open)  (const char *);
 int           (*DVDcss_close) (dvdcss_handle);
 int           (*DVDcss_seek)  (dvdcss_handle, int, int);
 int           (*DVDcss_title) (dvdcss_handle, int); 
 int           (*DVDcss_read)  (dvdcss_handle, void *, int, int);
 char *        (*DVDcss_error) (dvdcss_handle);
-
+#endif
 
 /* The DVDinput handle, add stuff here for new input methods. */
 struct dvd_input_s {
@@ -72,7 +83,7 @@ static dvd_input_t css_open(const char *target)
   /* Really open it with libdvdcss */
   dev->dvdcss = DVDcss_open(target);
   if(dev->dvdcss == 0) {
-    fprintf(stderr, "libdvdread: Could not open device with libdvdcss.\n");
+    fprintf(stderr, "libdvdread: Could not open %s with libdvdcss.\n", target);
     free(dev);
     return NULL;
   }
@@ -254,7 +265,15 @@ int DVDInputSetup(void)
 {
   void *dvdcss_library = NULL;
   char **dvdcss_version = NULL;
-  
+
+#ifdef HAVE_DVDCSS_DVDCSS_H
+  /* linking to libdvdcss */
+  dvdcss_library = &dvdcss_library;  /* Give it some value != NULL */
+  /* the DVDcss_* functions have been #defined at the top */
+  dvdcss_version = &dvdcss_interface_2;
+
+#else
+  /* dlopening libdvdcss */
   dvdcss_library = dlopen("libdvdcss.so.2", RTLD_LAZY);
   
   if(dvdcss_library != NULL) {
@@ -292,6 +311,7 @@ int DVDInputSetup(void)
       dlclose(dvdcss_library);
     }
   }
+#endif /* HAVE_DVDCSS_DVDCSS_H */
   
   if(dvdcss_library != NULL) {
     /*
@@ -303,7 +323,7 @@ int DVDInputSetup(void)
     fprintf(stderr, "libdvdread: Using libdvdcss version %s for DVD access\n",
 	    *dvdcss_version);
     
-    /* libdvdcss wraper functions */
+    /* libdvdcss wrapper functions */
     DVDinput_open  = css_open;
     DVDinput_close = css_close;
     DVDinput_seek  = css_seek;

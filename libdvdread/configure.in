@@ -1,9 +1,9 @@
 AC_INIT(dvdread/dvd_reader.c)
-
-AC_CANONICAL_SYSTEM
-
 AM_INIT_AUTOMAKE(libdvdread, 0.9.3-cvs)
 AM_CONFIG_HEADER(config.h)
+AM_MAINTAINER_MODE
+
+AC_CANONICAL_SYSTEM
 
 AC_PROG_CC
 AC_STDC_HEADERS
@@ -45,16 +45,63 @@ dnl
 AM_PROG_LIBTOOL
 
 dnl
-dnl We use dlopen for libdvdcss access
+dnl We use dlopen for libdvdcss access by default but if --with-libdvdcss
+dnl is given we link with it instead.
 dnl
-AC_CHECK_FUNC(dlopen, 
-  DL_LIBS="", 
-  AC_CHECK_LIB(dl, dlopen, 
-    DL_LIBS=-ldl, 
-    AC_MSG_ERROR(You need libdl (dlopen))
+link_dvdcss=no
+dvdcss_path=""
+AC_ARG_WITH([libdvdcss],
+    [  --with-libdvdcss=PATH   force linking against libdvdcss],
+    [if test x"$withval" != xno; then
+       link_dvdcss=yes
+     fi
+     if test x"$withval" != xyes; then
+       dvdcss_path=$withval
+     fi])
+
+if test x"$link_dvdcss" != xyes; then
+dnl dlopen libdvdcss
+  AC_CHECK_FUNC(dlopen, 
+    [ DL_LIBS="" ], 
+    AC_CHECK_LIB(dl, dlopen, 
+      [ DL_LIBS=-ldl ], 
+      AC_MSG_ERROR(You need libdl (dlopen))
+    )
   )
-)
+else
+dnl link with libdvdcss
+  if test -z "$dvdcss_path"; then
+    AC_CHECK_LIB(dvdcss, dvdcss_interface_2, 
+        [ CSS_LIBS=-ldvdcss ], 
+        AC_MSG_ERROR(You need libdvdcss.so.2 or later)
+        )
+    AC_CHECK_HEADERS(dvdcss/dvdcss.h, 
+      [ ],
+      AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
+    )
+  else
+    saved_CFLAGS=$CFLAGS
+    CFLAGS="$CFLAGS -L$dvdcss_path/lib"
+    AC_CHECK_LIB(dvdcss, dvdcss_interface_2, 
+        [ CSS_LIBS="-L$dvdcss_path/lib -R$dvdcss_path/lib -ldvdcss" 
+	  CSS_CFLAGS=-I$dvdcss_path/include ], 
+        AC_MSG_ERROR(You need libdvdcss.so.2 or later)
+        )
+    CFLAGS=$saved_CFLAGS
+    dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+    saved_CPPFLAGS=$CPPFLAGS
+    CPPFLAGS="-w $CPPFLAGS -I$dvdcss_path/include"
+    AC_CHECK_HEADERS(dvdcss/dvdcss.h, 
+      [ ],
+      AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
+    )
+    CPPFLAGS=$saved_CPPFLAGS
+  fi
+fi
+
 AC_SUBST(DL_LIBS)
+AC_SUBST(CSS_LIBS)
+AC_SUBST(CSS_CFLAGS)
 
 dnl 
 dnl Check for inttype.h, if not present on the system generate one in ".".
@@ -81,7 +128,7 @@ dnl
 dnl It's nice to have clean code...
 dnl
 AC_ARG_ENABLE([warnings],
-    [  --enable-warnings      enable -Wall and treat warnings as errors])
+    [  --enable-warnings       enable -Wall and treat warnings as errors])
 if test x"$enable_warnings" != xno; then
     if test x"$GCC" = xyes; then
 	OPT_CFLAGS="-Wall -Werror $CFLAGS"
