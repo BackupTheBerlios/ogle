@@ -305,7 +305,21 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
       exit(1);
     case 0:
       fprintf(stderr, "demux: dvdreadblocks returned 0\n");
-      if(tries > 3) exit(1);
+      if(tries > 3) {
+	fprintf(stderr, "\n\n" 
+"Ogle can't read any data.\n"
+"Make sure that the CSS authentication works correctly.\n"
+"See also the FAQ at http://www.dtek.chalmers.se/~dvd/faq.shtml\n"
+"Three common problems are:\n"
+"no write permission on you DVD drives device node.\n"
+"you are trying to play a DVD from a region other than the one \n"
+"of the DVD drive.\n"
+"or you have never set the region on the drive.\n\n"
+"For setting the region; a program called regionset will do this.\n"
+"Search for dvd_disc or dvdkit on freshmeat.net\n"
+"Beware that you can only sset the region 5 times!\n\n");
+	exit(1);
+      }
       tries++;
       break;
     default:
