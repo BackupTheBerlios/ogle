@@ -272,7 +272,7 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
     WARNING("error_code: %d\n", ev->error_code);
     
     use_xshm = 0;
-    WARNING("Disabling Xshm\n", 0);
+    WARNING("%s", "Disabling Xshm\n");
     return 0;
   } else {
     /* if we get another error we should handle it, 
@@ -425,7 +425,7 @@ static void display_init_xshm()
   /* Got an Image? */
   if(window.ximage == NULL) {
     // TODO: should revert to normal X in this case
-    FATAL("XShmCreateImage failed\n", 0);
+    FATAL("%s", "XShmCreateImage failed\n");
     exit(1);
   }
   
@@ -444,7 +444,7 @@ static void display_init_xshm()
 			  IPC_CREAT | 0777);
   
   if(shm_info.shmid == -1) {
-    FATAL("display_init_xshm\n", 0);
+    FATAL("%s", "display_init_xshm\n");
     perror("shmget");
     exit(1);
   }
@@ -453,7 +453,7 @@ static void display_init_xshm()
   shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
   
   if(shm_info.shmaddr == ((char *) -1)) {
-    FATAL("display_init_xshm\n", 0);
+    FATAL("%s", "display_init_xshm\n");
     perror("shmat");
     exit(1);
   }
@@ -520,7 +520,7 @@ void init_config(Display *dpy)
 
   
   if(get_video_config(&cfg_video) == -1) {
-    ERROR("init_config(): Couldn't read any config files\n", 0);
+    ERROR("%s", "init_config(): Couldn't read any config files\n");
   }
   
   DpyInfoInit(dpy, screen_nr);
@@ -651,13 +651,13 @@ void display_reset(void)
     XShmDetach(mydisplay, &shm_info);
     XDestroyImage(window.ximage);
     if(shmdt(shm_info.shmaddr) == -1) {
-      FATAL("display_reset\n", 0);
+      FATAL("%s", "display_reset\n");
       perror("shmdt");
       exit(1);
     }
     
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-      FATAL("display_reset\n", 0);
+      FATAL("%s", "display_reset\n");
       perror("shmctl");
       exit(1);
     }
@@ -701,7 +701,7 @@ void display_init(int padded_width, int padded_height,
     mydisplay = XOpenDisplay(NULL);
     
     if(mydisplay == NULL) {
-      FATAL("Cannot open display\n", 0);
+      FATAL("%s", "Cannot open display\n");
       exit(1);
     }
     
@@ -720,7 +720,7 @@ void display_init(int padded_width, int padded_height,
     color_depth = attribs.depth;
     if(color_depth != 15 && color_depth != 16 && 
        color_depth != 24 && color_depth != 32) {
-      ERROR("Only 15, 16, 24, and 32bpp supported. Trying 24bpp!\n", 0);
+      ERROR("%s", "Only 15, 16, 24, and 32bpp supported. Trying 24bpp!\n");
       color_depth = 24;
     }
     
@@ -735,7 +735,7 @@ void display_init(int padded_width, int padded_height,
     
 
     if(vinfo_list == NULL) {
-      FATAL("No suitable visual found\n", 0);
+      FATAL("%s", "No suitable visual found\n");
     } else {
       int n = 0;
 #if USE_SOLARIS_XMU
@@ -951,12 +951,12 @@ static void display_change_size(yuv_image_t *img, int new_width,
     XDestroyImage(window.ximage);
     
     if(shmdt(shm_info.shmaddr) != 0) {
-      FATAL("display_change_size", 0);
+      FATAL("%s", "display_change_size");
       perror("shmdt");
       exit(1);
     }
     if(shmctl(shm_info.shmid, IPC_RMID, 0) != 0) {
-      FATAL("display_change_size", 0);
+      FATAL("%s", "display_change_size");
       perror("shmctl");
       exit(1);
     }
@@ -973,7 +973,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				    new_height);
 
     if(window.ximage == NULL) {
-      FATAL("XShmCreateImage failed\n", 0);
+      FATAL("%s", "XShmCreateImage failed\n");
       exit(1);
     }
 
@@ -989,7 +989,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
     shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0666);
 
     if(shm_info.shmid == -1) {
-      FATAL("display_change_size", 0);
+      FATAL("%s", "display_change_size");
       perror("shmget");
       exit(1);
     }
@@ -997,7 +997,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
     /* Attach shared memory segment */
     shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
     if(shm_info.shmaddr == ((char *) -1)) {
-      FATAL("display_change_size", 0);
+      FATAL("%s", "display_change_size");
       perror("shmat");
       exit(1);
     }
@@ -1246,12 +1246,12 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    FATAL("keypress\n", 0);
+	    FATAL("%s", "keypress\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    FATAL("keypress, couldn't send notification\n", 0);
+	    FATAL("%s", "keypress, couldn't send notification\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
@@ -1294,12 +1294,12 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    FATAL("keyrelease\n", 0);
+	    FATAL("%s", "keyrelease\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    FATAL("keyrelease, couldn't send notification\n", 0);
+	    FATAL("%s", "keyrelease, couldn't send notification\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
@@ -1333,12 +1333,12 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    FATAL("buttonpress\n", 0);
+	    FATAL("%s", "buttonpress\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    FATAL("buttonpress, couldn't send notification\n", 0);
+	    FATAL("%s", "buttonpress, couldn't send notification\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
@@ -1378,12 +1378,12 @@ void check_x_events(yuv_image_t *current_image)
 	  case EIDRM:
 #endif
 	  case EINVAL:
-	    FATAL("buttonrelease\n", 0);
+	    FATAL("%s", "buttonrelease\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
 	  default:
-	    FATAL("buttonrelease, couldn't send notification\n", 0);
+	    FATAL("%s", "buttonrelease, couldn't send notification\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
@@ -1426,12 +1426,12 @@ void check_x_events(yuv_image_t *current_image)
 	    case EIDRM:
 #endif
 	    case EINVAL:
-	      FATAL("pointermotion\n", 0);
+	      FATAL("%s", "pointermotion\n");
 	      perror("MsgSendEvent");
 	      display_exit(); //TODO clean up and exit
 	      break;
 	    default:
-	      FATAL("pointermotion, couldn't send notification\n", 0);
+	      FATAL("%s", "pointermotion, couldn't send notification\n");
 	      perror("MsgSendEvent");
 	      display_exit(); //TODO clean up and exit
 	      break;

@@ -117,12 +117,12 @@ void screenshot_rgb_jpg(unsigned char *data,
   image_width  = width;	/* Number of columns in image */  
 
   
-  DNOTE("screenshot_rgb_jpg()\n", 0);
+  DNOTE("%s", "screenshot_rgb_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
 				* image_height * image_width * 3);
   
   if(jpg_buffer == NULL) {
-    FATAL("FEL!\n", 0);
+    FATAL("%s", "FEL!\n");
     exit(1);
   }
   
@@ -158,12 +158,12 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
   image_height = yuv_data->info->picture.vertical_size;
   image_width  = yuv_data->info->picture.horizontal_size;
   
-  DNOTE("screenshot_yuv_jpg()\n", 0);
+  DNOTE("%s", "screenshot_yuv_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)
 				* image_height * image_width * 3);
   
   if(jpg_buffer == NULL) {
-    FATAL("FEL!\n", 0);
+    FATAL("%s", "FEL!\n");
     exit(1);
   }
   

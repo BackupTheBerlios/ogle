@@ -322,14 +322,14 @@ int main(int argc, char **argv)
   if(msgqid != -1) {
     MsgEvent_t ev;
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      FATAL("couldn't get message qid\n", 0);
+      FATAL("%s", "couldn't get message qid\n");
       exit(1);
     }
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      DNOTE("register capabilities failed\n", 0);
+      DNOTE("%s", "register capabilities failed\n");
       //FIXME should we not retry/fail here?
     }
 
@@ -340,7 +340,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "video_decode: didn't get video_output\n");
     }
     */
-    DNOTE("## req cap\n", 0);
+    DNOTE("%s", "## req cap\n");
     while(!input_stream) {
       MsgNextEvent(msgq, &ev);
       switch(ev.type) {
@@ -348,7 +348,7 @@ int main(int argc, char **argv)
 	if(ev.gntcapability.capability & VIDEO_OUTPUT) {
 	  output_client = ev.gntcapability.capclient;
 	} else {
-	  DNOTE("got notified about capabilities not requested\n", 0);
+	  DNOTE("%s", "got notified about capabilities not requested\n");
 	}
 	break;
       default:
@@ -357,7 +357,7 @@ int main(int argc, char **argv)
       }
     }
 
-    DNOTE("got cap and stream\n", 0);
+    DNOTE("%s", "got cap and stream\n");
 
     
   }
@@ -700,7 +700,7 @@ void sequence_header(void)
     break;
   default:
     DPRINTF(2, "Reserved\n");
-    WARNING("reserved framerate found in sequence header\n", 0);
+    WARNING("%s", "reserved framerate found in sequence header\n");
     break;
   }
   
@@ -757,7 +757,7 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
   }
 
   if(*data_q_p == NULL) {
-    ERROR("detach_data_q q_shmid not found\n", 0);
+    ERROR("%s", "detach_data_q q_shmid not found\n");
     return -1;
   }
 
@@ -786,14 +786,14 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
   ev.detachq.q_shmid = q_shmid;
 
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    ERROR("couldn't send destroyq\n", 0);
+    ERROR("%s", "couldn't send destroyq\n");
   }
   
   ev.type = MsgEventQDestroyBuf;
   ev.destroybuf.shmid = data_shmid;
 
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    ERROR("couldn't send destroybuf\n", 0);
+    ERROR("%s", "couldn't send destroybuf\n");
   }
 
   return 0;
@@ -849,7 +849,7 @@ int get_output_buffer(data_q_t *data_q,
   yuv_image_t *image_bufs = NULL;
 
 
-  DNOTE("get ouput buffer\n", 0);
+  DNOTE("%s", "get ouput buffer\n");
   picture_size = ((yuv_size + (pagesize-1))/pagesize*pagesize);
   
   /* Mlib reads ?8? bytes beyond the last pel (in the v-picture), 
@@ -880,7 +880,7 @@ int get_output_buffer(data_q_t *data_q,
   ev.reqbuf.size = buf_size;
   
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    ERROR("couldn't send buffer request\n", 0);
+    ERROR("%s", "couldn't send buffer request\n");
   }
   
   while(1) {
@@ -960,7 +960,7 @@ int get_output_buffer(data_q_t *data_q,
     ev.reqpicbuf.data_buf_shmid = data_shmid;
       
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      ERROR("couldn't send picbuf request\n", 0);
+      ERROR("%s", "couldn't send picbuf request\n");
     }
     
     /* wait for answer */
@@ -985,11 +985,11 @@ int get_output_buffer(data_q_t *data_q,
       q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
       
     } else {
-      ERROR("couldn't get qbuffer\n", 0);
+      ERROR("%s", "couldn't get qbuffer\n");
     }
     
   } else {
-    ERROR("couldn't get buffer\n", 0);
+    ERROR("%s", "couldn't get buffer\n");
   }
   
 
@@ -1550,7 +1550,7 @@ int picture_header(void)
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
     if(pic.header.forward_f_code == 0) {
       pic.header.forward_f_code = 1;
-      WARNING(" ** forward_f_code == ZERO\n", 0);
+      WARNING("%s", " ** forward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
@@ -1561,7 +1561,7 @@ int picture_header(void)
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
     if(pic.header.backward_f_code == 0) {
       pic.header.backward_f_code = 1;
-      WARNING("** backward_f_code == ZERO\n", 0);
+      WARNING("%s", "** backward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
     pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
@@ -1738,7 +1738,7 @@ void picture_data(void)
       
       if(bwd_ref_temporal_reference != -1) {
 	
-	WARNING("** temporal reference skipped\n", 0);
+	WARNING("%s", "** temporal reference skipped\n");
 	
 	/* If we are in a new GOP and there is an old 
 	   undisplayed bwd_ref_temporal_reference, _don't_ use 
@@ -2013,7 +2013,7 @@ void picture_data(void)
       } else {
 	calc_rt = realtime;
 	timesub(&err_time, &calc_rt, &realtime);
-	DNOTE("time offset not valid yet\n", 0);
+	DNOTE("%s", "time offset not valid yet\n");
       }
 
       
@@ -2168,16 +2168,16 @@ void picture_data(void)
 	}
 	
 	if(bwd_ref_buf_id == -1) {
-	  WARNING(" **B-frame before any reference frame!!!\n", 0);
+	  WARNING("%s", " **B-frame before any reference frame!!!\n");
 	}
 	
 	if(fwd_ref_buf_id == -1) { // Test closed_gop too....
-	  WARNING("B-frame before forward ref frame\n", 0);
+	  WARNING("%s", "B-frame before forward ref frame\n");
 	}
 	
       } else {
 	/* TODO: what should happen if the temporal reference is wrong */
-	WARNING("** temporal reference for B-picture incorrect\n", 0);
+	WARNING("%s", "** temporal reference for B-picture incorrect\n");
 	
 	temporal_reference_error =
 	  pic.header.temporal_reference - (last_temporal_ref_to_dpy + 1)%1024;
@@ -2219,7 +2219,7 @@ void picture_data(void)
       }
     } else if(bwd_ref_temporal_reference < (last_temporal_ref_to_dpy+1)%1024) {
       
-      WARNING("** temporal reference in I or P picture incorrect\n", 0);
+      WARNING("%s", "** temporal reference in I or P picture incorrect\n");
       
     }
   }

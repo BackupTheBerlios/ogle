@@ -74,9 +74,9 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
 
   nr_configs = get_channel_configs(&configs);
   
-  DNOTE("Searching <speakers> for:\n", 0);
+  DNOTE("%s", "Searching <speakers> for:\n");
   if(chtypemask_wanted & ChannelTypeMask_Channels) {
-    DNOTE("", 0);
+    DNOTE("%s", "");
     for(n = 1; n <= 0x100; n = n << 1) {
       if(n & chtypemask_wanted) {
 	fprintf(stderr, " '%s'", channeltype_str(n));
@@ -84,7 +84,7 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
     }
     fprintf(stderr, "\n");
     if(chtypemask_wanted & ChannelTypeMask_Streams) {
-      DNOTE("or for:\n", 0);
+      DNOTE("%s", "or for:\n");
     }
   }
 
@@ -100,18 +100,18 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
     
     chtypemask_avail = 0;
     nr_ch = configs[n].nr_ch;
-    DNOTE("<channel_config>\n", 0);
+    DNOTE("%s", "<channel_config>\n");
     for(m = 0; m < nr_ch; m++) {
       chtypemask_avail |= configs[n].chtype[m];
       DNOTE("  <chtype>%s</chtype>\n", channeltype_str(configs[n].chtype[m]));
     }
-    DNOTE("</channel_config>\n", 0);
+    DNOTE("%s", "</channel_config>\n");
     /* Want some channel based format, check if we can output that. */
     if(chtypemask_wanted & ChannelTypeMask_Channels) {
       if((chtypemask_wanted & chtypemask_avail) ==
 	 (chtypemask_wanted & ChannelTypeMask_Channels)) {
 	chconf = &configs[n];
-	DNOTE("Found matching channel_config\n", 0);
+	DNOTE("%s", "Found matching channel_config\n");
 	break;
       }
     }
@@ -120,16 +120,16 @@ channel_config_t *get_config(ChannelType_t chtypemask_wanted)
       if((chtypemask_wanted & chtypemask_avail) ==
 	 (chtypemask_wanted & ChannelTypeMask_Streams)) {
 	chconf = &configs[n];
-	DNOTE("Found matching channel_config\n", 0);
+	DNOTE("%s", "Found matching channel_config\n");
 	break;
       }
     }
   }
   if((!chconf) && (nr_configs > 0)) {
     chconf = &configs[nr_configs-1];
-    DNOTE("Didn't find matching channel_config, using the last one\n", 0);
+    DNOTE("%s", "Didn't find matching channel_config, using the last one\n");
   } else if(nr_configs == 0) {
-    DNOTE("No channel configs found\n", 0);
+    DNOTE("%s", "No channel configs found\n");
   }
   
   return chconf;
@@ -253,11 +253,11 @@ int audio_config(audio_config_t *aconf,
 	  exit(1);
 	}
       } else {
-	FATAL("ogle_ao_open not taken, no audio ouput driver!\n", 0);
+	FATAL("%s", "ogle_ao_open not taken, no audio ouput driver!\n");
 	exit(1);
       }
     }
-    // DNOTE("ogle_ao_open passed\n");
+    // DNOTE("%s", "ogle_ao_open passed\n");
   }
   if(!aconf->ainfo) {
     aconf->ainfo = malloc(sizeof(ogle_ao_audio_info_t));
@@ -326,7 +326,7 @@ int audio_config(audio_config_t *aconf,
   // check return value
   if(ogle_ao_init(aconf->adev_handle, aconf->ainfo) == -1) {
 
-    FATAL("ogle_ao_init: ", 0);
+    FATAL("%s", "ogle_ao_init: ");
     if(aconf->ainfo->sample_rate == -1) {
       FATAL("sample_rate %d failed", sample_rate);
     } else if(aconf->ainfo->sample_resolution == -1 ||

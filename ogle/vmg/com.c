@@ -443,7 +443,7 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      WARNING("couldn't send notification\n", 0);
+      WARNING("%s", "couldn't send notification\n");
     }
   }
 

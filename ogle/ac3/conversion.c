@@ -74,7 +74,7 @@ int init_sample_conversion(adec_handle_t *h,
       h->output_buf_size = nr_samples * output_frame_size;
       h->output_buf = realloc(h->output_buf, h->output_buf_size);
       if(h->output_buf == NULL) {
-	FATAL("init_sample_conversion2, realloc failed\n", 0);
+	FATAL("%s", "init_sample_conversion2, realloc failed\n");
 	exit(1); // ?
       }
     }
@@ -85,7 +85,7 @@ int init_sample_conversion(adec_handle_t *h,
       h->output_buf_size = 256*6*2*2;
       h->output_buf = realloc(h->output_buf, h->output_buf_size);
       if(h->output_buf == NULL) {
-	FATAL("init_sample_conversion2, realloc failed\n", 0);
+	FATAL("%s", "init_sample_conversion2, realloc failed\n");
 	exit(1); // ?
       }
     }
@@ -95,7 +95,7 @@ int init_sample_conversion(adec_handle_t *h,
       h->output_buf_size = nr_samples * output_frame_size;
       h->output_buf = realloc(h->output_buf, h->output_buf_size);
       if(h->output_buf == NULL) {
-	FATAL("init_sample_conversion, realloc failed\n", 0);
+	FATAL("%s", "init_sample_conversion, realloc failed\n");
 	exit(1); // ?
       }
     }
@@ -106,7 +106,7 @@ int init_sample_conversion(adec_handle_t *h,
     dst_ch = h->config->dst_format.nr_channels;
     src_ch = src_format->nr_channels;
     if(dst_ch > 10) {
-      FATAL("*** more than 10 channels\n", 0);
+      FATAL("%s", "*** more than 10 channels\n");
       exit(1);
     }
     for(n = 0; n < h->config->dst_format.nr_channels; n++) {
@@ -360,7 +360,7 @@ static int convert_dtsframe_to_iec61937frame(uint16_t *dts,
   data_out[7] = (burst_len >> 8) & 0xff;
   
   if(fsize+8 > nr_samples*2*2) {
-    ERROR("IEC61937-5: more data than fits\n", 0);
+    ERROR("%s", "IEC61937-5: more data than fits\n");
   }
   //TODO if fzise is odd, swab doesn't copy the last byte
   swab(data_in, &data_out[8], fsize);

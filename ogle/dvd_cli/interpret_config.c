@@ -30,23 +30,23 @@ static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("action", cur->name)) {
 	if(action != NULL) {
-	  ERROR("interpret_b(): more than one <action>\n", 0);
+	  ERROR("%s", "interpret_b(): more than one <action>\n");
 	  break;
 	}
 	action = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(action == NULL) {
-	  ERROR("interpret_b(): <action> empty\n", 0);
+	  ERROR("%s", "interpret_b(): <action> empty\n");
 	} else {
 	  //fprintf(stderr, "action: %s\n", action);
 	}
       } else if(!strcmp("key", cur->name)) {
 	if(action == NULL) {
-	  ERROR("interpret_b(): no <action>\n", 0);
+	  ERROR("%s", "interpret_b(): no <action>\n");
 	  break;
 	}
 	key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(key == NULL) {
-	  WARNING("interpret_b(): <key> empty\n", 0);
+	  WARNING("%s", "interpret_b(): <key> empty\n");
 	} else {
 	  add_keybinding(key, action);
 	  //fprintf(stderr, "key: %s\n", key);	
@@ -201,7 +201,7 @@ int interpret_config(void)
 
   home = getenv("HOME");
   if(home == NULL) {
-    WARNING("No $HOME\n", 0);
+    WARNING("%s", "No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -221,7 +221,7 @@ int interpret_config(void)
   }
   
   if(!config_read) {
-    ERROR("interpret_config(): Couldn't read "CONFIG_FILE"\n", 0);
+    ERROR("%s", "interpret_config(): Couldn't read "CONFIG_FILE"\n");
     return -1;
   }
   

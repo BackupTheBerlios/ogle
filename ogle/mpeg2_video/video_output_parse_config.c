@@ -162,12 +162,12 @@ static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 	    }
 	  }
 	} else {
-	  ERROR("parse_display(): more than 1 <name>\n", 0);
+	  ERROR("%s", "parse_display(): more than 1 <name>\n");
 	}
       } else {
 	if(!name_found) {
 	  name_found++;
-	  ERROR("parse_display(): <name> not first, assuming empty <name>\n", 0);
+	  ERROR("%s", "parse_display(): <name> not first, assuming empty <name>\n");
 	  while(*cur_display) {
 	    if((*cur_display)->name == NULL) {
 	      break;
@@ -315,7 +315,7 @@ int get_video_config(cfg_video_t **video)
   
   home = getenv("HOME");
   if(home == NULL) {
-    WARNING("No $HOME\n", 0);
+    WARNING("%s", "No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -337,7 +337,7 @@ int get_video_config(cfg_video_t **video)
   }
   
   if(!config_read) {
-    ERROR("get_video_config(): Couldn't read "CONFIG_FILE"\n", 0);
+    ERROR("%s", "get_video_config(): Couldn't read "CONFIG_FILE"\n");
     return -1;
   }
 

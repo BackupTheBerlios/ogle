@@ -118,7 +118,7 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
       if(mad_frame_decode(&h->frame, &h->stream)) {
 	if(MAD_RECOVERABLE(h->stream.error)) {
 	  if(h->stream.error == MAD_ERROR_LOSTSYNC) {
-	    NOTE("mpeg lost sync\n", 0);
+	    NOTE("%s", "mpeg lost sync\n");
 	  } else {
 	    DNOTE("mpeg recoverable: %d\n", h->stream.error);
 	  }

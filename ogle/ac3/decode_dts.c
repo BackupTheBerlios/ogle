@@ -78,12 +78,12 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
   
   while(bytes_left > 0) {
     if(bytes_left < 10) {
-      FATAL("DTS less than 10 bytes, REPORT BUG\n", 0);
+      FATAL("%s", "DTS less than 10 bytes, REPORT BUG\n");
       exit(1);
     }
     if(((indata_ptr[0]<<24)|(indata_ptr[1]<<16)|
 	(indata_ptr[2]<<8)|(indata_ptr[3])) != 0x7ffe8001) {
-      FATAL("DTS sync wrong, REPORT BUG\n", 0);
+      FATAL("%s", "DTS sync wrong, REPORT BUG\n");
       exit(1);
     }
 
@@ -112,7 +112,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
       handle->amode = amode;
       handle->sfreq = sfreq;
       handle->rate = rate;
-      DNOTE("DTS: channel arrangement: ", 0);
+      DNOTE("%s", "DTS: channel arrangement: ");
       switch(amode) {
       case 0:
 	tmpstr = "1-ch A";
@@ -165,7 +165,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
       }
       fprintf(stderr, "%s\n", tmpstr);
       
-      DNOTE("DTS: sample rate: ", 0);
+      DNOTE("%s", "DTS: sample rate: ");
       switch(sfreq) {
       case 1:
 	tmpstr = "8";
@@ -218,7 +218,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
       }
       fprintf(stderr, "%s kHz\n", tmpstr);
 
-      DNOTE("DTS: bit rate: ", 0);
+      DNOTE("%s", "DTS: bit rate: ");
       switch(rate) {
       case 0:
 	tmpstr = "32";
@@ -359,12 +359,12 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
     }
 
     if(ftype != 1) {
-      FATAL("DTS: Termination frames not handled, REPORT BUG\n", 0);
+      FATAL("%s", "DTS: Termination frames not handled, REPORT BUG\n");
       exit(1);
     }
     
     if(sfreq != 13) {
-      FATAL("DTS: Only 48kHz supported, REPORT BUG\n", 0);
+      FATAL("%s", "DTS: Only 48kHz supported, REPORT BUG\n");
       exit(1);
     }
     
@@ -384,7 +384,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
     }
 
     if(bytes_left < fsize) {
-      FATAL("DTS: not enough data for frame, REPORT BUG\n", 0);
+      FATAL("%s", "DTS: not enough data for frame, REPORT BUG\n");
       exit(1);
     }
 
