@@ -1,6 +1,6 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(ac3/ac3dec_wrap.c)
-AM_INIT_AUTOMAKE(ogle, 0.9.2)
+AM_INIT_AUTOMAKE(ogle, 0.9.2-cvs)
 dnl AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
@@ -441,7 +441,7 @@ dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
 	DEFAULT_AUDIO_DRIVER="oss"
 	DEFAULT_AUDIO_DEVICE="/dev/dsp"
     ;;
-    *-sun-solaris*|*-hpux*)
+    *-solaris*|*-hpux*)
         AC_CHECK_LIB([OSSlib],[OSS_init],
             [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lOSSlib"
              AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
@@ -474,7 +474,7 @@ AC_ARG_ENABLE([sunaudio],
     [  --disable-sunaudio      make a version not using Sun audio])
 if test "x$enable_sunaudio" != xno; then
     case "$host" in
-    *-sun-solaris*)
+    *-solaris*)
 
 dnl check for headers.. only define LIBOGLEAO_SOLARIS if headers are found.
         AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support])
