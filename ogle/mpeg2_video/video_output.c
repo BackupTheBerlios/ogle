@@ -323,25 +323,22 @@ void wait_until_handler(int sig)
 void alarm_handler(int sig) 
 {
   end_of_wait = 1;
-  display_poll(last_image_buf);
+  if(last_image_buf)
+    display_poll(last_image_buf);
 }
 
 static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 {
-  
   struct itimerval timer;
   clocktime_t time_left;
   clocktime_t real_time;
   struct sigaction act;
   struct sigaction oact;
-  int timeout = 0;
-  
   
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = 0;
-
   
-  while(!timeout) {
+  while(1) {
     
     end_of_wait = 0;
    
@@ -426,9 +423,8 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
     setitimer(ITIMER_REAL, &timer, NULL);
     
     sigaction(SIGALRM, &oact, NULL);
-    
-
   }
+  
 }
 
 
