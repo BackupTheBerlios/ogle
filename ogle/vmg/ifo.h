@@ -67,7 +67,7 @@ typedef struct {
 } __attribute__ ((packed)) pgc_command_tbl_t;
 #define PGC_COMMAND_TBL_SIZE 8
 
-typedef uint8_t __attribute__ ((packed)) pgc_progam_map_t; 
+typedef uint8_t __attribute__ ((packed)) pgc_program_map_t; 
 
 typedef struct {
   uint32_t category;
@@ -103,7 +103,7 @@ typedef struct {
   uint16_t cell_playback_tbl_offset;
   uint16_t cell_position_tbl_offset;
   pgc_command_tbl_t *pgc_command_tbl;
-  pgc_progam_map_t  *pgc_progam_map;
+  pgc_program_map_t  *pgc_program_map;
   cell_playback_tbl_t *cell_playback_tbl;
   cell_position_tbl_t *cell_position_tbl;
 } __attribute__ ((packed)) pgc_t;
@@ -292,9 +292,56 @@ typedef struct { // Video Manager Information Management Table
   //how much 'padding' here?
 } __attribute__ ((packed)) vtsi_mat_t;
 
+typedef struct {
+  uint16_t pgcn;
+  uint16_t pgn;
+} ptt_info_t;
+
+typedef struct {
+  uint16_t nr_of_ptts;
+  ptt_info_t *ptt_info;
+} ttu_t;
+
+typedef struct {
+  uint16_t nr_of_srpts;
+  uint16_t zero_1;
+  uint32_t last_byte;
+  ttu_t  *title_info; // New type.
+} __attribute__ ((packed)) vts_ptt_srpt_t;
+#define VTS_PTT_SRPT_SIZE 8
 
 
 
+/* ------------------------------------------------------------------------- */
+
+//void ifoOpen_DVD?(unsigned int *sector);
+int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename);
+int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename);
+void ifoClose();
+
+void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector);
+void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector);
+void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
+void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector);
+void ifoRead_PGC(pgc_t *pgc, int offset);
+void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset);
+void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut, int sector);
+void ifoRead_C_ADT(c_adt_t *c_adt, int sector);
+void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector);
+
+
+void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
+void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);
+
+void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait);
+void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt);
+void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
+//void ifoPrint_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt);
+void ifoPrint_PGC(pgc_t *pgc);
+void ifoPrint_PGCIT(pgcit_t *pgcit);
+void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut);
+void ifoPrint_C_ADT(c_adt_t *c_adt);
+void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap);
 
 
 #endif

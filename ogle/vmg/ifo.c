@@ -13,33 +13,6 @@
 #include "../include/common.h"
 
 #include "ifo.h"
-void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
-void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);
-
-void ifoRead_PGC(pgc_t *pgc, int offset);
-void ifoPrint_PGC(pgc_t *pgc);
-
-void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
-void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
-
-void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset);
-void ifoPrint_PGCIT(pgcit_t *pgcit);
-
-void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut, int sector);
-void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *menu_pgci_ut);
-
-void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector);
-void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait);
-
-void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector);
-void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt);
-
-void ifoRead_C_ADT(c_adt_t *c_adt, int sector);
-void ifoPrint_C_ADT(c_adt_t *c_adt);
-
-void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector);
-void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap);
-
 
 
 #define PUT(level, text...) \
@@ -57,35 +30,22 @@ if(memcmp(my_friendly_zeros, &arg, sizeof(arg))) { \
  fprintf(stderr, "\n"); \
 }
 
-
-#if 0
-#define DINFO(name) fprintf(stdout, #name " size: %i\n", sizeof(name) )
-    DINFO(dvd_time_t);
-    DINFO(vmgi_mat_t);
-    DINFO(pgc_command_tbl_t);
-    DINFO(cell_playback_tbl_t);
-    DINFO(cell_position_tbl_t);
-    DINFO(pgc_t);
-    DINFO(title_info_t);
-    DINFO(vmg_ptt_srpt_t);
-    DINFO(vmgm_pgci_lu_t);
-    DINFO(vmgm_pgci_ut_t);
-    DINFO(ptl_mait_country_t);
-    DINFO(vts_atributes_t);
-    DINFO(vmg_vts_atrt_t);
-    DINFO(cell_adr_t);
-    DINFO(vmgm_c_adt_t);
-    DINFO(vmgm_vobu_admap_t);
-    fprintf(stdout, "\n\n");
+#define WORDS_BIGENDIAN
+#ifdef WORDS_BIGENDIAN
+#define B2N_16(x) (x)
+#define B2N_32(x) (x)
+#else
+#define B2N_16(x) bswap_16(x)
+#define B2N_32(x) bswap_32(x)
 #endif
+
+void ifoPrint(char *filename);
 
 
 int debug = 8;
 uint8_t my_friendly_zeros[2048];
+uint8_t system_startcode[4] = { 0x00, 0x00, 0x01, 0xBA };
 
-int vob_mode = 0;
-int ifo_mode = 0;
-FILE *vob_file;
 FILE *ifo_file;
 
 char *program_name;
@@ -98,28 +58,12 @@ void usage()
 
 int main(int argc, char *argv[])
 {
-  int c; 
+  int c;
   program_name = argv[0];
   
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:v:i:h?")) != EOF) {
+  while ((c = getopt(argc, argv, "d:h?")) != EOF) {
     switch (c) {
-    case 'v':
-      vob_file = fopen(optarg,"r");
-      if(!vob_file) {
-          perror(optarg);
-          exit(1);
-        }
-      vob_mode=1;
-      break;    
-    case 'i':
-      ifo_file = fopen(optarg,"r");
-      if(!ifo_file) {
-          perror(optarg);
-          exit(1);
-        }
-      ifo_mode=1;
-      break;
     case 'd':
       debug = atoi(optarg);
       break;
@@ -129,160 +73,179 @@ int main(int argc, char *argv[])
       return 1;
     }
   }
-  
-  
-  if(!ifo_mode && !vob_mode) {
+
+  if(argc - optind != 1){
     usage();
     return 1;
   }
+
+  ifoPrint(argv[optind]);
+}
+
+
+
+void ifoPrint(char *filename) {
+  uint8_t *data;
   
-  if(ifo_mode) {
-    uint8_t *data = malloc( DVD_BLOCK_LEN );
-    pgc_t pgc;
+  ifo_file = fopen(filename,"r");
+  if(!ifo_file) {
+    perror(filename);
+    exit(1);
+  }
+  
+  data = malloc( DVD_BLOCK_LEN );
+  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
+    exit(1);
+  }
     
-    if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
-      exit(1);
-    }
-    
-    if(strncmp("DVDVIDEO-VMG",data, 12) == 0) {
-      vmgi_mat_t vmgi_mat;
-      vmg_ptt_srpt_t vmg_ptt_srpt;
-      menu_pgci_ut_t vmgm_pgci_ut;
-      vmg_ptl_mait_t vmg_ptl_mait;
-      vmg_vts_atrt_t vmg_vts_atrt;
-      c_adt_t vmgm_c_adt;
-      vobu_admap_t vmgm_vobu_admap;
+  if(strncmp("DVDVIDEO-VMG",data, 12) == 0) {
+    vmgi_mat_t vmgi_mat;
+    vmg_ptt_srpt_t vmg_ptt_srpt;
+    pgc_t pgc;    
+    menu_pgci_ut_t vmgm_pgci_ut;
+    vmg_ptl_mait_t vmg_ptl_mait;
+    vmg_vts_atrt_t vmg_vts_atrt;
+    c_adt_t vmgm_c_adt;
+    vobu_admap_t vmgm_vobu_admap;
      
-      PUT(1, "VMG top level\n-------------\n");
-      memcpy(&vmgi_mat, data, sizeof(vmgi_mat));
-      ifoPrint_VMGI_MAT(&vmgi_mat);
+    
+    PUT(1, "VMG top level\n-------------\n");
+    memcpy(&vmgi_mat, data, sizeof(vmgi_mat));
+    ifoPrint_VMGI_MAT(&vmgi_mat);
       
       
-      PUT(1, "\nFirst Play PGC\n--------------\n");
-      ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
-      ifoPrint_PGC(&pgc);
+    PUT(1, "\nFirst Play PGC\n--------------\n");
+    ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
+    ifoPrint_PGC(&pgc);
       
-      PUT(1, "\nPart of Title (and Chapter) Search pointer table\n");
-      PUT(1,   "------------------------------------------------\n");
-      /* This needs to be in a IFO? */
-      if(vmgi_mat.vmg_ptt_srpt != 0) {
-	ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
-	ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
-      } else
-	PUT(5, "No PartOfTitle Searchpointer information present\n");
+    PUT(1, "\nPart of Title (and Chapter) Search pointer table\n");
+    PUT(1,   "------------------------------------------------\n");
+    /* This needs to be in a IFO? */
+    if(vmgi_mat.vmg_ptt_srpt != 0) {
+      ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
+      ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
+    } else
+      PUT(5, "No PartOfTitle Searchpointer information present\n");
       
-      PUT(1, "\nMenu PGCI Unit table\n");
-      PUT(1,   "--------------------\n");
-      if(vmgi_mat.vmgm_pgci_ut != 0) {
-	ifoRead_MENU_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
-	ifoPrint_MENU_PGCI_UT(&vmgm_pgci_ut);
-      } else
-	PUT(5, "No PGCI Unit table present\n");
+    PUT(1, "\nMenu PGCI Unit table\n");
+    PUT(1,   "--------------------\n");
+    if(vmgi_mat.vmgm_pgci_ut != 0) {
+      ifoRead_MENU_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
+      ifoPrint_MENU_PGCI_UT(&vmgm_pgci_ut);
+    } else
+      PUT(5, "No PGCI Unit table present\n");
        
       
-      PUT(1, "\nParental Manegment Information table\n");
-      PUT(1,   "------------------------------------\n");
-      if(vmgi_mat.vmg_ptl_mait != 0) {
-	ifoRead_VMG_PTL_MAIT(&vmg_ptl_mait, vmgi_mat.vmg_ptl_mait);
-	ifoPrint_VMG_PTL_MAIT(&vmg_ptl_mait);
-      } else
-	PUT(5, "No Parental Management information present\n");
+    PUT(1, "\nParental Manegment Information table\n");
+    PUT(1,   "------------------------------------\n");
+    if(vmgi_mat.vmg_ptl_mait != 0) {
+      ifoRead_VMG_PTL_MAIT(&vmg_ptl_mait, vmgi_mat.vmg_ptl_mait);
+      ifoPrint_VMG_PTL_MAIT(&vmg_ptl_mait);
+    } else
+      PUT(5, "No Parental Management information present\n");
       
-      PUT(1, "\nVideo Title Set Attribute table\n");
-      PUT(1,   "-------------------------------\n");
-      if(vmgi_mat.vmg_vts_atrt != 0) {
-	ifoRead_VMG_VTS_ATRT(&vmg_vts_atrt, vmgi_mat.vmg_vts_atrt);
-	ifoPrint_VMG_VTS_ATRT(&vmg_vts_atrt);
-      } else
-	PUT(5, "No Video Title Set Attribute table present\n");
-      
-      
-      PUT(1, "\nCell Adress table\n");
-      PUT(1,   "-----------------\n");
-      if(vmgi_mat.vmgm_c_adt != 0) {
-	ifoRead_C_ADT(&vmgm_c_adt, vmgi_mat.vmgm_c_adt);
-	ifoPrint_C_ADT(&vmgm_c_adt);
-      } else
-	PUT(5, "No Cell Adress table present\n");
-      
-      PUT(1, "\nVideo Title set Menu VOBU address map\n");
-      PUT(1,   "-----------------\n");
-      if(vmgi_mat.vmgm_vobu_admap != 0) {
-	ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
-	ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
-      } else
-	PUT(5, "No Menu VOBU address map present\n");
-      
-    } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
-      vtsi_mat_t vtsi_mat;
-      pgcit_t vts_pgcit;
-      menu_pgci_ut_t vtsm_pgci_ut;
-      c_adt_t vtsm_c_adt;
-      vobu_admap_t vtsm_vobu_admap;
-      c_adt_t vts_c_adt;
-      vobu_admap_t vts_vobu_admap;
-      
-      PUT(1, "VTS top level\n-------------\n");
-      memcpy(&vtsi_mat, data, sizeof(vtsi_mat));
-      ifoPrint_VTSI_MAT(&vtsi_mat);
+    PUT(1, "\nVideo Title Set Attribute table\n");
+    PUT(1,   "-------------------------------\n");
+    if(vmgi_mat.vmg_vts_atrt != 0) {
+      ifoRead_VMG_VTS_ATRT(&vmg_vts_atrt, vmgi_mat.vmg_vts_atrt);
+      ifoPrint_VMG_VTS_ATRT(&vmg_vts_atrt);
+    } else
+      PUT(5, "No Video Title Set Attribute table present\n");
       
       
-      PUT(1, "\nPGCI Unit table\n");
-      PUT(1,   "--------------------\n");
-      if(vtsi_mat.vts_pgcit != 0) {
-	ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit, 0);
-	ifoPrint_PGCIT(&vts_pgcit);
-      } else
-	PUT(5, "No PGCI Unit table present\n");
+    PUT(1, "\nCell Adress table\n");
+    PUT(1,   "-----------------\n");
+    if(vmgi_mat.vmgm_c_adt != 0) {
+      ifoRead_C_ADT(&vmgm_c_adt, vmgi_mat.vmgm_c_adt);
+      ifoPrint_C_ADT(&vmgm_c_adt);
+    } else
+      PUT(5, "No Cell Adress table present\n");
       
-      PUT(1, "\nMenu PGCI Unit table\n");
-      PUT(1,   "--------------------\n");
-      if(vtsi_mat.vtsm_pgci_ut != 0) {
-	ifoRead_MENU_PGCI_UT(&vtsm_pgci_ut, vtsi_mat.vtsm_pgci_ut);
-	ifoPrint_MENU_PGCI_UT(&vtsm_pgci_ut);
-      } else
-	PUT(5, "No Menu PGCI Unit table present\n");
+    PUT(1, "\nVideo Title set Menu VOBU address map\n");
+    PUT(1,   "-----------------\n");
+    if(vmgi_mat.vmgm_vobu_admap != 0) {
+      ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
+      ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
+    } else
+      PUT(5, "No Menu VOBU address map present\n");
+    
+  } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
+    vtsi_mat_t vtsi_mat;
+    vts_ptt_srpt_t vts_ptt_srpt;
+    pgc_t pgc;    
+    pgcit_t vts_pgcit;
+    menu_pgci_ut_t vtsm_pgci_ut;
+    c_adt_t vtsm_c_adt;
+    vobu_admap_t vtsm_vobu_admap;
+    c_adt_t vts_c_adt;
+    vobu_admap_t vts_vobu_admap;
+      
+    PUT(1, "VTS top level\n-------------\n");
+    memcpy(&vtsi_mat, data, sizeof(vtsi_mat));
+    ifoPrint_VTSI_MAT(&vtsi_mat);
+      
+    PUT(1, "\nPart of title search pointer table information\n");
+    PUT(1,   "----------------------------------------------\n");
+    /* This needs to be in a IFO? */
+    if(vtsi_mat.vts_ptt_srpt != 0) {
+      ifoRead_VTS_PTT_SRPT(&vts_ptt_srpt, vtsi_mat.vts_ptt_srpt);
+      //ifoPrint_VTS_PTT_SRPT(&vts_ptt_srpt);
+    } else
+      PUT(5, "No PGCI Unit table present\n");
+       
+    PUT(1, "\nPGCI Unit table\n");
+    PUT(1,   "--------------------\n");
+    if(vtsi_mat.vts_pgcit != 0) {
+      ifoRead_PGCIT(&vts_pgcit, vtsi_mat.vts_pgcit, 0);
+      ifoPrint_PGCIT(&vts_pgcit);
+    } else
+      PUT(5, "No PGCI Unit table present\n");
+      
+    PUT(1, "\nMenu PGCI Unit table\n");
+    PUT(1,   "--------------------\n");
+    if(vtsi_mat.vtsm_pgci_ut != 0) {
+      ifoRead_MENU_PGCI_UT(&vtsm_pgci_ut, vtsi_mat.vtsm_pgci_ut);
+      ifoPrint_MENU_PGCI_UT(&vtsm_pgci_ut);
+    } else
+      PUT(5, "No Menu PGCI Unit table present\n");
       
       
-      PUT(1, "\nMenu Cell Adress table\n");
-      PUT(1,   "-----------------\n");
-      if(vtsi_mat.vtsm_c_adt != 0) {
-	ifoRead_C_ADT(&vtsm_c_adt, vtsi_mat.vtsm_c_adt);
-	ifoPrint_C_ADT(&vtsm_c_adt);
-      } else
-	PUT(5, "No Cell Adress table present\n");
+    PUT(1, "\nMenu Cell Adress table\n");
+    PUT(1,   "-----------------\n");
+    if(vtsi_mat.vtsm_c_adt != 0) {
+      ifoRead_C_ADT(&vtsm_c_adt, vtsi_mat.vtsm_c_adt);
+      ifoPrint_C_ADT(&vtsm_c_adt);
+    } else
+      PUT(5, "No Cell Adress table present\n");
       
-      PUT(1, "\nVideo Title Set Menu VOBU address map\n");
-      PUT(1,   "-----------------\n");
-      if(vtsi_mat.vtsm_vobu_admap != 0) {
-	ifoRead_VOBU_ADMAP(&vtsm_vobu_admap, vtsi_mat.vtsm_vobu_admap);
-	ifoPrint_VOBU_ADMAP(&vtsm_vobu_admap);
-      } else
-	PUT(5, "No Menu VOBU address map present\n");
+    PUT(1, "\nVideo Title Set Menu VOBU address map\n");
+    PUT(1,   "-----------------\n");
+    if(vtsi_mat.vtsm_vobu_admap != 0) {
+      ifoRead_VOBU_ADMAP(&vtsm_vobu_admap, vtsi_mat.vtsm_vobu_admap);
+      ifoPrint_VOBU_ADMAP(&vtsm_vobu_admap);
+    } else
+      PUT(5, "No Menu VOBU address map present\n");
       
-      PUT(1, "\nCell Adress table\n");
-      PUT(1,   "-----------------\n");
-      if(vtsi_mat.vts_c_adt != 0) {
-	ifoRead_C_ADT(&vts_c_adt, vtsi_mat.vts_c_adt);
-	ifoPrint_C_ADT(&vts_c_adt);
-      } else
-	PUT(5, "No Cell Adress table present\n");
+    PUT(1, "\nCell Adress table\n");
+    PUT(1,   "-----------------\n");
+    if(vtsi_mat.vts_c_adt != 0) {
+      ifoRead_C_ADT(&vts_c_adt, vtsi_mat.vts_c_adt);
+      ifoPrint_C_ADT(&vts_c_adt);
+    } else
+      PUT(5, "No Cell Adress table present\n");
       
-      PUT(1, "\nVideo Title Set VOBU address map\n");
-      PUT(1,   "-----------------\n");
-      if(vtsi_mat.vts_vobu_admap != 0) {
-	ifoRead_VOBU_ADMAP(&vts_vobu_admap, vtsi_mat.vts_vobu_admap);
-	ifoPrint_VOBU_ADMAP(&vts_vobu_admap);
-      } else
-	PUT(5, "No Menu VOBU address map present\n");
-    } 
+    PUT(1, "\nVideo Title Set VOBU address map\n");
+    PUT(1,   "-----------------\n");
+    if(vtsi_mat.vts_vobu_admap != 0) {
+      ifoRead_VOBU_ADMAP(&vts_vobu_admap, vtsi_mat.vts_vobu_admap);
+      ifoPrint_VOBU_ADMAP(&vts_vobu_admap);
+    } else
+      PUT(5, "No Menu VOBU address map present\n");
+  
+  } else if(!memcmp(data, system_startcode, 4)) {
+    /* Vob */
   }
   
-  if(vob_mode) {
-  
-  }
-
-  return 0;
 }
 
 void ifoPrint_time(int level, dvd_time_t *time) {
@@ -328,7 +291,7 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   /* Byte 2 of 'VMG Category' (00xx0000) is the Region Code */
   PUT(5, "VMG Category: %08x\n", vmgi_mat->vmg_category);
   PUT(5, "VMG Number of Volumes: %i\n", vmgi_mat->vmg_nr_of_volumes);
-  PUT(5, "VMG This Volumes: %i\n", vmgi_mat->vmg_this_volume_nr);
+  PUT(5, "VMG This Volume: %i\n", vmgi_mat->vmg_this_volume_nr);
   PUT(5, "Disc side %i\n", vmgi_mat->disc_side);
   PUT(5, "VMG Number of Title Sets %i\n", vmgi_mat->vmg_nr_of_title_sets);
   PUT(5, "Provider ID: %.32s\n", vmgi_mat->provider_identifier);
@@ -473,125 +436,6 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   }
 }
 
-void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
-  
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(cmd_tbl, PGC_COMMAND_TBL_SIZE, 1, ifo_file) != 1) {
-    perror("PGC - Command Table");
-    exit(1);
-  }
-  assert(sizeof(command_data_t) == COMMAND_DATA_SIZE);
-  
-  if(cmd_tbl->nr_of_pre != 0) {
-    int pre_cmd_size  = cmd_tbl->nr_of_pre * sizeof(command_data_t);
-    cmd_tbl->pre_commands  = malloc(pre_cmd_size);
-    if(fread(cmd_tbl->pre_commands, pre_cmd_size, 
-	     1, ifo_file) != 1) {
-      perror("PGC - Command Table, Pre comands");
-      exit(1);
-    }
-  }
-  
-  if(cmd_tbl->nr_of_post != 0) {
-    int post_cmd_size = cmd_tbl->nr_of_post * sizeof(command_data_t);
-    cmd_tbl->post_commands = malloc(post_cmd_size);
-    if(fread(cmd_tbl->post_commands, post_cmd_size,
-	     1, ifo_file) != 1) {
-      perror("PGC - Command Table, Post commands");
-      exit(1);
-    }
-  }
-  
-  if(cmd_tbl->nr_of_cell != 0) {
-    int cell_cmd_size = cmd_tbl->nr_of_cell * sizeof(command_data_t);
-    cmd_tbl->cell_commands = malloc(cell_cmd_size);
-    if(fread(cmd_tbl->cell_commands, cell_cmd_size,
-	     1, ifo_file) != 1) {
-      perror("PGC - Command Table, Cell commands");
-      exit(1);
-    }
-  }
-}
-
-void ifoRead_PGC_PROGRAM_MAP(pgc_progam_map_t *progam_map, int nr, int offset){
-  int size = nr * sizeof(pgc_progam_map_t);
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(progam_map, size, 1, ifo_file) != 1) {
-    perror("PGC - Program Map");
-    exit(1);
-  }
-}
-
-void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int offset) {
-  int size = nr * sizeof(cell_playback_tbl_t);
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(cell_playback, size, 1, ifo_file) != 1) {
-    perror("PGC - Cell Playback info");
-    exit(1);
-  }
-}
-
-void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int offset) {
-  int size = nr * sizeof(cell_position_tbl_t);
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(cell_position, size, 1, ifo_file) != 1) {
-    perror("PGC - Cell Position info");
-    exit(1);
-  }
-}
-
-
-void ifoRead_PGC(pgc_t *pgc, int offset) {
-  
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(pgc, PGC_SIZE, 1, ifo_file) != 1) {
-    perror("First Play PGC");
-    exit(1);
-  }
-  
-  if(pgc->pgc_command_tbl_offset != 0) {
-    pgc->pgc_command_tbl = malloc(sizeof(pgc_command_tbl_t));
-    ifoRead_PGC_COMMAND_TBL(pgc->pgc_command_tbl, 
-			    offset + pgc->pgc_command_tbl_offset);
-  } else {
-    pgc->pgc_command_tbl = NULL;
-  }
-  
-  if(pgc->pgc_program_map_offset != 0) {
-    assert(pgc->nr_of_programs != 0);
-    pgc->pgc_progam_map = malloc(pgc->nr_of_programs * 
-				 sizeof(pgc_progam_map_t));
-    ifoRead_PGC_PROGRAM_MAP(pgc->pgc_progam_map, pgc->nr_of_programs, 
-			    offset + pgc->pgc_program_map_offset);
-  } else {
-    assert(pgc->nr_of_programs == 0);
-    pgc->pgc_progam_map = NULL;
-  }
-  
-  assert(pgc->nr_of_cells == 0 
-	 ? pgc->cell_playback_tbl_offset == 0 && 
-	   pgc->cell_position_tbl_offset == 0
-	 : pgc->cell_playback_tbl_offset != 0 && 
-	   pgc->cell_position_tbl_offset != 0);
-
-  if(pgc->cell_playback_tbl_offset != 0) {
-    pgc->cell_playback_tbl = malloc(pgc->nr_of_cells * 
-				    sizeof(cell_playback_tbl_t));
-    ifoRead_CELL_PLAYBACK_TBL(pgc->cell_playback_tbl, pgc->nr_of_cells,
-			      offset + pgc->cell_playback_tbl_offset);
-  } else {
-    pgc->cell_playback_tbl = NULL;
-  }
-  
-  if(pgc->cell_position_tbl_offset != 0) {
-    pgc->cell_position_tbl = malloc(pgc->nr_of_cells * 
-				    sizeof(cell_position_tbl_t));
-    ifoRead_CELL_POSITION_TBL(pgc->cell_position_tbl, pgc->nr_of_cells, 
-			      offset + pgc->cell_position_tbl_offset);
-  } else {
-    pgc->cell_position_tbl = NULL;
-  }  
-}  
 
 typedef struct
 {
@@ -646,14 +490,14 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   }
 }
 
-void ifoPrint_PGC_PROGRAM_MAP(pgc_progam_map_t *progam_map, int nr) {
+void ifoPrint_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr) {
   int i;
-  if(progam_map == NULL) {
+  if(program_map == NULL) {
     PUT(5, "No Program map present\n");
     return;
   }
   for(i=0;i<nr;i++) {
-    PUT(5, "Program %3i Entry Cell: %3i\n", i+1, progam_map[i]);
+    PUT(5, "Program %3i Entry Cell: %3i\n", i+1, program_map[i]);
   }
 }
 
@@ -745,28 +589,12 @@ void ifoPrint_PGC(pgc_t *pgc) {
   
   /* Memmory offsets to div. tables. */
   ifoPrint_PGC_COMMAND_TBL(pgc->pgc_command_tbl);
-  ifoPrint_PGC_PROGRAM_MAP(pgc->pgc_progam_map, pgc->nr_of_programs);
+  ifoPrint_PGC_PROGRAM_MAP(pgc->pgc_program_map, pgc->nr_of_programs);
   ifoPrint_CELL_PLAYBACK_TBL(pgc->cell_playback_tbl, pgc->nr_of_cells);
   ifoPrint_CELL_POSITION_TBL(pgc->cell_position_tbl, pgc->nr_of_cells);
 }
 
 
-
-void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
-  int info_length;
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vmg_ptt_srpt, VMG_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_PTT_SRPT");
-    exit(1);
-  }
-  info_length = vmg_ptt_srpt->last_byte + 1 - VMG_PTT_SRPT_SIZE;
-  vmg_ptt_srpt->title_info = malloc(info_length); 
-  assert(info_length >= vmg_ptt_srpt->nr_of_srpts * sizeof(title_info_t));
-  if(fread(vmg_ptt_srpt->title_info, info_length, 1, ifo_file) != 1) {
-    perror("VMG_PTT_SRPT");
-    exit(1);
-  }  
-}
 
 void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt) {
   
@@ -794,26 +622,6 @@ void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt) {
 }
 
 
-void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
-  int info_length;
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(ptl_mait, VMG_PTL_MAIT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_PTL_MAIT");
-    exit(1);
-  }
-  
-  /* Change this to read and 'translate' the tables too. */
-  
-  //info_length = ptl_mait->nr_of_countries * VMG_PTL_MAIT_COUNTRY_SIZE;
-  info_length = ptl_mait->last_byte + 1 -  VMG_PTL_MAIT_SIZE;
-  ptl_mait->countries = malloc(info_length); 
-  assert(info_length <= ptl_mait->last_byte + 1);
-  if(fread(ptl_mait->countries, info_length, 1, ifo_file) != 1) {
-    perror("VMG_PTL_MAIT info");
-    exit(1);
-  }
-}
-
 void hexdump(uint8_t *ptr, int len) {
   while(len--)
     PUT(5, "%02x ", *ptr++);
@@ -834,14 +642,14 @@ void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait) {
 	  ptl_mait->countries[i].country_code>>8,
 	  ptl_mait->countries[i].country_code&0xff);
       /*
-      PUT(5, "Start byte: %04x %i\n", 
-	  ptl_mait->countries[i].start_byte_of_pf_ptl_mai, 
-	  ptl_mait->countries[i].start_byte_of_pf_ptl_mai);
+	PUT(5, "Start byte: %04x %i\n", 
+	ptl_mait->countries[i].start_byte_of_pf_ptl_mai, 
+	ptl_mait->countries[i].start_byte_of_pf_ptl_mai);
       */
       /* This seems to be pointing at a array with 8 2byte fields per VTS
          ? and one extra for the menue? always an odd number of VTSs on
-	   all the dics I tested so it might be padding to even also.
-	   If it is for the menu it probably the first entry.  */
+	 all the dics I tested so it might be padding to even also.
+	 If it is for the menu it probably the first entry.  */
       for(j=0;j<8;j++) {
 	hexdump( (uint8_t *)ptl_mait->countries - 8 
 		 + ptl_mait->countries[i].start_byte_of_pf_ptl_mai
@@ -850,23 +658,6 @@ void ifoPrint_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait) {
       }
     }
   }
-}
-
-void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
-  int info_length;
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(c_adt, C_ADT_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_C_ADT");
-    exit(1);
-  }
-  
-  info_length = c_adt->last_byte + 1 - C_ADT_SIZE;
-  c_adt->cell_adr_table = malloc(info_length); 
-  if(fread(c_adt->cell_adr_table, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_C_ADT info");
-    exit(1);
-  }
-  assert((c_adt->last_byte + 1 - C_ADT_SIZE) % sizeof(c_adt_t) == 0);
 }
 
 void ifoPrint_C_ADT(c_adt_t *c_adt) {
@@ -887,23 +678,6 @@ void ifoPrint_C_ADT(c_adt_t *c_adt) {
   }
 }
 
-
-void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector) {
-  int info_length;
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vobu_admap, VOBU_ADMAP_SIZE, 1, ifo_file) != 1) {
-    perror("VMGM_VOBU_ADMAP");
-    exit(1);
-  }
-  
-  info_length = vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE;
-  vobu_admap->vobu_start_sectors = malloc(info_length); 
-  if(fread(vobu_admap->vobu_start_sectors, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_VOBU_ADMAP info");
-    exit(1);
-  }
-}
-
 void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap) {
   int i, entries;
   entries = (vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE)/4;
@@ -913,80 +687,6 @@ void ifoPrint_VOBU_ADMAP(vobu_admap_t *vobu_admap) {
   }
 }
 
-
-void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset) {
-  int i, info_length;
-  uint8_t *data, *ptr;
-  
-  fseek(ifo_file, offset + sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(pgcit, PGCIT_SIZE, 1, ifo_file) != 1) {
-    perror("PGCIT");
-    exit(1);
-  }
-  
-  info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
-  data = malloc(info_length);
-  if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("PGCIT info");
-    exit(1);
-  }
-  
-  pgcit->pgci_srp 
-    = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
-  ptr = data;
-  for(i=0;i<pgcit->nr_of_pgci_srp;i++) {
-    memcpy(&pgcit->pgci_srp[i], ptr, MENU_PGCI_LU_SIZE);
-    ptr += MENU_PGCI_LU_SIZE;
-    
-    pgcit->pgci_srp[i].pgc = malloc(sizeof(pgc_t));
-    ifoRead_PGC(pgcit->pgci_srp[i].pgc, 
-		sector * DVD_BLOCK_LEN + offset
-		+ pgcit->pgci_srp[i].start_byte_of_pgc);
-  }
-  free(data);
-}
-
-void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
-  int i, info_length;
-  uint8_t *data, *ptr;
-  
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(pgci_ut, MENU_PGCI_UT_SIZE, 1, ifo_file) != 1) {
-    perror("MENU_PGCI_UT");
-    exit(1);
-  }
-  info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
-  data = malloc(info_length);
-  if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("MENU_PGCI_UT info");
-    exit(1);
-  }
-  
-  pgci_ut->menu_lu 
-    = malloc(pgci_ut->nr_of_lang_units * sizeof(menu_pgci_lu_t));
-  ptr = data;
-  for(i=0;i<pgci_ut->nr_of_lang_units;i++) {
-    memcpy(&pgci_ut->menu_lu[i], ptr, MENU_PGCI_LU_SIZE);
-    ptr += MENU_PGCI_LU_SIZE;
-    
-    /* vmgm_pgci_ut->menu_lu[i].exists doesn't seem to indicate 
-       the presens of the PGCIT but rather some thing else.
-       Maybe only defined in v1.1? */
-    /* If the bita are enumerated abcd efgh then:
-            VTS_x_yy.IFO	VIDEO_TS.IFO
-       a == 0x83 "Root"		0x82 "Title (VTS menu)"
-       b == 0x84 "Sub-Picture"
-       c == 0x85 "Audio"
-       d == 0x86 "Angle"
-       e == 0x87 "PTT (Part of Title?)"
-    */
-    pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
-    ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit,
-		   sector,
-		   pgci_ut->menu_lu[i].lang_start_byte);
-  }
-  free(data);
-}
 
 
 void ifoPrint_PGCIT(pgcit_t *pgcit) {
@@ -1014,47 +714,6 @@ void ifoPrint_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut) {
     PUT(5, "Menu Existence: %02x\n", pgci_ut->menu_lu[i].exists);
     ifoPrint_PGCIT(pgci_ut->menu_lu[i].menu_pgcit);
   }
-}
-
-void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
-  fseek(ifo_file, offset, SEEK_SET);
-  if(fread(vts_atributes, VMG_VTS_ATRIBUTES_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATRIBUTES");
-    exit(1);
-  }
-  //assert(vts_atributes->last_byte <= VMG_VTS_ATRIBUTES_SIZE);
-}
-
-void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
-  int i, info_length;
-  uint8_t *data;
-  uint32_t *ptr;
-  
-  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
-  if(fread(vts_atrt, VMG_VTS_ATRT_SIZE, 1, ifo_file) != 1) {
-    perror("VMG_VTS_ATRT");
-    exit(1);
-  }
-  
-  info_length = vts_atrt->nr_of_vtss * 4; /* Fix? */
-  data = malloc(info_length);
-  if(fread(data, info_length, 1, ifo_file) != 1) {
-    perror("VMGM_VTS_ATRT info");
-    exit(1);
-  }
-  
-  info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATRIBUTES_SIZE;
-  vts_atrt->vts_atributes = malloc(info_length);
-  ptr = (uint32_t *)data;
-  for(i=0;i<vts_atrt->nr_of_vtss;i++) {
-    int offset = *ptr++;
-    assert(offset < vts_atrt->last_byte + 1);
-    ifoRead_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i], 
-			  sector * DVD_BLOCK_LEN + offset);
-    assert(offset + vts_atrt->vts_atributes[i].last_byte 
-	   <= vts_atrt->last_byte + 1);
-  }
-  free(data);
 }
 
 void ifoPrint_VTS_ATRIBUTES(vts_atributes_t *vts_atributes) {
@@ -1138,10 +797,452 @@ void ifoPrint_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt) {
   int i;
   CHECK_ZERO(vts_atrt->zero_1);
   PUT(5, "Number of Video Title Sets: %3i\n", 
-     vts_atrt->nr_of_vtss);
+      vts_atrt->nr_of_vtss);
   for(i=0;i<vts_atrt->nr_of_vtss;i++) {
     PUT(5, "\nVideo Title Set %i\n", i+1);
     ifoPrint_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i]);
   }
 }
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+int ifoOpen_VMG(vmgi_mat_t *vmgi_mat, char *filename) {
+  uint8_t *data;
+  
+  ifo_file = fopen(filename,"r");
+  if(!ifo_file) {
+    perror(filename);
+    return -1;
+  }
+  
+  data = malloc( DVD_BLOCK_LEN );
+  if(!data)
+    return -1;
+  
+  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
+    fclose(ifo_file);
+    ifo_file = NULL;
+    free(data);
+    return -1;
+  }
+  
+  memcpy(vmgi_mat, data, sizeof(vmgi_mat));
+  free(data);
+  
+  return strncmp("DVDVIDEO-VMG",vmgi_mat->vmg_identifier, 12);
+}
+
+int ifoOpen_VTS(vtsi_mat_t *vtsi_mat, char *filename) {
+  uint8_t *data;
+  
+  ifo_file = fopen(filename,"r");
+  if(!ifo_file) {
+    perror(filename);
+    return -1;
+  }
+  
+  data = malloc( DVD_BLOCK_LEN );
+  if(!data)
+    return -1;
+  
+  if(fread(data, DVD_BLOCK_LEN, 1, ifo_file) != 1) {
+    fclose(ifo_file);
+    ifo_file = NULL;
+    free(data);
+    return -1;
+  }
+  
+  memcpy(vtsi_mat, data, sizeof(vtsi_mat));
+  free(data);
+  
+  return strncmp("DVDVIDEO-VMG",vtsi_mat->vts_identifier, 12);
+}
+
+
+void ifoRead_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl, int offset) {
+  
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(cmd_tbl, PGC_COMMAND_TBL_SIZE, 1, ifo_file) != 1) {
+    perror("PGC - Command Table");
+    exit(1);
+  }
+  B2N_16(cmd_tbl->nr_of_pre);
+  B2N_16(cmd_tbl->nr_of_post);
+  B2N_16(cmd_tbl->nr_of_cell);
+  
+  if(cmd_tbl->nr_of_pre != 0) {
+    int pre_cmd_size  = cmd_tbl->nr_of_pre * COMMAND_DATA_SIZE;
+    cmd_tbl->pre_commands  = malloc(pre_cmd_size);
+    if(fread(cmd_tbl->pre_commands, pre_cmd_size, 
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Pre comands");
+      exit(1);
+    }
+  }
+  
+  if(cmd_tbl->nr_of_post != 0) {
+    int post_cmd_size = cmd_tbl->nr_of_post * COMMAND_DATA_SIZE;
+    cmd_tbl->post_commands = malloc(post_cmd_size);
+    if(fread(cmd_tbl->post_commands, post_cmd_size,
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Post commands");
+      exit(1);
+    }
+  }
+  
+  if(cmd_tbl->nr_of_cell != 0) {
+    int cell_cmd_size = cmd_tbl->nr_of_cell * COMMAND_DATA_SIZE;
+    cmd_tbl->cell_commands = malloc(cell_cmd_size);
+    if(fread(cmd_tbl->cell_commands, cell_cmd_size,
+	     1, ifo_file) != 1) {
+      perror("PGC - Command Table, Cell commands");
+      exit(1);
+    }
+  }
+}
+
+void ifoRead_PGC_PROGRAM_MAP(pgc_program_map_t *program_map, int nr, int offset){
+  int size = nr * sizeof(pgc_program_map_t);
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(program_map, size, 1, ifo_file) != 1) {
+    perror("PGC - Program Map");
+    exit(1);
+  }
+}
+
+void ifoRead_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr, int offset) {
+  int size = nr * sizeof(cell_playback_tbl_t);
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(cell_playback, size, 1, ifo_file) != 1) {
+    perror("PGC - Cell Playback info");
+    exit(1);
+  }
+  B2N_32(cell_playback->category);
+  B2N_32(cell_playback->playback_time);
+  B2N_32(cell_playback->first_sector);
+  B2N_32(cell_playback->first_ilvu_end_sector);
+  B2N_32(cell_playback->last_vobu_start_sector);
+  B2N_32(cell_playback->last_sector);
+}
+
+void ifoRead_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr, int offset) {
+  int size = nr * sizeof(cell_position_tbl_t);
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(cell_position, size, 1, ifo_file) != 1) {
+    perror("PGC - Cell Position info");
+    exit(1);
+  }
+  B2N_16(cell_position->vob_id_nr);
+}
+
+
+void ifoRead_PGC(pgc_t *pgc, int offset) {
+  int i;
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(pgc, PGC_SIZE, 1, ifo_file) != 1) {
+    perror("First Play PGC");
+    exit(1);
+  }
+  B2N_16(pgc->zero_1);
+  B2N_32(pgc->playback_time);
+  B2N_32(pgc->prohibited_ops);
+  B2N_16(pgc->next_pgc_nr);
+  B2N_16(pgc->prev_pgc_nr);
+  B2N_16(pgc->goup_pgc_nr);
+  B2N_16(pgc->pgc_command_tbl_offset);
+  B2N_16(pgc->pgc_program_map_offset);
+  B2N_16(pgc->cell_playback_tbl_offset);
+  B2N_16(pgc->cell_position_tbl_offset);
+  for(i=0;i<8;i++)
+    B2N_16(pgc->audio_status[i]);
+  for(i=0;i<32;i++)
+    B2N_32(pgc->subp_status[i]);
+  for(i=0;i<16;i++)
+    B2N_32(pgc->palette[i]);
+  
+  if(pgc->pgc_command_tbl_offset != 0) {
+    pgc->pgc_command_tbl = malloc(sizeof(pgc_command_tbl_t));
+    ifoRead_PGC_COMMAND_TBL(pgc->pgc_command_tbl, 
+			    offset + pgc->pgc_command_tbl_offset);
+  } else {
+    pgc->pgc_command_tbl = NULL;
+  }
+  
+  if(pgc->pgc_program_map_offset != 0) {
+    assert(pgc->nr_of_programs != 0);
+    pgc->pgc_program_map = malloc(pgc->nr_of_programs * 
+				 sizeof(pgc_program_map_t));
+    ifoRead_PGC_PROGRAM_MAP(pgc->pgc_program_map, pgc->nr_of_programs, 
+			    offset + pgc->pgc_program_map_offset);
+  } else {
+    assert(pgc->nr_of_programs == 0);
+    pgc->pgc_program_map = NULL;
+  }
+  
+  assert(pgc->nr_of_cells == 0 
+	 ? pgc->cell_playback_tbl_offset == 0 && 
+	 pgc->cell_position_tbl_offset == 0
+	 : pgc->cell_playback_tbl_offset != 0 && 
+	 pgc->cell_position_tbl_offset != 0);
+
+  if(pgc->cell_playback_tbl_offset != 0) {
+    pgc->cell_playback_tbl = malloc(pgc->nr_of_cells * 
+				    sizeof(cell_playback_tbl_t));
+    ifoRead_CELL_PLAYBACK_TBL(pgc->cell_playback_tbl, pgc->nr_of_cells,
+			      offset + pgc->cell_playback_tbl_offset);
+  } else {
+    pgc->cell_playback_tbl = NULL;
+  }
+  
+  if(pgc->cell_position_tbl_offset != 0) {
+    pgc->cell_position_tbl = malloc(pgc->nr_of_cells * 
+				    sizeof(cell_position_tbl_t));
+    ifoRead_CELL_POSITION_TBL(pgc->cell_position_tbl, pgc->nr_of_cells, 
+			      offset + pgc->cell_position_tbl_offset);
+  } else {
+    pgc->cell_position_tbl = NULL;
+  }  
+}  
+
+void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
+  int info_length;
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(vmg_ptt_srpt, VMG_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
+    perror("VMG_PTT_SRPT");
+    exit(1);
+  }
+  info_length = vmg_ptt_srpt->last_byte + 1 - VMG_PTT_SRPT_SIZE;
+  vmg_ptt_srpt->title_info = malloc(info_length); 
+  assert(info_length >= vmg_ptt_srpt->nr_of_srpts * sizeof(title_info_t));
+  if(fread(vmg_ptt_srpt->title_info, info_length, 1, ifo_file) != 1) {
+    perror("VMG_PTT_SRPT");
+    exit(1);
+  }  
+}
+
+void ifoRead_VTS_PTT_SRPT(vts_ptt_srpt_t *vts_ptt_srpt, int sector) {
+  int info_length, i, j;
+  uint8_t *data;
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(vts_ptt_srpt, VTS_PTT_SRPT_SIZE, 1, ifo_file) != 1) {
+    perror("VTS_PTT_SRPT");
+    exit(1);
+  }
+  info_length = vts_ptt_srpt->last_byte + 1 - VTS_PTT_SRPT_SIZE;
+  data = malloc(info_length); 
+  if(fread(data, info_length, 1, ifo_file) != 1) {
+    perror("VTS_PTT_SRPT");
+    exit(1);
+  }
+  PUT(5, " nr_of_srpts %i last byte %i\n", 
+      vts_ptt_srpt->nr_of_srpts, 
+      vts_ptt_srpt->last_byte);
+  vts_ptt_srpt->title_info = malloc(vts_ptt_srpt->nr_of_srpts * sizeof(ttu_t));
+  for(i=0;i<vts_ptt_srpt->nr_of_srpts;i++) {
+    int n;
+    if(i != vts_ptt_srpt->nr_of_srpts - 1)
+      n = (((uint32_t*)data)[i+1] - ((uint32_t*)data)[i])/4;
+    else
+      n = (vts_ptt_srpt->last_byte + 1 - ((uint32_t*)data)[i])/4;
+    PUT(5, "n = %i\n", n);
+    vts_ptt_srpt->title_info[i].ptt_info = malloc(n * sizeof(ptt_info_t));
+    for(j=0;j<n;j++) {
+      vts_ptt_srpt->title_info[i].ptt_info[j].pgcn 
+	= *(uint16_t*)(data + ((uint32_t*)data)[i]+4*j - VTS_PTT_SRPT_SIZE);
+      vts_ptt_srpt->title_info[i].ptt_info[j].pgn 
+	= *(uint16_t*)(data + ((uint32_t*)data)[i]+4*j+2 - VTS_PTT_SRPT_SIZE);
+      PUT(5, "VTS_PTT_SRPT - Title %3i part %3i: PGC: %3i PG: %3i\n",
+	  i+1, j+1, 
+	  vts_ptt_srpt->title_info[i].ptt_info[j].pgcn,
+	  vts_ptt_srpt->title_info[i].ptt_info[j].pgn );
+    }
+  }
+}
+
+void ifoRead_VMG_PTL_MAIT(vmg_ptl_mait_t *ptl_mait, int sector) {
+  int info_length;
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(ptl_mait, VMG_PTL_MAIT_SIZE, 1, ifo_file) != 1) {
+    perror("VMG_PTL_MAIT");
+    exit(1);
+  }
+  
+  /* Change this to read and 'translate' the tables too. */
+  
+  //info_length = ptl_mait->nr_of_countries * VMG_PTL_MAIT_COUNTRY_SIZE;
+  info_length = ptl_mait->last_byte + 1 -  VMG_PTL_MAIT_SIZE;
+  ptl_mait->countries = malloc(info_length); 
+  assert(info_length <= ptl_mait->last_byte + 1);
+  if(fread(ptl_mait->countries, info_length, 1, ifo_file) != 1) {
+    perror("VMG_PTL_MAIT info");
+    exit(1);
+  }
+}
+
+void ifoRead_C_ADT(c_adt_t *c_adt, int sector) {
+  int info_length;
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(c_adt, C_ADT_SIZE, 1, ifo_file) != 1) {
+    perror("VMGM_C_ADT");
+    exit(1);
+  }
+  
+  info_length = c_adt->last_byte + 1 - C_ADT_SIZE;
+  c_adt->cell_adr_table = malloc(info_length); 
+  if(fread(c_adt->cell_adr_table, info_length, 1, ifo_file) != 1) {
+    perror("VMGM_C_ADT info");
+    exit(1);
+  }
+  assert((c_adt->last_byte + 1 - C_ADT_SIZE) % sizeof(c_adt_t) == 0);
+}
+
+
+
+void ifoRead_VOBU_ADMAP(vobu_admap_t *vobu_admap, int sector) {
+  int info_length;
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(vobu_admap, VOBU_ADMAP_SIZE, 1, ifo_file) != 1) {
+    perror("VMGM_VOBU_ADMAP");
+    exit(1);
+  }
+  
+  info_length = vobu_admap->last_byte + 1 - VOBU_ADMAP_SIZE;
+  vobu_admap->vobu_start_sectors = malloc(info_length); 
+  if(fread(vobu_admap->vobu_start_sectors, info_length, 1, ifo_file) != 1) {
+    perror("VMGM_VOBU_ADMAP info");
+    exit(1);
+  }
+}
+
+void ifoRead_PGCIT(pgcit_t *pgcit, int sector, int offset) {
+  int i, info_length;
+  uint8_t *data, *ptr;
+  
+  fseek(ifo_file, offset + sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(pgcit, PGCIT_SIZE, 1, ifo_file) != 1) {
+    perror("PGCIT");
+    exit(1);
+  }
+  
+  info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
+  data = malloc(info_length);
+  if(fread(data, info_length, 1, ifo_file) != 1) {
+    perror("PGCIT info");
+    exit(1);
+  }
+  
+  pgcit->pgci_srp 
+    = malloc(pgcit->nr_of_pgci_srp * sizeof(pgci_srp_t));
+  ptr = data;
+  for(i=0;i<pgcit->nr_of_pgci_srp;i++) {
+    memcpy(&pgcit->pgci_srp[i], ptr, MENU_PGCI_LU_SIZE);
+    ptr += MENU_PGCI_LU_SIZE;
+    
+    pgcit->pgci_srp[i].pgc = malloc(sizeof(pgc_t));
+    ifoRead_PGC(pgcit->pgci_srp[i].pgc, 
+		sector * DVD_BLOCK_LEN + offset
+		+ pgcit->pgci_srp[i].start_byte_of_pgc);
+  }
+  free(data);
+}
+
+void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
+  int i, info_length;
+  uint8_t *data, *ptr;
+  
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(pgci_ut, MENU_PGCI_UT_SIZE, 1, ifo_file) != 1) {
+    perror("MENU_PGCI_UT");
+    exit(1);
+  }
+  info_length = pgci_ut->nr_of_lang_units * MENU_PGCI_LU_SIZE;
+  data = malloc(info_length);
+  if(fread(data, info_length, 1, ifo_file) != 1) {
+    perror("MENU_PGCI_UT info");
+    exit(1);
+  }
+  
+  pgci_ut->menu_lu 
+    = malloc(pgci_ut->nr_of_lang_units * sizeof(menu_pgci_lu_t));
+  ptr = data;
+  for(i=0;i<pgci_ut->nr_of_lang_units;i++) {
+    memcpy(&pgci_ut->menu_lu[i], ptr, MENU_PGCI_LU_SIZE);
+    ptr += MENU_PGCI_LU_SIZE;
+    
+    /* vmgm_pgci_ut->menu_lu[i].exists doesn't seem to indicate 
+       the presens of the PGCIT but rather some thing else.
+       Maybe only defined in v1.1? */
+    /* If the bita are enumerated abcd efgh then:
+       VTS_x_yy.IFO	VIDEO_TS.IFO
+       a == 0x83 "Root"		0x82 "Title (VTS menu)"
+       b == 0x84 "Sub-Picture"
+       c == 0x85 "Audio"
+       d == 0x86 "Angle"
+       e == 0x87 "PTT (Part of Title?)"
+    */
+    pgci_ut->menu_lu[i].menu_pgcit = malloc(sizeof(pgcit_t));
+    ifoRead_PGCIT(pgci_ut->menu_lu[i].menu_pgcit,
+		  sector,
+		  pgci_ut->menu_lu[i].lang_start_byte);
+  }
+  free(data);
+}
+
+
+void ifoRead_VTS_ATRIBUTES(vts_atributes_t *vts_atributes, int offset) {
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(vts_atributes, VMG_VTS_ATRIBUTES_SIZE, 1, ifo_file) != 1) {
+    perror("VMG_VTS_ATRIBUTES");
+    exit(1);
+  }
+  //assert(vts_atributes->last_byte <= VMG_VTS_ATRIBUTES_SIZE);
+}
+
+void ifoRead_VMG_VTS_ATRT(vmg_vts_atrt_t *vts_atrt, int sector) {
+  int i, info_length;
+  uint8_t *data;
+  uint32_t *ptr;
+  
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(vts_atrt, VMG_VTS_ATRT_SIZE, 1, ifo_file) != 1) {
+    perror("VMG_VTS_ATRT");
+    exit(1);
+  }
+  
+  info_length = vts_atrt->nr_of_vtss * 4; /* Fix? */
+  data = malloc(info_length);
+  if(fread(data, info_length, 1, ifo_file) != 1) {
+    perror("VMGM_VTS_ATRT info");
+    exit(1);
+  }
+  
+  info_length = vts_atrt->nr_of_vtss * VMG_VTS_ATRIBUTES_SIZE;
+  vts_atrt->vts_atributes = malloc(info_length);
+  ptr = (uint32_t *)data;
+  for(i=0;i<vts_atrt->nr_of_vtss;i++) {
+    int offset = *ptr++;
+    assert(offset < vts_atrt->last_byte + 1);
+    ifoRead_VTS_ATRIBUTES(&vts_atrt->vts_atributes[i], 
+			  sector * DVD_BLOCK_LEN + offset);
+    assert(offset + vts_atrt->vts_atributes[i].last_byte 
+	   <= vts_atrt->last_byte + 1);
+  }
+  free(data);
+}
