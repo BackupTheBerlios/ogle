@@ -46,11 +46,12 @@
 #include "video_tables.h"
 
 
+#define NEW_TABLES 0
+#if NEW_TABLES
+#include "new_table.h"
+#endif
 
-
-
-
-
+/* #include <libcpc.h> */
 
 
 
@@ -175,6 +176,240 @@ void inverse_quantisation_final(int sum)
   }
 }
 
+#if NEW_TABLES
+/* 6.2.6 Block */
+static
+void block_intra(unsigned int i)
+{
+  const base_table_t *top_table;
+  
+  unsigned int n;
+  int inverse_quantisation_sum;
+  
+ 
+  DPRINTFI(3, "pattern_code(%d) set\n", i);
+  
+  //cpc_count_usr_events(1);
+  
+  { // Reset all coefficients to 0.
+    int m;
+    for(m=0; m<16; m++)
+      memset( ((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t) );
+  }
+    
+    
+  /* DC - component */
+  {
+    unsigned int dct_dc_size;
+    int dct_diff;
+    
+    if(i < 4) {
+      dct_dc_size = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
+      DPRINTF(4, "luma_size: %d\n", dct_dc_size);
+    } else {
+      dct_dc_size = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
+      DPRINTF(4, "chroma_size: %d\n", dct_dc_size);
+    } 
+    
+    if(dct_dc_size != 0) {
+      int half_range = 1<<(dct_dc_size-1);
+      int dct_dc_differential = GETBITS(dct_dc_size, "dct_dc_differential");
+      
+      DPRINTF(4, "diff_val: %d, ", dct_dc_differential);
+      
+      if(dct_dc_differential >= half_range) {
+	dct_diff = dct_dc_differential;
+      } else {
+	dct_diff = (dct_dc_differential+1)-(2*half_range);
+      }
+      DPRINTF(4, "%d\n", dct_diff);  
+      
+    } else {
+      dct_diff = 0;
+    }
+      
+    {
+      // qfs is always between 0 and 2^(8+dct_dc_size)-1, i.e unsigned.
+      unsigned int qfs;
+      int cc;
+      
+      /* Table 7-1. Definition of cc, colour component index */ 
+      cc = (i>>2) + ((i>>2) & i);
+      
+      qfs = mb.dc_dct_pred[cc] + dct_diff;
+      mb.dc_dct_pred[cc] = qfs;
+      DPRINTF(4, "QFS[0]: %d\n", qfs);
+      
+      /* inverse quantisation */
+      {
+	// mb.intra_dc_mult is 1, 2 , 4 or 8, i.e unsigned.
+	unsigned int f = mb.intra_dc_mult * qfs;
+#if 0
+	if(f > 2047) {
+	  fprintf(stderr, "Clipp (block_intra first)\n");
+	  f = 2047;
+	} 
+#endif
+	mb.QFS[0] = f;
+	inverse_quantisation_sum = f;
+      }
+      n = 1;
+    }
+  }
+  
+  
+  /* AC - components */
+  
+  top_table = top_b14;
+  if(pic.coding_ext.intra_vlc_format) {
+    top_table = top_b15;
+  }
+  
+
+  
+  while(1) {
+    unsigned int bits;
+    unsigned int i, f, val, sgn;
+    //get_dct_intra(&runlevel,"dct_dc_subsequent");
+    
+    // We need the first and the following 8 bits
+    bits = nextbits(16);
+    
+    if((bits >> 10) == 1) {
+    //if(top == entry_for_escape) { // entry_for_escape {24, 8 }
+    //if(top->offset == 24) {
+      val = getbits(6+6+12);
+      n += (val >> 12) & 0x3f;
+      val &= 0xfff;
+      sgn = (val >= 2048); // sgn = val >> 11;
+      if(val >= 2048)
+	val = 4096 - val;
+    } else {
+      index_table_t const *const sub
+	= &sub_table[TOP_OFFSET(top_table, bits >> 8) + 
+		    ((0xff & bits) >> TOP_IBITS(top_table, bits >> 8))];
+      val = VLC_LEVEL(*sub);
+      n += VLC_RUN(*sub);
+      // Make sure the code for EOB is compensated for this, it is.
+      sgn = getbits(VLC_CODE_BITS(*sub)+1+1) & 1;
+      
+      // End of block, can't happen for esq. but we might need error check?
+      if(n >= 64)
+	break;
+    }
+    
+    /* inverse quantisation */
+    i = inverse_scan[pic.coding_ext.alternate_scan][n++];
+    f = (val 
+	 * mb.quantiser_scale
+	 * seq.header.intra_inverse_quantiser_matrix[i])/16;
+    
+#if 0
+    if((f - sgn) > 2047)
+      f = 2047 + sgn;
+#endif
+    
+    inverse_quantisation_sum += f; // The last bit is the same in f and -f.
+    
+    // mb.QFS[i] = sgn ? -f : f;
+    mb.QFS[i] = (f ^ -sgn) + sgn;
+    
+  }
+  
+  //cpc_count_usr_events(0);
+  
+  inverse_quantisation_final(inverse_quantisation_sum);
+  
+  DPRINTF(4, "nr of coeffs: %d\n", n);
+}
+
+
+
+/* 6.2.6 Block */
+static
+void block_non_intra(unsigned int b)
+{
+  index_table_t const *sub;
+  index_table_t const sub_firt_dc = VLC_RL( 1, 0, 1 );
+  unsigned int bits;
+  
+  unsigned int n = 0;
+  int inverse_quantisation_sum = 0;
+  
+  DPRINTF(3, "pattern_code(%d) set\n", b);
+  
+  //cpc_count_usr_events(1);
+
+  { // Reset all coefficients to 0.
+    int m;
+    for(m = 0; m < 16; m++)
+      memset((uint64_t *)mb.QFS + m, 0, sizeof(uint64_t));
+  }
+  
+  // We need the first and the following 8 bits
+  bits = nextbits(16);
+  
+  sub = &sub_firt_dc; 
+  if(bits >> 15) { // if(top->offset < 2) {
+    goto sub_entry;
+  } 
+  
+  while(1) {
+    unsigned int i, f, val, sgn;
+    
+    if((bits>>10) == 1) {
+    //if(top->offset == 24) { // offset_for_escape { 24, 8 }
+      val = getbits(6+6+12);
+      n += (val >> 12) & 0x3f;
+      val &= 0xfff;
+      sgn = (val >= 2048); // sgn = val >> 11;
+      if(val >= 2048)
+	val = 4096 - val;
+    } else {
+      sub = &sub_table[TOP_OFFSET(top_b14, bits >> 8) +
+		      ((0xff & bits) >> TOP_IBITS(top_b14, bits >> 8))];
+    sub_entry:
+      val = VLC_LEVEL(*sub);
+      n += VLC_RUN(*sub);
+      // Make sure the code for EOB and DCT_DC_FIRST is compensated, it is.
+      sgn = getbits(VLC_CODE_BITS(*sub) + 1 + 1) & 1;
+      
+      // End of block, can't happen for esq. but we might need error check?
+      if(n >= 64)
+	break;
+    }
+    
+    /* inverse quantisation */
+    i = inverse_scan[pic.coding_ext.alternate_scan][n++];
+    f = ((val * 2 + 1)
+	 * mb.quantiser_scale
+	 * seq.header.non_intra_inverse_quantiser_matrix[i])/32;
+#if 0
+    if((f - sgn) > 2047)
+      f = 2047 + sgn;
+#endif
+    
+    inverse_quantisation_sum += f; // The last bit is the same in f and -f.
+    
+    // mb.QFS[i] = sgn ? -f : f;
+    mb.QFS[i] = (f ^ -sgn) + sgn;
+    
+    /* Start of next code */
+    
+    // We need the first and the following 8 bits
+    bits = nextbits(16);
+  }
+  
+  //cpc_count_usr_events(0);
+  
+  inverse_quantisation_final(inverse_quantisation_sum);
+  
+  DPRINTF(4, "nr of coeffs: %d\n", n);
+}
+
+
+#else /* NEW_TABLES */
+
 
 /* 6.2.6 Block */
 static
@@ -188,6 +423,8 @@ void block_intra(unsigned int i)
   uint32_t word;
   
   DPRINTFI(3, "pattern_code(%d) set\n", i);
+  
+  //cpc_count_usr_events(1);
   
   { // Reset all coefficients to 0.
     int m;
@@ -303,7 +540,8 @@ void block_intra(unsigned int i)
       fprintf(stderr,
 	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
 	      code);
-      exit_program(1);
+      //exit_program(1);
+      tab = &DCTtabnext[4]; // end_of_block 
     }
 
     
@@ -324,11 +562,12 @@ void block_intra(unsigned int i)
 	run = (val >> 12) & 0x3f;
 	val = val & 0xfff;
 
+#if 0
 	if ((val & 2047) == 0) {
 	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
-	
+#endif
 	sgn = (val >= 2048);
 	if(val >= 2048)                // !!!! ?sgn? 
 	  val = 4096 - val;
@@ -393,6 +632,8 @@ void block_intra(unsigned int i)
     
   }
 
+  //cpc_count_usr_events(0);
+  
   inverse_quantisation_final(inverse_quantisation_sum);
   
   // Clean-up
@@ -420,6 +661,8 @@ void block_non_intra(unsigned int b)
   
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
+  //cpc_count_usr_events(1);    
+ 
   // Reset all coefficients to 0.
   {
     int m;
@@ -457,8 +700,10 @@ void block_non_intra(unsigned int b)
     else if(code >= 16)
       tab = &DCTtab6[code - 16];
     else {
-      fprintf(stderr, "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n", code);
-      exit_program(1);
+      fprintf(stderr, "(vlc) invalid huffman code 0x%x " 
+	      "in vlc_get_block_coeff()\n", code);
+      //exit_program(1);
+      break; // end_of_block 
     }
     
    
@@ -479,11 +724,13 @@ void block_non_intra(unsigned int b)
 	run = (val >> 12) & 0x3f;
 	val &= 0xfff;
 
+#if 0
 	if((val & 2047) == 0) {
 	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
-
+#endif
+	
 	sgn = (val >= 2048);
 	if(val >= 2048)                // !!!! ?sgn? 
 	  val =  4096 - val;// - 4096;
@@ -552,6 +799,9 @@ void block_non_intra(unsigned int b)
     }
     word = (lcur_word << (64-left)) >> 40;
   }
+  
+  //cpc_count_usr_events(0);
+
   inverse_quantisation_final(inverse_quantisation_sum);
   
   // Clean-up
@@ -562,8 +812,7 @@ void block_non_intra(unsigned int b)
   
   DPRINTF(4, "nr of coeffs: %d\n", n);
 }
-
-
+#endif
 
 /* 6.2.5.3 Coded block pattern */
 static
@@ -599,9 +848,9 @@ void coded_block_pattern(void)
  
 /* 6.2.5.2.1 Motion vector */
 static
-void motion_vector(int r, int s)
+void motion_vector(unsigned int r, unsigned int s)
 {
-  int t;
+  unsigned int t;
   
   DPRINTF(3, "motion_vector(%d, %d)\n", r, s);
 
@@ -610,7 +859,7 @@ void motion_vector(int r, int s)
     int prediction;
     int vector;
     
-    int r_size = pic.coding_ext.f_code[s][t] - 1;
+    unsigned int r_size = pic.coding_ext.f_code[s][t] - 1;
     
     { // Read and compute the motion vector delta
       int motion_code = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
@@ -620,7 +869,7 @@ void motion_vector(int r, int s)
 	
 	delta = ((abs(motion_code) - 1) << r_size) + motion_residual + 1;
 	if(motion_code < 0)
-	  delta = - delta;
+	  delta = -delta;
       }
       else {
 	delta = motion_code;
@@ -787,6 +1036,7 @@ int macroblock_modes(void)
     fprintf(stderr, "*** Unsupported picture type %02x\n", 
 	    pic.header.picture_coding_type);
     exit_program(1);
+    // should not be tested / handled here
   }
   
   if(mb.modes.macroblock_type == VLC_FAIL) {
@@ -841,427 +1091,37 @@ int macroblock_modes(void)
 
 
 
-/* 6.2.5 Macroblock */
-static
-void macroblock(void)
-{
-  uint16_t inc_add = 0;
-  
-  DPRINTFI(3, "macroblock()\n");
-  DINDENT(2);
-  while(nextbits(11) == 0x008) {
-    GETBITS(11, "macroblock_escape");
-    inc_add += 33;
-  }
-  mb.macroblock_address_increment 
-    = get_vlc(table_b1, "macroblock_address_increment");
-
-  mb.macroblock_address_increment += inc_add;  
-  seq.macroblock_address += mb.macroblock_address_increment;
-
-  /* In MPEG-2 ML@MP a slice never span two or more rows. */
-  seq.mb_column = seq.macroblock_address % seq.mb_width;
-  
-  DPRINTFI(4, " Macroblock: %d, row: %d, col: %d\n",
-	  seq.macroblock_address,
-	  seq.mb_row,
-	  seq.mb_column);
-  
-#ifdef DEBUG
-  if(mb.macroblock_address_increment > 1) {
-    DPRINTF(3, "Skipped %d macroblocks\n",
-	    mb.macroblock_address_increment);
-  }
-#endif
-  
-  
-  if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
-    /* In a P-picture when a macroblock is skipped */
-    if(mb.macroblock_address_increment > 1) {
-      reset_PMV();
-      reset_vectors();
-    }
-  }
-  
-  
-  /* 7.6.6 Skipped Macroblocks */
-  if(mb.macroblock_address_increment > 1) {
-    /* Skipped blocks never have any DCT coefficients (pattern). */
-    
-    switch(pic.header.picture_coding_type) {
-    case PIC_CODING_TYPE_P:
-      DPRINTFI(4, "skipped in P-picture\n");
-      /* mlib is broken!!! 
-      {
-	int x = (seq.mb_column-mb.macroblock_address_increment+1);
-	int y = seq.mb_row;
-	int offs_y = x * 16 + y * 16 * seq.mb_width * 16;//seq.horizontal_size;
-	int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
-	mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
-				&fwd_ref_image->y[offs_y], 
-				(mb.macroblock_address_increment-1)*16, 
-				16, (seq.mb_width * 16));
-	mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
-				&fwd_ref_image->u[offs_uv],
-				(mb.macroblock_address_increment-1)*8,
-				8, (seq.mb_width * 16)/2);
-	mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
-				&fwd_ref_image->v[offs_uv],
-				(mb.macroblock_address_increment-1)*8,
-				8, (seq.mb_width * 16)/2);
-      }
-      */
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	int x,y;
-	/* 7.6.6.2 P frame picture */
-	
-	for(x = (seq.mb_column-mb.macroblock_address_increment+1)*16, 
-	      y = seq.mb_row*16;
-	    y < (seq.mb_row+1)*16; y++) {
-	  memcpy(&dst_image->y[y*(seq.mb_width*16)+x], 
-		 &fwd_ref_image->y[y*(seq.mb_width*16)+x], 
-		 (mb.macroblock_address_increment-1)*16);
-	}
-	for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, 
-	      y = seq.mb_row*8;
-	    y < (seq.mb_row+1)*8; y++) {
-	  memcpy(&dst_image->u[y*(seq.mb_width*16)/2+x], 
-		 &fwd_ref_image->u[y*(seq.mb_width*16)/2+x], 
-		 (mb.macroblock_address_increment-1)*8);
-	}
-	for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, 
-	      y = seq.mb_row*8;
-	    y < (seq.mb_row+1)*8; y++) {
-	  memcpy(&dst_image->v[y*(seq.mb_width*16)/2+x], 
-		 &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
-		 (mb.macroblock_address_increment-1)*8);
-	}
-      } else { // Optimize this case too?  Maybe move all this to video_motion
-	int old_col = seq.mb_column;
-	/* 7.6.6.1 P field picture*/
-	// Are these two needed/wanted?
-	mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
-	mb.modes.macroblock_type &= ~MACROBLOCK_MOTION_BACKWARD;	
-	
-	mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FIELD;
-	mb.motion_vertical_field_select[0][0] = 
-	  pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
-	
-	/* Set mb_column so that motion_comp will use the right adress */
-	for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
-	    seq.mb_column < old_col; seq.mb_column++) {
-	  motion_comp();
-	}
-	seq.mb_column = old_col;
-      }
-      break;
-      
-    case PIC_CODING_TYPE_B:
-      DPRINTFI(4, "skipped in B-frame\n");
-      {
-	int old_col = seq.mb_column;
-	// The previos macroblocks vectors are used.
-	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	  /* 7.6.6.4  B frame picture */
-	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	  mb.motion_vector_count = 1;
-	  mb.mv_format = MV_FORMAT_FRAME;
-	} else {
-	  /* 7.6.6.3  B field picture */
-	  mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	  mb.motion_vector_count = 1;
-	  mb.mv_format = MV_FORMAT_FIELD;
-	  mb.motion_vertical_field_select[0][0] = 
-	    pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
-	  mb.motion_vertical_field_select[0][1] =
-	    pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
-	  //exit_program(1);
-	}
-	
-	/* Set mb_column so that motion_comp will use the right adress */
-	for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
-	    seq.mb_column < old_col; seq.mb_column++) {
-	  motion_comp();
-	}
-	seq.mb_column = old_col;
-      }
-      break;
-    
-    default:
-      fprintf(stderr, "*** skipped blocks in I-picture\n");
-      break;
-    }
-  }
-
-
-  if(macroblock_modes() == -1)
-    exit_program(1);
-  
-  if(!(mb.modes.macroblock_type & MACROBLOCK_INTRA)) {
-    reset_dc_dct_pred();  
-    DPRINTFI(4, "non_intra macroblock\n");
-  }
-
-  if(mb.macroblock_address_increment > 1) {
-    reset_dc_dct_pred();
-    DPRINTFI(4, "skipped block\n");
-  }
-    
-   
-  if(mb.modes.macroblock_type & MACROBLOCK_QUANT) {
-    mb.quantiser_scale = 
-      q_scale[pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
-  }
-  
-  if((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) ||
-     ((mb.modes.macroblock_type & MACROBLOCK_INTRA) &&
-      pic.coding_ext.concealment_motion_vectors)) {
-    motion_vectors(0);
-  }
-  if(mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) {
-    motion_vectors(1);
-  }
-  if((mb.modes.macroblock_type & MACROBLOCK_INTRA) && pic.coding_ext.concealment_motion_vectors) {
-    marker_bit();
-  }
-
-  
-  /* All motion vectors for the block has been decoded. Update predictors */
-  
-  if(mb.modes.macroblock_type & MACROBLOCK_INTRA) {
-    /* Whenever an intra macroblock is decoded which has
-       no concealment motion vectors */
-    if(pic.coding_ext.concealment_motion_vectors == 0) {
-      reset_PMV();
-      DPRINTF(4, "* 1\n");
-    } else {
-      pic.PMV[1][0][1] = pic.PMV[0][0][1];
-      pic.PMV[1][0][0] = pic.PMV[0][0][0];
-    }
-  } else {
-    switch(mb.prediction_type) {
-    case PRED_TYPE_FIELD_BASED:
-      /* When used in a PIC_STRUCT_FRAME_PICTURE nothing is to be updated. */
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE)
-	break;
-    case PRED_TYPE_FRAME_BASED:
-      /* When used in a PIC_STRUCT_[TOP|BOTTOM]_FIELD nothing is to be updated.
-	 There is no need to test since it can't be used in these pictures.*/
-      if(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) {
-	pic.PMV[1][0][1] = pic.PMV[0][0][1];
-	pic.PMV[1][0][0] = pic.PMV[0][0][0];
-      }
-      if(mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) {
-	pic.PMV[1][1][1] = pic.PMV[0][1][1];
-	pic.PMV[1][1][0] = pic.PMV[0][1][0];
-      }
-      if(pic.coding_ext.frame_pred_frame_dct != 0) {
-	if(((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) == 0) &&
-	   ((mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) == 0)) {
-	  reset_PMV();
-	  DPRINTF(4, "* 2\n");
-	}
-      }
-      break;
-    case PRED_TYPE_16x8_MC:
-#ifdef DEBUG
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	fprintf(stderr, "*** invalid pred_type\n");
-	exit_program(1);
-      }
-#endif
-      break;
-    case PRED_TYPE_DUAL_PRIME:
-      if(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) {
-	pic.PMV[1][0][1] = pic.PMV[0][0][1];
-	pic.PMV[1][0][0] = pic.PMV[0][0][0];
-      }      
-      break;
-    default:
-      fprintf(stderr, "*** invalid pred_type\n");
-      exit_program(1);
-      break;
-    }
-  }
-
-
-  /*** 7.6.3.5 Prediction in P-pictures ***/
-  if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
-    /* In a P-picture when a non-intra macroblock is decoded
-       in which macroblock_motion_forward is zero */
-    if((!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)) && 
-       (!(mb.modes.macroblock_type & MACROBLOCK_INTRA))) {
-      DPRINTF(4, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
-      /* 7.6.3.4 */
-      reset_PMV();
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FRAME;
-      } else {
-	mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FIELD;
-	mb.motion_vertical_field_select[0][0] =
-	  pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
-      }
-      mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
-      mb.modes.macroblock_motion_forward = 1; // REMOVE me
-      mb.vector[0][0][0] = 0;
-      mb.vector[0][0][1] = 0;
-      mb.vector[1][0][0] = 0;
-      mb.vector[1][0][1] = 0;
-       
-    }
-  }
-   
-
-  
-  if(mb.modes.macroblock_type & MACROBLOCK_INTRA) {
-    unsigned int block_count = 6;
-    unsigned int i;
-    
-    /* Table 6-20 block_count as a function of chroma_format */
-#ifdef DEBUG
-    if(seq.ext.chroma_format == 0x01) {
-      block_count = 6;
-    } else if(seq.ext.chroma_format == 0x02) {
-      block_count = 8;
-    } else if(seq.ext.chroma_format == 0x03) {
-      block_count = 12;
-    }
-#endif
-    
-    /* Intra blocks always have pattern coded for all sub blocks and
-       are writen directly to the output buffers by this code. */
-    for(i = 0; i < block_count; i++) {  
-      DPRINTF(4, "cbpindex: %d assumed\n", i);
-      block_intra(i);
-      
-      /* Shortcut: write the IDCT data directly into the picture buffer */
-      {
-	const int x = seq.mb_column;
-	const int y = seq.mb_row;
-	const int padded_width = seq.mb_width * 16;
-	int d, stride;
-	uint8_t *dst;
-	
-	if (pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) { 
-	  if (mb.modes.dct_type) {
-	    d = 1;
-	    stride = padded_width * 2;
-	  } else {
-	    d = 8;
-	    stride = padded_width;
-	  }
-	  if(i < 4) {
-	    dst = &dst_image->y[x * 16 + y * 16 * padded_width];
-	    dst = (i & 1) ? dst + 8 : dst;
-	    dst = (i >= 2) ? dst + padded_width * d : dst;
-	  }
-	  else {
-	    stride = padded_width / 2;
-	    if(i == 4)
-	      dst = &dst_image->u[x * 8 + y * 8 * stride];
-	    else // i == 5
-	      dst = &dst_image->v[x * 8 + y * 8 * stride];
-	  }
-	} else {
-	    if(i < 4) {
-	      stride = padded_width * 2;
-	      dst = &dst_image->y[x * 16 + y * 16 * stride];
-	      dst = (i & 1) ? dst + 8 : dst;
-	      dst = (i >= 2) ? dst + stride * 8 : dst;
-	    }
-	    else {
-	      stride = padded_width;
-	      if(i == 4)
-		dst = &dst_image->u[x * 8 + y * 8 * stride];
-	      else // i == 5
-		dst = &dst_image->v[x * 8 + y * 8 * stride];
-	    }
-	    if (pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD)
-	      dst += stride/2;
-	}
-
-	mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
-      }
-    }
-  } 
-  else { /* Non-intra block */
-
-    motion_comp(); // Only motion compensate don't add coefficients.
-
-    if(mb.modes.macroblock_type & MACROBLOCK_PATTERN) {
-      unsigned int i;
-      
-      coded_block_pattern();
-      
-      for(i = 0; i < 6; i++) {
-	if(mb.cbp & (1<<(5-i))) {
-	  DPRINTF(4, "cbpindex: %d set\n", i);
-	  block_non_intra(i);
-	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
-	  //	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
-	  motion_comp_add_coeff(i);
-	}
-      }
-      if(seq.ext.chroma_format == 0x02) {
-	for(i = 6; i < 8; i++) {
-	  if(mb.coded_block_pattern_1 & (1<<(7-i))) {
-	    block_non_intra(i);
-	    fprintf(stderr, "ni seq.ext.chroma_format == 0x02\n");
-	    //exit_program(1);
-	  }
-	}
-      }
-      if(seq.ext.chroma_format == 0x03) {
-	for(i = 6; i < 12; i++) {
-	  if(mb.coded_block_pattern_2 & (1<<(11-i))) {
-	    block_non_intra(i);
-	    fprintf(stderr, "ni seq.ext.chroma_format == 0x03\n");
-	    //exit_program(1);
-	  }
-	}
-      }
-    }
-  }
-  DINDENT(-2);
-}
-
-
 /* 6.2.4 Slice */
+/* 6.2.5 Macroblock */
 void mpeg2_slice(void)
 {
-  uint32_t slice_start_code;
-  
   DPRINTFI(3, "slice()\n");
   DINDENT(2);
+  
   reset_dc_dct_pred();
   reset_PMV();
 
-  slice_start_code = GETBITS(32, "slice_start_code");
-  slice_data.slice_vertical_position = slice_start_code & 0xff;
+  slice_data.slice_vertical_position = GETBITS(32, "slice_start_code") & 0xff;
   
+  seq.mb_row = slice_data.slice_vertical_position - 1;
+#if 0
   if(seq.vertical_size > 2800) {
     slice_data.slice_vertical_position_extension 
       = GETBITS(3, "slice_vertical_position_extension");
     seq.mb_row = (slice_data.slice_vertical_position_extension << 7) +
       slice_data.slice_vertical_position - 1;
-  } else {
-      seq.mb_row = slice_data.slice_vertical_position - 1;
   }
+#endif
+  
 
-  seq.macroblock_address = (seq.mb_row * seq.mb_width) - 1;
-
+#if 0
   //TODO
   if(0) {//sequence_scalable_extension_present) {
     if(0) { //scalable_mode == DATA_PARTITIONING) {
       slice_data.priority_breakpoint = GETBITS(7, "priority_breakpoint");
     }
   }
+#endif
   
   mb.quantiser_scale
     = q_scale[pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
@@ -1272,13 +1132,407 @@ void mpeg2_slice(void)
     slice_data.reserved_bits = GETBITS(7, "reserved_bits");
     while(nextbits(1) == 1) {
       slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
-      slice_data.extra_information_slice = GETBITS(8, "extra_information_slice");
+      slice_data.extra_information_slice = 
+	GETBITS(8, "extra_information_slice");
     }
   }
   slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
   
+  
+  DPRINTFI(3, "macroblocks()\n");
+  DINDENT(2);
+  
+  /* Flag that this is the first macroblock in the slice */
+  /* seq.mb_column starts at 0 */
+  seq.mb_column = -1;
+  
   do {
-    macroblock();
+    mb.macroblock_address_increment = 0;
+    while(nextbits(11) == 0x008) {
+      GETBITS(11, "macroblock_escape");
+      mb.macroblock_address_increment += 33;
+    }
+    mb.macroblock_address_increment 
+      += get_vlc(table_b1, "macroblock_address_increment");
+    
+    if(seq.mb_column == -1) {
+      /* The first macroblock is coded. I.e. no skipped blocks, they must have
+	 been in another slice with the same startcode (vertical position). */ 
+      mb.macroblock_address_increment = 1;
+    }
+    /* In MPEG-2 ML@MP a slice never span rows. */
+    seq.mb_column += mb.macroblock_address_increment;
+    /* Subtract one to get the number of skipped blocks instead. */
+    mb.macroblock_address_increment -= 1;
+	
+    DPRINTFI(4, " Macroblock: %d, row: %d, col: %d\n",
+	     (seq.mb_row * seq.mb_width) + seq.mb_column,
+	     seq.mb_row,
+	     seq.mb_column);
+    
+#ifdef DEBUG
+    if(mb.macroblock_address_increment > 0) {
+      DPRINTF(3, "Skipped %d macroblocks\n",
+	      mb.macroblock_address_increment + 1);
+    }
+#endif
+    
+    
+    if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
+      /* In a P-picture when a macroblock is skipped */
+      if(mb.macroblock_address_increment > 0) {
+	reset_PMV();
+	reset_vectors();
+      }
+    }
+    
+    
+    /* 7.6.6 Skipped Macroblocks */
+    if(mb.macroblock_address_increment > 0) {
+      /* Skipped blocks never have any DCT coefficients (pattern). */
+      
+      switch(pic.header.picture_coding_type) {
+      case PIC_CODING_TYPE_P:
+	DPRINTFI(4, "skipped in P-picture\n");
+	/* mlib is broken!!! 
+	{
+	   int x = (seq.mb_column-mb.macroblock_address_increment);
+	   int y = seq.mb_row;
+	   int offs_y = x * 16 + y * 16 * seq.mb_width * 16;
+	   int offs_uv = x * 8 + y *  8 * (seq.mb_width * 16)/2;
+	   mlib_VideoCopyRef_U8_U8(&dst_image->y[offs_y],
+				   &fwd_ref_image->y[offs_y], 
+				   mb.macroblock_address_increment*16, 
+				   16, (seq.mb_width * 16));
+	   mlib_VideoCopyRef_U8_U8(&dst_image->u[offs_uv],
+				   &fwd_ref_image->u[offs_uv],
+				   mb.macroblock_address_increment*8,
+				   8, (seq.mb_width * 16)/2);
+	   mlib_VideoCopyRef_U8_U8(&dst_image->v[offs_uv],
+				   &fwd_ref_image->v[offs_uv],
+				   mb.macroblock_address_increment*8,
+				   8, (seq.mb_width * 16)/2);
+        }
+	*/
+	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+	  int x,y;
+	  /* 7.6.6.2 P frame picture */
+	  x = (seq.mb_column-mb.macroblock_address_increment)*16;
+	  for(y = seq.mb_row*16; y < (seq.mb_row+1)*16; y++) {
+	    memcpy(&dst_image->y[y*(seq.mb_width*16)+x], 
+		   &fwd_ref_image->y[y*(seq.mb_width*16)+x], 
+		   mb.macroblock_address_increment*16);
+	  }
+	  x = (seq.mb_column-mb.macroblock_address_increment)*8;
+	  for(y = seq.mb_row*8; y < (seq.mb_row+1)*8; y++) {
+	    memcpy(&dst_image->u[y*(seq.mb_width*16)/2+x], 
+		   &fwd_ref_image->u[y*(seq.mb_width*16)/2+x], 
+		   mb.macroblock_address_increment*8);
+	  }
+	  for(y = seq.mb_row*8; y < (seq.mb_row+1)*8; y++) {
+	    memcpy(&dst_image->v[y*(seq.mb_width*16)/2+x], 
+		   &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
+		   mb.macroblock_address_increment*8);
+	  }
+	} else {
+	   // Optimize this case too?  Maybe move all this to video_motion
+	  int old_col = seq.mb_column;
+	  /* 7.6.6.1 P field picture*/
+	  // Are these two needed/wanted?
+	  mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
+	  mb.modes.macroblock_type &= ~MACROBLOCK_MOTION_BACKWARD;	
+	  
+	  mb.prediction_type = PRED_TYPE_FIELD_BASED;
+	  mb.motion_vector_count = 1;
+	  mb.mv_format = MV_FORMAT_FIELD;
+	  mb.motion_vertical_field_select[0][0] = 
+	    (pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1);
+	  
+	  /* Set mb_column so that motion_comp will use the right adress */
+	  for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment;
+	      seq.mb_column < old_col; seq.mb_column++) {
+	    motion_comp();
+	  }
+	  seq.mb_column = old_col;
+	}
+	break;
+      
+      case PIC_CODING_TYPE_B:
+	DPRINTFI(4, "skipped in B-frame\n");
+	{
+	  int old_col = seq.mb_column;
+	  // The previos macroblocks vectors are used.
+	  if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+	    /* 7.6.6.4  B frame picture */
+	    mb.prediction_type = PRED_TYPE_FRAME_BASED;
+	    mb.motion_vector_count = 1;
+	    mb.mv_format = MV_FORMAT_FRAME;
+	  } else {
+	    /* 7.6.6.3  B field picture */
+	    mb.prediction_type = PRED_TYPE_FIELD_BASED;
+	    mb.motion_vector_count = 1;
+	    mb.mv_format = MV_FORMAT_FIELD;
+	    mb.motion_vertical_field_select[0][0] = 
+	      pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
+	    mb.motion_vertical_field_select[0][1] =
+	      pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
+	    //exit_program(1); 
+	    // FIXME ??? Are we correct for this case now? 
+	  }
+	  
+	  /* Set mb_column so that motion_comp will use the right adress */
+	  for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment;
+	      seq.mb_column < old_col; seq.mb_column++) {
+	    motion_comp();
+	  }
+	  seq.mb_column = old_col;
+	}
+	break;
+	
+      default:
+	fprintf(stderr, "*** skipped blocks in I-picture\n");
+	//return; ?? 
+	break;
+      }
+    }
+    
+    
+    if(macroblock_modes() == -1) {
+      return;
+      //exit_program(1);
+    }
+  
+    if(!(mb.modes.macroblock_type & MACROBLOCK_INTRA)) {
+      reset_dc_dct_pred();  
+      DPRINTFI(4, "non_intra macroblock\n");
+    }
+    
+    if(mb.macroblock_address_increment > 0) {
+      reset_dc_dct_pred();
+      DPRINTFI(4, "skipped block\n");
+    }
+    
+    
+    if(mb.modes.macroblock_type & MACROBLOCK_QUANT) {
+      mb.quantiser_scale = 
+	q_scale
+	  [pic.coding_ext.q_scale_type][GETBITS(5, "quantiser_scale_code")];
+    }
+    
+    if((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) ||
+       ((mb.modes.macroblock_type & MACROBLOCK_INTRA) &&
+	pic.coding_ext.concealment_motion_vectors)) {
+      motion_vectors(0);
+    }
+    if(mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) {
+      motion_vectors(1);
+    }
+    if((mb.modes.macroblock_type & MACROBLOCK_INTRA) && 
+       pic.coding_ext.concealment_motion_vectors) {
+      marker_bit();
+    }
+    
+    
+    /* All motion vectors for the block has been decoded. Update predictors */
+    
+    if(mb.modes.macroblock_type & MACROBLOCK_INTRA) {
+      /* Whenever an intra macroblock is decoded which has
+	 no concealment motion vectors */
+      if(pic.coding_ext.concealment_motion_vectors == 0) {
+	reset_PMV();
+	DPRINTF(4, "* 1\n");
+      } else {
+	pic.PMV[1][0][1] = pic.PMV[0][0][1];
+	pic.PMV[1][0][0] = pic.PMV[0][0][0];
+      }
+    } else {
+      switch(mb.prediction_type) {
+      case PRED_TYPE_FIELD_BASED:
+	/* When used in a PIC_STRUCT_FRAME_PICTURE nothing is to be updated. */
+	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE)
+	  break;
+      case PRED_TYPE_FRAME_BASED:
+	/* When used in a PIC_STRUCT_*_FIELD nothing is to be updated.
+	   There is no need to test since it can't be used in these pictures.*/
+	if(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) {
+	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
+	  pic.PMV[1][0][0] = pic.PMV[0][0][0];
+	}
+	if(mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) {
+	  pic.PMV[1][1][1] = pic.PMV[0][1][1];
+	  pic.PMV[1][1][0] = pic.PMV[0][1][0];
+	}
+	if(pic.coding_ext.frame_pred_frame_dct != 0) {
+	  if(((mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) == 0) &&
+	     ((mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) == 0)) {
+	    reset_PMV();
+	    DPRINTF(4, "* 2\n");
+	  }
+	}
+	break;
+      case PRED_TYPE_16x8_MC:
+#ifdef DEBUG
+	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+	  fprintf(stderr, "*** invalid pred_type\n");
+	  return;
+	  //exit_program(1);
+	}
+#endif
+	break;
+      case PRED_TYPE_DUAL_PRIME:
+	if(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) {
+	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
+	  pic.PMV[1][0][0] = pic.PMV[0][0][0];
+	}
+	break;
+      default:
+	fprintf(stderr, "*** invalid pred_type\n");
+	return;
+	//exit_program(1);
+	break;
+      }
+    }
+    
+    
+    /*** 7.6.3.5 Prediction in P-pictures ***/
+    if(pic.header.picture_coding_type == PIC_CODING_TYPE_P) {
+      /* In a P-picture when a non-intra macroblock is decoded
+	 in which macroblock_motion_forward is zero */
+      if((!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)) && 
+	 (!(mb.modes.macroblock_type & MACROBLOCK_INTRA))) {
+	DPRINTF(4, "prediction mode Frame-base, \n" 
+		"resetting motion vector predictor and motion vector\n");
+	/* 7.6.3.4 */
+	reset_PMV();
+	if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
+	  mb.motion_vector_count = 1;
+	  mb.mv_format = MV_FORMAT_FRAME;
+	} else {
+	  mb.prediction_type = PRED_TYPE_FIELD_BASED;
+	  mb.motion_vector_count = 1;
+	  mb.mv_format = MV_FORMAT_FIELD;
+	  mb.motion_vertical_field_select[0][0] =
+	    pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD ? 0 : 1;
+	}
+	mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
+	mb.modes.macroblock_motion_forward = 1; // REMOVE me
+	mb.vector[0][0][0] = 0;
+	mb.vector[0][0][1] = 0;
+	mb.vector[1][0][0] = 0;
+	mb.vector[1][0][1] = 0;
+      }
+    }
+    
+    
+    if(mb.modes.macroblock_type & MACROBLOCK_INTRA) {
+      unsigned int block_count = 6;
+      unsigned int i;
+      
+      /* Table 6-20 block_count as a function of chroma_format */
+#ifdef DEBUG
+      if(seq.ext.chroma_format == 0x01) {
+	block_count = 6;
+      } else if(seq.ext.chroma_format == 0x02) {
+	block_count = 8;
+      } else if(seq.ext.chroma_format == 0x03) {
+	block_count = 12;
+      }
+#endif
+      
+      /* Intra blocks always have pattern coded for all sub blocks and
+	 are writen directly to the output buffers by this code. */
+      for(i = 0; i < block_count; i++) {  
+	DPRINTF(4, "cbpindex: %d assumed\n", i);
+	block_intra(i);
+	
+	/* Shortcut: write the IDCT data directly into the picture buffer */
+	{
+	  const int x = seq.mb_column;
+	  const int y = seq.mb_row;
+	  const int padded_width = seq.mb_width * 16;
+	  int d, stride;
+	  uint8_t *dst;
+	  
+	  if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) { 
+	    if(mb.modes.dct_type) {
+	      d = 1;
+	      stride = padded_width * 2;
+	    } else {
+	      d = 8;
+	      stride = padded_width;
+	    }
+	    if(i < 4) {
+	      dst = &dst_image->y[x * 16 + y * 16 * padded_width];
+	      dst = (i & 1) ? dst + 8 : dst;
+	      dst = (i >= 2) ? dst + padded_width * d : dst;
+	    } else {
+	      stride = padded_width / 2;
+	      if(i == 4)
+		dst = &dst_image->u[x * 8 + y * 8 * stride];
+	      else // i == 5
+		dst = &dst_image->v[x * 8 + y * 8 * stride];
+	    }
+	  } else {
+	    if(i < 4) {
+	      stride = padded_width * 2;
+	      dst = &dst_image->y[x * 16 + y * 16 * stride];
+	      dst = (i & 1) ? dst + 8 : dst;
+	      dst = (i >= 2) ? dst + stride * 8 : dst;
+	    } else {
+	      stride = padded_width;
+	      if(i == 4)
+		dst = &dst_image->u[x * 8 + y * 8 * stride];
+	      else // i == 5
+		dst = &dst_image->v[x * 8 + y * 8 * stride];
+	    }
+	    if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD)
+	      dst += stride/2;
+	  }
+	  
+	  mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
+	}
+      }
+    } else { /* Non-intra block */
+      
+      motion_comp(); // Only motion compensate don't add coefficients.
+      
+      if(mb.modes.macroblock_type & MACROBLOCK_PATTERN) {
+	unsigned int i;
+	
+	coded_block_pattern();
+	
+	for(i = 0; i < 6; i++) {
+	  if(mb.cbp & (1<<(5-i))) {
+	    DPRINTF(4, "cbpindex: %d set\n", i);
+	    block_non_intra(i);
+	    mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
+	    motion_comp_add_coeff(i);
+	  }
+	}
+	if(seq.ext.chroma_format == 0x02) {
+	  for(i = 6; i < 8; i++) {
+	    if(mb.coded_block_pattern_1 & (1<<(7-i))) {
+	      block_non_intra(i);
+	      fprintf(stderr, "ni seq.ext.chroma_format == 0x02\n");
+	      //exit_program(1);
+	    }
+	  }
+	}
+	if(seq.ext.chroma_format == 0x03) {
+	  for(i = 6; i < 12; i++) {
+	    if(mb.coded_block_pattern_2 & (1<<(11-i))) {
+	      block_non_intra(i);
+	      fprintf(stderr, "ni seq.ext.chroma_format == 0x03\n");
+	      //exit_program(1);
+	    }
+	  }
+	}
+      }
+    }
   } while(((seq.mb_column + 1) < seq.mb_width) && (nextbits(23) != 0));
+  
   DINDENT(-2);
 }
+
+

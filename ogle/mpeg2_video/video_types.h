@@ -302,12 +302,12 @@ typedef struct {
   sequence_extension_t ext;
   sequence_display_extension_t dpy_ext;
   /***/
-  int16_t horizontal_size;
-  int16_t vertical_size;
+  uint16_t horizontal_size;
+  uint16_t vertical_size;
 
-  int16_t mb_width;
-  int16_t mb_height;
-  int16_t mb_row;
+  uint16_t mb_width;
+  uint16_t mb_height;
+  uint16_t mb_row;
   int16_t mb_column;
   int16_t macroblock_address;
   
