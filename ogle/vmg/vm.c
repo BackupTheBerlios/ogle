@@ -67,6 +67,8 @@ static int get_TT(int tt);
 static int get_VTS_TT(int vtsN, int vts_ttn);
 static int get_TT_PTT(int tt, int ptt);
 static int get_VTS_PTT(int vtsN, int vts_ttn, int part);
+/* Could add code so that it's callable in menus too... */
+static int get_cellN_for_vobu(uint32_t vobu_addr);
 
 static int get_MENU(int menu); // VTSM & VMGM
 static int get_FP_PGC(void); // FP
@@ -758,6 +760,35 @@ unsigned int int2bcd(unsigned int number)
   return res;
 }
 
+static unsigned int time2sec(dvd_time_t *time)
+{
+  unsigned int acc_s;
+  
+  // convert from bcd to seconds
+  acc_s = bcd2int(time->hour) * 60 * 60;
+  acc_s += bcd2int(time->minute) * 60;
+  acc_s += bcd2int(time->second);
+  
+  /*
+  frames = bcd2int(time->frame_u & 0x3f);
+  switch(acc->frame_u >> 6) {
+  case 1:
+    frame_rate = 25;
+    break;
+  case 3:
+    frame_rate = 30; // 29.97
+    break;
+  default:
+    frame_rate = 30; // ??
+    break;
+  }
+  // normalize time, should we round to nearest? (+ frame_rate/2)
+  acc_s += frames / frame_rate;
+  */
+  
+  return acc_s;
+}
+
 static void time_add(dvd_time_t *acc, const dvd_time_t *diff)
 {
   unsigned int acc_s, diff_s;
@@ -808,17 +839,18 @@ void vm_get_total_time(dvd_time_t *current_time)
 {
   *current_time = state.pgc->playback_time;
   /* This should give the same time as well.... */
-  //vm_get_cell_stat_time(current_time, state.pgc->nr_of_cells);
+  //vm_get_cell_start_time(current_time, state.pgc->nr_of_cells);
 }
 
-void vm_get_current_time(dvd_time_t *current_time, pci_t *pci)
+void vm_get_current_time(dvd_time_t *current_time, dvd_time_t *cell_elapsed)
 {
-  vm_get_cell_stat_time(current_time, state.cellN);
+  vm_get_cell_start_time(current_time, state.cellN);
   /* Add the time within the cell. */
-  time_add(current_time, &(pci->pci_gi.e_eltm));
+  time_add(current_time, cell_elapsed);
 }
 
-void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN)
+/* Should return status info or something... */
+void vm_get_cell_start_time(dvd_time_t *current_time, int cellN)
 {
   dvd_time_t angle_time;
   playback_type_t *pb_ty;
@@ -1204,6 +1236,81 @@ static link_t play_PGC_post(void)
     /* Should end up in the STOP_DOMAIN if next_pgc i 0. */
     return link_next_pgc;
   }
+}
+
+/* Should only be called in the VTS Domain and only for 
+ * One_Sequential_PGC_Title PGCs. 
+ * returns 0 if it fails.                                */
+int vm_time_play(dvd_time_t *time, unsigned int offset)
+{
+  playback_type_t *pb_ty;
+  int pgcN;
+  int seconds;
+  
+  if(state.domain != VTS_DOMAIN) {
+    /* No time seek possible */
+    return 0;
+  }
+  // Should we also check the state.pgc->pg_playback_mode, or instead?
+  // Is the TTN_REG up to date? 
+  pb_ty = &vmgi->tt_srpt->title[state.TTN_REG - 1].pb_ty;
+  if(pb_ty->multi_or_random_pgc_title != /* One_Sequential_PGC_Title */ 0) {
+    /* No time seek possible */
+    return 0;
+  }
+  
+  // Do we have a Time Map table?
+  if(!vtsi->vts_tmapt) {
+    return 0;
+  }
+  
+  seconds = time2sec(time) + offset;
+  if(seconds < 0)
+    seconds = 0;
+  
+  fprintf(stderr, "Time Play/Skipp to offset %dseconds\n", seconds);
+  
+  pgcN = get_PGCN();
+  // Is there an entry for this pgc?
+  assert(pgcN != -1);
+  
+  if(pgcN <= vtsi->vts_tmapt->nr_of_tmaps) {
+      vts_tmap_t *tmap = &vtsi->vts_tmapt->tmap[pgcN - 1];
+      int index;
+      map_ent_t entry;
+      int32_t vobu_addr;
+      
+      /*
+       * Restructure this as a loop over all the entries, keeping
+       * count of the 'flags' so we know the cell number?
+       * Is that even guaranteed to be correct?
+       */
+      
+      if(tmap->tmu == 0) // Valid time unit (resolution)
+	return 0; // No seek
+      index = seconds / tmap->tmu; 
+      if(tmap->nr_of_entries < index) // Enough entries?
+	return 0; // No seek
+      
+      entry = tmap->map_ent[index];
+      vobu_addr = entry & 0x7fffffff; // High bit is discontinuty flag
+      
+      /* Should we instead do a linear scan of the table and count
+       * the 'flag's to that way get the right cell?
+       * Can one have time seek for multiangle pgc's?
+       */
+      { 
+	cell_playback_t *cells = state.pgc->cell_playback;
+	state.cellN = get_cellN_for_vobu(vobu_addr); //scan the cell table?
+	assert(vobu_addr >= cells[state.cellN - 1].first_sector);
+	assert(vobu_addr <= cells[state.cellN - 1].last_vobu_start_sector);
+	state.blockN = vobu_addr - cells[state.cellN - 1].first_sector;
+	update_PGN();
+      }
+      return 1;
+  }
+  
+  return 0;
 }
 
 
@@ -1594,6 +1701,39 @@ static int get_PGCN()
   return -1; // error
 }
 
+//scan the cell table?
+static int get_cellN_for_vobu(uint32_t vobu_addr)
+{
+  unsigned int i, j, entries;
+  c_adt_t *c_adt = vtsi->vts_c_adt;
+    //nr_of_vobs = c_adt->nr_of_vobs;
+  entries = (c_adt->last_byte + 1 - C_ADT_SIZE)/sizeof(c_adt_t);
+  
+  fprintf(stderr, "VOBU addr: 0x%x\n", vobu_addr);
+  for(i = 0; i < entries; i++) {
+    if(c_adt->cell_adr_table[i].start_sector <= vobu_addr && 
+       vobu_addr <= c_adt->cell_adr_table[i].last_sector) {
+      uint16_t vob_id = c_adt->cell_adr_table[i].vob_id;
+      uint8_t cell_id = c_adt->cell_adr_table[i].cell_id;
+      fprintf(stderr, "VOBID: %d CELLID: %d\n", vob_id, cell_id);
+      for(j = 0; j < state.pgc->nr_of_cells; j++) {
+	if(state.pgc->cell_position[j].vob_id_nr == vob_id &&
+	   state.pgc->cell_position[j].cell_nr == cell_id)
+	  fprintf(stderr, "VOBID: %d CELLID: %d, CellN: %d\n",
+		  vob_id, cell_id, j + 1);
+	  return j + 1; // cellN is 1 based
+      }
+      // Something crazy has happened!!
+      // The VOB / CELL id wasn't part of this PGC!
+      assert(0 & 13);
+    }
+  }
+  // Something crazy has happened!!
+  // Unable to find the VOB / CELL id for the VOBU!
+  assert(0 & 14);
+
+  return 1;
+}
 
 static int get_video_aspect(void)
 {
@@ -1644,6 +1784,14 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
     FATAL("%s", "ifoRead_PGCI_UT failed\n");
     exit(1);
   }
+  if(!ifoRead_VTS_TMAPT(vtsi)) {
+    FATAL("%s", "ifoRead_VTS_TMAPT failed\n");
+    exit(1);
+  }
+  if(!ifoRead_TITLE_C_ADT(vtsi)) {
+    FATAL("%s", "ifoRead_TITLE_C_ADT failed\n");
+    exit(1);
+  }    
   state.vtsN = vtsN;
 }
 

@@ -101,6 +101,7 @@ int vm_goup_pgc(void);
 int vm_jump_ptt(int pttN);
 int vm_jump_title_ptt(int titleN, int pttN);
 int vm_jump_title(int titleN);
+int vm_time_play(dvd_time_t *time, unsigned int offset);
 int vm_get_audio_stream(int audioN);
 int vm_get_subp_stream(int subpN);
 int vm_get_subp_active_stream(void);
@@ -118,8 +119,8 @@ audio_attr_t vm_get_audio_attr(int streamN);
 video_attr_t vm_get_video_attr(void);
 void vm_get_video_res(int *width, int *height);
 void vm_get_total_time(dvd_time_t *current_time);
-void vm_get_current_time(dvd_time_t *current_time, pci_t *pci);
-void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN);
+void vm_get_current_time(dvd_time_t *current_time, dvd_time_t *cell_elapsed);
+void vm_get_cell_start_time(dvd_time_t *current_time, int cellN);
 
 unsigned int bcd2int(unsigned int bcd);
 unsigned int int2bcd(unsigned int number);

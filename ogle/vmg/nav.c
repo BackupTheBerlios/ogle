@@ -410,6 +410,13 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   if(button_nr > pci->hli.hl_gi.btn_ns)
     button_nr = pci->hli.hl_gi.btn_ns;
   
+  // Selected button should never be 0.
+  if(button_nr == 0) {
+    //FATAL("%s", "send bug report, button number is 0, this is invalid.");
+    button_nr = 1;
+    *btn_reg = button_nr << 10;
+  } 
+    
   switch(ce->type) {
   case DVDCtrlUpperButtonSelect:
     button_nr = pci->hli.btnit[button_nr - 1].up;
@@ -558,6 +565,89 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
 }
 
 
+int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
+{
+  int res = 0;
+  dvd_time_t current_time;
+  
+// bit 0: v0: *Video data* does not exist in the VOBU at the address
+//        v1: *video data* does exists in the VOBU on the address
+// bit 1: indicates whether theres *video data* between 
+//        current vobu and last vobu. ??
+// if address = 3fff ffff -> vobu does not exist
+#define VALID_XWDA(OFFSET) \
+  (((OFFSET) & SRI_END_OF_CELL) != SRI_END_OF_CELL && \
+  ((OFFSET) & 0x80000000))
+  
+  vm_get_current_time(&current_time, &(dsi->dsi_gi.c_eltm));
+  // Try using the Time Map Tables, should we use VOBU seeks for
+  // small seek (< 8s) anyway? as they (may) have better resolution.
+  // Fall back if we're crossing a cell bounduary...
+  if(vm_time_play(&current_time, seconds)) {
+    return 1; // Successfull 
+  } else {
+    // We have 120 60 30 10 7.5 7 6.5 ... 0.5 seconds markers
+    if(seconds > 0) {
+      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
+      const unsigned int hsec = seconds * 2;
+      unsigned int diff, idx = 0;
+	  
+      diff = abs(hsec - time[0]);
+      while(idx < 19 && abs(hsec - time[idx]) <= diff) {
+	diff = abs(hsec - time[idx]);
+	idx++;
+      }
+      idx--; // Restore it to the one that got us the diff
+      
+      // Make sure we have a VOBU that 'exists' (with in the cell)
+      // What about the 'top' two bits here?  If there is no video at the
+      // seek destination?  Check with the menus in Coruptor.
+      while(idx < 19 && !VALID_XWDA(dsi->vobu_sri.fwda[idx])) {
+	idx++;
+      }
+      if(idx < 19) {
+	// Fake this, as a jump with blockN as destination
+	// blockN is relative the start of the cell
+	state.blockN = dsi->dsi_gi.nv_pck_lbn +
+	  (dsi->vobu_sri.fwda[idx] & 0x3fffffff) - cell->first_sector;
+	res = 1;
+      } else
+	res = 0; // no new block found.. must be at the end of the cell..
+    } else {
+      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
+      const unsigned int hsec = (-seconds) * 2; // -
+      unsigned int diff, idx = 0;
+      
+      diff = abs(hsec - time[0]);
+      
+      while(idx < 19 && abs(hsec - time[idx]) <= diff) {
+	diff = abs(hsec - time[idx]);
+	idx++;
+      }
+      idx--; // Restore it to the one that got us the diff
+      
+      // Make sure we have a VOBU that 'exicsts' (with in the cell)
+      // What about the 'top' two bits here?  If there is no video at the
+      // seek destination?  Check with the menus in Coruptor.
+      while(idx < 19 && !VALID_XWDA(dsi->vobu_sri.bwda[18-idx])) {
+	idx++;
+      }
+      if(idx < 19) {
+	// Fake this, as a jump with blockN as destination
+	// blockN is relative the start of the cell
+	state.blockN = dsi->dsi_gi.nv_pck_lbn -
+	  (dsi->vobu_sri.bwda[18-idx] & 0x3fffffff) - cell->first_sector;
+	res = 1;
+      } else
+	res = 0; // no new_block found.. must be at the end of the cell..    
+    }
+  }
+  return res;
+}
+
+
 /* Do user input processing. Like audio change, 
  * subpicture change and answer attribute query requests.
  * access menus, pause, play, jump forward/backward...
@@ -592,78 +682,17 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       }
     }
     break;
-// bit 0: v0: *Video data* does not exist in the VOBU at the address
-//        v1: *video data* does exists in the VOBU on the address
-// bit 1: indicates whether theres *video data* between 
-//        current vobu and last vobu. ??
-// if address = 3fff ffff -> vobu does not exist
-#define VALID_XWDA(OFFSET) \
-  (((OFFSET) & SRI_END_OF_CELL) != SRI_END_OF_CELL && \
-  ((OFFSET) & 0x80000000))
   
   case DVDCtrlTimeSkip:
     if(dsi->dsi_gi.nv_pck_lbn == -1) { // we are waiting for a new nav block
       res = 0;
       break;
     }
-    // We have 120 60 30 10 7.5 7 6.5 ... 0.5 seconds markers
-    if(ev.dvdctrl.cmd.timeskip.seconds > 0) {
-      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
-				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
-      const unsigned int hsec = ev.dvdctrl.cmd.timeskip.seconds * 2;
-      unsigned int diff, idx = 0;
-	  
-      diff = abs(hsec - time[0]);
-      while(idx < 19 && abs(hsec - time[idx]) <= diff) {
-	diff = abs(hsec - time[idx]);
-	idx++;
-      }
-      idx--; // Restore it to the one that got us the diff
-      
-      // Make sure we have a VOBU that 'exists' (with in the cell)
-      // What about the 'top' two bits here?  If there is no video at the
-      // seek destination?  Check with the menus in Coruptor.
-      while(idx < 19 && !VALID_XWDA(dsi->vobu_sri.fwda[idx])) {
-	idx++;
-      }
-      if(idx < 19) {
-	// Fake this, as a jump with blockN as destination
-	// blockN is relative the start of the cell
-	state.blockN = dsi->dsi_gi.nv_pck_lbn +
-	  (dsi->vobu_sri.fwda[idx] & 0x3fffffff) - cell->first_sector;
-	res = 1;
-      } else
-	res = 0; // no new block found.. must be at the end of the cell..
-    } else {
-      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
-				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
-      const unsigned int hsec = (-ev.dvdctrl.cmd.timeskip.seconds) * 2; // -
-      unsigned int diff, idx = 0;
-      
-      diff = abs(hsec - time[0]);
-      
-      while(idx < 19 && abs(hsec - time[idx]) <= diff) {
-	diff = abs(hsec - time[idx]);
-	idx++;
-      }
-      idx--; // Restore it to the one that got us the diff
-      
-      // Make sure we have a VOBU that 'exicsts' (with in the cell)
-      // What about the 'top' two bits here?  If there is no video at the
-      // seek destination?  Check with the menus in Coruptor.
-      while(idx < 19 && !VALID_XWDA(dsi->vobu_sri.bwda[18-idx])) {
-	idx++;
-      }
-      if(idx < 19) {
-	// Fake this, as a jump with blockN as destination
-	// blockN is relative the start of the cell
-	state.blockN = dsi->dsi_gi.nv_pck_lbn -
-	  (dsi->vobu_sri.bwda[18-idx] & 0x3fffffff) - cell->first_sector;
-	res = 1;
-      } else
-	res = 0; // no new_block found.. must be at the end of the cell..    
-    }
+    res = process_seek(ev.dvdctrl.cmd.timeskip.seconds, dsi, cell);
+    if(res)
+      NOTE("%s", "Doing time seek\n");
     break;  
+  
   case DVDCtrlMenuCall:
     NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
     res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
@@ -794,7 +823,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       location->ptt = state.PTTN_REG;
       vm_get_total_time(&total_time);
       time_convert(&location->title_total, &total_time);
-      vm_get_current_time(&current_time, pci);
+      vm_get_current_time(&current_time, &(pci->pci_gi.e_eltm));
       time_convert(&location->title_current, &current_time);
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
