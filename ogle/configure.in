@@ -54,9 +54,9 @@ AC_ARG_WITH(libdvdread,
     withval=""
   fi
   if test x$withval != x; then
-    AC_CHECK_LIB(dvdread, DVDOpen, [ DVDREAD_LIBS="-L$withval/lib -ldvdread"
+    AC_CHECK_LIB(dvdread, DVDOpen, [ DVDREAD_LIBS="-L$withval/lib -rpath $withval/lib -ldvdread"
                                      DVDREAD_CFLAGS=-I$withval/include
-                                   ],, -L$withval/lib -R$withval/lib)
+                                   ],, -L$withval/lib)
   fi)
 if test -z "$DVDREAD_LIBS" ; then
   AC_CHECK_LIB(dvdread, DVDOpen, DVDREAD_LIBS=-ldvdread)
@@ -71,23 +71,17 @@ AC_SUBST(DVDREAD_LIBS)
 
 dnl Sun MediaLib
 have_mlib=no
+mlib_path="/opt/SUNWmlib"
 AC_ARG_WITH(mlib,
   [  --with-libmlib=path     specify where mediaLib is installed],
-  if test x$withval = xyes; then
-    withval="/opt/SUNWmlib"
-  fi
-  if test x$withval != xno; then
-    AC_CHECK_LIB(mlib, main, [ MLIB_LIBS="-L$withval/lib -R$withval/lib -lmlib"
-                               MLIB_CFLAGS=-I$withval/include
-                               have_mlib=yes
-                             ],, -L$withval/lib -R$withval/lib)
+  if test x$withval != xyes; then
+    mlib_path=$withval
   fi)
-if test -z "$MLIB_LIBS"; then
-  AC_CHECK_LIB(mlib, main, 
-                [ MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
-                  MLIB_CFLAGS=-I/opt/SUNWmlib/include
-		  have_mlib=yes
-                ],, -L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib)
+if test x$mlib_path != xno; then
+  AC_CHECK_LIB(mlib, main, [ MLIB_LIBS="-L$mlib_path/lib -rpath $mlib_path/lib -lmlib"
+                             MLIB_CFLAGS=-I$mlib_path/include
+                             have_mlib=yes
+                           ],, -L$mlib_path/lib)
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
