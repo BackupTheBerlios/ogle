@@ -18,9 +18,8 @@ Ogle is a DVD player. It's features are: Supports DVD menus and navigation,
 reads encrypted and unencrypted DVDs using libdvdread/libdvdcss, normal X11
 and XFree86 Xvideo display support with subpicture overlay, audio and
 subpicture selection, advanced subpicture commands such as fade/scroll and
-wipe, detects and uses correct aspect for movie and menus, playing AC3 via
-S/PDIF with an external command, fullscreen mode, screenshots with and
-without subpicture overlay...
+wipe, detects and uses correct aspect for movie and menus, playing AC3/DTS via
+S/PDIF, fullscreen mode, screenshots with and without subpicture overlay...
 
 
 %package devel
