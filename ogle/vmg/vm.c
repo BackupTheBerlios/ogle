@@ -83,7 +83,7 @@ static int get_PGCN(void);
 
 int set_sprm(unsigned int nr, uint16_t val)
 {
-  if(nr < 0 || nr > 23) {
+  if(nr > 23) {
     return 0;
   }
 
@@ -383,7 +383,8 @@ static int vm_resume_int(link_t *link_return)
       assert(0);
       link_values = play_PGC_post();
     } else {
-      link_t do_nothing = { PlayThis, state.blockN, 0, 0 };
+      link_t do_nothing = { PlayThis, 0, 0, 0 };
+      do_nothing.data1 = state.blockN;
       link_values = do_nothing;
     }
   }
@@ -973,12 +974,18 @@ static link_t play_Cell_post(void)
   
   /* Still time is already taken care of before we get called. */
   
+  if(cell->cell_cmd_nr != 0 && 
+     (state.pgc->command_tbl == NULL || 
+      state.pgc->command_tbl->nr_of_cell < cell->cell_cmd_nr)) {
+    WARNING("Invalid Cell command vtsn=%d dom=%d pgc=%d\n",
+	    state.vtsN, state.domain, get_PGCN());
+    cell->cell_cmd_nr = 0;
+  }
+       
   /* Deal with a Cell command, if any */
   if(cell->cell_cmd_nr != 0) {
     link_t link_values;
     
-    assert(state.pgc->command_tbl != NULL);
-    assert(state.pgc->command_tbl->nr_of_cell >= cell->cell_cmd_nr);
     DNOTE("Cell command pressent, executing\n");
     if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell->cell_cmd_nr - 1], 1,
 		  &state.registers, &link_values)) {
@@ -1075,8 +1082,8 @@ static link_t play_PGC_post(void)
 
 static link_t process_command(link_t link_values)
 {
-  link_t do_nothing = { PlayThis, state.blockN, 0, 0};
-  
+  link_t do_nothing = { PlayThis, 0, 0, 0};
+  do_nothing.data1 = state.blockN;
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
