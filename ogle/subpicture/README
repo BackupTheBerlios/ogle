@@ -1,0 +1,53 @@
+DVD subtitles tools - by Samuel Hocevar <sam@via.ecp.fr>
+
+
+
+* extract_subtitles.c
+
+This program extracts valid subtitles from a .VOB file. The syntax
+basically is:
+
+ cat /mnt/dvd/VIDEO_TS/SOME_VOB | ./extract_subtitles 0 > subtitle0.raw
+
+The argument is the subtitle stream ID, it seems to go from 0 to 15.
+
+If your DVD is encrypted, you should use `css-cat -a' instead of `cat'.
+
+If you are planning to implement subtitle decoding in your DVD player,
+note that subtitles seem to be encapsulated in private PS data just like
+AC3 streams are. If you do not have an idea about PS or AC3, then you
+probably don't even want to use these programs.
+
+
+
+* subt2xpm.f
+
+This is just a sample Fortran program I did to learn Fortran and mess
+a bit with file i/o ... it does not have the flexibility of the next
+one, but it somewhat works, for the Leon and the Dune examples at
+least. Its purpose is to create a .xpm from the subtitle stream.
+
+Usage: ./subt2xpm infile.raw outfile.xpm
+
+
+
+* subt2xpm.c
+
+This is the most useful program ; it reads a subtitle and writes it to
+an XPM image ; there should be no problem using the same algorithm in
+a DVD player (actually I did it).
+
+Usage: ./subt2xpm infile.raw > outfile.xpm
+
+
+
+* sample_dune.raw
+* sample_leon.raw
+* sample_bladerunner.raw
+
+Those are sample files to test subt2xpm.
+
+
+Have fun,
+-- 
+Sam.
