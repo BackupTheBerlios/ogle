@@ -40,6 +40,11 @@ do { \
 if(dlevel > 0) fprintf(stderr, "FATAL[%s]: " str, program_name , ## args); \
 } while(0)
 
+#define FATALC(str, args...) \
+do { \
+if(dlevel > 0) fprintf(stderr, str, ## args); \
+} while(0)
+
 #define ERROR(str, args...) \
 do { \
 if(dlevel > 1) fprintf(stderr, "ERROR[%s]: " str, program_name , ## args); \
@@ -99,6 +104,11 @@ if(debug >= level) \
 #define FATAL(format, ...) \
 do { \
 if(dlevel > 0) fprintf(stderr, "FATAL[%s]: " format, program_name , ##__VA_ARGS__); \
+} while(0)
+
+#define FATALC(format, ...) \
+do { \
+if(dlevel > 0) fprintf(stderr, format, ##__VA_ARGS__); \
 } while(0)
 
 
