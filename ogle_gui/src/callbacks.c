@@ -327,7 +327,7 @@ void
 on_audio_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-  audio_menu_show(utton);
+  audio_menu_show(button);
 }
 
 
