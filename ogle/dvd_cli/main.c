@@ -109,7 +109,14 @@ int main (int argc, char *argv[])
   DVDResult_t res;
 
   int c;
-  
+#ifdef SOCKIPC
+  MsgEventQType_t msgq_type;
+  char *msgqid;
+#else
+  int msgqid = -1;
+#endif
+  int msgq_set = 0;
+
   program_name = argv[0];
   GET_DLEVEL();
 
@@ -117,7 +124,15 @@ int main (int argc, char *argv[])
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
     case 'm':
+#ifdef SOCKIPC
+      if(get_msgqtype(optarg, &msgq_type, &msgqid) == -1) {
+	fprintf(stderr, "dvd_cli: unknown msgq type: %s\n", optarg);
+	return 1;
+      }
+#else
       msgqid = atoi(optarg);
+#endif
+      msgq_set = 1;
       break;
     case 'h':
     case '?':
@@ -131,15 +146,19 @@ int main (int argc, char *argv[])
     exit(1);
   }
   
-  
-  if(msgqid !=-1) { // ignore sending data.
-    sleep(1);
-    res = DVDOpenNav(&nav, msgqid);
-    if(res != DVD_E_Ok ) {
-      DVDPerror("DVDOpen:", res);
-      exit(1);
-    }
+  if(!msgq_set) {
+    usage();
+    exit(1);
+
   }
+
+  sleep(1);
+  res = DVDOpenNav(&nav, msgqid);
+  if(res != DVD_E_Ok ) {
+    DVDPerror("DVDOpen:", res);
+    exit(1);
+  }
+  
 
   interpret_config();
 
