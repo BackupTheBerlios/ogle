@@ -159,8 +159,12 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
     return ifofile;
   }
 
-  fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.IFO).\n",
-          title, title);
+  if(title) {
+    fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.IFO).\n",
+	    title, title);
+  } else {
+    fprintf(stderr, "libdvdread: Invalid IFO for VMGM (VIDEO_TS.IFO).\n");
+  }
   ifoClose(ifofile);
   return 0;
 }
@@ -199,7 +203,13 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
     return 0;
 
   memset(ifofile, 0, sizeof(ifo_handle_t));
-
+  
+  if(title <= 0 || title > 99) {
+    fprintf(stderr, "libdvdread: ifoOpenVTSI invalid title (%d).\n", title);
+    free(ifofile);
+    return 0;
+  }
+    
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
   if(!ifofile->file) {
     fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.IFO.\n", title);
@@ -1627,8 +1637,8 @@ static int ifoRead_VTS_ATTRIBUTES(ifo_handle_t *ifofile,
     CHECK_ZERO(vts_attributes->vtstt_audio_attr[i]);
   assert(vts_attributes->nr_of_vtstt_subp_streams <= 32);
   {
-    int nr_coded;
-    assert(vts_attributes->last_byte + 1 - VTS_ATTRIBUTES_MIN_SIZE >= 0);  
+    unsigned int nr_coded;
+    assert(vts_attributes->last_byte + 1 >= VTS_ATTRIBUTES_MIN_SIZE);  
     nr_coded = (vts_attributes->last_byte + 1 - VTS_ATTRIBUTES_MIN_SIZE)/6;
     // This is often nr_coded = 70, how do you know how many there really are?
     if(nr_coded > 32) { // We haven't read more from disk/file anyway
