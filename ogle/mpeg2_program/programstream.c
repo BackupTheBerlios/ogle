@@ -67,6 +67,13 @@ if(debug > level) \
 #define DPRINTBITS(level, bits, value)
 #endif
 
+#ifdef STATS
+    static uint32_t stat_video_unaligned_packet_offset = 0;
+    static uint32_t stat_video_unaligned_packet_end = 0;
+    static uint32_t stat_video_n_packets = 0;
+    static uint32_t stat_n_packets = 0;
+#endif //STATS
+
 void usage()
 {
   fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] [-d <debug level>] <input file>\n", 
@@ -326,8 +333,6 @@ void pack_header()
   }
 }
 
-
-
 void push_stream_data(uint8_t stream_id, int len)
 {
   uint8_t *data = &buf[offs-(bits_left/8)];
@@ -335,18 +340,31 @@ void push_stream_data(uint8_t stream_id, int len)
   static struct {
     uint32_t type;
     struct off_len_packet body;
-  } ol_pack;
+  } ol_pack = {PACK_TYPE_OFF_LEN};
 
-  ol_pack.type   = PACK_TYPE_OFF_LEN;
+  //  ol_pack.type   = PACK_TYPE_OFF_LEN;
 
   ol_pack.body.offset = offs - (bits_left/8);
   ol_pack.body.length = len;
+
+#ifdef STATS
+  stat_n_packets++;
+#endif //STATS
 
   DPRINTF(5, "bitsleft: %d\n", bits_left);
 
   if(stream_id == 0xe0) {
     if(video) {
       fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+
+#ifdef STATS
+      stat_video_n_packets++;
+      if(ol_pack.body.offset%4 != 0)
+	stat_video_unaligned_packet_offset++;
+      if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
+	stat_video_unaligned_packet_end++;
+#endif //STATS
+
     }
     DPRINTF(4, "Video packet: %u bytes\n", len);    
   } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
@@ -712,7 +730,17 @@ void segvhandler (void)
   } else {
     fprintf(stderr, "Segmentation fault. Idiot.\n");
   }
-
+#ifdef STATS
+  printf("\n----------------------------------------------\n");
+  printf("Unaligned video packets:\t\t%u\n", 
+	 stat_video_unaligned_packet_offset);
+  printf("Video packets with unaligned ends\t%u\n",
+	 stat_video_unaligned_packet_end);
+  printf("Total video packets:\t\t\t%u\n", 
+	 stat_video_n_packets);
+  printf("Total packets:\t\t\t\t%u\n",
+	 stat_n_packets);
+#endif //STATS
   exit(0);
 }
 
