@@ -670,13 +670,16 @@ int macroblock(void)
     case PIC_CODING_TYPE_P:
       DPRINTF(3,"in P-picture\n");
       /* Assume prediction is forward with a zero vector */
-      mb.modes.macroblock_motion_forward = 1;
-      mb.modes.macroblock_motion_backward = 0;
+      mb.modes.macroblock_motion_forward = 1; // Remove Me
+      mb.modes.macroblock_motion_backward = 0; // Remove Me
+      mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
+      mb.modes.macroblock_type &= ~MACROBLOCK_MOTION_BACKWARD;	
       reset_vectors(); // Instead of explicit set to zero.
       break;
     
     case PIC_CODING_TYPE_B:
       DPRINTF(3,"in B-frame\n");
+      /* Use previous macroblock modes and vectors. */
       break;
     }
     
@@ -739,8 +742,10 @@ int macroblock(void)
     if((!mb.modes.macroblock_intra) && (!mb.modes.macroblock_motion_forward)) {
       reset_PMV();
       /* Asume prediction is forward with a zero vector */
-      mb.modes.macroblock_motion_forward = 1;
-      mb.modes.macroblock_motion_backward = 0;
+      mb.modes.macroblock_motion_forward = 1; // Remove Me
+      mb.modes.macroblock_motion_backward = 0; // Remove Me
+      mb.modes.macroblock_type |= MACROBLOCK_MOTION_FORWARD;
+      mb.modes.macroblock_type &= ~MACROBLOCK_MOTION_BACKWARD;	
       reset_vectors(); // Instead of explicit set to zero.
     }
     break;

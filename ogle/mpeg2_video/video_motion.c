@@ -7,6 +7,7 @@
 
 #include "video_stream.h"
 #include "video_types.h"
+#include "video_tables.h" // only MACROBLOCK_MOTION_FORWARD/BACKWARD
 
 #ifdef HAVE_MLIB
 #include <mlib_types.h>
@@ -28,10 +29,70 @@ extern yuv_image_t *fwd_ref_image;
 extern yuv_image_t *bwd_ref_image;
 
 
+typedef mlib_status (*mc_function_t)(mlib_u8 *curr_block, mlib_u8 *ref_block, 
+				     mlib_s32 frm_stride, mlib_s32 fld_stride);
+
+/* [normal/Ave] [size] [half-pell-modes] */
+static const mc_function_t motion[2][4][4] = {
+  { 
+    { 
+      (mc_function_t)mlib_VideoCopyRef_U8_U8_16x16,
+      mlib_VideoInterpY_U8_U8_16x16,
+      mlib_VideoInterpX_U8_U8_16x16,
+      mlib_VideoInterpXY_U8_U8_16x16
+    },
+    {  	
+      (mc_function_t)mlib_VideoCopyRef_U8_U8_16x8,
+      mlib_VideoInterpY_U8_U8_16x8,
+      mlib_VideoInterpX_U8_U8_16x8,
+      mlib_VideoInterpXY_U8_U8_16x8
+    },
+    {
+      (mc_function_t)mlib_VideoCopyRef_U8_U8_8x8,
+      mlib_VideoInterpY_U8_U8_8x8,
+      mlib_VideoInterpX_U8_U8_8x8,
+      mlib_VideoInterpXY_U8_U8_8x8
+    },
+    {
+      (mc_function_t)mlib_VideoCopyRef_U8_U8_8x4,
+      mlib_VideoInterpY_U8_U8_8x4,
+      mlib_VideoInterpX_U8_U8_8x4,
+      mlib_VideoInterpXY_U8_U8_8x4
+    }
+  },
+  {
+    { 
+      (mc_function_t)mlib_VideoCopyRefAve_U8_U8_16x16,
+      mlib_VideoInterpAveY_U8_U8_16x16,
+      mlib_VideoInterpAveX_U8_U8_16x16,
+      mlib_VideoInterpAveXY_U8_U8_16x16
+    },
+    {  	
+      (mc_function_t)mlib_VideoCopyRefAve_U8_U8_16x8,
+      mlib_VideoInterpAveY_U8_U8_16x8,
+      mlib_VideoInterpAveX_U8_U8_16x8,
+      mlib_VideoInterpAveXY_U8_U8_16x8
+    },
+    {
+      (mc_function_t)mlib_VideoCopyRefAve_U8_U8_8x8,
+      mlib_VideoInterpAveY_U8_U8_8x8,
+      mlib_VideoInterpAveX_U8_U8_8x8,
+      mlib_VideoInterpAveXY_U8_U8_8x8
+    },
+    {
+      (mc_function_t)mlib_VideoCopyRefAve_U8_U8_8x4,
+      mlib_VideoInterpAveY_U8_U8_8x4,
+      mlib_VideoInterpAveX_U8_U8_8x4,
+      mlib_VideoInterpAveXY_U8_U8_8x4
+    }
+  }
+};
+
 /* This should be cleand up. */
 void motion_comp()
 {
-  unsigned int padded_width;
+  const unsigned int padded_width = seq.mb_width * 16;
+
   
   DPRINTF(2, "dct_type: %d\n", mb.modes.dct_type);
   
@@ -44,106 +105,95 @@ void motion_comp()
     exit(-1);
   }
 
-  padded_width = seq.mb_width * 16;
   
   
-  if(mb.modes.macroblock_motion_forward) {
-    int vcount, i;
+  if(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD) {
+    uint8_t *dst_y, *dst_u;//, *dst_v;
+    uint8_t *block_pred_y, *block_pred_u;//, *pred_v;
     
     DPRINTF(2, "forward_motion_comp\n");
     DPRINTF(3, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
 
+    /* Image/Field select */
+    /* FIXME: Should test is 'second coded field'. */
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD &&
+       pic.header.picture_coding_type == PIC_CODING_TYPE_P &&
+       ((mb.motion_vertical_field_select[0][0] == 0 /* TOP_FIELD */ &&
+	 pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) ||
+	(mb.motion_vertical_field_select[0][0] == 1 /* BOTTOM_FIELD */ &&
+	 pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD))) {
+      block_pred_y = dst_image->y;
+      block_pred_u = dst_image->u;
+      //pred_v = dst_image->v;
+    } else {
+      block_pred_y = fwd_ref_image->y;
+      block_pred_u = fwd_ref_image->u;
+      //pred_v = fwd_ref_image->v;
+    }
+    dst_y = dst_image->y;
+    dst_u = dst_image->u;
+    //dst_v = dst_image->v;
     
-    vcount = mb.motion_vector_count;  
-    for(i = 0; i < vcount; i++) {
-      uint8_t *dst_y, *dst_u;//, *dst_v;
-      uint8_t *pred_y, *pred_u;//, *pred_v;
-      int half_flags_y;
-      int half_flags_uv;
-      int pred_stride, stride;
-      int dd;
-      
-      /* Image/Field select */
-      /* FIXME: Should test is 'second coded field'. */
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD &&
-	 pic.header.picture_coding_type == PIC_CODING_TYPE_P &&
-	 ((mb.motion_vertical_field_select[i][0] == 0 /* TOP_FIELD */ &&
-	   pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) ||
-	  (mb.motion_vertical_field_select[i][0] == 1 /* BOTTOM_FIELD */ &&
-	   pic.coding_ext.picture_structure == PIC_STRUCT_TOP_FIELD))) {
-	pred_y = dst_image->y;
-	pred_u = dst_image->u;
-	//pred_v = dst_image->v;
-      } else {
-	pred_y = fwd_ref_image->y;
-	pred_u = fwd_ref_image->u;
-	//pred_v = fwd_ref_image->v;
-      }
-      
-      /* Motion vector Origo (block->index) */
-      /* Prediction destination (block->index) */
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	unsigned int x = seq.mb_column;
-	unsigned int y = seq.mb_row;
-	pred_y += x * 16 + y * 16 * padded_width;
-	pred_u += x * 8 + y * 8 * padded_width/2;
-	//pred_v += x * 8 + y * 8 * padded_width/2;
-	dst_y = &dst_image->y[x * 16 + y * 16 * padded_width];
-	dst_u = &dst_image->u[x * 8 + y * 8 * padded_width/2];
-	//dst_v = &dst_image->v[x * 8 + y * 8 * padded_width/2];
-      } else {
-	unsigned int x = seq.mb_column;
-	unsigned int y = seq.mb_row;
-	pred_y += x * 16 + y * 16 * padded_width*2;
-	pred_u += x * 8 + y * 8 * padded_width;	
-	//pred_v += x * 8 + y * 8 * padded_width;	
-	dst_y = &dst_image->y[x * 16 + y * 16 * padded_width*2];
-	dst_u = &dst_image->u[x * 8 + y * 8 * padded_width];
-	//dst_v = &dst_image->v[x * 8 + y * 8 * padded_width];
-      }
+    /* Motion vector Origo (block->index) */
+    /* Prediction destination (block->index) */
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+      unsigned int x = seq.mb_column;
+      unsigned int y = seq.mb_row;
+      block_pred_y += x * 16 + y * 16 * padded_width;
+      block_pred_u += x * 8 + y * 8 * padded_width/2;
+      //pred_v += x * 8 + y * 8 * padded_width/2;
+      dst_y += x * 16 + y * 16 * padded_width;
+      dst_u += x * 8 + y * 8 * padded_width/2;
+      //dst_v += x * 8 + y * 8 * padded_width/2;
+    } else {
+      unsigned int x = seq.mb_column;
+      unsigned int y = seq.mb_row;
+      block_pred_y += x * 16 + y * 16 * padded_width*2;
+      block_pred_u += x * 8 + y * 8 * padded_width;	
+      //pred_v += x * 8 + y * 8 * padded_width;	
+      dst_y += x * 16 + y * 16 * padded_width*2;
+      dst_u += x * 8 + y * 8 * padded_width;
+      //dst_v += x * 8 + y * 8 * padded_width;
       
       /* Prediction destination (field) */
-      if(i == 1 || 
-	 pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) {
+      if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) {
 	dst_y += padded_width;
 	dst_u += padded_width/2;
 	//dst_v += padded_width/2;
       }
-      
+    }
+    
+       
+    {
+      uint8_t *pred_y, *pred_u;//, *pred_v;
+      int pred_stride, stride;
+      int half_flags_y, half_flags_uv;
+      int half_height;
+      int dd;
+    
       /* Motion vector offset */
-      if(mb.mv_format == MV_FORMAT_FRAME)
-	pred_stride = padded_width;
-      else
+      pred_stride = padded_width;
+      if(mb.mv_format == MV_FORMAT_FIELD)
 	pred_stride = padded_width * 2;
       
-      pred_y += (mb.vector[i][0][0] >> 1) + 
-	(mb.vector[i][0][1] >> 1) * pred_stride;
-      pred_u += ((mb.vector[i][0][0]/2) >> 1) + 
-	((mb.vector[i][0][1]/2) >> 1) * pred_stride/2;
-      //pred_v +=  ((mb.vector[i][0][0]/2) >> 1) + 
-      //((mb.vector[i][0][1]/2) >> 1) * pred_stride/2;
+      pred_y = block_pred_y + 
+	(mb.vector[0][0][0] >> 1) + 
+	(mb.vector[0][0][1] >> 1) * pred_stride;
+      pred_u = block_pred_u + 
+	((mb.vector[0][0][0]/2) >> 1) + 
+	((mb.vector[0][0][1]/2) >> 1) * pred_stride/2;
+      //pred_v +=  ((mb.vector[0][0][0]/2) >> 1) + 
+      //((mb.vector[0][0][1]/2) >> 1) * pred_stride/2;
       
       half_flags_y = 
-	((mb.vector[i][0][0] << 1) | (mb.vector[i][0][1] & 1)) & 3;
+	((mb.vector[0][0][0] << 1) | (mb.vector[0][0][1] & 1)) & 3;
       half_flags_uv = 
-	(((mb.vector[i][0][0]/2) << 1) | ((mb.vector[i][0][1]/2) & 1)) & 3;
+	(((mb.vector[0][0][0]/2) << 1) | ((mb.vector[0][0][1]/2) & 1)) & 3;
 	
-#if 0 
-      /* Check for vectors pointing outside the reference frames */
-      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
-	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
-	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
-	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.mb_height - 1) * 8) ) { 
-	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
-		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
-      }
-#endif
-      
       /* Field select */
-      // ?? Do we realy need mb.mv_format here ?? 
-      // This is wrong for Dual Prime... 
-      if(mb.prediction_type == PRED_TYPE_FIELD_BASED) {
-	if(mb.motion_vertical_field_select[i][0]) {
+      // This is wong for Dual_Prime...
+      if(mb.mv_format == MV_FORMAT_FIELD) {
+	if(mb.motion_vertical_field_select[0][0]) {
 	  pred_y += padded_width;
 	  pred_u += padded_width/2;
 	  //pred_v += padded_width/2;
@@ -151,177 +201,151 @@ void motion_comp()
       }
       
       if(mb.prediction_type == PRED_TYPE_FIELD_BASED)
-	stride = padded_width*2;
+	stride = padded_width * 2;
       else
 	stride = padded_width;
       
       dd = fwd_ref_image->v - fwd_ref_image->u;
-    
-      if(vcount == 2) {
-	switch(half_flags_y) {
-	case 0:
-	  mlib_VideoCopyRef_U8_U8_16x8(dst_y, pred_y, stride);
-	  break;
-	case 1:
-	  mlib_VideoInterpY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	  break;
-	case 2:
-	  mlib_VideoInterpX_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	  break;
-	case 3:
-	  mlib_VideoInterpXY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	  break;
-	}
-	
-	switch(half_flags_uv) {
-	case 0:
-	  mlib_VideoCopyRef_U8_U8_8x4(dst_u, pred_u, stride/2);
-	  mlib_VideoCopyRef_U8_U8_8x4(dst_u+dd, pred_u+dd, stride/2);
-	  //mlib_VideoCopyRef_U8_U8_8x4(dst_v, pred_v, stride/2);
-	  break;
-	case 1:
-	  mlib_VideoInterpY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpY_U8_U8_8x4(dst_u+dd, pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	case 2:
-	  mlib_VideoInterpX_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpX_U8_U8_8x4(dst_u+dd, pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpX_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	case 3:
-	  mlib_VideoInterpXY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpXY_U8_U8_8x4(dst_u+dd,pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpXY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	}
-      } else {      
-	switch(half_flags_y) {
-	case 0:
-	  mlib_VideoCopyRef_U8_U8_16x16(dst_y, pred_y, stride);
-	  break;
-	case 1:
-	  mlib_VideoInterpY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	  break;
-	case 2:
-	  mlib_VideoInterpX_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	  break;
-	case 3:
-	  mlib_VideoInterpXY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	  break;
-	}
-	
-	switch(half_flags_uv) {
-	case 0:
-	  mlib_VideoCopyRef_U8_U8_8x8(dst_u, pred_u, stride/2);
-	  mlib_VideoCopyRef_U8_U8_8x8(dst_u+dd, pred_u+dd, stride/2);
-	  //mlib_VideoCopyRef_U8_U8_8x8(dst_v, pred_v, stride/2);
-	  break;
-	case 1:
-	  mlib_VideoInterpY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpY_U8_U8_8x8(dst_u+dd, pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	case 2:
-	  mlib_VideoInterpX_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpX_U8_U8_8x8(dst_u+dd, pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpX_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	case 3:
-	  mlib_VideoInterpXY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	  mlib_VideoInterpXY_U8_U8_8x8(dst_u+dd,pred_u+dd, stride/2, stride/2);
-	  //mlib_VideoInterpXY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	  break;
-	}
-      }
-    }
-  }
-  
-  if(mb.modes.macroblock_motion_backward) {
-    int vcount, i;
+      half_height = (mb.motion_vector_count == 2) ? 1 :0; // ??
 
-    DPRINTF(2, "backward_motion_comp\n");
-    DPRINTF(3, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
-    
-    
-    vcount = mb.motion_vector_count;  
-    for(i = 0; i < vcount; i++) {
-      uint8_t *dst_y, *dst_u;//, *dst_v;
+      motion[0][half_height][half_flags_y](dst_y, pred_y, stride, stride);
+      motion[0][half_height+2][half_flags_uv](dst_u, pred_u, 
+					      stride/2, stride/2);
+      motion[0][half_height+2][half_flags_uv](dst_u+dd, pred_u+dd,
+					      stride/2, stride/2);
+    }
+    // Only field_pred in frame_pictures have m.v.c. == 2 except for 
+    // field_pictures with 16x8 MC
+    if(mb.motion_vector_count == 2) {
       uint8_t *pred_y, *pred_u;//, *pred_v;
-      int half_flags_y;
-      int half_flags_uv;
       int pred_stride, stride;
-      int d;
+      int half_flags_y, half_flags_uv;
+      int dd;
+    
+      /* Motion vector offset */
+      pred_stride = padded_width * 2; 
       
-      /* Image/Field select */
-      pred_y = bwd_ref_image->y;
-      pred_u = bwd_ref_image->u;
-      //pred_v = bwd_ref_image->v;
+      pred_y = block_pred_y + 
+	(mb.vector[1][0][0] >> 1) + 
+	(mb.vector[1][0][1] >> 1) * pred_stride;
+      pred_u = block_pred_u + 
+	((mb.vector[1][0][0]/2) >> 1) + 
+	((mb.vector[1][0][1]/2) >> 1) * pred_stride/2;
+      //pred_v +=  ((mb.vector[1][0][0]/2) >> 1) + 
+      //((mb.vector[1][0][1]/2) >> 1) * pred_stride/2;
       
-      /* Motion vector Origo (block->index) */
-      /* Prediction destination (block->index) */
-      if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
-	unsigned int x = seq.mb_column;
-	unsigned int y = seq.mb_row;
-	pred_y += x * 16 + y * 16 * padded_width;
-	pred_u += x * 8 + y * 8 * padded_width/2;
-	//pred_v += x * 8 + y * 8 * padded_width/2;
-	dst_y = &dst_image->y[x * 16 + y * 16 * padded_width];
-	dst_u = &dst_image->u[x * 8 + y * 8 * padded_width/2];
-	//dst_v = &dst_image->v[x * 8 + y * 8 * padded_width/2];
-      } else {
-	unsigned int x = seq.mb_column;
-	unsigned int y = seq.mb_row;
-	pred_y += x * 16 + y * 16 * padded_width*2;
-	pred_u += x * 8 + y * 8 * padded_width;	
-	//pred_v += x * 8 + y * 8 * padded_width;	
-	dst_y = &dst_image->y[x * 16 + y * 16 * padded_width*2];
-	dst_u = &dst_image->u[x * 8 + y * 8 * padded_width];
-	//dst_v = &dst_image->v[x * 8 + y * 8 * padded_width];
+      half_flags_y = 
+	((mb.vector[1][0][0] << 1) | (mb.vector[1][0][1] & 1)) & 3;
+      half_flags_uv = 
+	(((mb.vector[1][0][0]/2) << 1) | ((mb.vector[1][0][1]/2) & 1)) & 3;
+      
+      /* Field select */
+      // motion_vertical_field_select is always coded if we have m.v.c. == 2
+      if(mb.motion_vertical_field_select[1][0]) {
+	pred_y += padded_width;
+	pred_u += padded_width/2;
+	//pred_v += padded_width/2;
       }
       
       /* Prediction destination (field) */
-      if(i == 1 || 
-	 pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) {
+      if(mb.prediction_type == PRED_TYPE_16x8_MC) {
+	// Is this right for 16x8 MC... 
+	dst_y += 8 * 2 * padded_width;
+	dst_u += 8 * 2 * padded_width/2;
+	  //dst_v += 8 * 2 * padded_width/2;
+      } else {
 	dst_y += padded_width;
 	dst_u += padded_width/2;
 	//dst_v += padded_width/2;
       }
       
-      /* Motion vector offset */
-      if(mb.mv_format == MV_FORMAT_FRAME)
-	pred_stride = padded_width;
-      else
-	pred_stride = padded_width * 2;
+      // if we have m.v.c. == 2 then either field_pred in frame or a field_pic
+      stride = padded_width*2;
       
-      pred_y += (mb.vector[i][1][0] >> 1) + 
-	(mb.vector[i][1][1] >> 1) * pred_stride;
-      pred_u += ((mb.vector[i][1][0]/2) >> 1) + 
-	((mb.vector[i][1][1]/2) >> 1) * pred_stride/2;
-      //pred_v +=  ((mb.vector[i][1][0]/2) >> 1) + 
-      //((mb.vector[i][1][1]/2) >> 1) * pred_stride/2;
+      dd = fwd_ref_image->v - fwd_ref_image->u;
+     
+      motion[0][1][half_flags_y](dst_y, pred_y, stride, stride);
+      motion[0][3][half_flags_uv](dst_u, pred_u, stride/2, stride/2);
+      motion[0][3][half_flags_uv](dst_u+dd, pred_u+dd, stride/2, stride/2);
+    }
+  }
+  
+  if(mb.modes.macroblock_type & MACROBLOCK_MOTION_BACKWARD) {
+    uint8_t *dst_y, *dst_u;//, *dst_v;
+    uint8_t *block_pred_y, *block_pred_u;//, *pred_v;
+    
+    DPRINTF(2, "backward_motion_comp\n");
+    DPRINTF(3, "x: %d, y: %d\n", seq.mb_column, seq.mb_row);
+    
+    /* Image/Field select */
+    block_pred_y = bwd_ref_image->y;
+    block_pred_u = bwd_ref_image->u;
+    //pred_v = bwd_ref_image->v;
+    dst_y = dst_image->y;
+    dst_u = dst_image->u;
+    //dst_v = dst_ref_image->v;
+    
+    /* Motion vector Origo (block->index) */
+    /* Prediction destination (block->index) */
+    if(pic.coding_ext.picture_structure == PIC_STRUCT_FRAME_PICTURE) {
+      unsigned int x = seq.mb_column;
+      unsigned int y = seq.mb_row;
+      block_pred_y += x * 16 + y * 16 * padded_width;
+      block_pred_u += x * 8 + y * 8 * padded_width/2;
+      //pred_v += x * 8 + y * 8 * padded_width/2;
+      dst_y += x * 16 + y * 16 * padded_width;
+      dst_u += x * 8 + y * 8 * padded_width/2;
+      //dst_v += x * 8 + y * 8 * padded_width/2;
+    } else {
+      unsigned int x = seq.mb_column;
+      unsigned int y = seq.mb_row;
+      block_pred_y += x * 16 + y * 16 * padded_width*2;
+      block_pred_u += x * 8 + y * 8 * padded_width;	
+      //pred_v += x * 8 + y * 8 * padded_width;	
+      dst_y += x * 16 + y * 16 * padded_width*2;
+      dst_u += x * 8 + y * 8 * padded_width;
+      //dst_v += x * 8 + y * 8 * padded_width;
+      
+      /* Prediction destination (field) */
+      if(pic.coding_ext.picture_structure == PIC_STRUCT_BOTTOM_FIELD) {
+	dst_y += padded_width;
+	dst_u += padded_width/2;
+	//dst_v += padded_width/2;
+      }
+    }
+      
+    {
+      uint8_t *pred_y, *pred_u;//, *pred_v;
+      int half_flags_y;
+      int half_flags_uv;
+      int pred_stride, stride;
+      int half_height;
+      int d;
+      
+      /* Motion vector offset */
+      if(mb.mv_format == MV_FORMAT_FIELD)
+	pred_stride = padded_width * 2;
+      else
+	pred_stride = padded_width;
+      
+      pred_y = block_pred_y + 
+	(mb.vector[0][1][0] >> 1) + 
+	(mb.vector[0][1][1] >> 1) * pred_stride;
+      pred_u = block_pred_u + 
+	((mb.vector[0][1][0]/2) >> 1) + 
+	((mb.vector[0][1][1]/2) >> 1) * pred_stride/2;
+      //pred_v +=  ((mb.vector[0][1][0]/2) >> 1) + 
+      //((mb.vector[0][1][1]/2) >> 1) * pred_stride/2;
       
       half_flags_y = 
-	((mb.vector[i][1][0] << 1) | (mb.vector[i][1][1] & 1)) & 3;
+	((mb.vector[0][1][0] << 1) | (mb.vector[0][1][1] & 1)) & 3;
       half_flags_uv = 
-	(((mb.vector[i][1][0]/2) << 1) | ((mb.vector[i][1][1]/2) & 1)) & 3;
+	(((mb.vector[0][1][0]/2) << 1) | ((mb.vector[0][1][1]/2) & 1)) & 3;
 	
-#if 0 
-      /* Check for vectors pointing outside the reference frames */
-      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
-	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
-	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
-	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.mb_height - 1) * 8) ) { 
-	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
-		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
-      }
-#endif
-      
       /* Field select */
-      // ?? Do we realy need mb.mv_format here ?? 
-      // This is wrong for Dual Prime... 
-      if(mb.prediction_type == PRED_TYPE_FIELD_BASED) {
-	if(mb.motion_vertical_field_select[i][1]) {
+      // This is wrong for Dual_Prime... 
+      if(mb.mv_format == MV_FORMAT_FIELD) {
+	if(mb.motion_vertical_field_select[0][1]) {
 	  pred_y += padded_width;
 	  pred_u += padded_width/2;
 	  //pred_v += padded_width/2;
@@ -329,172 +353,77 @@ void motion_comp()
       }
       
       if(mb.prediction_type == PRED_TYPE_FIELD_BASED)
-	stride = padded_width*2;
+	stride = padded_width * 2;
       else
 	stride = padded_width;
       
       d = bwd_ref_image->v - bwd_ref_image->u;
-
-      DPRINTF(3, "x: %d, y: %d\n", x, y);
-    
-      if(mb.modes.macroblock_motion_forward) {
-	if(vcount == 2) {
-	  switch(half_flags_y) {
-	  case 0:
-	    mlib_VideoCopyRefAve_U8_U8_16x8(dst_y, pred_y, stride);
-	    break;
-	  case 1:
-	    mlib_VideoInterpAveY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  case 2:
-	    mlib_VideoInterpAveX_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  case 3:
-	    mlib_VideoInterpAveXY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  }
-	
-	  switch(half_flags_uv) {
-	  case 0:
-	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_u, pred_u, stride/2);
-	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_u+d, pred_u+d, stride/2);
-	    //mlib_VideoCopyRefAve_U8_U8_8x4(dst_v, pred_v, stride/2);
-	    break;
-	  case 1:
-	    mlib_VideoInterpAveY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveY_U8_U8_8x4(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 2:
-	    mlib_VideoInterpAveX_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveX_U8_U8_8x4(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveX_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 3:
-	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveXY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  }
-	} else {
-	  switch(half_flags_y) {
-	  case 0:
-	    mlib_VideoCopyRefAve_U8_U8_16x16(dst_y, pred_y, stride);
-	    break;
-	  case 1:
-	    mlib_VideoInterpAveY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  case 2:
-	    mlib_VideoInterpAveX_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  case 3:
-	    mlib_VideoInterpAveXY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  }
-	
-	  switch(half_flags_uv) {
-	  case 0:
-	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_u, pred_u, stride/2);
-	    mlib_VideoCopyRefAve_U8_U8_8x8(dst_u+d, pred_u+d, stride/2);
-	    //mlib_VideoCopyRef_U8_U8_8x8(dst_v, pred_v, stride/2);
-	    break;
-	  case 1:
-	    mlib_VideoInterpAveY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveY_U8_U8_8x8(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 2:
-	    mlib_VideoInterpAveX_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveX_U8_U8_8x8(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveX_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 3:
-	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpAveXY_U8_U8_8x8(dst_u+d,pred_u+d,stride/2,stride/2);
-    //mlib_VideoInterpAveXY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  }
-	}
-      } else {
-	if(vcount == 2) {
-	  switch(half_flags_y) {
-	  case 0:
-	    mlib_VideoCopyRef_U8_U8_16x8(dst_y, pred_y, stride);
-	    break;
-	  case 1:
-	    mlib_VideoInterpY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  case 2:
-	    mlib_VideoInterpX_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  case 3:
-	    mlib_VideoInterpXY_U8_U8_16x8(dst_y, pred_y, stride, stride);
-	    break;
-	  }
-	
-	  switch(half_flags_uv) {
-	  case 0:
-	    mlib_VideoCopyRef_U8_U8_8x4(dst_u, pred_u, stride/2);
-	    mlib_VideoCopyRef_U8_U8_8x4(dst_u+d, pred_u+d, stride/2);
-	    //mlib_VideoCopyRef_U8_U8_8x4(dst_v, pred_v, stride/2);
-	    break;
-	  case 1:
-	    mlib_VideoInterpY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpY_U8_U8_8x4(dst_u+d, pred_u+d, stride/2, stride/2);
-	    //mlib_VideoInterpY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 2:
-	    mlib_VideoInterpX_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpX_U8_U8_8x4(dst_u+d, pred_u+d, stride/2, stride/2);
-	    //mlib_VideoInterpX_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 3:
-	    mlib_VideoInterpXY_U8_U8_8x4(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpXY_U8_U8_8x4(dst_u+d, pred_u+d, stride/2,stride/2);
-	    //mlib_VideoInterpXY_U8_U8_8x4(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  }
-	} else {
-	  switch(half_flags_y) {
-	  case 0:
-	    mlib_VideoCopyRef_U8_U8_16x16(dst_y, pred_y, stride);
-	    break;
-	  case 1:
-	    mlib_VideoInterpY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  case 2:
-	    mlib_VideoInterpX_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  case 3:
-	    mlib_VideoInterpXY_U8_U8_16x16(dst_y, pred_y, stride, stride);
-	    break;
-	  }
-	
-	  switch(half_flags_uv) {
-	  case 0:
-	    mlib_VideoCopyRef_U8_U8_8x8(dst_u, pred_u, stride/2);
-	    mlib_VideoCopyRef_U8_U8_8x8(dst_u+d, pred_u+d, stride/2);
-	    //mlib_VideoCopyRef_U8_U8_8x8(dst_v, pred_v, stride/2);
-	    break;
-	  case 1:
-	    mlib_VideoInterpY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpY_U8_U8_8x8(dst_u+d, pred_u+d, stride/2, stride/2);
-	    //mlib_VideoInterpY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 2:
-	    mlib_VideoInterpX_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpX_U8_U8_8x8(dst_u+d, pred_u+d, stride/2, stride/2);
-	    //mlib_VideoInterpX_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  case 3:
-	    mlib_VideoInterpXY_U8_U8_8x8(dst_u, pred_u, stride/2, stride/2);
-	    mlib_VideoInterpXY_U8_U8_8x8(dst_u+d, pred_u+d, stride/2,stride/2);
-	    //mlib_VideoInterpXY_U8_U8_8x8(dst_v, pred_v, stride/2, stride/2);
-	    break;
-	  }
-	}
-      } 
+      half_height = (mb.motion_vector_count == 2) ? 1 :0; // ??
+      
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[half_height][half_flags_y](dst_y, pred_y, stride, stride);
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[half_height+2][half_flags_uv](dst_u, pred_u, stride/2, stride/2);
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[half_height+2][half_flags_uv](dst_u+d, pred_u+d, stride/2, stride/2);
     }
+    // Only field_pred in frame_pictures have m.v.c. == 2 except for 
+    // field_pictures with 16x8 MC
+    if(mb.motion_vector_count == 2) {
+      uint8_t *pred_y, *pred_u;//, *pred_v;
+      int pred_stride, stride;
+      int half_flags_y, half_flags_uv;
+      int dd;
+    
+      /* Motion vector offset */
+      pred_stride = padded_width * 2; 
+      
+      pred_y = block_pred_y + 
+	(mb.vector[1][1][0] >> 1) + 
+	(mb.vector[1][1][1] >> 1) * pred_stride;
+      pred_u = block_pred_u + 
+	((mb.vector[1][1][0]/2) >> 1) + 
+	((mb.vector[1][1][1]/2) >> 1) * pred_stride/2;
+      //pred_v +=  ((mb.vector[1][1][0]/2) >> 1) + 
+      //((mb.vector[1][1][1]/2) >> 1) * pred_stride/2;
+      
+      half_flags_y = 
+	((mb.vector[1][1][0] << 1) | (mb.vector[1][1][1] & 1)) & 3;
+      half_flags_uv = 
+	(((mb.vector[1][1][0]/2) << 1) | ((mb.vector[1][1][1]/2) & 1)) & 3;
+      
+      /* Field select */
+      // motion_vertical_field_select is always coded if we have m.v.c. == 2
+      if(mb.motion_vertical_field_select[1][1]) {
+	pred_y += padded_width;
+	pred_u += padded_width/2;
+	//pred_v += padded_width/2;
+      }
+      
+      /* Prediction destination (field) */
+      if(mb.prediction_type == PRED_TYPE_16x8_MC) {
+	// Is this right for 16x8 MC... 
+	dst_y += 8 * 2 * padded_width;
+	dst_u += 8 * 2 * padded_width/2;
+	//dst_v += 8 * 2 * padded_width/2;
+      } else {
+	dst_y += padded_width;
+	dst_u += padded_width/2;
+	//dst_v += padded_width/2;
+      }
+      
+      // if we have m.v.c. == 2 then either field_pred in frame or a field_pic
+      stride = padded_width*2;
+      
+      dd = bwd_ref_image->v - bwd_ref_image->u;
+     
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[1][half_flags_y](dst_y, pred_y, stride, stride);
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[3][half_flags_uv](dst_u, pred_u, stride/2, stride/2);
+      motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
+	[3][half_flags_uv](dst_u+dd, pred_u+dd, stride/2, stride/2);
+    }    
   }
 }
 
