@@ -34,7 +34,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
   static clocktime_t last_sync = { 0, 0 };
   static int samples_written;
   static int old_delay = 0;
-
+  clocktime_t odelay_call_time;
   int bytes_to_write;
   int delay;
   int srate;
@@ -44,6 +44,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
   audio_sync_t *s = &(h->config->sync);
   int odelay_fail = 0;
   
+  clocktime_get(&odelay_call_time);
   //sync code ...
   if((s->type == SyncType_odelay) &&
      !(odelay_fail = ogle_ao_odelay(h->config->adev_handle, &delay))) {
@@ -88,6 +89,21 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
       clocktime_t t1, t2;
       clocktime_t drift, delta_sync_time;
       clocktime_t sleep_time = { 0, 0 };
+
+      clocktime_get(&real_time);
+
+      timesub(&odelay_call_time, &real_time, &odelay_call_time);
+      if(TIME_S(odelay_call_time) > 0 ||
+	 TIME_SS(odelay_call_time) > (CT_FRACTION/1000)) {
+	//we don't have an accurate time for the odelay call
+	// so we skip syncing for this packet
+	pts_valid = 0;
+	fprintf(stderr, "@");
+	/*
+	fprintf(stderr, "diff: %ld.%09ld\n",
+		TIME_S(test_time), TIME_SS(test_time));
+	*/
+      }
       
       if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
 	
@@ -114,7 +130,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	    timesub(&sleep_time, &delay_time, &buf_time); 
 	  }
 	  
-	  clocktime_get(&real_time);
+
 	  PTS_TO_CLOCKTIME(scr_time, PTS);
 	  // add constant offset
 	  timeadd(&scr_time, &scr_time, &s->offset);
