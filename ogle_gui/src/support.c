@@ -98,10 +98,10 @@ ogle_gnome_pixmap_file (const char *filename)
 
   fp = fopen(fullpath, "r"); // Check if file exists.
   if(fp==NULL) {
-    fprintf(stderr, "ogle_gnome_pixmap_file: No such file: %s", fullpath);
+    fprintf(stderr, "ogle_gnome_pixmap_file: No such file: %s\n", fullpath);
     return NULL;
   }
-  close(fp);
+  fclose(fp);
 
   return fullpath;
 }
