@@ -1,0 +1,64 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(ac3/ac3dec_wrap.c)
+AC_CANONICAL_HOST
+
+dnl Checks for programs.
+AC_PROG_CC
+
+dnl Checks for libraries.
+
+dnl Checks for header files.
+GLIB_CFLAGS=`glib-config --cflags`
+AC_SUBST(GLIB_CFLAGS)
+
+dnl Find X Window System
+AC_PATH_XTRA
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_BIGENDIAN
+
+dnl Checks for library functions.
+AC_CHECK_LIB(Xext,main,XEXT_LIB=-lXext,AC_MSG_ERROR(You need libXext),$X_LIBS -lX11 $X_EXTRA_LIBS)
+AC_SUBST(XEXT_LIB)
+AC_SEARCH_LIBS(sem_init, [rt pthread posix4],,AC_MSG_ERROR(You need sem_init))
+
+dnl Sun MediaLib
+AC_ARG_ENABLE(mlib,
+  [  --disable-mlib          make a version not using mediaLib],
+  enable_mlib=no, enable_mlib=yes)
+if test x$enable_mlib = xyes; then
+  AC_CHECK_LIB(mlib, main,
+                [ MLIB_CFLAGS="-I/opt/SUNWmlib/include"
+                MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
+                AC_DEFINE(HAVE_MLIB,1,[Solaris MultiMedia Library installed]) ],                , -L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib)
+else
+        have_mlib=no
+fi
+AC_SUBST(MLIB_CFLAGS)
+AC_SUBST(MLIB_LIBS)
+
+dnl Architecture specific stuff
+USE_MMX=
+case "$target_cpu" in
+i?86)
+	case "$target_cpu" in
+	i386)
+		;;
+	*)
+		AC_DEFINE(HAVE_MMX)
+		USE_MMX=yes
+		;;
+	esac
+	CFLAGS="$CFLAGS -march=$target_cpu"
+	;;
+sparc)
+	CFLAGS="$CFLAGS -mcpu=ultrasparc"
+esac
+AC_SUBST(USE_MMX)
+
+AC_DEFINE(USE_POSIX_SEM)
+
+AC_CHECK_FUNCS(clock_gettime madvise)
+dnl XV XV_NO_CP 
+
+AC_OUTPUT(ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile)
