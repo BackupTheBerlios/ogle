@@ -1,7 +1,6 @@
 CC=gcc
-CFLAGS= -g -pg -Wall -O6 -mcpu=ultrasparc -mvis 
-#LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl
-#LDFLAGS= 
+CFLAGS= -g -pg -Wall -O6 `glib-config --cflags` -DHAVE_MADVICE
+LDFLAGS= 
 
 all:	programstream play_pes
 

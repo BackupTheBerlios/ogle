@@ -2,18 +2,17 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-#include <siginfo.h>
+//#include <siginfo.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <glib.h> // for byte swapping only
 #include "programstream.h"
 
 
 #define BUF_SIZE 2048
-#define FALSE 0
-#define TRUE  1
 
 uint8_t    *buf;
 
@@ -107,7 +106,7 @@ static inline uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = *(uint32_t *)(&buf[offs]);
+    uint32_t new_word = GUINT32_FROM_BE(*(uint32_t *)(&buf[offs]));
     offs+=4;
     cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;
@@ -726,7 +725,7 @@ void MPEG2_program_stream()
 }
 
 
-void segvhandler (void)
+void segvhandler (int id)
 {
   // If we got here we ran off the end of a mmapped file.
   // Or it's some other bug. Remove the sigaction call in 
@@ -785,11 +784,13 @@ void loadinputfile(char *infilename)
     exit(1);
   }
   infilelen = statbuf.st_size;
+#ifdef HAVE_MADVICE
   rv = madvise(buf, infilelen, MADV_SEQUENTIAL);
   if(rv == -1) {
     perror("madvise");
     exit(1);
   }
+#endif
   DPRINTF(1, "All mmap systems ok!\n");
   
   //Sending "load-this-file" packet to listeners
