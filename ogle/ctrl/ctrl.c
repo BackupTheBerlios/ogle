@@ -862,12 +862,12 @@ int main(int argc, char *argv[])
   ctrl_data_shmid = create_ctrl_data();
 
 #ifdef SOCKIPC
-  q.any.type = MsgEventQType_socket;
+  q.type = MsgEventQType_socket;
 #endif
   /* create msgq */  
   create_msgq(&q);
 #ifdef SOCKIPC
-  switch(q.any.type) {
+  switch(q.type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     sprintf(msgqid_str, "msq:%d", q.msgq.msqid);
@@ -1230,7 +1230,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 int create_msgq(MsgEventQ_t *q)
 {
 #ifdef SOCKIPC
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     if((q->msgq.msqid = msgget(IPC_PRIVATE, IPC_CREAT | 0600)) == -1) {
@@ -1302,7 +1302,7 @@ void destroy_msgq(MsgEventQ_t *q)
   clientlist_t *cl;
   char sname[108];
   
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     if(msgctl(q->msgq.msqid, IPC_RMID, NULL) != 0) {
