@@ -1321,6 +1321,71 @@ DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode)
 
 
 /** 
+ * Save a screenshot to a file.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param mode Specifies the type of screenshot.
+ *   Can be ScreenshotModeWithoutSPU (just the video) or
+ *   ScreenshotModeWithSPU (includes subtitles, menu overlays).
+ * @param formatstr Specifies the filename format.
+ *   If %i is included in the formatstr, it will be replaced by
+ * a number that increments by one for each screenshot, starts at 0.
+ *  %3i - leftpadded with spaces to width 3.
+ *  %03i - leftpadded with zeros to width 3.
+ *  %% - %
+ * If formatstr is set to NULL, the previous format will be used,
+ * so setting the string to "pic%02i.jpg" the first time and
+ * then call with formatstr NULL will produce the files
+ * "pic00.jpg", "pic01.jpg", "pic02.jpg", ...
+ * If no formatstr has been set or an illegal one is set
+ * the format will default to "shot%04i.jpg"
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_FailedToSend Failed to send the request.
+ */
+DVDResult_t DVDSaveScreenshot(DVDNav_t *nav, ScreenshotMode_t mode,
+			      char *formatstr)
+{
+  MsgEvent_t ev;
+
+  ev.type = MsgEventQSaveScreenshot;
+  ev.savescreenshot.mode = mode;
+
+  if(formatstr) {
+    strncpy(ev.savescreenshot.formatstr, formatstr,
+	    sizeof(ev.savescreenshot.formatstr));
+    
+    ev.savescreenshot.formatstr[sizeof(ev.savescreenshot.formatstr)-1] = '\0';
+  } else {
+    ev.savescreenshot.formatstr[0] = '\0';
+  }
+  
+  if((nav->voclient == CLIENT_NONE) ||
+     (nav->voclient == -1)) {
+    nav->voclient = get_vo_client(nav->msgq);
+  }
+  switch(nav->voclient) {
+  case -1:
+  case CLIENT_NONE:
+    fprintf(stderr, "dvdctrl: voclient error\n");
+    return DVD_E_Unspecified;
+    break;
+  default:
+    break;
+  }
+  
+  if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
+    return DVD_E_FailedToSend;
+  }
+  
+  return DVD_E_Ok;
+
+
+}
+
+/** 
  * Selects the directory where the dvd files are *.VOB *.IFO.
  * @todo implement
  * @param nav Specifies the connection to the DVD navigator.

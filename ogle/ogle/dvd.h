@@ -325,6 +325,11 @@ typedef enum {
 } ZoomMode_t;
 
 typedef enum {
+  ScreenshotModeWithoutSPU,
+  ScreenshotModeWithSPU
+} ScreenshotMode_t;
+
+typedef enum {
   INPUT_MASK_None          = 0,
   INPUT_MASK_KeyPress      = (1<<0),
   INPUT_MASK_KeyRelease    = (1<<1),

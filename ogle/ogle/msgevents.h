@@ -156,7 +156,8 @@ typedef enum {
   MsgEventQDetachQ,
   MsgEventQQDetached,
   MsgEventQDestroyQ,
-  MsgEventQDemuxStreamChange2
+  MsgEventQDemuxStreamChange2,
+  MsgEventQSaveScreenshot
 } MsgEventType_t;
 
 
@@ -478,6 +479,14 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  ScreenshotMode_t mode;
+  char formatstr[PATH_MAX+1];
+} MsgQSaveScreenshotEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
 } MsgQAnyEvent_t;
 
 typedef union {
@@ -520,6 +529,7 @@ typedef union {
   MsgQSetZoomModeEvent_t setzoommode;
   MsgQReqInputEvent_t reqinput;
   MsgQInputEvent_t input;
+  MsgQSaveScreenshotEvent_t savescreenshot;
 } MsgEvent_t;
 
 typedef struct {

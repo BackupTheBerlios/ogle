@@ -86,6 +86,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQQDetached",
   "MsgEventQDestroyQ",
   "MsgEventQDemuxStreamChange2",
+  "MsgEventQSaveScreenshot",
   NULL
 };
 
@@ -485,6 +486,10 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQInputKeyPress:
   case MsgEventQInputKeyRelease:
     size = sizeof(MsgQInputEvent_t);
+    break;
+  case MsgEventQSaveScreenshot:
+    size = sizeof(MsgQAnyEvent_t) + sizeof(ScreenshotMode_t) + 
+      strlen(event_send->savescreenshot.formatstr)+1;
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

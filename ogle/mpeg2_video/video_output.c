@@ -47,6 +47,8 @@
 #include "video_output.h"
 #include "xscreensaver-comm.h"
 
+#include "screenshot.h"
+
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif
@@ -59,6 +61,7 @@ extern void display(yuv_image_t *current_image);
 extern void display_poll(yuv_image_t *current_image);
 extern void display_exit(void);
 extern void display_reset_screensaver(void);
+extern void screenshot_mode(int mode);
 
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
@@ -142,6 +145,7 @@ int event_handler(MsgEventQ_t *q, MsgEvent_t *ev)
   DNOTE("event_handler: unhandled event: %d\n", ev->type);
   return 0;
 }
+
 
 void wait_for_q_attach(void)
 {
@@ -409,6 +413,12 @@ static void redraw_screen(void)
 }
 
 
+void screenshot_request(ScreenshotMode_t mode)
+{
+  screenshot_mode(mode);
+  redraw_request();
+}
+
 static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
   MsgEvent_t s_ev;
@@ -477,6 +487,12 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     if(ctrl_time[prev_scr_nr].sync_master <= SYNC_VIDEO) {
       set_speed(&ctrl_time[prev_scr_nr].sync_point, ev->speed.speed);
     }
+    break;
+  case MsgEventQSaveScreenshot:
+    if(ev->savescreenshot.formatstr[0]) {
+      screenshot_set_formatstr(ev->savescreenshot.formatstr);
+    }
+    screenshot_request(ev->savescreenshot.mode);
     break;
   default:
     //DNOTE("unrecognized event type: %d\n", ev->type);

@@ -25,4 +25,6 @@ void screenshot_rgb_jpg(unsigned char *data,
 void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
 			int sar_frac_n, int sar_frac_d);
 
+int screenshot_set_formatstr(char *str);
+
 #endif /* SCREENSHOT_H_INCLUDED */

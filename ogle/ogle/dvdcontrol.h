@@ -109,6 +109,9 @@ DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
 
 DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode);
 
+DVDResult_t DVDSaveScreenshot(DVDNav_t *nav, ScreenshotMode_t mode,
+			      char *formatstr);
+
 
 
 DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path);

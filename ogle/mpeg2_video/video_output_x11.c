@@ -1290,6 +1290,20 @@ void clear_borders(void)
   }
 }
 
+void screenshot_mode(int mode)
+{
+  switch(mode) {
+  case 0:
+    screenshot = 1;
+    break;
+  case 1:
+    screenshot_spu = 1;
+    break;
+  default:
+    break;
+  }
+}
+
 void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
