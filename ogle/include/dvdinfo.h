@@ -8,16 +8,16 @@ DVDResult_t DVDGetAllSPRMs(const DVDSPRMArray_t *Registers);
 
 DVDResult_t DVDGetCurrentUOPS(const DVDUOP_t *uop);
 
-DVDResult_t DVDGetAudioAttributes(DVDStream_t StreamNr,
+DVDResult_t DVDGetAudioAttributes(DVDAudioStream_t StreamNr,
 				  const DVDAudioAttributes_t *Attr);
 
-DVDResult_t DVDGetAudioLanguage(DVDStream_t StreamNr,
+DVDResult_t DVDGetAudioLanguage(DVDAudioStream_t StreamNr,
 				const DVDLangID_t *Language);
 
 DVDResult_t DVDGetCurrentAudio(const int *StreamsAvailable,
-			       const DVDStream_t *CurrentStream);
+			       const DVDAudioStream_t *CurrentStream);
 
-DVDResult_t DVDIsAudioStreamEnabled(DVDStream_t StreamNr,
+DVDResult_t DVDIsAudioStreamEnabled(DVDAudioStream_t StreamNr,
 				    const Bool *Enabled);
 
 DVDResult_t DVDGetDefaultAudioLanguage(const DVDLangID_t *Language,
