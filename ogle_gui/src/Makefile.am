@@ -6,7 +6,7 @@ INCLUDES = \
 	$(DVD_INCLUDEDIR)
 
 # To get ogle_gui installed in the ogle pkglibdir
-pkglibdir=$(datadir)/ogle
+pkglibdir=$(libdir)/ogle
 pkglib_PROGRAMS = ogle_gui
 
 ogle_gui_SOURCES = \
