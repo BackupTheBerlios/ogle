@@ -762,7 +762,7 @@ int main(int argc, char *argv[])
     
     msgctl(msgqid, IPC_STAT, &msgqinfo);
     
-    fprintf(stderr, "max_bytes: %ld\n", msgqinfo.msg_qbytes);
+    fprintf(stderr, "max_bytes: %ld\n", (long)msgqinfo.msg_qbytes);
 
   }
 
