@@ -22,7 +22,7 @@ typedef enum {
   DVD_DOMAIN_VMG,        /**< Video Manager Domain */
   DVD_DOMAIN_VTSMenu,    /**< Video Title Set Menu Domain */
   DVD_DOMAIN_VTSTitle,   /**< Video Title Set Domain */
-  DVD_DOMAIN_Stop,       /**< Stop Domain */
+  DVD_DOMAIN_Stop        /**< Stop Domain */
 } DVDDomain_t;
 
 /**
