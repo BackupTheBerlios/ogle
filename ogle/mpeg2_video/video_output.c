@@ -44,7 +44,7 @@
 #include "../include/common.h"
 #include "video_types.h"
 #include "yuv2rgb.h"
-
+#include "screenshot.h"
 
 extern buf_ctrl_head_t *buf_ctrl_head;
 
@@ -74,7 +74,7 @@ static int color_depth, pixel_stride, mode;
 extern unsigned int debug;
 int show_window[3] = {1,0,0};
 int run = 0;
-
+int screenshot = 0;
 
 
 
@@ -345,6 +345,7 @@ void add_grid(unsigned char *data, XImage *ximg)
 }
 
 
+
 void add_2_box_sides(unsigned char *data,
 		     unsigned char r,
 		     unsigned char g,
@@ -572,6 +573,10 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 	case 'r':
 	  run = !run;
 	  nextframe = 1;
+	  break;
+	case 'p':
+	  screenshot = 1;
+	  draw_win(&(windows[n]));
 	  break;
 	case 'q':
 	  display_exit();
@@ -825,6 +830,11 @@ void draw_win(debug_win *dwin)
     } else {
       add_grid(dwin->data, dwin->ximage);
     }
+  }
+
+  if(screenshot) {
+    screenshot=0;
+    screenshot_jpg(dwin->data, dwin->ximage);
   }
 
   Display_Image(dwin->win, dwin->ximage, dwin->data, dwin->image);

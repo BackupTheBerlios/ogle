@@ -26,8 +26,8 @@ CC=gcc
 
 DFLAGS= -g -Wall -O6 `glib-config --cflags` \
 	-DHAVE_MADVICE -DDEBUG \
-	-mcpu=ultrasparc -mvis -DHAVE_MLIB -I/opt/SUNWmlib/include
-LDFLAGS= -L/usr/X11R6/lib -lX11 -lXext -lsocket -lnsl -lposix4 
+	-mcpu=ultrasparc -mvis -DHAVE_MLIB -I/opt/SUNWmlib/include -I/usr/pd/include
+LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lposix4 
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 
 # Uncoment this to build an unaccelerated version
@@ -37,7 +37,7 @@ CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
 #video_stream: video_mpeg1.o video_mpeg2.o yuv2rgb_mmx.o mmx_idct.o mmx_mlib.o c_getbits.o video_output.o yuv2rgb.o  video_tables.o
 
 # Uncoment this to build for MLIB 
-video_stream: video_mpeg1.o video_mpeg2.o yuv2rgb_mlib.o /opt/SUNWmlib/lib/libmlib.a c_getbits.o video_output.o yuv2rgb.o video_tables.o 
+video_stream: video_mpeg1.o video_mpeg2.o yuv2rgb_mlib.o /opt/SUNWmlib/lib/libmlib.a c_getbits.o video_output.o yuv2rgb.o video_tables.o screenshot.o
 
 clean:
 	rm -f video_stream *.o

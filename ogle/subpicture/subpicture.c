@@ -191,7 +191,7 @@ void initialize() {
 void send_rle (unsigned int vlc) {
   unsigned int length;
   static unsigned int colorid;
-  DPRINTF(3, "send_rle: %08x\n", vlc)
+  DPRINTF(4, "send_rle: %08x\n", vlc)
   if(vlc==0) { // new line
     if (y >= height)
       return;
