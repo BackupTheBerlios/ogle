@@ -34,6 +34,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQSpeed",
   "MsgEventQDVDCtrl",
   "MsgEventQFlow",
+  "MsgEventQFlushData",
   NULL
 };
 
@@ -81,11 +82,14 @@ MsgEventQ_t *MsgOpen(int msqid)
   
 }
 
+/**
+ * Close the message connection.
+ * TODO: tell resource manager that there isn't anyone listening
+ * for messages here any more. 
+ */
 void MsgClose(MsgEventQ_t *q)
 {
-  /* TODO: tell resource manager that there isn't anyone listening
-   * for messages here any more 
-   */
+
   fprintf(stderr, "msg close FIX\n");
   
   
@@ -205,6 +209,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQFlow:
     size = sizeof(MsgQFlowEvent_t);
+    break;
+  case MsgEventQFlushData:
+    size = sizeof(MsgQFlushDataEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);
