@@ -19,6 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+#include "ogle/dvd.h"
+#include "ogle/dvdevents.h"
 #include "ogle/msgevents.h"
 
 typedef enum {
