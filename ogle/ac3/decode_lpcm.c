@@ -60,6 +60,9 @@ static int lpcm_ch_to_channels(int nr_ch)
   
   
   switch(nr_ch) {
+  case 1:
+    chtypemask = ChannelType_Left;
+    break;
   case 2:
     chtypemask = ChannelType_Left | ChannelType_Right;
     break;
@@ -82,9 +85,13 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
   uint8_t new_lpcm_info;
   uint8_t dynamic_range;
   ChannelType_t chtypemask;
+  int audio_emphasis;
+  int audio_mute;
 
   //header data
-  audio_frame_number = start[0];
+  audio_emphasis = (start[0] >> 7) & 0x1;
+  audio_mute = (start[0] >> 6) & 0x1;
+  audio_frame_number = start[0] & 0x1f;
   new_lpcm_info = start[1];
   dynamic_range = start[2];
 
@@ -94,6 +101,10 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
 
   bytes_left = len-3;
 
+  if(audio_emphasis || audio_mute) {
+    WARNING("please send bug report first use emphasis :%d, mut: %d\n",
+	    audio_emphasis, audio_mute);
+  }
 
   if(new_lpcm_info != handle->lpcm_info) {
     int new_ch = 0;
@@ -104,23 +115,30 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     audio_format_t new_format;
     
     handle->lpcm_info = new_lpcm_info;
-    if(new_lpcm_info & 0x10) {
-      new_sample_rate = 96000;
-    } else {
+    switch((new_lpcm_info >> 4) & 0x3) {
+    case 0:
       new_sample_rate = 48000;
+      break;
+    case 1:
+      new_sample_rate = 96000;
+      break;
+    default:
+      WARNING("send bug report lpcm sample rate: %d\n",
+	      (new_lpcm_info >> 4) & 0x3);
+      break;
     }
-    if((new_ch = (new_lpcm_info & 0x07))) {
-      new_ch = new_ch + 1;
-    } else {
-      DNOTE("%s", "REPORT BUG: is mono 2ch(dual mono) or really 1 ch"); 
-      new_ch = 2; // is mono 2ch(dual mono) or really 1 ch ?
+    if((new_lpcm_info >> 3) & 0x1) { // DVD-A ?
+      WARNING("send bug report lpcm sample rate extra: %d\n",
+	      (new_lpcm_info >> 3) & 0x1);
     }
+
+    new_ch = (new_lpcm_info & 0x7) + 1;
 
     if(new_ch > 2) {
       ERROR("%s", "REPORT BUG: lpcm > 2 channels not supported\n");
     }
 
-    new_quantization_word_length = (new_lpcm_info & 0xC0) >> 6;
+    new_quantization_word_length = (new_lpcm_info >> 6 ) & 0x3;
 
     switch(new_quantization_word_length) {
     case 0:
@@ -132,7 +150,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
       new_quantization_word_length = 20;
       new_sample_size = 3; // ? 20bit contained in ? bytes
       ERROR("%s", "REPORT BUG lpcm: 20bit format not supported\n");
-      handle->super_frame_size = new_ch * new_sample_size;
+      handle->super_frame_size = new_ch * 2 * 2 + new_ch;
       break;
     case 2:
       new_quantization_word_length = 24;
@@ -167,8 +185,16 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
 
     
     new_format.ch_array = malloc(handle->channels * sizeof(ChannelType_t));
-    new_format.ch_array[0] = ChannelType_Left;
-    new_format.ch_array[1] = ChannelType_Right;
+    switch(handle->channels) {
+    case 2:
+      new_format.ch_array[1] = ChannelType_Right;
+    case 1:
+      new_format.ch_array[0] = ChannelType_Left;
+      break;
+    default:
+      break;
+    }
+
     if(handle->channels > 2) {
       FATAL("%d lpcm channels, not implemented, REPORT BUG\n",
 	    handle->channels);

@@ -384,11 +384,11 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
   int src_ch = src_format->nr_channels;
   int unaligned = ((uint32_t)lpcm) % 2;
 
-  if(src_format->nr_channels != 2) {
+  if(src_format->nr_channels > 2) {
     FATAL("REPORT BUG: convert from %d lpcm channels not implemented\n",
 	  src_format->nr_channels);
     exit(1);
-  } else if (dst_format->nr_channels != 2) {
+  } else if (dst_format->nr_channels > 2) {
     FATAL("REPORT BUG: convert to %d lpcm channels not implemented\n",
 	  dst_format->nr_channels);
     exit(1);

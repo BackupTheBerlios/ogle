@@ -299,8 +299,19 @@ int alsa_init(ogle_ao_instance_t *_instance,
       }
       /* ok */
       break;
+    case 24:
+      if(audio_info->byteorder == OGLE_AO_BYTEORDER_BE) {
+	i->format = SND_PCM_FORMAT_S32_BE;
+      } else {
+	i->format = SND_PCM_FORMAT_S32_LE;
+      }
+      audio_info->sample_resolution = 32;
+      /* ok */
+      break;
     default:
       /* not supported */
+      ERROR("sample resolution %d not implmented\n",
+	    audio_info->sample_resolution);
       return -1;
       break;
     }
@@ -372,6 +383,7 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	i->sample_rate, snd_pcm_format_name(i->format), 
 	i->channels, i->sample_frame_size);
 
+  audio_info->sample_resolution = i->sample_frame_size / i->channels * 8;
   return 0;
 }
 
