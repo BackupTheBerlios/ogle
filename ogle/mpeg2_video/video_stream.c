@@ -2290,8 +2290,8 @@ void picture_data(void)
       uint16_t hsize,vsize;
       
       if(seq.dpy_ext.display_horizontal_size) {      
-	hsize = seq.dpy_ext.display_horizontal_size
-	vsize = seq.dpy_ext.display_vertical_size
+	hsize = seq.dpy_ext.display_horizontal_size;
+	vsize = seq.dpy_ext.display_vertical_size;
       } else {
 	hsize = seq.horizontal_size;
 	vsize = seq.vertical_size;	
@@ -2320,7 +2320,7 @@ void picture_data(void)
 	DPRINTF(2, "reserved\n");
 	break;
       }
-      pinfos[bufid].picture.sar = sar;
+      pinfos[buf_id].picture.sar = sar;
       
     }
 
@@ -2734,17 +2734,6 @@ void sequence_scalable_extension()
 
 void sequence_display_extension()
 {
-  uint8_t extension_start_code_identifier;
-  uint8_t video_format;
-  uint8_t colour_description;
-  
-  uint8_t colour_primaries;
-  uint8_t transfer_characteristics;
-  uint8_t matrix_coefficients;
-  
-  uint16_t display_horizontal_size;
-  uint16_t display_vertical_size;
-  
   
   DPRINTFI(1, "sequence_display_extension()\n");
   DINDENT(2);

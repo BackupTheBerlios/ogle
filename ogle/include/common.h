@@ -42,7 +42,7 @@ typedef struct {
   uint16_t display_start_y;
   uint16_t display_width;
   uint16_t display_height;
-  float SAR;
+  float sar;
 } yuv_image_t;
 
 

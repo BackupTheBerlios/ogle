@@ -103,6 +103,7 @@ static int scalemode = MLIB_BILINEAR;
 #endif /* HAVE_MLIB */
 static int scalemode_change = 0;
 static double sar;
+static double xscale_factor;
 extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
@@ -112,7 +113,7 @@ void display_init(int padded_width, int padded_height,
 		  buf_ctrl_head_t *buf_ctrl_head)
 {
   int screen;
-  
+
   XSizeHints hint;
   XEvent xev;
   XGCValues xgcv;

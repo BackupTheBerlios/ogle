@@ -27,7 +27,7 @@ AC_SUBST(XEXT_LIB)
 
 AC_CHECK_LIB(Xv,XvQueryExtension,XEXT_LIB="$XEXT_LIB -lXv",AC_MSG_WARN(You won't bw able to use Xv),$X_LIBS -lXext)
 
-AC_CHECK_LIB(XShm,XShmQueryExtension,XEXT_LIB="$XEXT_LIB -lXShm",AC_MSG_WARN(You won't be able to use XShm),$X_LIBS -lX11 -lXext)
+AC_CHECK_LIB(Xext,XShmQueryExtension,XEXT_LIB="$XEXT_LIB -lXext",AC_MSG_WARN(You won't be able to use XShm),$X_LIBS -lX11 -lXext)
 
 
 AC_SEARCH_LIBS(sem_init, [rt pthread posix4],,AC_MSG_ERROR(You need sem_init))
@@ -48,6 +48,8 @@ else
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
+
+CFLAGS="$CFLAGS -Wall"
 
 dnl Architecture specific stuff
 USE_MMX=
