@@ -1,4 +1,5 @@
-Björn Englund <d4bjorn@dtek.chalmers.se>
-Martin Norbäck <d95mback@dtek.chalmers.se>
+Björn Englund <d4bjorn@dtek.chalmers.se> (xvattr)
+Martin Norbäck <d95mback@dtek.chalmers.se> (gxvattr)
+R. Bernstein <rocky@panix.com> (automake/autoconf/man-page)
 Greetings to Billy Biggs who hacked together a very similar program
 (with the same name) a week before this program was created.
