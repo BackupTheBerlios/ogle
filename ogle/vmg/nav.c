@@ -46,6 +46,10 @@ extern int eval_cmd(vm_cmd_t *cmd);
 extern int get_next_cell();
 extern int vm_menuCall(int menuid, int block);
 extern int vm_resume(void);
+extern int get_Audio_stream(int audioN);
+extern int get_Spu_stream(int spuN);
+extern int get_Audio_info(int *num_avail, int *current);
+extern int get_Spu_info(int *num_avail, int *current);
 
 
 
@@ -480,7 +484,6 @@ void do_run(void) {
 	  }
 	  break;
 	  
-	case DVDCtrlEventAudioStreamChange:
 	case DVDCtrlGoUp:
 	case DVDCtrlForwardScan:
 	case DVDCtrlBackwardScan:
@@ -495,6 +498,44 @@ void do_run(void) {
 	case DVDCtrlPauseOn:
 	case DVDCtrlPauseOff:
 	case DVDCtrlStop:
+	
+	case DVDCtrlGetCurrentAudio:
+	  {
+	    MsgEvent_t send_ev;
+	    int nS, cS;
+	    get_Audio_info(&nS, &cS);
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
+	    send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
+	    send_ev.dvdctrl.cmd.currentaudio.currentstream = cS;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	  }
+	  break;
+	case DVDCtrlIsAudioStreamEnabled:
+	  {
+	    MsgEvent_t send_ev;
+	    int streamN = ev.dvdctrl.cmd.audiostreamenabled.streamnr;
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioStreamEnabled;
+	    send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
+	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
+	      (get_Audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	  }
+	  break;
+	case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
+	  {
+	    MsgEvent_t send_ev;
+	    send_ev.type = MsgEventQDVDCtrl;
+	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
+	    send_ev.dvdctrl.cmd.audioattributes.streamnr 
+	      = ev.dvdctrl.cmd.audiostreamenabled.streamnr;
+	    memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
+		   sizeof(DVDAudioAttributes_t)); //TBD
+	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	  }
+	  break;
+	  
 	default:
 	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);

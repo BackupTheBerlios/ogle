@@ -78,20 +78,21 @@ int run_vm(void);
 int eval_cmd(vm_cmd_t *cmd);
 int get_next_cell();
 
-static link_t play_PGC();
-static link_t play_PG();
-static link_t play_Cell();
-static link_t play_Cell_post();
-static link_t play_PGC_post();
+static link_t play_PGC(void);
+static link_t play_PG(void);
+static link_t play_Cell(void);
+static link_t play_Cell_post(void);
+static link_t play_PGC_post(void);
 static link_t process_command(link_t link_values);
 
-static void ifoOpenVMGI();
+static void ifoOpenVMGI(void);
 static void ifoOpenVTSI(int vtsN);
 
 static pgcit_t* get_VTS_PGCIT(int vtsN);
 static pgcit_t* get_VTSM_PGCIT(int vtsN, char language[2]);
 static pgcit_t* get_VMGM_PGCIT(char language[2]);
-static pgcit_t* get_PGCIT();
+static pgcit_t* get_PGCIT(void);
+static int get_video_aspect(void);
 
 /* Can only be called when in VTS_DOMAIN */
 static int get_TT(int tt);
@@ -112,7 +113,7 @@ static int get_PGCN(void);
 
 char *program_name;
 
-void usage()
+void usage(void)
 {
   fprintf(stderr, "Usage: %s  [-d <debug_level>] [-m <msgqid>]\n", 
           program_name);
@@ -213,7 +214,7 @@ int main(int argc, char *argv[])
 
 
 
-int reset_vm()
+int reset_vm(void)
 { 
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
@@ -244,7 +245,7 @@ int reset_vm()
 
 
 // FIXME TODO XXX $$$ Handle error condition too...
-int start_vm()
+int start_vm(void)
 {
   link_t link_values;
 
@@ -284,7 +285,7 @@ int eval_cmd(vm_cmd_t *cmd)
 
 // FIXME TODO XXX $$$ Handle error condition too...
 // How to tell if there is any need to do a Flush?
-int get_next_cell()
+int get_next_cell(void)
 {
   link_t link_values;
   // Calls play_Cell wich either returns PlayThis or a command
@@ -382,7 +383,7 @@ int vm_menuCall(DVDMenuID_t menuid, int block)
 }
 
 
-int vm_resume()
+int vm_resume(void)
 {
   link_t link_values;
   
@@ -425,11 +426,72 @@ int vm_resume()
   return 1;
 }
 
+int get_Audio_stream(int audioN)
+{
+  int streamN = -1;
+  
+  get_PGC(state.pgcN);
+  
+  /* Is there any contol info for this logical stream */ 
+  if(state.pgc->audio_control[audioN] & (1<<15)) {
+    streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
+  }
+  /* Should also check in vtsi/vmgi status that what kind of stream
+   * it is (ac3/lpcm/dts/sdds...) */
+  return streamN;
+}
+
+int get_Spu_stream(int spuN)
+{
+  int streamN = -1;
+  int source_aspect = get_video_aspect();
+  
+  get_PGC(state.pgcN);
+  
+  /* Is there any contol info for this logical stream */ 
+  if(state.pgc->subp_control[spuN] & (1<<31)) {
+    if(source_aspect == 0) /* 4:3 */	     
+      streamN = (state.pgc->subp_control[spuN] >> 24) & 0x1f;  
+    if(source_aspect == 3) /* 16:9 */
+      streamN = (state.pgc->subp_control[spuN] >> 16) & 0x1f;
+  }
+  
+  return streamN;
+}
+
+int get_Audio_info(int *num_avail, int *current)
+{
+  if(state.domain == VTS_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    *num_avail = vtsi.vtsi_mat->nr_of_vts_audio_streams;
+  } else if(state.domain == VTSM_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    *num_avail = vtsi.vtsi_mat->nr_of_vtsm_audio_streams;
+  } else if(state.domain == VMGM_DOMAIN) {
+    ifoOpenVMGI();
+    *num_avail = vmgi.vmgi_mat->nr_of_vmgm_audio_streams;
+  }
+  *current = state.AST_REG;
+}
+
+int get_Spu_info(int *num_avail, int *current)
+{
+  if(state.domain == VTS_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    *num_avail = vtsi.vtsi_mat->nr_of_vts_subp_streams;
+  } else if(state.domain == VTSM_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    *num_avail = vtsi.vtsi_mat->nr_of_vtsm_subp_streams;
+  } else if(state.domain == VMGM_DOMAIN) {
+    ifoOpenVMGI();
+    *num_avail = vmgi.vmgi_mat->nr_of_vmgm_subp_streams;
+  }
+  *current = state.SPST_REG;
+}
 
 
 
-
-static link_t play_PGC() 
+static link_t play_PGC(void) 
 {    
   link_t link_values;
   
@@ -471,7 +533,7 @@ static link_t play_PGC()
 }  
 
 
-static link_t play_PG()
+static link_t play_PG(void)
 {
   printf("play_PG: state.pgN (%i)\n", state.pgN);
   
@@ -487,7 +549,7 @@ static link_t play_PG()
 }
 
 
-static link_t play_Cell()
+static link_t play_Cell(void)
 {
   printf("play_Cell: state.cellN (%i)\n", state.cellN);
   
@@ -550,7 +612,7 @@ static link_t play_Cell()
 }
 
 
-static link_t play_Cell_post()
+static link_t play_Cell_post(void)
 {
   cell_playback_t *cell;
     
@@ -597,7 +659,7 @@ static link_t play_Cell_post()
 } 
 
 
-static link_t play_PGC_post()
+static link_t play_PGC_post(void)
 {
   link_t link_values;
   
@@ -977,7 +1039,7 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
 
 
 
-static int get_FP_PGC()
+static int get_FP_PGC(void)
 {  
   state.domain = FP_DOMAIN;
   ifoOpenVMGI();
@@ -1057,6 +1119,29 @@ static int get_PGCN()
 }
 
 
+static int get_video_aspect(void)
+{
+  int aspect = 0;
+  
+  if(state.domain == VTS_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    aspect = vtsi.vtsi_mat->vts_video_attributes.display_aspect_ratio;  
+  } else if(state.domain == VTSM_DOMAIN) {
+    ifoOpenVTSI(state.vtsN);
+    aspect = vtsi.vtsi_mat->vtsm_video_attributes.display_aspect_ratio;
+  } else if(state.domain == VMGM_DOMAIN) {
+    ifoOpenVMGI();
+    aspect = vmgi.vmgi_mat->vmgm_video_attributes.display_aspect_ratio;
+  }
+  assert(aspect == 0 || aspect == 3);
+  state.registers.SPRM[14] &= ~(0x3 << 10);
+  state.registers.SPRM[14] |= aspect << 10;
+  
+  return aspect;
+}
+
+
+
 /* 
    All those that set pgc and/or pgcit and might later fail must 
    undo this before exiting!!
@@ -1072,7 +1157,7 @@ static int get_PGCN()
 
 
 
-static void ifoOpenVMGI() 
+static void ifoOpenVMGI(void) 
 {
   if(vmg_file == NULL) {
     vmgi.vmgi_mat = malloc(sizeof(vmgi_mat_t));
@@ -1172,7 +1257,7 @@ static pgcit_t* get_VMGM_PGCIT(char language[2])
 }
 
 /* Uses state to decide what to return */
-static pgcit_t* get_PGCIT() {
+static pgcit_t* get_PGCIT(void) {
   pgcit_t *pgcit;
   
   if(state.domain == VTS_DOMAIN) {

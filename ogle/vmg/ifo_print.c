@@ -317,8 +317,11 @@ void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
     return;
   }
   
-  if(attr->user_selectable & 0x80)
-    PUT(level, "user_selectable ");
+  if(attr->user_selectable == 1)
+    PUT(level, "selectable ");
+  if(attr->user_selectable > 1)
+    PUT(level, "%02x ", attr->user_selectable);
+  
   if(isalpha((int)attr->lang_code[0]) && isalpha((int)attr->lang_code[1]))
     PUT(level, "%c%c ", attr->lang_code[0], attr->lang_code[1]);
   else
@@ -417,14 +420,14 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   PUT(5, "VMGM Number of Audio attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_audio_streams);
   for(i = 0; i < vmgi_mat->nr_of_vmgm_audio_streams; i++) {
-    PUT(5, "\tAudio stream %i status: ", i+1);
+    PUT(5, "\tAudio stream %i status: ", i);
     ifoPrint_audio_attributes(5, &vmgi_mat->vmgm_audio_attributes[i]);
     PUT(5, "\n");
   }
   PUT(5, "VMGM Number of Sub-picture attributes: %i\n", 
       vmgi_mat->nr_of_vmgm_subp_streams);
   for(i = 0; i < vmgi_mat->nr_of_vmgm_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);
+    PUT(5, "\tSub-picture stream %2i status: ", i);
     ifoPrint_subp_attributes(5, &vmgi_mat->vmgm_subp_attributes[i]);
     PUT(5, "\n");
   }
@@ -459,7 +462,7 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "VTSM Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vtsm_audio_streams);
   for(i = 0; i < vtsi_mat->nr_of_vtsm_audio_streams; i++) {
-    PUT(5, "\tAudio stream %i status: ", i+1);
+    PUT(5, "\tAudio stream %i status: ", i);
     ifoPrint_audio_attributes(5, &vtsi_mat->vtsm_audio_attributes[i]);
     PUT(5, "\n");
   }
@@ -467,7 +470,7 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "VTSM Number of Sub-picture attributes: %i\n", 
       vtsi_mat->nr_of_vtsm_subp_streams);
   for(i = 0; i < vtsi_mat->nr_of_vtsm_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);
+    PUT(5, "\tSub-picture stream %2i status: ", i);
     ifoPrint_subp_attributes(5, &vtsi_mat->vtsm_subp_attributes[i]);
     PUT(5, "\n");
   }
@@ -479,7 +482,7 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "VTS Number of Audio attributes: %i\n", 
       vtsi_mat->nr_of_vts_audio_streams);
   for(i = 0; i < vtsi_mat->nr_of_vts_audio_streams; i++) {
-    PUT(5, "\tAudio stream %i status: ", i+1);
+    PUT(5, "\tAudio stream %i status: ", i);
     ifoPrint_audio_attributes(5, &vtsi_mat->vts_audio_attributes[i]);
     PUT(5, "\n");
   }
@@ -487,7 +490,7 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "VTS Number of Subpicture attributes: %i\n", 
       vtsi_mat->nr_of_vts_subp_streams);
   for(i = 0; i < vtsi_mat->nr_of_vts_subp_streams; i++) {
-    PUT(5, "\tSub-picture stream %2i status: ", i+1);
+    PUT(5, "\tSub-picture stream %2i status: ", i);
     ifoPrint_subp_attributes(5, &vtsi_mat->vts_subp_attributes[i]);
     PUT(5, "\n");
   }
