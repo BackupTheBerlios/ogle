@@ -24,8 +24,8 @@
 #include <ogle/dvdcontrol.h>
 
 #include "menu.h"
-#include "interface.h"
 #include "callbacks.h"
+#include "myintl.h"
 
 extern DVDNav_t *nav;
 
@@ -39,14 +39,14 @@ struct item_s {
 };
 
 struct item_s menuitem[] = {
-  { NULL, "PTT",        UOP_FLAG_ChapterMenuCall, on_ptt_activate_pm },
-  { NULL, "Angle",      UOP_FLAG_AngleMenuCall,   on_angle_activate_pm },
-  { NULL, "Audio",      UOP_FLAG_AudioMenuCall,   on_audio_activate_pm },
-  { NULL, "Subpicture", UOP_FLAG_SubPicMenuCall,  on_subpicture_activate_pm},
-  { NULL, "Root",       UOP_FLAG_RootMenuCall,    on_root_activate_pm     },
-  { NULL, "Title",      UOP_FLAG_TitleMenuCall,   on_title_activate_pm    },
-  { NULL, "Resume",     UOP_FLAG_Resume,          on_resume_activate_pm },
-  { NULL, "",           0,                        NULL },
+  { NULL, N_("Chapter"),  UOP_FLAG_ChapterMenuCall, on_ptt_activate_pm       },
+  { NULL, N_("Angle"),    UOP_FLAG_AngleMenuCall,   on_angle_activate_pm     },
+  { NULL, N_("Audio"),    UOP_FLAG_AudioMenuCall,   on_audio_activate_pm     },
+  { NULL, N_("Subtitle"), UOP_FLAG_SubPicMenuCall,  on_subpicture_activate_pm},
+  { NULL, N_("Root"),     UOP_FLAG_RootMenuCall,    on_root_activate_pm      },
+  { NULL, N_("Title"),    UOP_FLAG_TitleMenuCall,   on_title_activate_pm     },
+  { NULL, N_("Resume"),   UOP_FLAG_Resume,          on_resume_activate_pm    },
+  { NULL, "",             0,                        NULL                     }
 };
 
 
@@ -59,7 +59,7 @@ void menu_new(GtkWidget *mainwin) {
   menu = gtk_menu_new();
   
   for(i=0; menuitem[i].flag != 0; i++) {
-    menuitem[i].item = gtk_menu_item_new_with_label(menuitem[i].name);
+    menuitem[i].item = gtk_menu_item_new_with_label(_(menuitem[i].name));
     gtk_signal_connect(GTK_OBJECT(menuitem[i].item), "activate", 
                        menuitem[i].func, NULL);
     gtk_menu_append(GTK_MENU(menu), menuitem[i].item);
