@@ -1,6 +1,6 @@
 Summary: A DVD player for linux that supports DVD menus.
 Name: ogle
-Version: 0.9.0
+Version: 0.9.1
 Release: ogle1
 Vendor: Ogle
 Packager: Ogle developer team
@@ -74,6 +74,9 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_libdir}/ogle/*.a
 
 %changelog
+* Tue Mar 11 2003 Björn Englund <d4bjorn@dtek.chalmers.se>
+- Updated version to 0.9.1
+
 * Sat Feb 22 2003 Björn Englund <d4bjorn@dtek.chalmers.se>
 - Updated version to 0.9.0
 - Updated the requirements to use >= libdvdread-0.9.4
