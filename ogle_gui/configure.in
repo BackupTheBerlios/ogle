@@ -82,15 +82,20 @@ fi
 AC_CHECK_LIB(dvdcontrol, DVDRequestInput, 
   [ DVDLIBS="-L$dvd_path/lib/ogle -rpath $dvd_path/lib/ogle -ldvdcontrol" 
     DVD_INCLUDEDIR=-I$dvd_path/include
-  ],, 
-  -L$dvd_path/lib/ogle)
-if test -z "$DVDLIBS"; then
-  AC_MSG_ERROR([Needs libdvdcontrol, install it and/or specify it's location])
-fi
+  ],
+  [ AC_MSG_ERROR([Need libdvdcontrol, install it and/or specify it's location])
+  ],
+  -L$dvd_path/lib/ogle -lmsgevents)
 
 AC_ARG_WITH(dvd-includes, 
   [  --with-dvd-includes=DIR Specify location of DVD headers ], 
   DVD_INCLUDEDIR=-I$with_dvd_includes)
+saved_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $DVD_INCLUDEDIR"
+AC_CHECK_HEADER(ogle/dvd.h, ,
+  AC_MSG_ERROR([Need ogle/dvd.h, install Ogle(-dev) or specify it's location])
+)
+CPPFLAGS=$saved_CPPFLAGS
 
 AC_SUBST(DVDLIBS)
 AC_SUBST(DVD_INCLUDEDIR)
