@@ -3,9 +3,9 @@
 
 void menu_new(GtkWidget *mainwin);
 
-void menu_show();
+void menu_show(GtkWidget *button);
 
-void menu_update();
+void menu_update(void);
 
 #endif /* MENU_H */
 

@@ -15,7 +15,8 @@ ogle_SOURCES = \
 	xsniffer.c xsniffer.h \
 	menu.c menu.h \
 	audio.c audio.h \
-	subpicture.c subpicture.h
+	subpicture.c subpicture.h\
+	language.c language.h
 
 ogle_LDADD = $(GNOME_LIBDIR) $(GNOMEUI_LIBS) $(INTLLIBS) $(DVDLIBS) \
 	$(PTHREAD_LIB)

@@ -6,6 +6,7 @@
 #include <glib.h>
 #include <gnome.h>
 #include "subpicture.h"
+#include "language.h"
 #include <ogle/dvdcontrol.h>
 
 extern DVDNav_t *nav;
@@ -105,19 +106,16 @@ void subpicture_menu_update(void) {
 	return;
       }
       
-      stringlength = strlen(_(language_name(Attr.Language))) + 10;
+      stringlength = strlen(language_name(Attr.Language)) + 10;
       label = (char*) malloc(stringlength  * sizeof(char));
       
-      // SV Svenska (AC3)
-      //snprintf(label, stringlength-1, "%s, %s, (%s)", 
-      //language_code(Attr.Language),
-      //_(language_name(Attr.Language)),
+      snprintf(label, stringlength-1, "%s", 
+	       language_name(Attr.Language));
       //DVDSubpictureFormat(Attr.SubpictureFormat) );
       
-      snprintf(label, 9, "bepa %d", stream);
       labellist = g_slist_append (labellist, label);      
       
-      if(stream == CurrentStream) {
+      if( (stream == CurrentStream) && Shown) {
 	selectedpos = pos;
       }
       
@@ -164,8 +162,19 @@ void subpicture_item_activate( GtkRadioMenuItem *item,
   
   if(GTK_CHECK_MENU_ITEM(item)->active) {
     if(stream==OFF) {
-      DVDSetSubpictureState(nav, DVDTrue);
+      fprintf(stderr, "Subpicture: OFF\n");
+      res = DVDSetSubpictureState(nav, DVDFalse);
+      if(res != DVD_E_Ok) {
+	DVDPerror("subpicture.subpicture_item_activate: DVDSubpictureState",
+		  res);
+      }
     } else {
+      fprintf(stderr, "Subpicture: ON\n");
+      res = DVDSetSubpictureState(nav, DVDTrue);
+      if(res != DVD_E_Ok) {
+	DVDPerror("subpicture.subpicture_item_activate: DVDSubpictureState",
+		  res);
+      }
       res = DVDSubpictureStreamChange(nav, stream);
       if(res != DVD_E_Ok) {
 	DVDPerror("subpicture.subpicture_item_activate: DVDSubpictureChange",

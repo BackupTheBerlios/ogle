@@ -51,7 +51,7 @@ void menu_show(GtkWidget *button) {
                   button, 0);
 }
 
-void menu_update() {
+void menu_update(void) {
   // XXX Not implemented in player.
   DVDResult_t res;
   DVDUOP_t uop;

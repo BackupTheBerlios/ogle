@@ -6,7 +6,10 @@
 #include <glib.h>
 #include <gnome.h>
 #include "audio.h"
+#include "language.h"
+
 #include <ogle/dvdcontrol.h>
+
 
 extern DVDNav_t *nav;
 
@@ -15,10 +18,30 @@ static GnomeUIInfo *menu_items_uiinfo;
 static GSList *labellist = NULL;
 static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
-char* language_name(DVDLangID_t lang) {
-  return "bepa";
-}
-
+char* guiDVDAudioFormat(DVDAudioFormat_t format) {
+  switch(format) {
+  case DVD_AUDIO_FORMAT_AC3:
+    return "AC3";
+  case DVD_AUDIO_FORMAT_MPEG1:
+    return "MPEG1";
+  case DVD_AUDIO_FORMAT_MPEG1_DRC:
+    return "MPEG1 DRC";
+  case DVD_AUDIO_FORMAT_MPEG2:
+    return "MPEG2";
+  case DVD_AUDIO_FORMAT_MPEG2_DRC:
+    return "MPEG2 DRC";
+  case DVD_AUDIO_FORMAT_LPCM:
+    return "LPCM";
+  case DVD_AUDIO_FORMAT_DTS:
+    return "DTS";
+  case DVD_AUDIO_FORMAT_SDDS:
+    return "SDDS";
+  case DVD_AUDIO_FORMAT_Other:
+    return N_("Other");
+  default:
+    return N_("Unknown format");
+  }
+} 
 
 void audio_menu_new(void) {
   menu = gtk_menu_new ();
@@ -62,7 +85,9 @@ void audio_menu_update(void) {
   int stream=0;
   int pos=0;
 
-  
+  char *strlangname;
+  char *straudioformat;
+
   res = DVDGetCurrentAudio(nav, &StreamsAvailable, &CurrentStream);
   if(res != DVD_E_Ok) {
     DVDPerror("audio.audio_menu_create_new: DVDGetCurrentAudio", res);
@@ -106,16 +131,16 @@ void audio_menu_update(void) {
 	return;
       }
       
-      stringlength = strlen(_(language_name(Attr.Language))) + 10;
+      strlangname    = language_name(Attr.Language);
+      straudioformat = _(guiDVDAudioFormat(Attr.AudioFormat));      
+      stringlength = strlen(strlangname) + strlen(straudioformat) +10;
+
       label = (char*) malloc(stringlength  * sizeof(char));
       
-      // SV Svenska (AC3)
-      //snprintf(label, stringlength-1, "%s, %s, (%s)", 
-      //language_code(Attr.Language),
-      //_(language_name(Attr.Language)),
-      //DVDAudioFormat(Attr.AudioFormat) );
+      snprintf(label, stringlength-1, "%s (%s)",
+	       strlangname, straudioformat);
+
       
-      snprintf(label, 9, "bepa %d", stream);
       labellist = g_slist_append (labellist, label);      
 
       if(stream == CurrentStream) {
@@ -172,5 +197,4 @@ void audio_item_activate( GtkRadioMenuItem *item,
     }
   }
 }
-
 

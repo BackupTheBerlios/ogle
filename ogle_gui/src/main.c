@@ -70,8 +70,6 @@ int
 main (int argc, char *argv[])
 {
   GtkWidget *app;
-  int c;
-
 
 #ifdef ENABLE_NLS
   bindtextdomain (PACKAGE, PACKAGE_LOCALE_DIR);
@@ -87,14 +85,6 @@ main (int argc, char *argv[])
   win = strtol(window_string, NULL, 0);
   
   fprintf(stderr, "Window-id: 0x%x\n", win);
-  
-
-  /*
-   * The following code was added by Glade to create one of each component
-   * (except popup menus), just so that you see something after building
-   * the project. Delete any components that you don't want shown initially.
-   */
-
   
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;
@@ -115,10 +105,6 @@ main (int argc, char *argv[])
   
   app = create_app ();
   gtk_widget_show (app);
-  
-
-  
-  
 
   menu_new(app);  
 
