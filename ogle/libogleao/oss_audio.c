@@ -158,11 +158,9 @@ int oss_flush(ogle_ao_instance_t *_instance)
 {
   oss_instance_t *instance = (oss_instance_t *)_instance;
   
-#ifdef	I_FLUSH
-  ioctl(instance->fd, I_FLUSH, FLUSHW);
-#endif
-  ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
-  
+  ioctl(instance->fd, SNDCTL_DSP_RESET, 0);
+  //TODO we probably need to reinitialize after the reset
+
   return 0;
 }
 
