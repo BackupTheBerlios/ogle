@@ -5,12 +5,12 @@ Release: ogle1
 Vendor: Ogle
 Packager: Ogle developer team
 URL: http://www.dtek.chalmers.se/~dvd/
-Copyright: GPL
+License: GPL
 Group: Applications/Multimedia
 Source: http://www.dtek.chalmers.se/~dvd/%{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 Requires: libdvdread >= 0.9.3, libdvdcss >= 1.2.1, libjpeg, libxml2
-BuildRequires: libdvdread-devel >= 0.9.2, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel >= 2.4.19
+BuildRequires: libdvdread-devel >= 0.9.3, libjpeg-devel, a52dec-devel >= 0.7.3, libxml2-devel >= 2.4.19
 ExclusiveArch: i686 i586 ppc
 
 %description
@@ -36,7 +36,7 @@ to build programs that use it (like GUIs).
 %setup -q
 
 %build
-%configure
+%configure --disable-alsa
 make
 
 %install
@@ -60,7 +60,7 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %{_bindir}/*
 %dir %{_datadir}/ogle
 %config %{_datadir}/ogle/oglerc
-%{_datadir}/ogle/_conf.dtd
+%{_datadir}/ogle/ogle_conf.dtd
 %dir %{_libdir}/ogle
 %{_libdir}/ogle/*.so.*
 %{_libdir}/ogle/ogle_*
