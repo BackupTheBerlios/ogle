@@ -395,7 +395,7 @@ static void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
 }
 
 
-void ifoPrint_USER_OPS(user_ops_t *user_ops) {
+static void ifoPrint_USER_OPS(user_ops_t *user_ops) {
   uint32_t uops;
   unsigned char *ptr = (unsigned char *)user_ops;
   
@@ -875,7 +875,7 @@ void ifoPrint_PGCI_UT(pgci_ut_t *pgci_ut) {
 }
 
 
-void ifoPrint_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes) {
+static void ifoPrint_VTS_ATTRIBUTES(vts_attributes_t *vts_attributes) {
   int i;
   
   printf("VTS_CAT Application type: %08x\n", vts_attributes->vts_cat);
