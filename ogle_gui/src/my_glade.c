@@ -13,7 +13,7 @@
 #include "my_glade.h"
 
 // location of the standard ogle_gui.glade file
-#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "ogle_gui.glade"
+#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "/ogle_gui.glade"
 
 // my own versions of the glade calls
 static void (*my_glade_init)(void);
