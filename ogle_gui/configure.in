@@ -31,7 +31,7 @@ AC_CHECK_HEADERS(sys/param.h)
 AM_PROG_LIBTOOL
 
 dnl Add the languages which your application supports here.
-ALL_LINGUAS="de fr nl sv"
+ALL_LINGUAS="da de fr nl sv"
 AM_GNU_GETTEXT
 
 AM_PATH_GTK(,,[AC_MSG_ERROR([You must have gtk+ development files])])
