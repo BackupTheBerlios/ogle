@@ -65,6 +65,7 @@ int audio_config(audio_config_t *aconf,
 		 int availflags, int sample_rate, int sample_resolution)
 {
   int output_channels;
+  int frag_size = 4096;
 
   switch(availflags) {
   default:
@@ -130,14 +131,67 @@ int audio_config(audio_config_t *aconf,
   
   aconf->ainfo->sample_rate = sample_rate;
   aconf->ainfo->sample_resolution = sample_resolution;
-  //    aconf->aconf.sample_endianess = 0;
+  aconf->ainfo->byteorder = OGLE_AO_BYTEORDER_NE;
   aconf->ainfo->channels = aconf->format.nr_channels;
   aconf->ainfo->encoding = OGLE_AO_ENCODING_LINEAR;
-  
-  // check return value
-  ogle_ao_init(aconf->adev_handle, aconf->ainfo);
-  // DNOTE("ogle_ao_init passed\n");
+  aconf->ainfo->fragment_size = frag_size;
+  aconf->ainfo->fragments = -1;  // don't limit
 
+  // check return value
+  if(ogle_ao_init(aconf->adev_handle, aconf->ainfo) == -1) {
+
+    FATAL("ogle_ao_init: ");
+    if(aconf->ainfo->sample_rate == -1) {
+      FATAL("sample_rate %d failed", sample_rate);
+    } else if(aconf->ainfo->sample_resolution == -1 ||
+	      aconf->ainfo->encoding == -1 ||
+	      aconf->ainfo->byteorder == -1) {
+      FATAL("encoding %d, resolution %d, byte order %d failed\n",
+	    OGLE_AO_ENCODING_LINEAR, sample_resolution, OGLE_AO_BYTEORDER_NE);
+    } else if(aconf->ainfo->channels == -1) {
+      FATAL("channels %d failed\n", aconf->format.nr_channels);
+    } 
+  } else {
+    if(aconf->ainfo->sample_rate != sample_rate) {
+      ERROR("wanted sample rate %d, got %d\n",
+	    sample_rate,
+	    aconf->ainfo->sample_rate);
+    }
+    if(aconf->ainfo->sample_resolution != sample_resolution) {
+      ERROR("wanted sample resolution %d, got %d\n",
+	    sample_resolution,
+	    aconf->ainfo->sample_resolution);	   
+    }
+    if(aconf->ainfo->byteorder != OGLE_AO_BYTEORDER_NE) {
+      ERROR("wanted byte order %d, got %d\n",
+	    OGLE_AO_BYTEORDER_NE, aconf->ainfo->byteorder);
+    }
+    if(aconf->ainfo->channels != aconf->format.nr_channels) {
+      ERROR("wanted channels %d, got %d\n",
+	    aconf->format.nr_channels,
+	    aconf->ainfo->channels); 
+    }
+    if(aconf->ainfo->encoding != OGLE_AO_ENCODING_LINEAR) {
+      ERROR("wanted encoding %d, got %d\n",
+	    OGLE_AO_ENCODING_LINEAR,
+	    aconf->ainfo->encoding);
+    }
+    if(aconf->ainfo->fragment_size != frag_size) {
+      NOTE("wanted fragment size %d, got %d\n",
+	   frag_size,
+	   aconf->ainfo->fragment_size);
+    }
+
+    DNOTE("encoding %d, resolution %d, byte order %d, rate %d\n",
+	  aconf->ainfo->encoding,
+	  aconf->ainfo->sample_resolution,
+	  aconf->ainfo->byteorder,
+	  aconf->ainfo->sample_rate);
+    DNOTE("fragments %d, size %d\n",
+	  aconf->ainfo->fragments,
+	  aconf->ainfo->fragment_size);
+  }
+  
   aconf->sync.delay_resolution = aconf->ainfo->sample_rate / 10;
   aconf->sync.delay_resolution_set = 0;
   aconf->sync.max_sync_diff = 2 * aconf->sync.delay_resolution *
