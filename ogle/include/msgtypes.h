@@ -11,7 +11,9 @@ typedef enum {
   MTYPE_AUDIO_DECODE_MPEG = 5,
   MTYPE_AUDIO_DECODE_AC3 = 6,
   MTYPE_AUDIO_OUT = 7,
-  MTYPE_DECODE_MPEG_PRIVATE_STREAM_2 = 8
+  MTYPE_DECODE_MPEG_PRIVATE_STREAM_2 = 8,
+  MTYPE_CTRL_INPUT = 9,
+  MTYPE_SPU_DECODE = 10
 } mtype_t;
 
 
@@ -25,8 +27,16 @@ typedef enum {
   CMD_DEMUX_NEW_STREAM = 6,
   CMD_DEMUX_STREAM_BUFFER = 7,
   CMD_DECODE_STREAM_BUFFER = 8,
-  CMD_CTRL_DATA = 9
+  CMD_CTRL_DATA = 9,
+  CMD_CTRL_CMD = 10
 } cmdtype_t;
+
+typedef enum {
+  CTRLCMD_NONE = 0,
+  CTRLCMD_STOP = 1,
+  CTRLCMD_PLAY = 2,
+  CTRLCMD_PLAY_FROM = 3
+} ctrlcmd_t;
 
 typedef struct {
   char file[PATH_MAX+1];
@@ -63,6 +73,14 @@ typedef struct {
 } cmd_ctrl_data_t;
 
 
+
+typedef struct {
+  ctrlcmd_t ctrlcmd;
+  union {
+    int from_time;
+  } args;
+} cmd_ctrl_cmd_t;
+
 typedef struct {
   cmdtype_t cmdtype;
   union {
@@ -73,6 +91,7 @@ typedef struct {
     cmd_new_stream_t new_stream;
     cmd_stream_buffer_t stream_buffer;
     cmd_ctrl_data_t ctrl_data;
+    cmd_ctrl_cmd_t ctrl_cmd;
   } cmd;
 } cmd_t;
 
