@@ -26,16 +26,12 @@ extern "C" {
 #endif
 
 /**
- * navRead_PCI(pci, buffer);
- *
- * Reads the PCI packet which begins at buffer into pci.
+ * Reads the PCI packet data pointed to into pci struct.
  */
 void navRead_PCI(pci_t *, unsigned char *);
 
 /**
- * navRead_DSI(dsi, buffer);
- *
- * Reads the DSI packet which begins at buffer into dsi.
+ * Reads the DSI packet data pointed to into dsi struct.
  */
 void navRead_DSI(dsi_t *, unsigned char *);
 

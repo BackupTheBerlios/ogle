@@ -27,11 +27,13 @@ extern "C" {
 #endif
 
 /**
- * This file provides example functions for printing information about the NAV
- * packet to stdout.
+ * Prints information contained in the PCI to stdout.
  */
-
 void navPrint_PCI(pci_t *);
+  
+/**
+ * Prints information contained in the DSI to stdout.
+ */
 void navPrint_DSI(dsi_t *);
 
 #ifdef __cplusplus
