@@ -123,6 +123,9 @@ void* xsniff_mouse(void* args) {
 
 	do_keysym_action(keysym);
       }
+      break;
+    default:
+      break;
     }
   }
 }
