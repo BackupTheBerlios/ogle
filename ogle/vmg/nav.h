@@ -40,7 +40,7 @@
 #define PS2_DSI_SUBSTREAM_ID 0x01
 
 
-typedef struct {
+typedef struct { /* PCI General Information */
   uint32_t nv_pck_lbn;
   uint16_t vobu_cat;
   uint16_t zero1;
@@ -53,8 +53,8 @@ typedef struct {
 } __attribute__ ((packed)) pci_gi_t;
 
 
-typedef struct { /* non seamless angle information */
-  uint32_t nsml_agl_dsta[9]; 
+typedef struct { /* Angle Information for _non_ seamless playback */
+  uint32_t nsml_agl_dsta[9];
 } __attribute__ ((packed)) nsml_agli_t;
 
 
@@ -166,7 +166,7 @@ typedef struct { /* DSI General Information */
   uint32_t c_eltm;
 } __attribute__ ((packed)) dsi_gi_t;
 
-typedef struct { /* Seamless PlayBack Information */ 
+typedef struct { /* Seamless Playback Information */ 
   uint16_t category; // category of seamless VOBU
   /* Xyyy yyyy PREU flag        1b: VOBU is in preunit 
    *                            0b: VOBU is not in preunit
@@ -186,7 +186,7 @@ typedef struct { /* Seamless PlayBack Information */
   uint8_t unknown[128];
 } __attribute__ ((packed)) sml_pbi_t;
 
-typedef struct { /* AnGLe Information for seamless playback */
+typedef struct { /* Angle Information for seamless playback */
   // Address and size of destination ILVU in AGL_X
   struct {
     uint32_t address; // Sector offset to next ILVU, high bit is before/after
@@ -194,7 +194,7 @@ typedef struct { /* AnGLe Information for seamless playback */
   } __attribute__ ((packed)) dsta[9];
 } __attribute__ ((packed)) sml_agli_t;
 
-typedef struct { /* VOBUnit SeaRch Information */
+typedef struct { /* VOBUnit Search Information */
   /*
     bit 0: V_FWD_Exist1  0b: *Video data* does not exist in the address
                          1b: *video data* exists in the VOBU on the address
@@ -234,7 +234,7 @@ typedef struct { /* VOBUnit SeaRch Information */
   uint32_t prev_video; // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
 } __attribute__ ((packed)) vobu_sri_t;
 
-typedef struct { /* SYNChronous Information */ 
+typedef struct { /* Synchronous Information */ 
   uint16_t unknown_offset;      //  Highbit == signbit
   uint8_t unknown1[14];
   uint32_t start_of_cell_offset1; //?? 7f ff ff ff == at start
