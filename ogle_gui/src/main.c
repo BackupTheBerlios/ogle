@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <locale.h>
 
 #include <gnome.h>
 #include <libgnomeui/gnome-init.h>
@@ -40,19 +41,10 @@ static char* window_string = NULL;
 DVDNav_t *nav;
 
 int msgqid;
-extern int win;
+//extern int win;
 
 poptContext ctx;
 struct poptOption options[] = {
-  { 
-    "window",
-    'w',
-    POPT_ARG_STRING,
-    &window_string,
-    0,
-    N_("Windows-id of player"),
-    N_("winid")
-  },
   { 
     "msgqid",
     'm',
@@ -80,20 +72,18 @@ main (int argc, char *argv[])
   GtkWidget *app;
 
 #ifdef ENABLE_NLS
+  setlocale(LC_ALL, "");
   bindtextdomain (PACKAGE, PACKAGE_LOCALE_DIR);
   textdomain (PACKAGE);
 #endif
   //gnome_init ("ogle", VERSION, argc, argv);
   gnome_init_with_popt_table("ogle", VERSION, argc, argv, options, 0, &ctx);
 
-  if(window_string == NULL) {
-    //fprintf(stderr, "Inget win_id\n");
-    window_string = "-1";
+  if(argc==1) {
+    fprintf(stderr, "Error: Do not start ogle_gui directly. Start ogle\n");
+    exit(1);
   }
-  win = strtol(window_string, NULL, 0);
-  
-  //fprintf(stderr, "Window-id: 0x%x\n", win);
-  
+
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;
     res = DVDOpenNav(&nav, msgqid);
@@ -103,10 +93,6 @@ main (int argc, char *argv[])
     }
   }
   
-  if(win != -1) {  // ignore sniffing
-    xsniff_init();
-  }
-
   //gnome_window_icon_set_default_from_file ("");
     
   audio_menu_new();
