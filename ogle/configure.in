@@ -368,7 +368,7 @@ linux*)
 	DEFAULT_DVD_DEVICE="/dev/dvd"
 	;;
 freebsd*)
-	DEFAULT_DVD_DEVICE="/dev/racd0"
+	DEFAULT_DVD_DEVICE="/dev/racd0c"
 	;;
 netbsd*)
   	case "$host_cpu" in
@@ -384,7 +384,7 @@ openbsd*)
 	DEFAULT_DVD_DEVICE="/dev/rcd0c"
 	;;
 bsdi*)
-	DEFAULT_DVD_DEVICE="/dev/sr0"
+	DEFAULT_DVD_DEVICE="/dev/sr0c"
 	;;
 *)
 	DEFAULT_DVD_DEVICE=""
