@@ -9,7 +9,6 @@
 #include "debug_print.h"
 #include "video_output_parse_config.h"
 
-extern char *program_name;
 
 static void parse_geometry(xmlDocPtr doc, xmlNodePtr cur,
 			   cfg_display_t *display)

@@ -79,7 +79,6 @@ static int xv_id;
 #endif /* HAVE_XV */
 
 
-extern char *program_name;
 //ugly hack
 extern data_q_t *cur_data_q;
 /*

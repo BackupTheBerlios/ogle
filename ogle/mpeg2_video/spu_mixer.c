@@ -86,8 +86,6 @@ typedef struct {
 } highlight_t;
 
 
-extern char *program_name;
-
 extern ctrl_data_t *ctrl_data;
 extern ctrl_time_t *ctrl_time;
 

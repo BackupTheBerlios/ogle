@@ -30,7 +30,6 @@
 #include <unistd.h>
 #include <errno.h>
 
-extern char *program_name;
 static char *new_file(void);
 
 JSAMPLE * jpg_buffer;	/* Points to large array of R,G,B-order data */

@@ -16,8 +16,6 @@
 #include "wm_state.h"
 
 
-extern char *program_name;
-
 static WindowState_t current_state = WINDOW_STATE_NORMAL;
 
 typedef struct {
