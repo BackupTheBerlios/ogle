@@ -1474,7 +1474,7 @@ void picture_data(void)
   static int bwd_ref_temporal_reference = -1;
   static int prev_coded_temp_ref = -2;
   static int last_timestamped_temp_ref = -1;
-  int drop_frame = 0;
+  static int drop_frame = 0;
   pinfos = buf_ctrl_head->picture_infos;
 
   //fprintf(stderr, ".");
@@ -1564,128 +1564,126 @@ void picture_data(void)
       
       break;
     }
-  } else {
-    fprintf(stderr, "*** error prev_temp_ref == cur_temp_ref\n");
-  }
-  /*
-   * temporal reference is incremented by 1 for every frame.
-   * 
-   *  this can be used to keep track of the order in which the pictures
-   *  shall be displayed. 
-   *  it can not be used to calculate the time when a specific picture
-   *  should be displayed (one can make a guess, but
-   *  it isn't necessarily true that a frame with a temporal reference
-   *  1 greater than the previous picture should be displayed
-   *  1 frame interval later)
-   *
-   *
-   * time stamp
-   *
-   * this tells when a picture shall be displayed
-   * not all pictured have time stamps
-   *
-   *
-   */
-
-  /*
-   * Time stamps
-   *
-   * case 1:
-   *  The packet containing the picture header start code
-   *  had a time stamp.
-   *
-   *  In this case the time stamp is used for this picture.
-   *
-   * case 2:
-   *  The packet containing the picture header start code
-   *  didn't have a time stamp.
-   *
-   *  In this case the time stamp for this picture must be calculated.
-   *  
-   *  case 2.1:
-   *   There is a previously decoded picture with a time stamp
-   *   in the same temporal reference context
-   *
-   *   If the temporal reference for the previous picture is lower
-   *   than the temp_ref for this picture then we take
-   *   the difference between the two temp_refs and multiply
-   *   with the frame interval time and then add this to
-   *   to the original time stamp to get the time stamp for this picture
-   *
-   *   timestamp = (this_temp_ref - timestamped_temp_ref)*
-   *                frame_interval+timestamped_temp_ref_timestamp
-   * 
-   *   todo: We must take into account that the temporal reference wraps
-   *   at 1024.
-   *
-   *
-   *   If the temporal reference for the previous picture is higher
-   *   than the current, we do the same.
-   *   
-   *   
-   *  case 2.2:
-   *   There is no previously decoded picture with a time stamp
-   */
-   
-
   
-  /* This is just a marker to later know if there is a real time 
-     stamp for this picure. */
-  pinfos[buf_id].pts_time.tv_sec = -1;
-  
-  /* If the packet containing the picture header start code had 
-     a time stamp, that time stamp used.
-     
-     Otherwise a time stamp is calculated from the last picture 
-     produced for viewing. 
-     Iff we predict the time stamp then we must also make sure to use 
-     the same scr as the picure we predict from.
-  */
-  if(picture_has_pts) {
-    last_timestamped_temp_ref = pic.header.temporal_reference;
-    pinfos[buf_id].PTS = last_pts;
-    pinfos[buf_id].pts_time.tv_sec = last_pts/90000;
-    pinfos[buf_id].pts_time.tv_nsec =
-      (last_pts%90000)*(1000000000/90000);
-    pinfos[buf_id].realtime_offset =
-      ctrl_time[last_scr_nr].realtime_offset;
-    pinfos[buf_id].scr_nr = last_scr_nr;
-    fprintf(stderr, "#%ld.%09ld\n",
-	    pinfos[buf_id].pts_time.tv_sec,
-	    pinfos[buf_id].pts_time.tv_nsec);
-  } else {
-    /* Predict if we don't already have a pts for the frame. */
-    uint64_t calc_pts;
-    switch(pic.header.picture_coding_type) {
-    case PIC_CODING_TYPE_I:
-    case PIC_CODING_TYPE_P:
-      /* TODO: Is this correct? */
-      
-      /* First case: we don't use the temporal_reference
-       * In this case we can calculate the time stamp for
-       * the oldest reference frame (fwd_ref) to be displayed when
-       * we get a new reference frame
-       *
-       * The forward ref time stamp should be the 
-       * previous displayed frame's timestamp plus one frame interval,
-       * because when we get a new reference frame we know that the
-       * next frame to display is the old reference frame(fwd_ref)
-       */
-
-      /* In case the fwd_ref picture already has a time stamp, do nothing
-       * Also check to see that we do have a fwd_ref picture
-       */
-
-      /* Second case: We use the temporal_reference
-       * In this case we can look at the previous temporal ref
-       */
-      
-	 
+    /*
+     * temporal reference is incremented by 1 for every frame.
+     * 
+     *  this can be used to keep track of the order in which the pictures
+     *  shall be displayed. 
+     *  it can not be used to calculate the time when a specific picture
+     *  should be displayed (one can make a guess, but
+     *  it isn't necessarily true that a frame with a temporal reference
+     *  1 greater than the previous picture should be displayed
+     *  1 frame interval later)
+     *
+     *
+     * time stamp
+     *
+     * this tells when a picture shall be displayed
+     * not all pictured have time stamps
+     *
+     *
+     */
+    
+    /*
+     * Time stamps
+     *
+     * case 1:
+     *  The packet containing the picture header start code
+     *  had a time stamp.
+     *
+     *  In this case the time stamp is used for this picture.
+     *
+     * case 2:
+     *  The packet containing the picture header start code
+     *  didn't have a time stamp.
+     *
+     *  In this case the time stamp for this picture must be calculated.
+     *  
+     *  case 2.1:
+     *   There is a previously decoded picture with a time stamp
+     *   in the same temporal reference context
+     *
+     *   If the temporal reference for the previous picture is lower
+     *   than the temp_ref for this picture then we take
+     *   the difference between the two temp_refs and multiply
+     *   with the frame interval time and then add this to
+     *   to the original time stamp to get the time stamp for this picture
+     *
+     *   timestamp = (this_temp_ref - timestamped_temp_ref)*
+     *                frame_interval+timestamped_temp_ref_timestamp
+     * 
+     *   todo: We must take into account that the temporal reference wraps
+     *   at 1024.
+     *
+     *
+     *   If the temporal reference for the previous picture is higher
+     *   than the current, we do the same.
+     *   
+     *   
+     *  case 2.2:
+     *   There is no previously decoded picture with a time stamp
+     */
+    
+    
+    
+    /* This is just a marker to later know if there is a real time 
+       stamp for this picure. */
+    pinfos[buf_id].pts_time.tv_sec = -1;
+    
+    /* If the packet containing the picture header start code had 
+       a time stamp, that time stamp used.
+       
+       Otherwise a time stamp is calculated from the last picture 
+       produced for viewing. 
+       Iff we predict the time stamp then we must also make sure to use 
+       the same scr as the picure we predict from.
+    */
+    if(picture_has_pts) {
+      last_timestamped_temp_ref = pic.header.temporal_reference;
+      pinfos[buf_id].PTS = last_pts;
+      pinfos[buf_id].pts_time.tv_sec = last_pts/90000;
+      pinfos[buf_id].pts_time.tv_nsec =
+	(last_pts%90000)*(1000000000/90000);
+      pinfos[buf_id].realtime_offset =
+	ctrl_time[last_scr_nr].realtime_offset;
+      pinfos[buf_id].scr_nr = last_scr_nr;
+      fprintf(stderr, "#%ld.%09ld\n",
+	      pinfos[buf_id].pts_time.tv_sec,
+	      pinfos[buf_id].pts_time.tv_nsec);
+    } else {
+      /* Predict if we don't already have a pts for the frame. */
+      uint64_t calc_pts;
+      switch(pic.header.picture_coding_type) {
+      case PIC_CODING_TYPE_I:
+      case PIC_CODING_TYPE_P:
+	/* TODO: Is this correct? */
+	
+	/* First case: we don't use the temporal_reference
+	 * In this case we can calculate the time stamp for
+	 * the oldest reference frame (fwd_ref) to be displayed when
+	 * we get a new reference frame
+	 *
+	 * The forward ref time stamp should be the 
+	 * previous displayed frame's timestamp plus one frame interval,
+	 * because when we get a new reference frame we know that the
+	 * next frame to display is the old reference frame(fwd_ref)
+	 */
+	
+	/* In case the fwd_ref picture already has a time stamp, do nothing
+	 * Also check to see that we do have a fwd_ref picture
+	 */
+	
+	/* Second case: We use the temporal_reference
+	 * In this case we can look at the previous temporal ref
+	 */
+	
+	
 	calc_pts = last_pts +
 	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
 	/*
-	calc_pts = last_pts_to_dpy +
+	  calc_pts = last_pts_to_dpy +
 	  90000/(1000000000/buf_ctrl_head->frame_interval);
 	*/
 	pinfos[buf_id].PTS = calc_pts;
@@ -1695,83 +1693,89 @@ void picture_data(void)
 	pinfos[buf_id].realtime_offset =
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
-
-
-      break;
-    case PIC_CODING_TYPE_B:
-      /* In case we don't have a previous displayed picture
-       * we don't now what we should set this timestamp to
-       * unless we look at the temporal reference.
-       * To be able to use the temporal reference we need
-       * to have a pts in the same temporal reference 'sequence'.
-       * (the temporal reference sequence is reset to 0 for every
-       * GOP
-       */
-      
-      /* In case we don't use temporal reference
-       * we don't know what the pts should be, but we calculate it
-       * anyway and hope we end up with a time that is earlier
-       * than the next 'real' time stamp.
-       */
-
-      /* We use temporal reference and calculate the timestamp
-       * from the last decoded picture which had a timestamp
-       */
-       /* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from. */
-      calc_pts = last_pts +
-	(pic.header.temporal_reference - last_timestamped_temp_ref) *
-	90000/(1000000000/buf_ctrl_head->frame_interval);
-      /*
-      calc_pts = last_pts_to_dpy + 
-	90000/(1000000000/buf_ctrl_head->frame_interval);
-      */
-      buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
-      buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
-      buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
-	(calc_pts%90000)*(1000000000/90000);
-      pinfos[buf_id].realtime_offset =
-	ctrl_time[last_scr_nr].realtime_offset;
-      pinfos[buf_id].scr_nr = last_scr_nr;
-
-
-      /* When it is a B-picture we are decoding we now that it is
-       * the picture that is going to be displayed next.
-       * We check to see if we are lagging behind the desired time
-       * and in that case we don't decode/show this picture
-       */
-      
-      /* Calculate the time remaining until this picture shall be viewed. */
-      {
-	struct timespec realtime, calc_rt, err_time;
 	
-	clock_gettime(CLOCK_REALTIME, &realtime);
 	
-	timeadd(&calc_rt,
-		&(pinfos[buf_id].pts_time),
-		&(pinfos[buf_id].realtime_offset));
-	timesub(&err_time, &calc_rt, &realtime);
+	break;
+      case PIC_CODING_TYPE_B:
+	/* In case we don't have a previous displayed picture
+	 * we don't now what we should set this timestamp to
+	 * unless we look at the temporal reference.
+	 * To be able to use the temporal reference we need
+	 * to have a pts in the same temporal reference 'sequence'.
+	 * (the temporal reference sequence is reset to 0 for every
+	 * GOP
+	 */
 	
-	/* If the picture should already have been displayed then drop it. */
-	/* TODO: More investigation needed. */
-	if((err_time.tv_nsec < 0) && (forced_frame_rate != 0)) {
-	  fprintf(stderr, "!");
+	/* In case we don't use temporal reference
+	 * we don't know what the pts should be, but we calculate it
+	 * anyway and hope we end up with a time that is earlier
+	 * than the next 'real' time stamp.
+	 */
+	
+	/* We use temporal reference and calculate the timestamp
+	 * from the last decoded picture which had a timestamp
+	 */
+	/* TODO: Check if there is a valid 'last_pts_to_dpy' to predict from.*/
+	calc_pts = last_pts +
+	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
+	  90000/(1000000000/buf_ctrl_head->frame_interval);
+	/*
+	  calc_pts = last_pts_to_dpy + 
+	  90000/(1000000000/buf_ctrl_head->frame_interval);
+	*/
+	buf_ctrl_head->picture_infos[buf_id].PTS = calc_pts;
+	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_sec = calc_pts/90000;
+	buf_ctrl_head->picture_infos[buf_id].pts_time.tv_nsec =
+	  (calc_pts%90000)*(1000000000/90000);
+	pinfos[buf_id].realtime_offset =
+	  ctrl_time[last_scr_nr].realtime_offset;
+	pinfos[buf_id].scr_nr = last_scr_nr;
+	
+	
+	/* When it is a B-picture we are decoding we now that it is
+	 * the picture that is going to be displayed next.
+	 * We check to see if we are lagging behind the desired time
+	 * and in that case we don't decode/show this picture
+	 */
+	
+	/* Calculate the time remaining until this picture shall be viewed. */
+	{
+	  struct timespec realtime, calc_rt, err_time;
 	  
+	  clock_gettime(CLOCK_REALTIME, &realtime);
+	  
+	  timeadd(&calc_rt,
+		  &(pinfos[buf_id].pts_time),
+		  &(pinfos[buf_id].realtime_offset));
+	  timesub(&err_time, &calc_rt, &realtime);
+	  
+	  /* If the picture should already have been displayed then drop it. */
+	  /* TODO: More investigation needed. */
+	  if((err_time.tv_nsec < 0) && (forced_frame_rate != 0)) {
+	    fprintf(stderr, "!");
+	    
 	    fprintf(stderr, "errpts %ld.%+010ld\n\n",
-	    err_time.tv_sec,
-	    err_time.tv_nsec);
+		    err_time.tv_sec,
+		    err_time.tv_nsec);
+	    
 	  
-	  
-	  /* mark the frame to be dropped */
-	  drop_frame = 1;
-	  
+	    /* mark the frame to be dropped */
+	    drop_frame = 1;
+	    
+	  }
 	}
+	
+	break;
       }
-      
-      break;
     }
   }
-
-  
+  /*
+ else {
+ // either this is the second field of the frame or it is an error
+    fprintf(stderr, "*** error prev_temp_ref == cur_temp_ref\n");
+    
+  }
+  */
   /* now we can decode the picture if it shouldn't be dropped */
   if(!drop_frame) {
     /* Decode the slices. */
@@ -1796,6 +1800,13 @@ void picture_data(void)
       } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	      (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
     }
+  } else {
+    do {
+      //TODO change to fast startcode finder
+      GETBITS(8, "drop");
+      next_start_code();
+    } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
+	    (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   }
 
   // Check 'err' here?
@@ -1817,16 +1828,10 @@ void picture_data(void)
 	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
 	
 	if(drop_frame) {
+	  drop_frame = 0;
 	  pinfos[buf_id].is_ref = 0; // this is never set in a B picture ?
 	  pinfos[buf_id].displayed = 1;
 
-	  do {
-	    //TODO change to fast startcode finder
-	    GETBITS(8, "drop");
-	    next_start_code();
-	  } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
-		  (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
-	  // Start processing the next picture.
 	} else {
 	  
 	  dpy_q_put(buf_id);
