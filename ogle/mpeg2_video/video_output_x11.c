@@ -103,8 +103,10 @@ static int scale_zoom_n = 1;
 static int scale_zoom_d = 1;
 /* Lock aspect. */
 static int scale_preserve_aspect = 1;
-/* Lock aspect. */
+/* Never change the size of the window. */
 static int scale_lock_window_size = 0;
+/* Fullscreen mode. */
+static int scale_fullscreen = 0;
 /* Current destination size. (set in display_change_size) */
 static int scale_image_width;
 static int scale_image_height;
@@ -398,7 +400,7 @@ Window display_init(yuv_image_t *picture_data,
   mydisplay = XOpenDisplay(NULL);
 
   if(mydisplay == NULL) {
-    fprintf(stderr,"Can not open display\n");
+    fprintf(stderr, "vo: Can not open display\n");
     exit(1);
   }
     
@@ -428,7 +430,6 @@ Window display_init(yuv_image_t *picture_data,
   /* Assume (for now) that the window will be the same size as the source. */
   scale_image_width = picture_data->info->picture.horizontal_size;
   scale_image_height = picture_data->info->picture.vertical_size;
-  
   
   
   /* Make the window */
@@ -468,7 +469,7 @@ Window display_init(yuv_image_t *picture_data,
   snprintf(&title[0], 99, "Ogle v%s", VERSION);
   XSetStandardProperties(mydisplay, window.win, &title[0], &title[0], 
 			 None, NULL, 0, &hint);
-
+  
   /* Map window. */
   XMapWindow(mydisplay, window.win);
   
@@ -483,8 +484,7 @@ Window display_init(yuv_image_t *picture_data,
   /* Create the colormaps. (needed in the PutImage calls) */   
   mygc = XCreateGC(mydisplay, window.win, 0L, &xgcv);
   
-  
-  
+
   
   /* Try to use XFree86 Xv (X video) extension for display.
      Sets use_xv to true on success. */
@@ -501,7 +501,26 @@ Window display_init(yuv_image_t *picture_data,
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
   XStoreName(mydisplay, window.win, &title[0]);
   
+  
   return window.win;
+}
+
+
+void display_exit(void) 
+{
+  // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
+  
+  // Need to add some test to se if we can detatch/free/destroy things
+  
+  XSync(mydisplay,True);
+  if(use_xshm)
+    XShmDetach(mydisplay, &shm_info);
+  XDestroyImage(window.ximage);
+  shmdt(shm_info.shmaddr);
+  shmctl(shm_info.shmid, IPC_RMID, 0);
+  
+  fprintf(stderr, "vo: removed shm segment\n");
+  display_process_exit();
 }
 
 
@@ -524,6 +543,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
   
   // Check to not 'reallocate' if the size is the same...
   if(scale_image_width == new_width && scale_image_height == new_height) {
+    /* Might still need to force a change of the widow size. */
+    if(resize_window == True) {
+      XResizeWindow(mydisplay, window.win, 
+		    scale_image_width, scale_image_height);
+    }
     return;
   }
   
@@ -546,11 +570,11 @@ static void display_change_size(yuv_image_t *img, int new_width,
     XDestroyImage(window.ximage);
     shmdt(shm_info.shmaddr);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "Shared memory: Couldn't detach segment\n");
+      fprintf(stderr, "vo: Shared memory: Couldn't detach segment\n");
       exit(1);
     }
     if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-      perror("shmctl ipc_rmid");
+      perror("vo: shmctl ipc_rmid");
       exit(1);
     }
     
@@ -566,7 +590,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				    alloc_height);
     
     if(window.ximage == NULL) {
-      fprintf(stderr, "Shared memory: couldn't create Shm image\n");
+      fprintf(stderr, "vo: Shared memory: couldn't create Shm image\n");
       exit(1);
     }
     
@@ -577,14 +601,14 @@ static void display_change_size(yuv_image_t *img, int new_width,
 			    IPC_CREAT | 0777);
     
     if(shm_info.shmid < 0) {
-      fprintf(stderr, "Shared memory: Couldn't get segment\n");
+      fprintf(stderr, "vo: Shared memory: Couldn't get segment\n");
       exit(1);
     }
   
     /* Attach shared memory segment */
     shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
     if(shm_info.shmaddr == ((char *) -1)) {
-      fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+      fprintf(stderr, "vo: Shared memory: Couldn't attach segment\n");
       exit(1);
     }
     
@@ -595,39 +619,181 @@ static void display_change_size(yuv_image_t *img, int new_width,
       XShmAttach(mydisplay, &shm_info);
     
     XSync(mydisplay, False);
-  
   }
   
   /* Save the new size so we know what to scale to. */
   scale_image_width = new_width;
   scale_image_height = new_height;
   
+  /* Force a change of the widow size. */
   if(resize_window == True) {
-    /* Force a change of the widow size. */
     XResizeWindow(mydisplay, window.win, 
 		  scale_image_width, scale_image_height);
   }
-
 }
 
 
 
-void display_exit(void) 
+
+/* Fullscreen needs to be able to hide the wm decorations. */
+#define MWM_HINTS_DECORATIONS   (1L << 1)
+#define PROP_MWM_HINTS_ELEMENTS 5
+typedef struct mwmhints_s
 {
-  // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
+  uint32_t flags;
+  uint32_t functions;
+  uint32_t decorations;
+  int32_t  input_mode;
+  uint32_t status;
+} mwmhints_t;
+
+void display_toggle_fullscreen() {
+  XEvent xev;
+  Atom prop = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", False);
   
-  // Need to add some test to se if we can detatch/free/destroy things
+  /* Unmap window. */
+  XUnmapWindow(mydisplay, window.win);
+  XSync(mydisplay, False);
   
-  XSync(mydisplay,True);
-  if(use_xshm)
-    XShmDetach(mydisplay, &shm_info);
-  XDestroyImage(window.ximage);
-  shmdt(shm_info.shmaddr);
-  shmctl(shm_info.shmid, IPC_RMID, 0);
+  if(!scale_fullscreen) {
+    mwmhints_t mwmhints;
+    mwmhints.flags = MWM_HINTS_DECORATIONS;
+    mwmhints.decorations = 0;
+    XChangeProperty(mydisplay, window.win, prop, prop, 32, PropModeReplace,
+		    (unsigned char *)&mwmhints, PROP_MWM_HINTS_ELEMENTS);
+    XSetTransientForHint(mydisplay, window.win, None);
+    XRaiseWindow(mydisplay, window.win);
+    //XSetInputFocus(mydisplay, window.win, RevertToNone, CurrentTime);
+    XResizeWindow(mydisplay, window.win, 
+		  /* Change theses to be more careful for xinerama and.. */
+		  DisplayWidth(mydisplay, DefaultScreen(mydisplay)),
+		  DisplayHeight(mydisplay, DefaultScreen(mydisplay)));
+    XMoveWindow(mydisplay, window.win, 0, 0);
+  } else {
+    XDeleteProperty(mydisplay, window.win, prop);
+  }
+  scale_fullscreen = !scale_fullscreen;
   
-  fprintf(stderr, "vo: removed shm segment\n");
-  display_process_exit();
+  XFlush(mydisplay);
+  
+  /* Map window. */
+  XMapWindow(mydisplay, window.win);
+  
+  /* Wait for map. */
+  do {
+    XNextEvent(mydisplay, &xev);
+  }
+  while (xev.type != MapNotify || xev.xmap.event != window.win);
+  
+  XSync(mydisplay, False);
 }
+
+
+void display_adjust_size(yuv_image_t *current_image,
+			 int given_width, int given_height) {
+  int sar_frac_n, sar_frac_d; 
+  int64_t scale_frac_n, scale_frac_d;
+  int base_width, base_height, max_width, max_height;
+  int new_width, new_height;
+  
+  /* Use the stream aspect or a forced/user aspect. */ 
+  //  if(!scale_override_aspect) {
+  sar_frac_n = current_image->info->picture.sar_frac_n;
+  sar_frac_d = current_image->info->picture.sar_frac_d;
+  //  } else {
+  //    sar_frac_n = scale_override_aspect_n;
+  //    sar_frac_d = scale_override_aspect_d;
+  //  }
+  
+  // TODO replace image->sar.. with image->dar
+  scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
+  scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
+  
+  fprintf(stderr, "vo: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
+	  sar_frac_n, sar_frac_d,
+	  dpy_sar_frac_n, dpy_sar_frac_d,
+	  scale_frac_n, scale_frac_d); 
+  
+  /* Keep either the height or the width constant. */ 
+  if(scale_frac_n > scale_frac_d) {
+    base_width = (current_image->info->picture.horizontal_size *
+		  scale_frac_n) / scale_frac_d;
+    base_height = current_image->info->picture.vertical_size;
+  } else {
+    base_width = current_image->info->picture.horizontal_size;
+    base_height = (current_image->info->picture.vertical_size *
+		   scale_frac_d) / scale_frac_n;
+  }
+  //fprintf(stderr, "vo: base %d x %d\n", base_width, base_height);
+  
+  /* Do we have a predetermined size for the window? */ 
+  if(given_width != -1 && given_height != -1 && !scale_fullscreen) {
+    max_width  = given_width;
+    max_height = given_height;
+  } else {
+    if(scale_fullscreen || !scale_lock_window_size) {
+      /* Never make the window bigger than the screen. */
+      max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
+      max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
+    } else {
+      XWindowAttributes xattr;
+      XGetWindowAttributes(mydisplay, window.win, &xattr);
+      max_width  = xattr.width;
+      max_height = xattr.height;
+    }
+  }
+  //fprintf(stderr, "vo: max %d x %d\n", max_width, max_height);
+  
+  /* Fill the given area or keep the image at the same zoom level? */
+  if(scale_fullscreen || (given_width != -1 && given_height != -1)) {
+    /* Zoom so that the image fill the width. */
+    /* If the height gets to large it's adjusted/fixed bellow. */
+    new_width  = max_width;
+    new_height = (base_height * max_width) / base_width;
+  } else {
+    fprintf(stderr, "vo: using zoom %d / %d\n", scale_zoom_n, scale_zoom_d);
+    /* Use the provided zoom value. */
+    new_width  = (base_width  * scale_zoom_n) / scale_zoom_d;
+    new_height = (base_height * scale_zoom_n) / scale_zoom_d;
+  }
+  //fprintf(stderr, "vo: new1 %d x %d\n", new_width, new_height);
+  
+  /* Don't ever make it larger than the max limits. */
+  if(new_width > max_width) {
+    new_height = (new_height * max_width) / new_width;
+    new_width  = max_width;
+  }
+  if(new_height > max_height) {
+    new_width  = (new_width * max_height) / new_height;
+    new_height = max_height;
+  }
+  //fprintf(stderr, "vo: new2 %d x %d\n", new_width, new_height);
+  
+  /* Remeber what zoom level we ended up with. */
+  if(!scale_fullscreen) {
+    /* Update zoom values. Use the smalles one. */
+    if((new_width * base_height) < (new_height * base_width)) {
+      scale_zoom_n = new_width;
+      scale_zoom_d = base_width;
+    } else {
+      scale_zoom_n = new_height;
+      scale_zoom_d = base_height;
+    }
+    fprintf(stderr, "vo: zoom2 %d / %d\n", scale_zoom_n, scale_zoom_d);
+  }
+  
+  /* Don't care about aspect and can't change the window size, use it all. */
+  if(!scale_preserve_aspect && (scale_lock_window_size || scale_fullscreen)) {
+    new_width  = max_width;
+    new_height = max_height;
+  }
+  
+  if((scale_lock_window_size || scale_fullscreen)
+     || (given_width != -1 && given_height != -1))
+    display_change_size(current_image, new_width, new_height, False);
+  else
+    display_change_size(current_image, new_width, new_height, True);
+}  
 
 
 
@@ -640,76 +806,35 @@ void display(yuv_image_t *current_image)
 {
   XEvent ev;
   static int sar_frac_n, sar_frac_d; 
-  int64_t scale_frac_n, scale_frac_d;
   
-  /* New source aspect ratio.*/
+  //hack
+  static clocktime_t last;
+  clocktime_t now;
+  
+  
+  /* New source aspect ratio? */
   if(current_image->info->picture.sar_frac_n != sar_frac_n ||
      current_image->info->picture.sar_frac_d != sar_frac_d) {
     
-    int base_width, base_height, max_width, max_height;
-    int new_width, new_height;
-
     sar_frac_n = current_image->info->picture.sar_frac_n;
     sar_frac_d = current_image->info->picture.sar_frac_d;
-
-    // TODO replace image->sar.. with image->dar
-    scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
-    scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
     
-    fprintf(stderr, "vo: sar: %d/%d, dpy_sar %d/%d, scale: %lld, %lld\n",
-	    sar_frac_n, sar_frac_d,
-	    dpy_sar_frac_n, dpy_sar_frac_d,
-	    scale_frac_n, scale_frac_d); 
-
-    /* Keep either the height or the width constant. */ 
-    if(scale_frac_n > scale_frac_d) {
-      base_width = (current_image->info->picture.horizontal_size *
-		   scale_frac_n) / scale_frac_d;
-      base_height = current_image->info->picture.vertical_size;
-    } else {
-      base_width = current_image->info->picture.horizontal_size;
-      base_height = (current_image->info->picture.vertical_size *
-		    scale_frac_d) / scale_frac_n;
-    }
-    
-    /* Adjust for any user window adjustments. */
-    new_width  = (base_width  * scale_zoom_n) / scale_zoom_d;
-    new_height = (base_height * scale_zoom_n) / scale_zoom_d;
-    
-    if(scale_lock_window_size) {
-      XWindowAttributes xattr;
-      XGetWindowAttributes(mydisplay, window.win, &xattr);
-      max_width  = xattr.width;
-      max_height = xattr.height;
-    } else{
-      /* Never make the window bigger that the screen. */
-      max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
-      max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
-    }
-    if(new_width > max_width) {
-      new_height = (new_height * max_width) / new_width;
-      new_width  = max_width;
-    }
-    if(new_height > max_height) {
-      new_width  = (new_width * max_height) / new_height;
-      new_height = max_height;
-    }
-    
-    if(!scale_preserve_aspect && scale_lock_window_size) {
-      /* Throw away all calculations and keep old size */
-      new_width  = new_width;
-      new_height = new_height;
-    }
-    
-    if(scale_lock_window_size)
-      display_change_size(current_image, new_width, new_height, False);
-    else
-      display_change_size(current_image, new_width, new_height, True);
-    
-    XSync(mydisplay, False);    
+    display_adjust_size(current_image, -1, -1);
   }
   
   
+  //Hack, togle fullscreen every 20 seconds
+  clocktime_get(&now);
+  timesub(&now, &last, &now);
+  if(TIME_S(now) < 0 || TIME_SS(now) < 0) {
+    clocktime_get(&last);
+    TIME_S(now) = 20; TIME_SS(now) = 0;
+    timeadd(&last, &last, &now);
+    
+    display_toggle_fullscreen();
+    display_adjust_size(current_image, -1, -1);
+  }
+
   window.image = current_image;
     
   while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
@@ -724,91 +849,9 @@ void display(yuv_image_t *current_image)
 				   ConfigureNotify, &ev) == True) 
 	; 
       if(ev.xconfigure.window == window.win) {
-	int base_width, base_height, max_width, max_height;
-	int new_width, new_height;
-	
-	max_width  = ev.xconfigure.width;
-	max_height = ev.xconfigure.height;
-	fprintf(stderr, "vo: max: %d x %d\n", max_width, max_height); 
-	
-	/* Ex 720x576 - sar -> 758x576
-	   !preserve_aspect -> lock_window_size 
-	   lock_window_size -> !update zoom ?
-	   window resize 800x576 - !keep as -> 800x576 ()
-	   window resize 800x576 - keep as -> 758x576 (nothing ?)
-	   window resize 800x600 - keep as -> ???x600 (zoom +)
-	   window resize 700x576 - keep as -> 700x??? (zoom -)
-	
-	*/
-	sar_frac_n = current_image->info->picture.sar_frac_n;
-	sar_frac_d = current_image->info->picture.sar_frac_d;
-	
-	// TODO replace image->sar.. with image->dar
-	scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
-	scale_frac_d = (int64_t)dpy_sar_frac_d * (int64_t)sar_frac_n;
-	
-	/* Keep either the height or the width constant. */ 
-	if(scale_frac_n > scale_frac_d) {
-	  base_width = (current_image->info->picture.horizontal_size *
-			scale_frac_n) / scale_frac_d;
-	  base_height = current_image->info->picture.vertical_size;
-	} else {
-	  base_width = current_image->info->picture.horizontal_size;
-	  base_height = (current_image->info->picture.vertical_size *
-			 scale_frac_d) / scale_frac_n;
-	}
-	/* base = 850x480 */
-	fprintf(stderr, "vo: base: %d x %d\n", base_width, base_height); 
-	
-	/* try to zoom to fill x/width use that is the hight doesn't cap it. */
-	if(max_height > (base_height * max_width) / base_width) {
-	  fprintf(stderr, "vo: case 1 \n");
-	  scale_zoom_d = base_width;
-	  scale_zoom_n = max_width;
-	  //new_width = max_width;
-	  //new_height = (base_height * max_width) / base_width)
-	} else { /* larger zoom in y/height */
-	  fprintf(stderr, "vo: case 2 \n");
-	  scale_zoom_d = base_height;
-	  scale_zoom_n = max_height;
-	  //new_width = (base_width * max_height) / base_height;
-	  //new_height = max_height;  
-	}
-	fprintf(stderr, "vo: scale: %d / %d\n", scale_zoom_n, scale_zoom_d);
-	
-	/* Adjust for any user window adjustments. */
-	new_width  = (base_width  * scale_zoom_n) / scale_zoom_d;
-	new_height = (base_height * scale_zoom_n) / scale_zoom_d;
-	fprintf(stderr, "vo: new: %d x %d\n", new_width, new_height); 	
-#if 0
-	if(scale_lock_window_size) {
-	  XWindowAttributes xattr;
-	  XGetWindowAttributes(mydisplay, window.win, &xattr);
-	  max_width  = xattr.width;
-	  max_height = xattr.height;
-	} else{
-	  /* Never make the window bigger that the screen. */
-	  max_width  = DisplayWidth(mydisplay, DefaultScreen(mydisplay));
-	  max_height = DisplayHeight(mydisplay, DefaultScreen(mydisplay));
-	}
-	
-	if(new_width > max_width) {
-	  new_height = (new_height * max_width) / new_width;
-	  new_width  = max_width;
-	}
-	if(new_height > max_height) {
-	  new_width  = (new_width * max_height) / new_height;
-	  new_height = max_height;
-	}
-#endif
-    
-	if(!scale_preserve_aspect) {
-	  /* Throw away all calculations and use the given size */
-	  new_width  = max_width;
-	  new_height = max_height;
-	}
-	
-	display_change_size(current_image, new_width, new_height, False);
+	display_adjust_size(current_image, 
+			    ev.xconfigure.width, 
+			    ev.xconfigure.height);
       }
       break;    
     default:
@@ -816,12 +859,11 @@ void display(yuv_image_t *current_image)
     }
   }
   
-  if(use_xv) { /* Xv found */
+  if(use_xv)
     draw_win_xv(&window);
-  } else {
+  else
     draw_win_x11(&window);
-  }
-
+  
   return;
 }
 
@@ -865,7 +907,9 @@ static void draw_win_x11(window_info *dwin)
 #ifdef SPU
   if(msgqid != -1) {
     mix_subpicture_rgb(address, dwin->image->info->picture.padded_width,
-		       dwin->image->info->picture.padded_height);
+		       dwin->image->info->picture.padded_height, 
+		       (pixel_stride/8)); 
+    // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
   }
 #endif
   

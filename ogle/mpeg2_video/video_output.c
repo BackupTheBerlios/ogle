@@ -234,7 +234,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     if((ev->gntcapability.capability & UI_DVD_GUI) == UI_DVD_GUI)
       gui_client = ev->gntcapability.capclient;
     else
-      fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
+      fprintf(stderr, "vo: capabilities not requested (%d)\n", 
               ev->gntcapability.capability);
     break;
   default:
@@ -484,6 +484,8 @@ static void display_process()
     }
 #ifndef HAVE_CLOCK_GETTIME
     timesub(&waittmp, &prefered_time, &real_time);
+    wait_time.tv_sec = waittmp.tv_sec;
+    wait_time.tv_nsec = waittmp.tv_usec*1000;
 #else
     // Fixme!!! wait_time can't be used here..
     timesub(&wait_time, &prefered_time, &real_time);
@@ -495,10 +497,6 @@ static void display_process()
     fprintf(stderr, "wait: %d.%09ld, ",
 	    TIME_S(wait_time), TIME_SS(wait_time));
     */
-#ifndef HAVE_CLOCK_GETTIME
-    wait_time.tv_sec = waittmp.tv_sec;
-    wait_time.tv_nsec = waittmp.tv_usec*1000;
-#endif
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
       if(wait_time.tv_sec > 0) {
@@ -659,7 +657,7 @@ int main(int argc, char **argv)
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = UI_DVD_GUI;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "nav: didn't get dvd_gui cap\n");
+      fprintf(stderr, "vo: didn't get dvd_gui cap\n");
       exit(1); //TODO clean up and exit
     }
     

@@ -387,6 +387,8 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
 }
 
 
+
+
 int init_spu(void)
 {
   fprintf(stderr, "spu_mixer: init\n");
@@ -716,9 +718,243 @@ void decode_dcsq(spu_t *spu_info) {
   }
 }
 
+void display_mix_function_rgb(uint32_t color, uint32_t contrast, 
+			      unsigned int length, uint32_t *pixel) {
+  uint32_t invcontrast = 256 - contrast;
+  int n;
+  
+  /* if total transparency do nothing */
+  if(contrast != 0) {
+    uint32_t r, g, b;
+    r = color & 0xff;
+    g = (color >> 8) & 0xff;
+    b = (color >> 16) & 0xff;
+    
+    /* if no transparancy just overwrite */
+    if(contrast == (0xf<<4)) {
+      for(n = 0; n < length; n++, pixel++) {
+	*pixel = color;
+      }
+    } else {
+      for(n = 0; n < length; n++, pixel++) {
+	uint32_t pr, pg, pb;
+	pr = *pixel & 0xff;
+	pg = (*pixel >> 8) & 0xff;
+	pb = (*pixel >> 16) & 0xff;
+	
+	pr = (pr * (invcontrast) + r * contrast) >> 8;
+	pg = (pg * (invcontrast) + g * contrast) >> 8;
+	pb = (pb * (invcontrast) + b * contrast) >> 8;
+	
+	*pixel = (pb << 16) | (pg << 8) | pr;
+      }
+    }
+  }
+}
 
-void decode_display_data(spu_t *spu_info, char *data, int width, int height,
-			 int picformat) {
+/* Mixing function for YV12 mode */
+void display_mix_function_yuv(uint32_t color, uint32_t contrast, 
+			      unsigned int length, uint8_t *y_pixel, 
+			      int field, uint8_t *u_pixel, uint8_t *v_pixel) {
+  uint32_t invcontrast = 256 - contrast;
+  int n;
+  
+  /* if total transparency do nothing */
+  if(contrast != 0) {
+    uint8_t y, u, v;
+    
+    y = (color >> 16) & 0xff;
+    u = (color >> 8) & 0xff;
+    v = color & 0xff;
+    
+    /* if no transparancy just overwrite */
+    if(contrast == (0xf<<4)) {
+      for(n = 0; n < length; n++) {
+	y_pixel[n] = y;
+      }
+      /* only write uv on even columns and rows */
+      if(!field) {
+	int odd = (int)y_pixel & 1;
+	for(n = odd; n < (length + 1 - odd)/2; n++) {
+	  u_pixel[n] = u;
+	  v_pixel[n] = v;
+	}
+      } /* (length+even)/2
+	  10 och 1 (så 1, 10/2 -> 5 och blend på 5
+	  11 och 1 (så 0, inte als
+	  10 och 2 (så 1, 10/2 -> 5 och blend på 5
+	  11 och 2 (så 1, men 11/2 -> 5 och blenda på 6
+	  10 och 3 (så 2, 10/2 -> 5 och blend på 5,6
+	  11 och 3 (så 1, men 11/2 -> 5 och blenda på 6
+	  10 och 4 (så 2, 10/2 -> 5 och blend på 5,6
+	  11 och 4 (så 2, men 11/2 -> 5 och blenda på 6,7
+	  
+	  10 och 1 (så 0,1, 10/2 -> 5 och blend på 5
+	  11 och 1 (så 1,0, inte als
+	  10 och 2 (så 0,1, 10/2 -> 5 och blend på 5
+	  11 och 2 (så 1,1, men 11/2 -> 5 och blenda på 6
+	  10 och 3 (så 0,2, 10/2 -> 5 och blend på 5,6
+	  11 och 3 (så 1,1, men 11/2 -> 5 och blenda på 6
+	  10 och 4 (så 0,2, 10/2 -> 5 och blend på 5,6
+	  11 och 4 (så 1,2, men 11/2 -> 5 och blenda på 6,7
+	*/
+    } else {
+      for(n = 0; n < length; n++) {
+	uint32_t py;
+	py = y_pixel[n];
+	py = (py * invcontrast + y * contrast) >> 8;
+	y_pixel[n] = py;
+      }
+      /* only write uv on even columns and rows */
+      if(!field) {
+	int odd = (int)y_pixel & 1;
+	for(n = odd; n < (length + 1 - odd)/2; n++) {
+	  uint32_t pu, pv;
+	  pu = u_pixel[n];
+	  pu = (pu * invcontrast + u * contrast) >> 8;
+	  u_pixel[n] = pu;
+	  pv = v_pixel[n];
+	  pv = (pv * invcontrast + v * contrast) >> 8;
+	  v_pixel[n] = pv;
+	}
+      }
+#if 0
+      for(n = 0; n < length; n++, y_pixel++) {
+	uint32_t py,pu,pv;
+	py = *y_pixel;
+	py = (py*(invcontrast) + yl*contrast)>>8;
+	*y_pixel = (py & 0xff);
+	/* only write uv on even columns and rows */
+	if(!((x+spu_info->x_start + n) & 1) &&
+	   !((y+spu_info->y_start) & 1)) {
+	  pu = *u_pixel;
+	  pu = (pu*(invcontrast) + u*contrast)>>8;
+	  *u_pixel = pu;
+	  pv = *v_pixel;
+	  pv = (pv*(invcontrast) + v*contrast)>>8;
+	  *v_pixel = pv;
+	}
+	if((x+spu_info->x_start + n) & 1) {
+	  u_pixel++;
+	  v_pixel++;
+	}
+      }
+#endif
+    }    
+  }
+}
+
+
+void display_mix_function(spu_t *spu_info, 
+			  char *data, int width, int height, int picformat,  
+			  uint32_t color, uint32_t contrast,
+			  unsigned int x, unsigned int y, 
+			  unsigned int length) {
+  uint32_t invcontrast;
+  invcontrast = 256 - contrast;
+    
+  if(picformat == 0) {
+    int n;
+      
+    /* if total transparency do nothing */
+    if(contrast != 0) {
+      uint32_t *pixel;
+      uint32_t r, g, b;
+      r = color & 0xff;
+      g = (color>>8) & 0xff;
+      b = (color>>16) & 0xff;
+
+      pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
+				  +(x+spu_info->x_start)]);
+	
+      /* if no transparancy just overwrite */
+      if(contrast == (0xf<<4)) {
+	for(n = 0; n < length; n++, pixel++) {
+	  *pixel = color;
+	}
+      } else {
+	for(n = 0; n < length; n++, pixel++) {
+	  uint32_t pr, pg, pb;
+	  pr = *pixel & 0xff;
+	  pg = (*pixel>>8) & 0xff;
+	  pb = (*pixel>>16) & 0xff;
+	    
+	  pr = (pr*(invcontrast)+r*contrast)>>8;
+	  pg = (pg*(invcontrast)+g*contrast)>>8;
+	  pb = (pb*(invcontrast)+b*contrast)>>8;
+	    
+	  *pixel = pb<<16 | pg<<8 | pr;
+	}
+      }
+	
+    } 
+  } else {
+    int n;
+
+      /* if total transparency do nothing */
+    if(contrast != 0) {
+      uint8_t *y_pixel, *u_pixel, *v_pixel;
+      uint8_t yl, u, v;
+
+      yl = (color >> 16) & 0xff;
+      u  = (color >> 8) & 0xff;
+      v  = color & 0xff;
+	
+      y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
+				   +(x+spu_info->x_start)]);
+      u_pixel = &(((uint8_t *)data)[width*height+
+				   (y+spu_info->y_start)*width/4
+				   +(x+spu_info->x_start)/2]);
+      v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
+				   (y+spu_info->y_start)*width/4
+				   +(x+spu_info->x_start)/2]);
+	
+	  
+      /* if no transparancy just overwrite */
+      if(contrast == (0xf<<4)) {
+	for(n = 0; n < length; n++, y_pixel++) {
+	  *y_pixel = yl;
+	  /* only write uv on even columns and rows */
+	  if(!((x+spu_info->x_start + n) & 1) &&
+	     !((y+spu_info->y_start)&1)) {
+	    *u_pixel = u;
+	    *v_pixel = v;
+	  }
+	  if((x+spu_info->x_start + n) & 1) {
+	    u_pixel++;
+	    v_pixel++;
+	  }
+	}
+      } else {
+	for(n = 0; n < length; n++, y_pixel++) {
+	  uint32_t py,pu,pv;
+	  py = *y_pixel;
+	  py = (py*(invcontrast) + yl*contrast)>>8;
+	  *y_pixel = (py & 0xff);
+	  /* only write uv on even columns and rows */
+	  if(!((x+spu_info->x_start + n) & 1) &&
+	     !((y+spu_info->y_start) & 1)) {
+	    pu = *u_pixel;
+	    pu = (pu*(invcontrast) + u*contrast)>>8;
+	    *u_pixel = pu;
+	    pv = *v_pixel;
+	    pv = (pv*(invcontrast) + v*contrast)>>8;
+	    *v_pixel = pv;
+	  }
+	  if((x+spu_info->x_start + n) & 1) {
+	    u_pixel++;
+	    v_pixel++;
+	  }
+	}
+      }
+    }
+  }
+}
+
+
+void decode_display_data(spu_t *spu_info, char *data, 
+			 int pixel_stride, int line_stride,
+			 int blendyuv, int image_stride) {
   unsigned int x;
   unsigned int y;
 
@@ -739,9 +975,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
     unsigned int vlc;
     unsigned int length;
     unsigned int colorid;
-    unsigned char pixel_data;
     uint32_t color;
-    uint32_t contrast, invcontrast;
+    uint32_t contrast;
     
     /*
     DPRINTF(6, "fieldoffset[0]: %d, fieldoffset[1]: %d, DCSQT_offset: %d\n",
@@ -783,142 +1018,65 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
     
     if(length == 0) {
       /* Fill current line with background color */
-      length = spu_info->width-x;
+      length = spu_info->width - x;
     }
     if(length+x > spu_info->width) {
       fprintf(stderr, "tried to write past line-end\n");
-      length = spu_info->width-x;
+      length = spu_info->width - x;
     }
     
     colorid = vlc & 3;
-    pixel_data = ((spu_info->contrast[colorid] << 4) 
-		  | (spu_info->color[colorid] & 0x0f));
-
-    if(!spu_info->menu) {
-      if(picformat == 0) {
-	color = palette_rgb[spu_info->color[colorid]];
-      } else {
-	color = palette_yuv[spu_info->color[colorid]];
-      }
-      contrast = spu_info->contrast[colorid]<<4;
+    
+    if(spu_info->menu /* Test for 'has highlight' instead */ 
+       && (y+spu_info->y_start >= highlight.y_start &&
+	   y+spu_info->y_start <= highlight.y_end &&
+	   x+spu_info->x_start + length >= highlight.x_start &&
+	   x+spu_info->x_start <= highlight.x_end)) {
+      color = highlight.color[colorid];
+      contrast = highlight.contrast[colorid]<<4;
     } else {
-      if(y+spu_info->y_start >= highlight.y_start &&
-	 y+spu_info->y_start <= highlight.y_end &&
-	 x+spu_info->x_start + length >= highlight.x_start &&
-	 x+spu_info->x_start <= highlight.x_end) {
-	if(picformat == 0) {
-	  color = palette_rgb[highlight.color[colorid]];
-	} else {
-	  color = palette_yuv[highlight.color[colorid]];
-	}
-	contrast = highlight.contrast[colorid]<<4;
-      } else {
-	if(picformat == 0) {
-	  color = palette_rgb[spu_info->color[colorid]];
-	} else {
-	  color = palette_yuv[spu_info->color[colorid]];
-	}
-	contrast = spu_info->contrast[colorid]<<4;
-      }
+      color = spu_info->color[colorid];
+      contrast = spu_info->contrast[colorid]<<4;
     }
-    invcontrast = 256 - contrast;
     
     /* mix spu and picture data */
-    
-    if(picformat == 0) {
-      int n;
+
+    /* Only blend if not totally transparent. */
+    if(contrast != 0) {
+      unsigned int line_y, offs;
+      char *addr, *addr_uv, *addr_u, *addr_v;
       
-      /* if total transparency do nothing */
-      if(contrast != 0) {
-	uint32_t *pixel;
-	uint32_t r, g, b;
-	r = color & 0xff;
-	g = (color>>8) & 0xff;
-	b = (color>>16) & 0xff;
-
-	pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
-				    +(x+spu_info->x_start)]);
-	
-	/* if no transparancy just overwrite */
-	if(contrast == (0xf<<4)) {
-	  for(n = 0; n < length; n++, pixel++) {
-	    *pixel = color;
-	  }
-	} else {
-	  for(n = 0; n < length; n++, pixel++) {
-	    uint32_t pr, pg, pb;
-	    pr = *pixel & 0xff;
-	    pg = (*pixel>>8) & 0xff;
-	    pb = (*pixel>>16) & 0xff;
-	    
-	    pr = (pr*(invcontrast)+r*contrast)>>8;
-	    pg = (pg*(invcontrast)+g*contrast)>>8;
-	    pb = (pb*(invcontrast)+b*contrast)>>8;
-	    
-	    *pixel = pb<<16 | pg<<8 | pr;
-	  }
+      line_y = (y + spu_info->y_start) * line_stride;
+      // (width * bpp) == line_stride (for rgb or yuv)
+    
+      if(!blendyuv) {
+	offs = line_y + (x + spu_info->x_start) * pixel_stride;
+	addr = data + offs;
+	/* Change this to call though a function pointer.. ? */
+	switch(pixel_stride) {
+	case 1: 
+	case 2:
+	case 3:
+	  // Not supported yet.
+	  break;
+	case 4:
+	  display_mix_function_rgb(palette_rgb[color], contrast, length, addr);
+	  break;
 	}
-	
-      } 
-    } else {
-      int n;
-
-      /* if total transparency do nothing */
-      if(contrast != 0) {
-	uint8_t *y_pixel, *u_pixel, *v_pixel;
-	uint8_t yl, u, v;
-
-	yl = (color >> 16) & 0xff;
-	u  = (color >> 8) & 0xff;
-	v  = color & 0xff;
-	
-	y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
-				     +(x+spu_info->x_start)]);
-	u_pixel = &(((uint8_t *)data)[width*height+
-				     (y+spu_info->y_start)*width/4
-				     +(x+spu_info->x_start)/2]);
-	v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
-				     (y+spu_info->y_start)*width/4
-				     +(x+spu_info->x_start)/2]);
-	
-	  
-	/* if no transparancy just overwrite */
-	if(contrast == (0xf<<4)) {
-	  for(n = 0; n < length; n++, y_pixel++) {
-	    *y_pixel = yl;
-	    /* only write uv on even columns and rows */
-	    if(!((x+spu_info->x_start + n) & 1) &&
-	       !((y+spu_info->y_start)&1)) {
-	      *u_pixel = u;
-	      *v_pixel = v;
-	    }
-	    if((x+spu_info->x_start + n) & 1) {
-	      u_pixel++;
-	      v_pixel++;
-	    }
-	  }
-	} else {
-	  for(n = 0; n < length; n++, y_pixel++) {
-	    uint32_t py,pu,pv;
-	    py = *y_pixel;
-	    py = (py*(invcontrast) + yl*contrast)>>8;
-	    *y_pixel = (py & 0xff);
-	    /* only write uv on even columns and rows */
-	    if(!((x+spu_info->x_start + n) & 1) &&
-	       !((y+spu_info->y_start) & 1)) {
-	      pu = *u_pixel;
-	      pu = (pu*(invcontrast) + u*contrast)>>8;
-	      *u_pixel = pu;
-	      pv = *v_pixel;
-	      pv = (pv*(invcontrast) + v*contrast)>>8;
-	      *v_pixel = pv;
-	    }
-	    if((x+spu_info->x_start + n) & 1) {
-	      u_pixel++;
-	      v_pixel++;
-	    }
-	  }
-	}
+      } else {
+	// bpp == 1
+	// line_uv == line_y/4 ??
+	// yes if we make sure to only use the info for even lines..
+	addr_uv = data + line_y/4 + (x + spu_info->x_start) / 2;
+	// data_u = data + (width * bpp) * height;
+	// data_v = data + (width * bpp) * height * 5/4;
+	// (width * bpp) == yuv_line_stride
+	addr_u = addr_uv + image_stride;
+	addr_v = addr_u + image_stride / 4;
+	// sinc bpp==1 addr1 will be even/odd for even/odd pixels..
+	// for even/odd lines we still need the field variable
+	display_mix_function_yuv(palette_yuv[color], contrast, length, addr, 
+				 field, addr_u, addr_v);       
       }
     }
     
@@ -1002,7 +1160,7 @@ int next_spu_cmd_pending(spu_t *spu_info) {
   return 0;
 }
 
-void mix_subpicture_rgb(char *data, int width, int height)
+void mix_subpicture_rgb(char *data, int width, int height, int pixel_stride)
 {
   /*
    * Check for, and execute all pending spu command sequences.
@@ -1037,7 +1195,8 @@ void mix_subpicture_rgb(char *data, int width, int height)
 
 
   if(spu_info.display_start || spu_info.menu) {
-    decode_display_data(&spu_info, data, width, height, /*picformat*/ 0);
+    decode_display_data(&spu_info, data, pixel_stride, pixel_stride*width, 
+			0, pixel_stride*width*height);
   }
 }
 
@@ -1086,10 +1245,10 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
       memcpy(reserv->y, img->y, size);
       memcpy(reserv->u, img->u, size/4);
       memcpy(reserv->v, img->v, size/4);
-      decode_display_data(&spu_info, reserv->y, width, height, 1);
+      decode_display_data(&spu_info, reserv->y, 1, width, 1, width*height);
       return 1;
     } else {
-      decode_display_data(&spu_info, img->y, width, height, /*picformat*/ 1);
+      decode_display_data(&spu_info, img->y, 1, width, 1, width*height);
       return 0;
     }
   }
