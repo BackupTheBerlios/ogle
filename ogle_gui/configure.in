@@ -37,7 +37,7 @@ ALL_LINGUAS="da de fr nl pt sv"
 AM_GNU_GETTEXT([use-libtool])
 
 AC_ARG_ENABLE(gtk2, 
-  [use gtk2 for the GUI],
+  [  --enable-gtk2		use gtk2 for the GUI, instead of gtk1],
   dnl actions for gtk2
   [ PKG_CHECK_MODULES(GTK, gtk+-2.0)
     PKG_CHECK_MODULES(XML, libxml-2.0 >= 2.4.19)
