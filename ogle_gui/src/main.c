@@ -70,8 +70,6 @@ main (int argc, char *argv[])
       exit(1);
     }
   }
-  fprintf(stderr, "main: nav has ids %li %li\n", *((long*)nav),
-      ((long*)nav)[1]);
   
   xsniff_init();
   
