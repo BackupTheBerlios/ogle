@@ -29,7 +29,7 @@
 #include "dvdread_internal.h"
 
 void navRead_PCI(pci_t *pci, unsigned char *buffer) {
-  int i, j, k;
+  int i, j;
 
   CHECK_VALUE(sizeof(pci_t) == PCI_BYTES - 1); // -1 for substream id
   
@@ -59,20 +59,24 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
     for(j = 0; j < 2; j++)
       B2N_32(pci->hli.btn_colit.btn_coli[i][j]);
 
-#if !defined(WORDS_BIGENDIAN)
+  /* NOTE: I've had to change the structure from the disk layout to get
+   * the packing to work with Sun's Forte C compiler. */
+  
   /* pci hli btni */
   for(i = 0; i < 36; i++) {
-    char tmp[6], swap;
-    memcpy(tmp, &(pci->hli.btnit[i]), 6);
-    /* This is a B2N_24() */
-    swap = tmp[0]; tmp[0] = tmp[2]; tmp[2] = swap;
-    /* This is a B2N_24() */
-    swap = tmp[3]; tmp[3] = tmp[5]; tmp[5] = swap;
-    memcpy(&(pci->hli.btnit[i]), tmp, 6);
+    char tmp[sizeof(pci->hli.btnit[i])], swap;
+    memcpy(tmp, &(pci->hli.btnit[i]), sizeof(pci->hli.btnit[i]));
+    /* Byte 4 to 7 are 'rotated' was: ABCD EFGH IJ is: ABCG DEFH IJ */
+    swap   = tmp[6]; 
+    tmp[6] = tmp[5];
+    tmp[5] = tmp[4];
+    tmp[4] = tmp[3];
+    tmp[3] = swap;
+    memcpy(&(pci->hli.btnit[i]), tmp, sizeof(pci->hli.btnit[i]));
   }
-#endif
 
 
+#ifndef NDEBUG
   /* Asserts */
 
   /* pci pci gi */ 
@@ -114,6 +118,7 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
 	CHECK_VALUE(pci->hli.btnit[n].right <= pci->hli.hl_gi.btn_ns);
 	//vmcmd_verify(pci->hli.btnit[n].cmd);
       } else {
+	int k;
 	CHECK_VALUE(pci->hli.btnit[n].btn_coln == 0);
 	CHECK_VALUE(pci->hli.btnit[n].auto_action_mode == 0);
 	CHECK_VALUE(pci->hli.btnit[n].x_start == 0);
@@ -129,6 +134,7 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
       }
     }
   }
+#endif /* !NDEBUG */
 }
 
 void navRead_DSI(dsi_t *dsi, unsigned char *buffer) {

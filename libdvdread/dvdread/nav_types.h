@@ -138,6 +138,10 @@ typedef struct {
 
 /** 
  * Button Information
+ *
+ * NOTE: I've had to change the structure from the disk layout to get
+ * the packing to work with Sun's Forte C compiler.
+ * The 4 and 7 bytes are 'rotated' was: ABC DEF GHIJ  is: ABCG DEFH IJ
  */
 typedef struct {
 #ifdef WORDS_BIGENDIAN
@@ -145,13 +149,15 @@ typedef struct {
   unsigned int x_start          : 10; /**< x start offset within the overlay */
   unsigned int zero1            : 2;  /**< reserved */
   unsigned int x_end            : 10; /**< x end offset within the overlay */
+
+  unsigned int zero3            : 2;  /**< reserved */
+  unsigned int up               : 6;  /**< button index when pressing up */
+
   unsigned int auto_action_mode : 2;  /**< 0: no, 1: activated if selected */
   unsigned int y_start          : 10; /**< y start offset within the overlay */
   unsigned int zero2            : 2;  /**< reserved */
   unsigned int y_end            : 10; /**< y end offset within the overlay */
 
-  unsigned int zero3            : 2;  /**< reserved */
-  unsigned int up               : 6;  /**< button index when pressing up */
   unsigned int zero4            : 2;  /**< reserved */
   unsigned int down             : 6;  /**< button index when pressing down */
   unsigned int zero5            : 2;  /**< reserved */
@@ -163,13 +169,15 @@ typedef struct {
   unsigned int zero1            : 2;
   unsigned int x_start          : 10;
   unsigned int btn_coln         : 2;
+
+  unsigned int up               : 6;
+  unsigned int zero3            : 2;
+
   unsigned int y_end            : 10;
   unsigned int zero2            : 2;
   unsigned int y_start          : 10;
   unsigned int auto_action_mode : 2;
 
-  unsigned int up               : 6;
-  unsigned int zero3            : 2;
   unsigned int down             : 6;
   unsigned int zero4            : 2;
   unsigned int left             : 6;

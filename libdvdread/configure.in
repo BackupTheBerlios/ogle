@@ -24,12 +24,13 @@ dnl
 dnl non-gcc flags - we probably need exact configuration triplets here.
 dnl
 if test x"$GCC" != x"yes"; then
-    case x"$target_alias" in
+    case x"$target" in
     xsparc-sun-solaris*)
-        dnl OPT_CFLAGS="$CFLAGS -xCC -xmemalign"
-        dnl AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS]);;
+        OPT_CFLAGS="$CFLAGS -xCC -xmemalign"
+        AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
 dnl Dueto assumption on how bitfields are packing (see nav_types.h)
-	AC_MSG_ERROR(You must use GCC to compile this code)
+dnl      AC_MSG_ERROR(You must use GCC to compile this code)
+	;;
     esac
 fi
 
