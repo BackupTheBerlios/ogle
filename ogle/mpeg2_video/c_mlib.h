@@ -22,6 +22,9 @@
 #include <inttypes.h>
 
 void
+mlib_Init(void);
+
+void
 mlib_VideoAddBlock_U8_S16 (uint8_t *curr_block,
 			   int16_t *mc_block, 
                            int32_t stride);
@@ -93,13 +96,23 @@ mlib_VideoCopyRef_U8_U8_16x16(uint8_t *curr_block,
 			      uint8_t *ref_block,
 			      int32_t stride);
 void 
+mlib_VideoCopyRef_U8_U8_16x16_multiple(uint8_t *curr_block,
+				       uint8_t *ref_block,
+				       int32_t stride,
+				       int32_t count);
+void 
 mlib_VideoCopyRef_U8_U8_16x8(uint8_t *curr_block,
 			     uint8_t *ref_block,
 			     int32_t stride);
-void 
+void
 mlib_VideoCopyRef_U8_U8_8x8(uint8_t *curr_block,
 			    uint8_t *ref_block,
 			    int32_t stride);
+void
+mlib_VideoCopyRef_U8_U8_8x8_multiple(uint8_t *curr_block,
+				     uint8_t *ref_block,
+				     int32_t stride,
+				     int32_t count);
 void 
 mlib_VideoCopyRef_U8_U8_8x4(uint8_t *curr_block,
 			    uint8_t *ref_block,
@@ -227,6 +240,10 @@ mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
 void
 mlib_VideoIDCT8x8_S16_S16(int16_t *block,
 			  int16_t *coeffs);
+void
+mlib_VideoIDCTAdd_U8_S16(uint8_t *block,
+			 int16_t *coeffs,
+			 int32_t stride);
 void
 mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
 			 int16_t *coeffs,
