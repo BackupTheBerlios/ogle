@@ -4,8 +4,8 @@
 #include <limits.h>
 #include <inttypes.h>
 
-#include <dvd.h>
-#include <dvdevents.h>
+#include <ogle/dvd.h>
+#include <ogle/dvdevents.h>
 
 
 #if 0 /* One message queue for every listener */
