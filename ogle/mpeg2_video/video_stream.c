@@ -1490,7 +1490,6 @@ void group_of_pictures_header(void)
 void picture_header(void)
 {
   uint32_t picture_start_code;
-  int n;
   DPRINTF(3, "picture_header\n");
 
   seq.mb_row = 0;
@@ -1588,7 +1587,7 @@ void picture_header(void)
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
     if(pic.header.forward_f_code == 0) {
       pic.header.forward_f_code = 1;
-      fprintf(stderr, " ** forward_f_code == ZERO\n", n);
+      fprintf(stderr, " ** forward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
@@ -1599,7 +1598,7 @@ void picture_header(void)
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
     if(pic.header.backward_f_code == 0) {
       pic.header.backward_f_code = 1;
-      fprintf(stderr, "** backward_f_code == ZERO\n", n);
+      fprintf(stderr, "** backward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
     pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
