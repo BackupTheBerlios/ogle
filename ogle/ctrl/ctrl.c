@@ -110,6 +110,21 @@ typedef enum {
   CAP_running = 2
 } cap_state_t;
 
+/* 
+ * a client can offer several different capabilities.
+ * a client can offer several instances of the same capability.
+ * several instances of the same client can exist.
+ * an instance of a client can be identified by its MsgEventClient_t
+ * a client ca be in two states, Started: it has been exec'd but
+ * haven't registered itself.
+ * Running: the client has registered itself and is ready.
+ */
+typedef struct {
+  
+  
+} process_info_t
+
+
 typedef struct {
   MsgEventClient_t client;
   int caps;
