@@ -218,6 +218,20 @@ int main(int argc, char *argv[])
   return 0;
 }
 
+
+static int video_state = 1;
+
+static int get_video_state(void)
+{
+  return video_state;
+}
+
+static int set_video_state(int state)
+{
+  video_state = state;
+}
+
+
 /**
  * returns the spustate (a mask telling the spu which types of subpictures
  * to show (forced / normal)
@@ -457,6 +471,27 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     
   }
 
+  {
+    static int old_video_enabled = -1;
+    int new_video_enabled = 0;
+    new_video_enabled = get_video_state();
+
+    if(old_video_enabled != new_video_enabled) {
+      DNOTE("sending video demuxstream state %s\n", 
+	    (new_video_enabled ? "enabled" : "disabled"));
+      ev.type = MsgEventQDemuxStreamEnable;
+      ev.demuxstreamenable.state = new_video_enabled;
+      ev.demuxstreamenable.stream_id = 0xe0;
+      ev.demuxstreamenable.subtype = 0;
+      
+      if(send_demux(msgq, &ev) == -1) {
+	ERROR("%s", "failed to send video demuxstreamenable\n");
+      }
+    }
+    old_video_enabled = new_video_enabled; 
+  }
+
+  
   /* Tell the demuxer what file and which sectors to demux. */
   ev.type = MsgEventQDemuxDVD;
   if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN)
@@ -960,6 +995,9 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
     
     send_spustate(get_spustate());
     break;
+  case DVDCtrlSetVideoState:
+    set_video_state(ev.dvdctrl.cmd.videostate.display);
+    break;
   case DVDCtrlGetCurrentDomain:
     {
       MsgEvent_t send_ev;
@@ -1152,7 +1190,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	  }
 	  a_attr->AudioFormat = af;
 	  a_attr->AppMode = attr.application_mode;
-	  a_attr->LanguageExtension = attr.lang_extension;
+	  a_attr->LanguageExtension = attr.code_extension;
 	  a_attr->Language = attr.lang_code;
 	  a_attr->HasMultichannelInfo = attr.multichannel_extension;
 	  switch(attr.sample_frequency) {
@@ -1223,7 +1261,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	  s_attr->Type  = attr.type;
 	  s_attr->CodingMode  = attr.code_mode;
 	  s_attr->Language  = attr.lang_code;
-	  s_attr->LanguageExtension  = attr.lang_extension;
+	  s_attr->LanguageExtension  = attr.code_extension;
 	} else {
 	  set_dvderror(&send_ev, DVD_SERIAL(&ev), DVD_E_Invalid);
 	}
