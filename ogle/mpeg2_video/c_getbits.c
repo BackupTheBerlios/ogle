@@ -29,12 +29,12 @@
 #include <errno.h>
 #include <string.h>
 
+#include <ogle/msgevents.h>
 #include "c_getbits.h"
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
-#include "msgevents.h"
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif

@@ -29,10 +29,10 @@
 #include <sys/time.h>
 #endif
 
+#include <ogle/msgevents.h>
 #include "common.h"
 #include "timemath.h"
 #include "video_types.h"
-#include "msgevents.h"
 #include "sync.h"
 
 #ifndef SHM_SHARE_MMU

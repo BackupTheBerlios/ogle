@@ -12,10 +12,10 @@
 #include <errno.h>
 #include <signal.h>
 
+#include <ogle/msgevents.h>
 #include "mpeg.h"
 #include "common.h"
 #include "queue.h"
-#include "msgevents.h"
 #include "timemath.h"
 
 #ifndef SHM_SHARE_MMU

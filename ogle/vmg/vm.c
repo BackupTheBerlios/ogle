@@ -10,8 +10,8 @@
 #include <sys/stat.h>
 #include <sys/shm.h>
 
+#include <ogle/msgevents.h>
 #include "common.h"
-#include "msgevents.h"
 
 #include "ifo.h"
 #include "ifo_read.h"

@@ -13,11 +13,12 @@
 #define SHM_SHARE_MMU 0
 #endif
 
+#include <ogle/msgevents.h>
+
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
-#include "msgevents.h"
 
 
 

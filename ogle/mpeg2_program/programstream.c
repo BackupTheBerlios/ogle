@@ -32,11 +32,11 @@
 #include <sys/msg.h>
 #include <errno.h>
 
+#include <ogle/msgevents.h>
 #include "programstream.h"
 #include "common.h"
 #include "queue.h"
 #include "mpeg.h"
-#include "msgevents.h"
 
 
 #ifndef SHM_SHARE_MMU

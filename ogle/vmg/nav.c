@@ -22,9 +22,8 @@
 #include <string.h>
 #include <assert.h>
 
-//#include "msgtypes.h"
-#include "msgevents.h"
-#include "dvdevents.h"
+#include <ogle/msgevents.h>
+#include <ogle/dvdevents.h>
 
 #include "ifo.h" // vm_cmd_t
 #include "nav.h"

@@ -44,6 +44,7 @@
 #include <sys/shm.h>
 
 
+#include <ogle/msgevents.h>
 #include "video_stream.h"
 #include "video_types.h"
 #include "video_tables.h"
@@ -51,7 +52,6 @@
 
 #include "common.h"
 #include "timemath.h"
-#include "msgevents.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0

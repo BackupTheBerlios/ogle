@@ -12,10 +12,9 @@
 #include <sys/msg.h>
 #include <string.h>
 
+#include <ogle/msgevents.h>
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
-#include "msgevents.h"
 
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();

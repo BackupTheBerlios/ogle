@@ -17,10 +17,10 @@
 #define SHM_SHARE_MMU 0
 #endif
 
+#include <ogle/msgevents.h>
 #include "common.h"
 #include "queue.h"
 #include "timemath.h"
-#include "msgevents.h"
 //#include "sync.h"
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
