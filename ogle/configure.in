@@ -395,6 +395,7 @@ AP_maGiC_VALUE
           [
             have_alsa_05x=yes
             AC_MSG_RESULT([found 0.5.x])
+	    AC_MSG_WARN([Disabling ALSA support, install a 0.9.x version])
           ],
           [
             AC_EGREP_CPP([AP_maGiC_VALUE],
@@ -417,6 +418,7 @@ AP_maGiC_VALUE
                        [ AC_DEFINE([LIBOGLEAO_ALSA],,
                                    [libogleao ALSA audio support])
 			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound" 
+			 DEFAULT_AUDIO_DRIVER="alsa"
                        ])
         fi;;
     esac
