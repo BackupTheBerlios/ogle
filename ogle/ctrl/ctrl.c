@@ -196,6 +196,42 @@ static char *streamid_to_decoderstr(uint8_t stream_id, uint8_t subtype)
   return name;
 }
 
+static char *capability_to_decoderstr(int capability, int *ret_capability)
+{
+  char *name = NULL;
+  
+  
+  if((capability & DECODE_AC3_AUDIO) == capability) {
+    name = getenv("DVDP_AC3");
+    ret_capability = DECODE_AC3_AUDIO;
+  } else if((capability & (DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO))
+	    == capability) {
+    name = getenv("DVDP_MPEGAUDIO");
+    ret_capability = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
+  } else if((capability & DECODE_DVD_SPU) == capability) {
+    name = getenv("DVDP_SPU");
+    ret_capability = DECODE_DVD_SPU;
+  } else if((capability & (DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO))
+	    == capability) {
+    name = getenv("DVDP_VIDEO");
+    ret_capability = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
+  } else if((capability & (DEMUX_MPEG1 | DEMUX_MPEG2_PS))
+	    == capability) {
+    name = getenv("DVDP_DEMUX");
+    ret_capability = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
+  } else if((capability & (UI_MPEG_CLI | UI_DVD_CLI))
+	    == capability) {
+    name = getenv("DVDP_UI");
+    ret_capability = UI_MPEG_CLI | UI_DVD_CLI;
+  } else if((capability & (DECODE_DVD_NAV))
+	    == capability) {
+    name = getenv("DVDP_VMG");
+    ret_capability = DECODE_DVD_NAV;
+  }
+
+  return name;
+}
+
 static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
   MsgEvent_t s_ev;
@@ -219,9 +255,34 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQReqCapability:
     {
+      int found;
+      char *decodername;
       cap_state_t state = 0;
       fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
       ev->type = MsgEventQGntCapability;
+      
+      if(!search_capabilities(ev->reqcapability.capability,
+			      &ev->gntcapability.capclient,
+			      &ev->reqcapability.capability,
+			      &state)) {
+	int fullcap;
+	
+	decodername = capability_to_decoderstr(ev->reqcapability.capability,
+					       &fullcap);
+	
+	if(decodername != NULL) {
+	  register_capabilities(0,
+				fullcap,
+				CAP_started);
+	
+	  fprintf(stderr, "ctrl: starting decoder %d %s\n",
+		  fullcap,
+		  decodername);
+	  init_decoder(msgqid_str, decodername);
+	}
+	
+      }
+      
       while(search_capabilities(ev->reqcapability.capability,
 				&ev->gntcapability.capclient,
 				&ev->reqcapability.capability,
@@ -230,6 +291,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	MsgNextEvent(q, &r_ev);
 	handle_events(q, &r_ev);
       }
+      
       if(state == CAP_running) {
 	MsgSendEvent(q, ev->gntcapability.client, ev);
       } else {
