@@ -79,9 +79,6 @@ void macroblock(void);
 void macroblock_modes(void);
 void coded_block_pattern(void);
 void reset_dc_dct_pred(void);
-void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
-	     uint8_t intra_vlc_format, char *func);
-int get_vlc(const vlc_table_t *table, char *func);
 void reset_PMV();
 void reset_vectors();
 void motion_vectors(unsigned int s);
@@ -148,9 +145,9 @@ void get_dct_intra(runlevel_t *runlevel, char *func)
   if(code>=16384)
     tab = &DCTtabnext[(code>>12)-4];  // 14 
   else if(code>=1024)
-    tab = &DCTtab0[(code>>8)-4];   // 14
+    tab = &DCTtab0[(code>>8)-4];      // 14
   else if(code>=512)
-    tab = &DCTtab1[(code>>6)-8];  // 14
+    tab = &DCTtab1[(code>>6)-8];      // 14
   else if(code>=256)
     tab = &DCTtab2[(code>>4)-16];
   else if(code>=128)
@@ -707,6 +704,11 @@ void motion_vector(int r, int s)
     } else {
       pic.PMV[r][s][t] = mb.vector[r][s][t];
     }
+    
+    if((s == 0 && pic.header.full_pel_forward_vector) ||
+       (s == 1 && pic.header.full_pel_backward_vector)) {
+      mb.vector[r][s][t] = mb.vector[r][s][t] << 1;
+    }
   }
 }
 
@@ -820,7 +822,8 @@ void macroblock(void)
     inc_add+=33;
   }
 
-  mb.macroblock_address_increment = get_vlc(table_b1, "macroblock_address_increment");
+  mb.macroblock_address_increment 
+    = get_vlc(table_b1, "macroblock_address_increment");
 
   mb.macroblock_address_increment+= inc_add;
   
@@ -850,10 +853,8 @@ void macroblock(void)
   if(pic.header.picture_coding_type == 0x2) {
     if(mb.macroblock_address_increment > 1) {
       reset_PMV();
-      reset_vectors();
     }
   }
-  
   
   
   if(mb.macroblock_address_increment > 1) {
@@ -891,7 +892,10 @@ void macroblock(void)
       DPRINTF(3,"skipped in P-picture\n");
       
       /* There is plenty of room to optimize this */
+      
+      /* Asume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
+      reset_vectors();
       
       i = mb.macroblock_address_increment;
       while( --i > 0 ) {
@@ -973,106 +977,52 @@ void macroblock(void)
     motion_vectors(0);
   if(mb.modes.macroblock_motion_backward)
     motion_vectors(1);
-
-
+  
+  
   /* All motion vectors for the block has been
-     decoded. Update predictors
-  */
+     decoded. Update predictors. */
   
-  switch(mb.prediction_type) {
-  case PRED_TYPE_FRAME_BASED:
+  // Is this correct?
+  if ((mb.modes.macroblock_motion_forward == 0) &&
+      (mb.modes.macroblock_motion_backward == 0)) {
+    reset_PMV ();
+  }
+ 
+  switch (pic.header.picture_coding_type) {
+  case 0x01: /* I-picture */
+    break;
+  case 0x02: /* P-picture */
     if(mb.modes.macroblock_intra) {
-      if(pic.coding_ext.concealment_motion_vectors == 0) {
-	reset_PMV();
-	DPRINTF(4, "* 1\n");
-      } else {
-	pic.PMV[1][0][1] = pic.PMV[0][0][1];
-	pic.PMV[1][0][0] = pic.PMV[0][0][0];
-      }
-    } else {
-      if(mb.modes.macroblock_motion_forward) {
-	pic.PMV[1][0][1] = pic.PMV[0][0][1];
-	pic.PMV[1][0][0] = pic.PMV[0][0][0];
-      }
-      if(mb.modes.macroblock_motion_backward) {
-	pic.PMV[1][1][1] = pic.PMV[0][1][1];
-	pic.PMV[1][1][0] = pic.PMV[0][1][0];
-      }
-      if(pic.coding_ext.frame_pred_frame_dct != 0) {
-	if((mb.modes.macroblock_motion_forward == 0) &&
-	   (mb.modes.macroblock_motion_backward == 0)) {
-	  reset_PMV();
-	  DPRINTF(4, "* 2\n");
-	}
-      }
+      reset_PMV();
+      reset_vectors ();
     }
-    break;
-  case PRED_TYPE_FIELD_BASED: // ???
-    break;
-  default:
-    fprintf(stderr, "*** invalid pred_type\n");
-    exit_program(-1);
-    break;
-  }	
-  
-  
-  /* In a P-picture when a non-intra macroblock is decoded
-     in which macroblock_motion_forward is zero */
-  if(pic.header.picture_coding_type == 0x02) {
-    if(mb.modes.macroblock_intra == 0) {
-      if(mb.modes.macroblock_motion_forward == 0) {
-	reset_PMV();
-	DPRINTF(4, "* 6\n");	
-      }
-    }
-  }
-    
-
-  /*** 7.6.3.5 Prediction in P-pictures ***/
-
-  if(pic.header.picture_coding_type == 0x2) { /* P-picture */
-    if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
-      DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
-      DPRINTF(2, "motion_type: %02x\n", mb.modes.frame_motion_type);
-      if(pic.coding_ext.picture_structure == 0x3) {
-	
-	mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	mb.mv_format = MV_FORMAT_FRAME;
-	reset_PMV();
-      } else {
-
-	mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	mb.mv_format = MV_FORMAT_FIELD;
-      }
+    if((!mb.modes.macroblock_intra) && (!mb.modes.macroblock_motion_forward)) {
+      reset_PMV();
+      /* Asume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
-      mb.vector[0][0][0] = 0;
-      mb.vector[0][0][1] = 0;
-      mb.vector[1][0][0] = 0;
-      mb.vector[1][0][1] = 0;
-       
+      reset_vectors ();
     }
-
-    /* never happens */
-    /*
-      if(mb.macroblock_address_increment > 1) {
-      
-      fprintf(stderr, "prediction mode shall be Frame-based\n");
-      fprintf(stderr, "motion vector predictors shall be reset to zero\n");
-      fprintf(stderr, "motion vector shall be zero\n");
-      
-      // *** TODO
-      //mb.vector[0][0][0] = 0;
-      //mb.vector[0][0][1] = 0;
-
-      }
-    */
-    
+    break;
+  case 0x03: /* B-picture */
+    if(mb.modes.macroblock_intra) {
+      reset_PMV ();
+      reset_vectors ();
+    }
+    break;
   }
-   
-
-  /* Intra blocks always have all sub block and are writen directly 
-     to the output buffers by block() */
+  
+  
+  /* Pel reconstruction 
+     - motion compensation (if any)
+     - decode coefficents
+     - inverse quantisation 
+     - 'oddify' the coefficents
+     - inverse transform
+     - combine the data with motion compensated pels */
+  
   if(mb.modes.macroblock_intra) {
+    /* Intra blocks always have all sub block and are writen directly 
+       to the output buffers by block() */
     int i;
     
     for(i = 0; i < 6; i++) {  
@@ -1159,23 +1109,17 @@ void mpeg1_slice(void)
   
   reset_dc_dct_pred();
   reset_PMV();
+  reset_vectors();
 
   DPRINTF(3, "start of slice\n");
   
   slice_start_code = GETBITS(32, "slice_start_code");
   slice_data.slice_vertical_position = slice_start_code & 0xff;
   
-  // Do we need to update seq.mb_row or seq.mb_col ???
+  // Do we need to update seq.mb_col ???
   seq.mb_row = slice_data.slice_vertical_position - 1;
- 
-  seq.previous_macroblock_address = (seq.mb_row * seq.mb_width)-1;
+  seq.previous_macroblock_address = (seq.mb_row * seq.mb_width) - 1;
 
-  //TODO
-  if(0) {//sequence_scalable_extension_present) {
-    if(0) { //scalable_mode == DATA_PARTITIONING) {
-      slice_data.priority_breakpoint = GETBITS(7, "priority_breakpoint");
-    }
-  }
   slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
   mb.quantiser_scale = slice_data.quantiser_scale_code; // MPEG-1
 #ifdef STATS
@@ -1198,5 +1142,4 @@ void mpeg1_slice(void)
   } while(nextbits(23) != 0);
   next_start_code();
 }
-
 

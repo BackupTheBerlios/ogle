@@ -71,9 +71,9 @@ extern uint64_t stats_bits_read;
 static inline
 uint32_t nextbits(unsigned int nr)
 {
-  //  uint32_t result = (cur_word << (64-bits_left)) >> 32;
-  return (cur_word << (64-bits_left)) >> (64-nr);
-  //return *((uint32_t*)&cur_word) >> (32-nr); //+
+  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return result >> (32-nr);
+  //  return (cur_word << (64-bits_left)) >> (64-nr);
 }
 
 #ifdef DEBUG
@@ -88,10 +88,11 @@ uint32_t getbits(unsigned int nr)
 #ifdef STATS
   stats_bits_read+=nr;
 #endif
-  result = (cur_word << (64-bits_left)) >> (64-nr);
-  //  result = result >> (32-nr);
+  result = (cur_word << (64-bits_left)) >> 32;
+  result = result >> (32-nr);
   //  result = cur_word >> (64-nr); //+
   //  cur_word = cur_word << nr; //+
+  
   bits_left -= nr;
   if(bits_left <= 32) {
     if(offs >= buf_size)

@@ -1093,7 +1093,7 @@ void motion_vector(int r, int s)
     }
     
     prediction = pic.PMV[r][s][t];
-    if((mb.mv_format ==  MV_FORMAT_FIELD) && (t==1) &&
+    if((mb.mv_format == MV_FORMAT_FIELD) && (t==1) &&
        (pic.coding_ext.picture_structure ==  0x3)) {
       prediction = (pic.PMV[r][s][t]) >> 1;         /* DIV */
     }
@@ -1113,6 +1113,11 @@ void motion_vector(int r, int s)
       pic.PMV[r][s][t] = mb.vector[r][s][t] * 2;
     } else {
       pic.PMV[r][s][t] = mb.vector[r][s][t];
+    }
+    
+    if((s == 0 && pic.header.full_pel_forward_vector) || 
+       (s == 1 && pic.header.full_pel_backward_vector)) {
+      mb.vector[r][s][t] = mb.vector[r][s][t] << 1;
     }
   }
 }

@@ -167,9 +167,9 @@ void resize () {
   XSelectInput(display, window, NoEventMask);
 
   /* Create new display_image */
-  xil_destroy (display_image);
-  display_image = xil_create_from_window (state, display, window);
-  xil_set_synchronize (display_image, 1);
+  xil_destroy(display_image);
+  display_image = xil_create_from_window(state, display, window);
+  xil_set_synchronize(display_image, 1);
 
   /* Turn on events */
   XSelectInput (display, window, StructureNotifyMask);
@@ -184,20 +184,21 @@ void show_image (int id)
 
   image = &(buf_ctrl_head->picture_infos[id].picture);
 
-  xil_export (render_image);
-  xil_get_memory_storage (render_image, &storage);
+  xil_export(render_image);
+  xil_get_memory_storage(render_image, &storage);
   yuv2rgb(storage.byte.data, image->y, image->u, image->v,
 	  image->padded_width,
 	  image->padded_height, 
 	  image->padded_width*(bpp/8),
 	  image->padded_width, image->padded_width/2 );
-  xil_import (render_image, TRUE);
+  xil_import(render_image, TRUE);
   if (resized) {
-    xil_scale (three_band_image, display_image, "bilinear",
+    xil_scale(three_band_image, display_image, "bilinear",
                horizontal_scale, vertical_scale);
   } else {
-    xil_copy (three_band_image, display_image);
+    xil_copy(three_band_image, display_image);
   }
+
   /* Check if scale factors need recalculating */
   if (XCheckWindowEvent (display, window, StructureNotifyMask, &event))
     resize();

@@ -40,27 +40,25 @@ typedef struct {
   macroblock_t *mbs;
 } debug_win;
 
-debug_win windows[3];
+static debug_win windows[3];
 
 
 static XVisualInfo vinfo;
-XShmSegmentInfo shm_info;
-XShmSegmentInfo shm_info_ref1;
-XShmSegmentInfo shm_info_ref2;
-Display *mydisplay;
-Window mywindow;
-Window window_stat;
-GC mygc;
-GC statgc;
-int bpp, mode;
+static XShmSegmentInfo shm_info;
+static XShmSegmentInfo shm_info_ref1;
+static XShmSegmentInfo shm_info_ref2;
+static Display *mydisplay;
+static Window mywindow;
+static Window window_stat;
+static GC mygc;
+static GC statgc;
+static int color_depth, pixel_stride, mode;
 
 extern unsigned int debug;
 int show_window[3] = {1,0,0};
 int show_stat = 0;
 int run = 0;
 
-//static int horizontal_size = 480;
-//static int vertical_size = 216;
 
 
 
@@ -106,13 +104,14 @@ void display_init(int padded_width, int padded_height,
 
   /* Make the window */
   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
-  bpp = attribs.depth;
-  if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
+  color_depth = attribs.depth;
+  if (color_depth != 15 && color_depth != 16 && 
+      color_depth != 24 && color_depth != 32) {
     fprintf(stderr,"Only 15,16,24, and 32bpp supported. Trying 24bpp!\n");
-    bpp = 24;
+    color_depth = 24;
   }
   
-  XMatchVisualInfo(mydisplay,screen,bpp,TrueColor,&vinfo);
+  XMatchVisualInfo(mydisplay,screen,color_depth,TrueColor,&vinfo);
   printf("visual id is  %lx\n",vinfo.visualid);
 
   theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
@@ -125,17 +124,17 @@ void display_init(int padded_width, int padded_height,
 
   windows[0].win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 				 hint.x, hint.y, hint.width, hint.height, 
-				 0, bpp, CopyFromParent, vinfo.visual, 
+				 0, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
   windows[1].win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 				 hint.x, hint.y, hint.width, hint.height, 
-				 0, bpp, CopyFromParent, vinfo.visual, 
+				 0, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
   windows[2].win = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
 				 hint.x, hint.y, hint.width, hint.height, 
-				 0, bpp, CopyFromParent, vinfo.visual, 
+				 0, color_depth, CopyFromParent, vinfo.visual, 
 				 xswamask, &xswa);
 
   window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
@@ -185,17 +184,17 @@ void display_init(int padded_width, int padded_height,
   statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
    
   /* Create shared memory image */
-  windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+  windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				      ZPixmap, NULL, &shm_info,
 				      padded_width,
 				      padded_height);
   
-  windows[1].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+  windows[1].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				      ZPixmap, NULL, &shm_info_ref1,
 				      padded_width,
 				      padded_height);
   
-  windows[2].ximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+  windows[2].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				      ZPixmap, NULL, &shm_info_ref2,
 				      padded_width,
 				      padded_height);
@@ -255,7 +254,7 @@ void display_init(int padded_width, int padded_height,
   windows[2].data = windows[2].ximage->data;
   
   
-  bpp = windows[0].ximage->bits_per_pixel;
+  pixel_stride = windows[0].ximage->bits_per_pixel;
   // If we have blue in the lowest bit then obviously RGB 
   mode = ((windows[0].ximage->blue_mask & 0x01) != 0) ? 1 : 2;
   /*
@@ -269,7 +268,7 @@ void display_init(int padded_width, int padded_height,
     exit(1);
   }
   */
-  yuv2rgb_init(bpp, mode);
+  yuv2rgb_init(pixel_stride, mode);
   
   return;
   
@@ -305,7 +304,6 @@ void Display_Image(Window win, XImage *myximage,
 
   XSync(mydisplay, False);
 }
-
 
 
 

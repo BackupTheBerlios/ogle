@@ -309,7 +309,7 @@ void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
     fprintf(fp, "%u", (value>>(bits-n-1)) & 0x1);
   }
 }
-  
+
 
 int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
@@ -509,6 +509,7 @@ void video_sequence(void) {
 	switch(fork()) {
 	case 0:
 	  display_process();
+	  display_exit();
 	  exit(0);
 	  break;
 	case -1:
@@ -839,8 +840,10 @@ void setup_shm(int padded_width, int padded_height, int nr_of_bufs)
   int yuv_size = y_size + 2 * uv_size; 
   
   int picture_buffer_size = (yuv_size + yuv_size % pagesize);
-  int picture_buffers_size = nr_of_bufs * picture_buffer_size;
-
+  /* Mlib reads ?8? bytes beyond the last pel (in the v-picture), 
+     if that pel just before a page boundary then *boom*!! */
+  int picture_buffers_size = nr_of_bufs * picture_buffer_size + pagesize;//Hack
+  
   int i;
   char *baseaddr;
 
@@ -1748,14 +1751,14 @@ void picture_data(void)
 	bits_read_old = bits_read_new;
 	bits_read_new = stats_bits_read;
 #endif
-	
+	/*	
 	fprintf(stderr, "decode: frame rate: %f fps\t",
 		25.0/(((double)tva.tv_sec+
 		       (double)(tva.tv_usec)/1000000.0)-
 		      ((double)otva.tv_sec+
 		       (double)(otva.tv_usec)/1000000.0))
 		);
-	
+
 #ifdef STATS
 	fprintf(stderr, "bit rate: %.2f Mb/s, (%.2f), ",
 		(((double)(bits_read_new-bits_read_old))/1000000.0)/
@@ -1772,6 +1775,7 @@ void picture_data(void)
 #else
        	fprintf(stderr, "\n");
 #endif
+	*/
       }
       frame_nr--;
     }
@@ -1918,62 +1922,29 @@ void motion_comp()
       
       DPRINTF(2, "forward_motion_comp\n");
 
-      if(pic.header.full_pel_forward_vector) {
-	half_flag_y[0]  = 0;
-	half_flag_y[1]  = 0;
-	half_flag_uv[0] = ((mb.vector[i][0][0]) & 1);
-	half_flag_uv[1] = ((mb.vector[i][0][1]) & 1);
-	/*
- 	half_flag_y[0]  = 0;
-	half_flag_y[1]  = 0;
-	half_flag_uv[0] = 0;
-	half_flag_uv[1] = 0;
-	*/
-	int_vec_y[0]  = (mb.vector[i][0][0]) + (signed int)x * 16;
-	int_vec_y[1]  = (mb.vector[i][0][1])*apa + (signed int)y * 16;
-	int_vec_uv[0] = (mb.vector[i][0][0]/2)  + (signed int)x * 8;
-	int_vec_uv[1] = (mb.vector[i][0][1]/2)*apa + (signed int)y * 8;
-      }
-      else {
-	half_flag_y[0]  = (mb.vector[i][0][0] & 1);
-	half_flag_y[1]  = (mb.vector[i][0][1] & 1);
-	half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
-	half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
-	int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
-	int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
-	int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + (signed int)x * 8;
-	int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + (signed int)y * 8;
-      }    
-
-
-
-      DPRINTF(3, "start: 0, end: %d\n",
-	      seq.horizontal_size * seq.vertical_size);
+      half_flag_y[0]  = (mb.vector[i][0][0] & 1);
+      half_flag_y[1]  = (mb.vector[i][0][1] & 1);
+      half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
+      half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
+      int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
+      int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
+      int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + (signed int)x * 8;
+      int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + (signed int)y * 8;
       
-      DPRINTF(3, "p_vec x: %d, y: %d\n",
-	      (mb.vector[i][0][0] >> 1),
-	      (mb.vector[i][0][1] >> 1));
-    
+      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.horizontal_size-16)) ||
+	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.vertical_size-16)) ||
+	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.horizontal_size/2-8)) ||
+	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.vertical_size/2-8)) ) { 
+	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
+		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
+      }
+      
       pred_y  =
 	&ref_image1->y[int_vec_y[0] + int_vec_y[1] * padded_width];
-    
-      DPRINTF(3, "ypos: %d\n",
-	      int_vec_y[0] + int_vec_y[1] * padded_width);
-    
-      DPRINTF(3, "start: 0, end: %d\n",
-	      seq.horizontal_size * seq.vertical_size/4);
-    
       pred_u =
 	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
-      
-      
-      DPRINTF(3, "uvpos: %d\n",
-	      int_vec_uv[0] + int_vec_uv[1] * padded_width/2);
-    
       pred_v =
 	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
-      
-      DPRINTF(3, "x: %d, y: %d\n", x, y);
       
       
       if (half_flag_y[0] && half_flag_y[1]) {
@@ -2041,7 +2012,8 @@ void motion_comp()
 	} else {
 	  mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u,
 					padded_width/2, padded_width/2);
-	  mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, padded_width/2, padded_width/2);
+	  mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, 
+					padded_width/2, padded_width/2);
 	}
       } else if (half_flag_uv[1]) {
 	if(apa == 2) {
@@ -2090,37 +2062,31 @@ void motion_comp()
       
       field = mb.motion_vertical_field_select[i][1];
       
-     if(pic.header.full_pel_forward_vector) {
- 	half_flag_y[0]  = 0;
-	half_flag_y[1]  = 0;
-	half_flag_uv[0] = ((mb.vector[i][1][0]) & 1);
-	half_flag_uv[1] = ((mb.vector[i][1][1]) & 1);
-	/*
-	half_flag_uv[0] = 0;
-	half_flag_uv[1] = 0;
-	*/
-	int_vec_y[0]  = (mb.vector[i][1][0]) + (signed int)x * 16;
-	int_vec_y[1]  = (mb.vector[i][1][1])*apa + (signed int)y * 16;
-	int_vec_uv[0] = (mb.vector[i][1][0]/2) + (signed int)x * 8;
-	int_vec_uv[1] = (mb.vector[i][1][1]/2)*apa + (signed int)y * 8;
-      }
-      else {
-	half_flag_y[0]  = (mb.vector[i][1][0] & 1);
-	half_flag_y[1]  = (mb.vector[i][1][1] & 1);
-	half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
-	half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
-	int_vec_y[0]  = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
-	int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
-	int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
-	int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa + (signed int)y * 8;
-      }
-      
+      half_flag_y[0]  = (mb.vector[i][1][0] & 1);
+      half_flag_y[1]  = (mb.vector[i][1][1] & 1);
+      half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
+      half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
+      int_vec_y[0]  = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
+      int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
+      int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
+      int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa + (signed int)y * 8;
+     
       pred_y  =
 	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
       pred_u =
 	&ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       pred_v =
 	&ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
+      
+      if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.horizontal_size-16)) ||
+	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.vertical_size-16)) ||
+	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.horizontal_size/2-8)) ||
+	  (int_vec_uv[1] < 0) || (int_vec_uv[1] > (seq.vertical_size/2-8)) ) { 
+	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
+		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
+      }
+      
       
       if(mb.modes.macroblock_motion_forward) {
 	if (half_flag_y[0] && half_flag_y[1]) {
@@ -2129,7 +2095,8 @@ void motion_comp()
 					     pred_y+field*padded_width,
 					     padded_width*2, padded_width*2);
 	  } else {
-	    mlib_VideoInterpAveXY_U8_U8_16x16(dst_y,  pred_y,  padded_width,   padded_width);
+	    mlib_VideoInterpAveXY_U8_U8_16x16(dst_y,  pred_y,  
+					      padded_width,   padded_width);
 	  }
 	} else if (half_flag_y[0]) {
 	  if(apa == 2) {
@@ -2320,27 +2287,7 @@ void motion_comp()
 	}
       }
     }
-  }  
-
-  /*
-  if(mb.pattern_code[0])
-    mlib_VideoAddBlock_U8_S16(dst_y, mb.f[0], stride);
-  
-  if(mb.pattern_code[1])
-    mlib_VideoAddBlock_U8_S16(dst_y + 8, mb.f[1], stride);
-      
-  if(mb.pattern_code[2])
-    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d, mb.f[2], stride);
-  
-  if(mb.pattern_code[3])
-    mlib_VideoAddBlock_U8_S16(dst_y + padded_width * d + 8, mb.f[3], stride);
-  
-  if(mb.pattern_code[4])
-    mlib_VideoAddBlock_U8_S16(dst_u, mb.f[4], padded_width/2);
-  
-  if(mb.pattern_code[5])
-    mlib_VideoAddBlock_U8_S16(dst_v, mb.f[5], padded_width/2);
-  */
+  }
   
 }
 
@@ -2686,7 +2633,7 @@ void sequence_display_extension()
 
 void exit_program(int exitcode)
 {
-  display_exit();
+  //  display_exit();
 
   // Detach the shared memory segments from this process
   
