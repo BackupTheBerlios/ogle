@@ -21,10 +21,10 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				  const DVDAudioAttributes_t *Attr);
 DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				const DVDLangID_t *Language);
-DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, const int *StreamsAvailable,
-			       const DVDAudioStream_t *CurrentStream);
+DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
+			       DVDAudioStream_t *const CurrentStream);
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				    const DVDBool_t *Enabled);
+				    DVDBool_t *const Enabled);
 DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav, const DVDLangID_t *Language,
 				       const DVDAudioLangExt_t *AudioExtension);
 DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, const int *AnglesAvailable,

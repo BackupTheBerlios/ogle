@@ -34,6 +34,8 @@ typedef enum {
 
   DVDCtrlPTTSearch,
   DVDCtrlPTTPlay,
+  
+  
 
   DVDCtrlTitlePlay,
 
@@ -45,7 +47,19 @@ typedef enum {
 
   DVDCtrlStop,
 
-  DVDCtrlEventAudioStreamChange
+  DVDCtrlAudioStreamChange,
+
+
+  /* infocmds */
+  DVDCtrlGetCurrentAudio,
+  DVDCtrlCurrentAudio,
+
+  DVDCtrlIsAudioStreamEnabled,
+  DVDCtrlAudioStreamEnabled,
+  
+  DVDCtrlGetAudioAttributes,
+  DVDCtrlAudioAttributes
+
 } DVDCtrlEventType_t;
 
 /*
@@ -189,8 +203,30 @@ typedef struct {
   DVDAudioStream_t streamnr;
 } DVDCtrlAudioStreamChangeEvent_t;
 
+typedef struct {
+  DVDCtrlEventType_t type;
+  int nrofstreams;
+  DVDAudioStream_t currentstream;
+} DVDCtrlCurrentAudioEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDAudioStream_t streamnr;
+  DVDBool_t enabled;
+} DVDCtrlAudioStreamEnabledEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
+  DVDAudioStream_t streamnr;
+  DVDAudioAttributes_t attr;
+} DVDCtrlAudioAttributesEvent_t;
+
+
 typedef union {
   DVDCtrlEventType_t type;
+
+
+
   /*
   DVDCtrlLeftButtonSelectEvent_t leftbuttonselect;
   DVDCtrlLeftButtonSelectEvent_t rightbuttonselect;
@@ -243,6 +279,15 @@ typedef union {
   */
 
   DVDCtrlAudioStreamChangeEvent_t audiostreamchange;
+
+  /* infocmd */
+
+  DVDCtrlCurrentAudioEvent_t currentaudio;
+  DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;
+  DVDCtrlAudioAttributesEvent_t audioattributes;
+
+  /* end infocmd */
+
 } DVDCtrlEvent_t;
 
 

@@ -129,7 +129,7 @@ typedef struct {
 typedef int DVDSubpictureStream_t;  
 
 /** 
- * Audio stream number (0-7)
+ * Audio stream number (0-7, 15(none))
  */
 typedef int DVDAudioStream_t;  
 

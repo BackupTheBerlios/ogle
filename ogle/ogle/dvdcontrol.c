@@ -203,7 +203,21 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
 DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				  const DVDAudioAttributes_t *Attr)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetAudioAttributes;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlAudioAttributes)) {
+      if(ev.dvdctrl.cmd.audioattributes.streamnr == StreamNr) {
+	memcpy((void *)Attr, (void *)&(ev.dvdctrl.cmd.audioattributes.attr),
+	       sizeof(DVDAudioAttributes_t));
+	return DVD_E_Ok;
+      }
+    }
+  } 
 }
 
 /** 
@@ -230,24 +244,50 @@ DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 
 /** 
  * Get the number of available audio streams and the current
- * @todo Implement function.
+ * @todo handle other events returned.
  * @param nav Specifies the connection to the DVD navigator.
  */
-DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, const int *StreamsAvailable,
-			       const DVDAudioStream_t *CurrentStream)
+DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
+			       DVDAudioStream_t *const CurrentStream)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetCurrentAudio;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlCurrentAudio)) {
+      *StreamsAvailable = ev.dvdctrl.cmd.currentaudio.nrofstreams;
+      *CurrentStream = ev.dvdctrl.cmd.currentaudio.currentstream;
+      return DVD_E_Ok;
+    }
+  } 
 }
 
 /**
  * Check if an audio stream is enabled
- * @todo Implement function.
+ * @todo Handle other return events
  * @param nav Specifies the connection to the DVD navigator.
  */
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				    const DVDBool_t *Enabled)
+				    DVDBool_t *const Enabled)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlIsAudioStreamEnabled;
+  ev.dvdctrl.cmd.audiostreamenabled.streamnr = StreamNr;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  while(1) {
+    MsgNextEvent(nav->msgq, &ev);
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlAudioStreamEnabled)) {
+      if(ev.dvdctrl.cmd.audiostreamenabled.streamnr == StreamNr) {
+	*Enabled = ev.dvdctrl.cmd.audiostreamenabled.enabled;
+	return DVD_E_Ok;
+      }
+    }
+  } 
 }
 
 
@@ -969,7 +1009,13 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
  */
 DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlAudioStreamChange;
+  ev.dvdctrl.cmd.audiostreamchange.streamnr = StreamNr;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
 }
 
 /** 
