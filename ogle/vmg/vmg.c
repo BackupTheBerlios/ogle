@@ -15,7 +15,7 @@
 #include <sys/sem.h>
 #endif
 
-#ifndef HAVE_SHM_SHARE_MMU
+#ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif
 
