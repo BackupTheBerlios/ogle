@@ -175,10 +175,10 @@ DVDResult_t DVDCloseNav(DVDNav_t *nav) {
   return DVD_E_Ok;
 }
 
-const static char DVD_E_Ok_STR[] = "OK";
-const static char DVD_E_Unspecified_STR[] = "Unspecified";
-const static char DVD_E_NotImplemented_STR[] = "Not Implemented";
-const static char DVD_E_NoSuchError_STR[] = "No such error code";
+static const char DVD_E_Ok_STR[] = "OK";
+static const char DVD_E_Unspecified_STR[] = "Unspecified";
+static const char DVD_E_NotImplemented_STR[] = "Not Implemented";
+static const char DVD_E_NoSuchError_STR[] = "No such error code";
 
 /**
  * Print DVD error messages
