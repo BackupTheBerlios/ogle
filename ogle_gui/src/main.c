@@ -38,8 +38,6 @@
 #include "interpret_config.h"
 #include "my_glade.h"
 
-#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "ogle_gui.glade"
-
 char *program_name;
 DVDNav_t *nav;
 char *dvd_path;
@@ -85,7 +83,8 @@ main (int argc, char *argv[])
   
   gtk_init(&argc, &argv);
 
-  my_glade_setup(OGLE_GLADE_FILE);
+  // Initialize glade, and read in the glade file
+  my_glade_setup();
 
   if(msgqid !=-1) { // ignore sending data.
     DVDResult_t res;

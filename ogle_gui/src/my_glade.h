@@ -3,7 +3,7 @@
 
 #include <gtk/gtk.h>
 
-void my_glade_setup(const char *);
+void my_glade_setup(void);
 GtkWidget *get_glade_widget(const char *);
 
 #endif // MY_GLADE_H
