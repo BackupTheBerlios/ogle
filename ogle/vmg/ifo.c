@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
 	ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
       } else
-	PUT(5, "No PartOfTitle Searchpointer information pressent\n");
+	PUT(5, "No PartOfTitle Searchpointer information present\n");
       
       PUT(1, "\nMenu PGCI Unit table\n");
       PUT(1,   "--------------------\n");
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 	ifoRead_VMGM_PGCI_UT(&vmgm_pgci_ut, vmgi_mat.vmgm_pgci_ut);
 	ifoPrint_VMGM_PGCI_UT(&vmgm_pgci_ut);
       } else
-	PUT(5, "No PGCI Unit table pressent\n");
+	PUT(5, "No PGCI Unit table present\n");
        
       
       PUT(1, "\nParental Manegment Information table\n");
@@ -184,7 +184,7 @@ int main(int argc, char *argv[])
 	ifoRead_VMG_PTL_MAIT(&vmg_ptl_mait, vmgi_mat.vmg_ptl_mait);
 	ifoPrint_VMG_PTL_MAIT(&vmg_ptl_mait);
       } else
-	PUT(5, "No Parental Management information pressent\n");
+	PUT(5, "No Parental Management information present\n");
       
       PUT(1, "\nVideo Title Set Attribute table\n");
       PUT(1,   "-------------------------------\n");
@@ -192,7 +192,7 @@ int main(int argc, char *argv[])
 	ifoRead_VMG_VTS_ATRT(&vmg_vts_atrt, vmgi_mat.vmg_vts_atrt);
 	ifoPrint_VMG_VTS_ATRT(&vmg_vts_atrt);
       } else
-	PUT(5, "No Video Title Set Attribute table pressent\n");
+	PUT(5, "No Video Title Set Attribute table present\n");
       
       
       PUT(1, "\nCell Adress table\n");
@@ -201,7 +201,7 @@ int main(int argc, char *argv[])
 	ifoRead_C_ADT(&vmgm_c_adt, vmgi_mat.vmgm_c_adt);
 	//ifoPrint_C_ADT(&vmgm_c_adt);
       } else
-	PUT(5, "No Cell Adress table pressent\n");
+	PUT(5, "No Cell Adress table present\n");
       
       PUT(1, "\nVideo Title set Menu VOBU address map\n");
       PUT(1,   "-----------------\n");
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
 	ifoRead_VOBU_ADMAP(&vmgm_vobu_admap, vmgi_mat.vmgm_vobu_admap);
 	//ifoPrint_VOBU_ADMAP(&vmgm_vobu_admap);
       } else
-	PUT(5, "No Menu VOBU address map pressent\n");
+	PUT(5, "No Menu VOBU address map present\n");
       
     } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
       vtsi_mat_t vtsi_mat;
@@ -228,7 +228,7 @@ int main(int argc, char *argv[])
 	ifoRead_C_ADT(&vtsm_c_adt, vtsi_mat.vtsm_c_adt);
 	ifoPrint_C_ADT(&vtsm_c_adt);
       } else
-	PUT(5, "No Cell Adress table pressent\n");
+	PUT(5, "No Cell Adress table present\n");
       
       PUT(1, "\nVideo Title set Menu VOBU address map\n");
       PUT(1,   "-----------------\n");
@@ -236,7 +236,7 @@ int main(int argc, char *argv[])
 	ifoRead_VOBU_ADMAP(&vtsm_vobu_admap, vtsi_mat.vtsm_vobu_admap);
 	ifoPrint_VOBU_ADMAP(&vtsm_vobu_admap);
       } else
-	PUT(5, "No Menu VOBU address map pressent\n");
+	PUT(5, "No Menu VOBU address map present\n");
     } 
   }
   
@@ -471,7 +471,7 @@ void ifoRead_PGC(pgc_t *pgc, int offset) {
 
 void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   if(cmd_tbl == NULL) {
-    PUT(5, "No Command table pressent\n");
+    PUT(5, "No Command table present\n");
     return;
   }
   
@@ -510,7 +510,7 @@ void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
 void ifoPrint_PGC_PROGRAM_MAP(pgc_progam_map_t *progam_map, int nr) {
   int i;
   if(progam_map == NULL) {
-    PUT(5, "No Program map pressent\n");
+    PUT(5, "No Program map present\n");
     return;
   }
   for(i=0;i<nr;i++) {
@@ -521,7 +521,7 @@ void ifoPrint_PGC_PROGRAM_MAP(pgc_progam_map_t *progam_map, int nr) {
 void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
   int i;
   if(cell_playback == NULL) {
-    PUT(5, "No Cell Playback info pressent\n");
+    PUT(5, "No Cell Playback info present\n");
     return;
   }
   for(i=0;i<nr;i++) {
@@ -541,7 +541,7 @@ void ifoPrint_CELL_PLAYBACK_TBL(cell_playback_tbl_t *cell_playback, int nr) {
 void ifoPrint_CELL_POSITION_TBL(cell_position_tbl_t *cell_position, int nr) {
   int i;
   if(cell_position == NULL) {
-    PUT(5, "No Cell Position info pressent\n");
+    PUT(5, "No Cell Position info present\n");
     return;
   }
   for(i=0;i<nr;i++) {
@@ -566,7 +566,7 @@ void ifoPrint_PGC(pgc_t *pgc) {
   {
     int i;
     for(i=0;i<8;i++)
-      if(pgc->audio_status[i] & 0x8000) { /* The 'is pressent' bit */
+      if(pgc->audio_status[i] & 0x8000) { /* The 'is present' bit */
 	PUT(5, "Audio stream %i status: %04x\n", i, pgc->audio_status[i]);
       } else {
 	CHECK_ZERO(pgc->audio_status[i]);
@@ -575,7 +575,7 @@ void ifoPrint_PGC(pgc_t *pgc) {
   {
     int i;
     for(i=0;i<32;i++)
-      if(pgc->subp_status[i] & 0x80000000) { /* The 'is pressent' bit */
+      if(pgc->subp_status[i] & 0x80000000) { /* The 'is present' bit */
 	PUT(5, "Subpicture stream %2i status: %08x\n", i, pgc->subp_status[i]);
       } else { 
 	CHECK_ZERO(pgc->subp_status[i]);
