@@ -286,7 +286,8 @@ int get_q()
   uint8_t stream_id;
   uint8_t subtype;
   AudioType_t new_audio_type;
-
+  volatile int *in_use;
+  volatile int *writer_requests_notification;
 
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
@@ -296,10 +297,11 @@ int get_q()
     handle_events(msgq, &ev);
   }
   
-  if(!q_elems[elem].in_use) {
+  in_use = &(q_elems[elem].in_use);
+  if(!*in_use) {
     q_head->reader_requests_notification = 1;
     
-    while(!q_elems[elem].in_use) {
+    while(!*in_use) {
       DPRINTF(1, "a52: waiting for notification1\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(msgq, &ev);
@@ -524,6 +526,7 @@ int get_q()
 
 
 	  
+  writer_requests_notification = &(q_head->writer_requests_notification);
   
   if(flush_to_scrid != -1) {
     if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {
@@ -531,11 +534,13 @@ int get_q()
       q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
       
       // release elem
-      data_elem->in_use = 0;
-      q_elems[elem].in_use = 0;
+      in_use = &(data_elem->in_use);
+      *in_use = 0;
+      in_use = &(q_elems[elem].in_use);
+      *in_use = 0;
       
-      if(q_head->writer_requests_notification) {
-	q_head->writer_requests_notification = 0;
+      if(*writer_requests_notification) {
+	*writer_requests_notification = 0;
 	ev.type = MsgEventQNotify;
 	if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
 	  WARNING("%s", "couldn't send notification\n");
@@ -589,11 +594,13 @@ int get_q()
   }
   
   // release elem
-  data_elem->in_use = 0;
-  q_elems[elem].in_use = 0;
+  in_use = &(data_elem->in_use);
+  *in_use = 0;
+  in_use = &(q_elems[elem].in_use);
+  *in_use = 0;
   
-  if(q_head->writer_requests_notification) {
-    q_head->writer_requests_notification = 0;
+  if(*writer_requests_notification) {
+    *writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       WARNING("%s", "couldn't send notification\n");

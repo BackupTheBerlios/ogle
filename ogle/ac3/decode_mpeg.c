@@ -51,6 +51,7 @@ typedef struct {
   int availflags;
   int output_flags;
   int decoding_flags;
+  int mode; //channels
 
   /* libmad */
   struct mad_stream stream;
@@ -60,6 +61,25 @@ typedef struct {
 
 } adec_mpeg_handle_t;
 
+
+
+static int mpeg_mode_to_channels(enum mad_mode mode)
+{
+  ChannelType_t chtypemask = 0;
+  
+  switch(mode) {
+  case MAD_MODE_SINGLE_CHANNEL:
+    chtypemask = ChannelType_Mono;
+    break;
+  case MAD_MODE_DUAL_CHANNEL:
+  case MAD_MODE_JOINT_STEREO:
+  case MAD_MODE_STEREO:
+    chtypemask = ChannelType_Left | ChannelType_Right;
+    break;
+  }
+  
+  return chtypemask;
+}
 
 static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 		       int pts_offset, uint64_t new_PTS, int scr_nr)
@@ -151,16 +171,26 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 	int frame_scr_nr;
 	mad_synth_frame(&h->synth, &h->frame);
 	
-	if(h->frame.header.samplerate != h->sample_rate) {
+	if((h->frame.header.samplerate != h->sample_rate) ||
+	   (h->frame.header.mode != h->mode)) {
 	  audio_format_t new_format;
+	  int num_channels;
 	  
+	  num_channels = MAD_NCHANNELS(&h->frame.header);
 	  h->sample_rate = h->frame.header.samplerate;
-	  audio_config(h->handle.config, 2, h->sample_rate, 16);
+	  h->mode = h->frame.header.mode;
 	  
-	  new_format.ch_array = malloc(2 * sizeof(ChannelType_t));
-	  new_format.ch_array[0] = ChannelType_Left;
-	  new_format.ch_array[1] = ChannelType_Right;
-	  
+	  audio_config(h->handle.config, 
+		       mpeg_mode_to_channels(h->mode),
+		       h->sample_rate, 16);
+	  new_format.nr_channels = num_channels;
+	  new_format.ch_array = malloc(num_channels * sizeof(ChannelType_t));
+	  if(num_channels == 1) {
+	    new_format.ch_array[0] = ChannelType_Mono;
+	  } else {
+	    new_format.ch_array[0] = ChannelType_Left;
+	    new_format.ch_array[1] = ChannelType_Right;
+	  }
 	  new_format.sample_rate = h->sample_rate;
 	  new_format.sample_resolution = 16;
 	  new_format.sample_format = SampleFormat_MadFixed;

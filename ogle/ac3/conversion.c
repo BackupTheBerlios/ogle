@@ -210,19 +210,31 @@ static inline int16_t convert_mad(mad_fixed_t fixed)
 
 static int convert_mad_fixed_to_s16(mad_fixed_t *m, int16_t *s16,
 				    int nr_samples,
-				    int nr_channels, int *channels)
+				    audio_format_t *src_format,
+				    audio_format_t *dst_format)
 {
   int i;
-  
+  int n;
+  int dst_ch = dst_format->nr_channels;
+
   // assert(nr_channels == 2);    
+  if(src_format->nr_channels > 2) {
+    FATAL("REPORT BUG: convert from %d mpeg channels not implemented\n",
+	  src_format->nr_channels);
+    exit(1);
+  }
   
   for (i = 0; i < nr_samples; i++) {
-    s16[2*i] = convert_mad(m[i]);
-    s16[2*i+1] = convert_mad(m[i+1152]);
+    for(n = 0; n < dst_ch; n++) {
+      if(ch_transform[n] != -1) {
+	s16[dst_ch*i+n] = convert_mad(m[i+ch_transform[n]*1152]);
+      } else {
+	s16[dst_ch*i+n] = 0;
+      }
+    }
   }
-
   
-  return 0;
+  return nr_samples*dst_format->sample_frame_size;  
 }
 
 static int convert_s16be_to_s16ne(int16_t *s16be, int16_t *s16ne,
@@ -522,10 +534,11 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
     h->output_buf_ptr += 2*2*nr_samples;
     break;
   case 2:
-    convert_mad_fixed_to_s16((mad_fixed_t *)samples,
-			     (int16_t *)h->output_buf_ptr, 
-			     nr_samples, 2, NULL);
-    h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
+    h->output_buf_ptr += convert_mad_fixed_to_s16((mad_fixed_t *)samples,
+						  (int16_t *)h->output_buf_ptr,
+						  nr_samples,
+						  src_format, dst_format);
+    //h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
     break;
   case 3:
     convert_ac3frame_to_iec61937frame(samples,
