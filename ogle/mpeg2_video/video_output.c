@@ -322,6 +322,14 @@ static void display_process()
     video_scr_nr = pinfos[buf_id].scr_nr;
     prev_buf_id = buf_id;
     
+    // Consume all messages for us and spu_mixer
+    if(msgqid != -1) {
+      MsgEvent_t ev;
+      while(MsgCheckEvent(msgq, &ev) != -1) {
+	event_handler(msgq, &ev);
+      }
+      //chk_for_msg();
+    }
     
     //#ifdef SYNCMASTER
     

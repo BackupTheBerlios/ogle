@@ -266,7 +266,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    fprintf(stderr, "spu_mixer: unrecognized event type\n");
+    fprintf(stderr, "spu_mixer: unrecognized event type (%d)\n", ev->type);
     return 0;
     break;
   }
@@ -281,6 +281,15 @@ static void change_file(char *new_filename)
   static struct stat statbuf;
   int rv;
   static char *cur_filename = NULL;
+  
+  // maybe close file when null ?
+  if(new_filename == NULL) {
+    return;
+  }
+
+  if(new_filename[0] == '\0') {
+    return;
+  }
   
   // if same filename do nothing
   if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
