@@ -378,7 +378,7 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
  * 
  * @param nav Specifies the connection to the DVD navigator.
  * @param StreamNr Specifies the audio stream which attributes
- * will be retrieved.
+ * will be retrieved for.
  * @param Attr Points to where the attributes of the specified
  * audio stream will be written.
  *
@@ -388,6 +388,7 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
  *
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_FailedToSend Failed to send the request.
+ * @retval DVD_E_Invalid StreamNr is out of range ( >= available streams).
  */
 DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				  DVDAudioAttributes_t *const Attr)
@@ -453,9 +454,9 @@ DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
  *
  * @param nav Specifies the connection to the DVD navigator.
  * @param StreamsAvailable Points to where the number of available 
- * streams will be written.
- * @param CurrentStream Points to where the current stream will be written.
- *
+ * streams will be written 0 - 8.
+ * @param CurrentStream Points to where the current stream will be written
+ * 0 - 7 or 15 (0xF) in case of no audio stream decoded
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
  *
@@ -501,7 +502,7 @@ DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
  * @todo more return values
  *
  * @param nav Specifies the connection to the DVD navigator.
- * @param StreamNr Specify the audio stream to retrieve information about.
+ * @param StreamNr Specify the audio stream to retrieve information about 0-7.
  * @param Enabled Specifies if the audio stream is enabled or disabled.
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
@@ -567,6 +568,9 @@ DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
 /** 
  * Querry the currently selected angle.
  * @param nav Specifies the connection to the DVD navigator.
+ * @param AnglesAvailable Returns the number of available angles (1-9).
+ * (1 means normal, non multi-angle video)
+ * @param CurrentAngle Returns the current angle (1-9)
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -957,6 +961,7 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
  *
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_FailedToSend Failed to send the request. 
+ * @retval DVD_E_Invalid StreamNr is out of range (>= available streams). 
  */
 DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
 				       DVDSubpictureStream_t StreamNr,
@@ -2287,7 +2292,7 @@ DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
  * @todo more return values.
  *
  * @param nav Specifies the connection to the DVD navigator.
- * @param StreamNr Specifies which audio stream to decode
+ * @param StreamNr Specifies which audio stream to decode (0-7)
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
@@ -2361,6 +2366,7 @@ DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask
  * @todo Implement function
  *
  * @param nav Specifies the connection to the DVD navigator.
+ * @param AngleNr Specifies the angle to change to (1-9)
  *
  * @return If successful DVD_E_Ok is returned. Otherwise an error code
  * is returned.
