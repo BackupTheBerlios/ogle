@@ -29,6 +29,8 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <errno.h>
+#include <string.h>
+#include <ctype.h>
 
 static char *new_file(void);
 
@@ -139,6 +141,7 @@ void screenshot_rgb_jpg(unsigned char *data,
     }
   }
   write_JPEG_file (file, JCS_RGB, 100, sar_frac_n, sar_frac_d);
+  free(jpg_buffer);
 }
 
 
@@ -189,25 +192,152 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
     }
   }
   write_JPEG_file ( file, JCS_YCbCr, 100, sar_frac_n, sar_frac_d);
+  free(jpg_buffer);
+}
+
+static char *user_formatstr = NULL;
+static int file_nr = 0;
+
+int screenshot_set_formatstr(char *str)
+{
+  if(str) {
+    file_nr = 0;
+    if(user_formatstr) {
+      free(user_formatstr);
+    }
+    
+    user_formatstr = strdup(str);
+  }
+
+  return 0;
+}
+
+
+static int get_width(char **p, char *format_end, char **o, char *file_end)
+{
+  int width = 0;
+  char *end;
+  width = strtol(*p, &end, 10);
+  *p = end;
+
+  return width;
+}
+
+static unsigned char width_char_list[] = { 'i', 0 };
+
+static int width_char(unsigned char c) {
+  unsigned char *l = width_char_list;
+  
+  for(; *l != 0; l++) {
+    if(c == *l) {
+      return 1;
+    }
+  }
+  return 0;
+}
+  
+static int get_format(char **p, char *format_end, char **o, char *file_end)
+{
+  int width = -1;
+  int leading_zero = 0;
+  
+  if(isdigit((int)**p)) {
+    if(**p == '0') {
+      leading_zero = 1;
+    }
+    width = get_width(p, format_end, o, file_end);
+  }
+  
+  if(*p >= format_end) {
+    //str end and no format, return format error
+    return -1;
+  }
+
+  if((width != -1) && (!width_char(**p))) {
+    //check if the next char can have a width, else return format error
+    return -1;
+  }
+
+  switch(**p) {
+  case '%':
+    **o = **p;
+    (*o)++;
+    break;
+  case 'i':
+    (*o)+= snprintf(*o, file_end - *o,
+		  leading_zero ? "%0*d" : "%*d",
+		  width, file_nr);
+    break;
+  default:
+    //format error
+    return -1;
+  }
+  if(*o >= file_end) {
+    //too long string
+    return -1;
+  }
+  
+  return 0;
+}
+
+static char *strffile(char *format)
+{
+  static char file[PATH_MAX];
+  char *p, *o;
+  char *format_end;
+
+  char *file_end = &file[PATH_MAX-1];
+  
+  if(!format) {
+    return NULL;
+  }
+  format_end = format+strlen(format);
+  p = format;
+  o = file;
+
+  for(p = format; p < format_end && o < file_end  ; p++) {
+    if(*p != '%') {
+      *o = *p;
+      o++;
+    } else {
+      p++;
+      if(get_format(&p, format_end, &o, file_end) == -1) {
+	return NULL;
+      }
+    }
+  }
+  if(o >= file_end) {
+    return NULL;
+  }
+  
+  *o = '\0';
+
+  return file;
 }
 
 static char *new_file(void) {
-    char *pre = "shot";
-    static int i = 0;
-    int fd;
-    static char full_name[20];
+  int fd;
+  static char *formatted_name = NULL;
 
-    while(i < 10000) {
-        i++;
-        snprintf(full_name, sizeof(full_name), "%s%04i.jpg", pre, i);
-        fd = open(full_name, O_EXCL | O_CREAT, 0644);
-        if(fd != -1) { 
-	  close(fd); 
-	  return full_name; 
-	}
-	if(errno != EEXIST) { 
-	  return "screenshot.jpg"; 
-	} 
+  
+    while(file_nr < 10000) {
+      formatted_name = strffile(user_formatstr);
+      if(!formatted_name) {
+	//format not set or illegal format -> set the default format
+	screenshot_set_formatstr("shot%04i.jpg");
+	continue;
+      }
+
+      fd = open(formatted_name, O_EXCL | O_CREAT, 0644);
+      if(fd != -1) { 
+	close(fd); 
+	file_nr++;
+	return formatted_name; 
+      }
+      if(errno != EEXIST) { 
+	return "screenshot.jpg"; 
+      } 
+      file_nr++;
     }
-    return full_name;
+    return formatted_name;
 }
