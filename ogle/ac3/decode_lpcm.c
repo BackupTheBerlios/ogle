@@ -117,7 +117,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     }
 
     if(new_ch > 2) {
-      ERROR("REPORT BUG: lpcm > 2 channels not supported\n");
+      ERROR("%s", "REPORT BUG: lpcm > 2 channels not supported\n");
     }
 
     new_quantization_word_length = (new_lpcm_info & 0xC0) >> 6;
