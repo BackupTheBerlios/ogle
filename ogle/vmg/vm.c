@@ -107,7 +107,10 @@ int main(int argc, char *argv[])
   memset(state.registers.GPRM, 0, sizeof(uint16_t)*16);
   
   
-  ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
+  if(ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO") == -1) {
+    fprintf(stderr, "Bailing out!\n");
+    exit(1);
+  }
   
   ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
   //goto play_PGC;
