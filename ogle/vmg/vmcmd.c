@@ -12,7 +12,7 @@ typedef struct
 
 static cmd_t cmd;
 
-char *op_table[] = {
+char *cmp_op_table[] = {
   NULL, "&", "==", "!=", ">=", ">", "<=", "<"
 };
 char *set_op_table[] = {
@@ -103,8 +103,8 @@ print_reg(uint8_t reg) {
 }
 
 static void
-print_op(uint8_t op) {
-  printf(" %s ", op_table[op]);
+print_cmp_op(uint8_t op) {
+  printf(" %s ", cmp_op_table[op]);
 }
 
 static void
@@ -131,7 +131,7 @@ print_if_version_1() {
   if(op) {
     printf("if (");
     print_reg(bits(3,0,8));
-    print_op(op);
+    print_cmp_op(op);
     print_reg_or_data(bits(1,0,1), 4);
     printf(") ");
   }
@@ -199,7 +199,7 @@ print_if_version_2 () {
   if(op) {
     printf("if (");
     print_reg(bits(6,0,8));
-    print_op(op);
+    print_cmp_op(op);
     print_reg(bits(7,0,8));
     printf(") ");
   }
@@ -296,6 +296,12 @@ print_system_set () {
         printf(" = g[%" PRIu8 "]", bits(5,4,4));
       }
       break;
+    case 3: // ?? Normal set (=) with reversed operands
+      printf("?? ");
+      print_reg(bits(5,0,8));
+      print_set_op(0x1); // =
+      print_reg_or_data(bits(0,3,1), 2);
+      break;
     default:
       printf ("WARNING: Unknown system set instruction (%i)", bits(0,4,4));
   }
@@ -310,8 +316,8 @@ print_if_version_3 () {
   uint8_t op = (bits(1,1,3));
   if(op) {
     printf("if (");
-    print_reg(bits(2,0,8));
-    print_op(op);
+    print_reg(bits(2,4,4));
+    print_cmp_op(op);
     print_reg_or_data(bits(1,0,1), 6);
     printf(") ");
   }
