@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui-0.8.4\n"
-"POT-Creation-Date: 2002-06-10 22:15+0200\n"
+"POT-Creation-Date: 2002-07-06 19:12+0200\n"
 "PO-Revision-Date: 2002-07-02 @900\n"
 "Last-Translator: Myckel Habets <myckelhabets@netscape.net>\n"
 "Language-Team: Dutch\n"
@@ -1801,7 +1801,7 @@ msgstr "Jiddisch"
 
 #: src/language.c:477
 msgid "Yoruba"
-msgstr ""Yoroeba
+msgstr "Yoroeba"
 
 #: src/language.c:478
 msgid "Yupik languages"
@@ -1862,6 +1862,16 @@ msgstr "Titel"
 #: src/menu.c:52
 msgid "Resume"
 msgstr "Hervatten"
+
+#: src/ptt.c:87
+#, c-format
+msgid "Title %i"
+msgstr "Titel %i"
+
+#: src/ptt.c:93
+#, c-format
+msgid "Chapter %i"
+msgstr "Hoofdstuk %i"
 
 #: pixmaps/glade-strings.c:10
 msgid "%P %%"
