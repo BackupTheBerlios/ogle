@@ -10,8 +10,8 @@
 #include <unistd.h>
 #include <sys/msg.h>
 
-#include <msgevents.h>
-#include <dvdcontrol.h>
+#include <ogle/msgevents.h>
+#include <ogle/dvdcontrol.h>
 
 
 /**
