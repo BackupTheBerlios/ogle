@@ -278,7 +278,7 @@ int main(int argc, char **argv)
   int c;
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:s")) != EOF) {
+  while ((c = getopt(argc, argv, "d:hs")) != EOF) {
     switch (c) {
       case 'd':
         debug = atoi(optarg);
@@ -286,6 +286,7 @@ int main(int argc, char **argv)
       case 's':
         shmem_flag = 0;
         break;
+      case 'h':
       case '?':
         printf ("Usage: %s [-d <level] [-s]\n\n"
                 "  -d <level> set debug level (default 0)\n"
