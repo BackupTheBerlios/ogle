@@ -322,14 +322,15 @@ int main(int argc, char **argv)
   if(msgqid != -1) {
     MsgEvent_t ev;
     if((msgq = MsgOpen(msgqid)) == NULL) {
-      fprintf(stderr, "video_decoder: couldn't get message q\n");
+      FATAL("couldn't get message qid\n");
       exit(1);
     }
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "video_decode: register capabilities\n");
+      DNOTE("register capabilities failed\n");
+      //FIXME should we not retry/fail here?
     }
 
     /*
@@ -339,7 +340,7 @@ int main(int argc, char **argv)
       fprintf(stderr, "video_decode: didn't get video_output\n");
     }
     */
-    fprintf(stderr, "## video_stream:req cap\n");
+    DNOTE("## req cap\n");
     while(!input_stream) {
       MsgNextEvent(msgq, &ev);
       switch(ev.type) {
@@ -347,7 +348,7 @@ int main(int argc, char **argv)
 	if(ev.gntcapability.capability & VIDEO_OUTPUT) {
 	  output_client = ev.gntcapability.capclient;
 	} else {
-	  fprintf(stderr, "ui: capabilities not requested\n");
+	  DNOTE("got notified about capabilities not requested\n");
 	}
 	break;
       default:
@@ -356,7 +357,7 @@ int main(int argc, char **argv)
       }
     }
 
-    fprintf(stderr, "## video_stream:got cap and stream\n");
+    DNOTE("got cap and stream\n");
 
     
   }
@@ -578,7 +579,7 @@ void sequence_header(void)
 
   sequence_header_code = GETBITS(32, "sequence header code");
   if(sequence_header_code != MPEG2_VS_SEQUENCE_HEADER_CODE) {
-    fprintf(stderr, "wrong start_code sequence_header_code: %08x\n",
+    WARNING("wrong start_code sequence_header_code: %08x\n", 
 	    sequence_header_code);
   }
   
@@ -699,7 +700,7 @@ void sequence_header(void)
     break;
   default:
     DPRINTF(2, "Reserved\n");
-    fprintf(stderr, "reserved framerate\n");
+    WARNING("reserved framerate found in sequence header\n");
     break;
   }
   
@@ -756,7 +757,7 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
   }
 
   if(*data_q_p == NULL) {
-    fprintf(stderr, "ERROR[vs]: detach_data_q q_shmid not found\n");
+    ERROR("detach_data_q q_shmid not found\n");
     return -1;
   }
 
@@ -785,14 +786,14 @@ int detach_data_q(int q_shmid, data_q_t **data_q_list)
   ev.detachq.q_shmid = q_shmid;
 
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    fprintf(stderr, "**video_decoder: couldn't send destroyq\n");
+    ERROR("couldn't send destroyq\n");
   }
   
   ev.type = MsgEventQDestroyBuf;
   ev.destroybuf.shmid = data_shmid;
 
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    fprintf(stderr, "**video_decoder: couldn't send destroybuf\n");
+    ERROR("couldn't send destroybuf\n");
   }
 
   return 0;
@@ -848,7 +849,7 @@ int get_output_buffer(data_q_t *data_q,
   yuv_image_t *image_bufs = NULL;
 
 
-  fprintf(stderr,"vs: get ouput buffer\n");
+  DNOTE("get ouput buffer\n");
   picture_size = ((yuv_size + (pagesize-1))/pagesize*pagesize);
   
   /* Mlib reads ?8? bytes beyond the last pel (in the v-picture), 
@@ -879,7 +880,7 @@ int get_output_buffer(data_q_t *data_q,
   ev.reqbuf.size = buf_size;
   
   if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-    fprintf(stderr, "**video_decoder: couldn't send buffer request\n");
+    ERROR("couldn't send buffer request\n");
   }
   
   while(1) {
@@ -959,7 +960,7 @@ int get_output_buffer(data_q_t *data_q,
     ev.reqpicbuf.data_buf_shmid = data_shmid;
       
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
-      fprintf(stderr, "**video_decode: couldn't send picbuf request\n");
+      ERROR("couldn't send picbuf request\n");
     }
     
     /* wait for answer */
@@ -984,11 +985,11 @@ int get_output_buffer(data_q_t *data_q,
       q_elems = (q_elem_t *)(q_shmaddr+sizeof(q_head_t));
       
     } else {
-      fprintf(stderr, "** video_decode: couldn't get qbuffer\n");
+      ERROR("couldn't get qbuffer\n");
     }
     
   } else {
-    fprintf(stderr, "** video_decode: couldn't get buffer\n");
+    ERROR("couldn't get buffer\n");
   }
   
 
@@ -1057,7 +1058,7 @@ void sequence_extension(void) {
   
   extension_start_code = GETBITS(32, "extension_start_code");
   if(extension_start_code != MPEG2_VS_EXTENSION_START_CODE) {
-    fprintf(stderr, "wrong start_code extension_start_code: %08x\n",
+    WARNING("wrong start_code extension_start_code: %08x\n",
 	    extension_start_code);
   }
 
@@ -1261,7 +1262,7 @@ int picture_coding_extension(void)
   DINDENT(2);
   extension_start_code = GETBITS(32, "extension_start_code");
   if(extension_start_code != MPEG2_VS_EXTENSION_START_CODE) {
-    fprintf(stderr, "wrong start_code extension_start_code: %08x\n",
+    WARNING("wrong start_code extension_start_code: %08x\n",
 	    extension_start_code);
     DINDENT(-2);
     return -1;
@@ -1279,7 +1280,7 @@ int picture_coding_extension(void)
     for(m = 0; m < 2; m++) {
       if(pic.coding_ext.f_code[n][m] == 0) {
 	pic.coding_ext.f_code[n][m] = 1;
-	fprintf(stderr, "f_code[%d][%d] == ZERO\n", n, m);
+	WARNING("f_code[%d][%d] == ZERO\n", n, m);
       }
     }
   }
@@ -1408,7 +1409,7 @@ void group_of_pictures_header(void)
   group_start_code = GETBITS(32, "group_start_code");
 
   if(group_start_code != MPEG2_VS_GROUP_START_CODE) {
-    fprintf(stderr, "wrong start_code group_start_code: %08x\n",
+    WARNING("wrong start_code group_start_code: %08x\n",
 	    group_start_code);
   }
   /* TODO hack for progessive 24 */
@@ -1447,7 +1448,7 @@ int picture_header(void)
   picture_start_code = GETBITS(32, "picture_start_code");
   
   if(picture_start_code != MPEG2_VS_PICTURE_START_CODE) {
-    fprintf(stderr, "wrong start_code picture_start_code: %08x\n",
+    WARNING("wrong start_code picture_start_code: %08x\n",
 	    picture_start_code);
     DINDENT(-2);
     return -1;
@@ -1549,7 +1550,7 @@ int picture_header(void)
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
     if(pic.header.forward_f_code == 0) {
       pic.header.forward_f_code = 1;
-      fprintf(stderr, " ** forward_f_code == ZERO\n");
+      WARNING(" ** forward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
@@ -1560,7 +1561,7 @@ int picture_header(void)
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
     if(pic.header.backward_f_code == 0) {
       pic.header.backward_f_code = 1;
-      fprintf(stderr, "** backward_f_code == ZERO\n");
+      WARNING("** backward_f_code == ZERO\n");
     }
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
     pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
@@ -1737,7 +1738,7 @@ void picture_data(void)
       
       if(bwd_ref_temporal_reference != -1) {
 	
-	fprintf(stderr, "** temporal reference skipped\n");
+	WARNING("** temporal reference skipped\n");
 	
 	/* If we are in a new GOP and there is an old 
 	   undisplayed bwd_ref_temporal_reference, _don't_ use 
@@ -2012,7 +2013,7 @@ void picture_data(void)
       } else {
 	calc_rt = realtime;
 	timesub(&err_time, &calc_rt, &realtime);
-	fprintf(stderr, "*vs: offset not valid\n");
+	DNOTE("time offset not valid yet\n");
       }
 
       
@@ -2167,16 +2168,16 @@ void picture_data(void)
 	}
 	
 	if(bwd_ref_buf_id == -1) {
-	  fprintf(stderr, "decode: **B-frame before any reference frame!!!\n");
+	  WARNING(" **B-frame before any reference frame!!!\n");
 	}
 	
 	if(fwd_ref_buf_id == -1) { // Test closed_gop too....
-	  fprintf(stderr, "decode: B-frame before forward ref frame\n");
+	  WARNING("B-frame before forward ref frame\n");
 	}
 	
       } else {
 	/* TODO: what should happen if the temporal reference is wrong */
-	fprintf(stderr, "** temporal reference for B-picture incorrect\n");
+	WARNING("** temporal reference for B-picture incorrect\n");
 	
 	temporal_reference_error =
 	  pic.header.temporal_reference - (last_temporal_ref_to_dpy + 1)%1024;
@@ -2218,7 +2219,7 @@ void picture_data(void)
       }
     } else if(bwd_ref_temporal_reference < (last_temporal_ref_to_dpy+1)%1024) {
       
-      fprintf(stderr, "** temporal reference in I or P picture incorrect\n");
+      WARNING("** temporal reference in I or P picture incorrect\n");
       
     }
   }
