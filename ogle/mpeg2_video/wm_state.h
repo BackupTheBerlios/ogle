@@ -9,8 +9,6 @@ typedef enum {
 } WindowState_t;
 
 
-int ChangeWindowState(Display *dpy, Window win,
-		      WindowState_t state,
-		      int *width_return, int *height_return);
+int ChangeWindowState(Display *dpy, Window win, WindowState_t state);
 
 #endif

@@ -298,10 +298,16 @@ static void redraw_screen(void)
   redraw_done();
 }
 
+
 static int get_next_picture_buf_id()
 {
   int elem;
   MsgEvent_t ev;
+  struct itimerval timer;
+  timer.it_interval.tv_sec = 0;
+  timer.it_interval.tv_usec = 0;
+  timer.it_value.tv_sec = 0;
+  timer.it_value.tv_usec = 0;
   
   elem = picture_q_head->read_nr;
   
@@ -313,6 +319,8 @@ static int get_next_picture_buf_id()
       if(process_interrupted) {
 	display_exit();
       }
+      timer.it_value.tv_usec = 200000; //0.2 sec
+      setitimer(ITIMER_REAL, &timer, NULL);
       //fprintf(stderr, "vo: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) == -1) {
 	switch(errno) {
@@ -325,6 +333,8 @@ static int get_next_picture_buf_id()
 	  break;
 	}
       }
+      timer.it_value.tv_usec = 0;
+      setitimer(ITIMER_REAL, &timer, NULL);
       event_handler(msgq, &ev);
       if(redraw_needed) {
 	redraw_screen();
@@ -394,6 +404,11 @@ static void send_windowid(Window win)
 clocktime_t first_time;
 int frame_nr = 0;
 
+static void alarm_handler(int sig)
+{
+  check_x_events(last_image_buf);
+}
+
 static void int_handler(int sig)
 {
   process_interrupted = 1;
@@ -424,6 +439,10 @@ static void display_process()
   sig.sa_handler = int_handler;
   sig.sa_flags = 0;
   sigaction(SIGINT, &sig, NULL);
+
+  sig.sa_handler = alarm_handler;
+  sig.sa_flags = 0;
+  sigaction(SIGALRM, &sig, NULL);
 
   while(1) {
 
@@ -705,7 +724,7 @@ int main(int argc, char **argv)
   } else {
     fprintf(stderr, "what?\n");
   }
-
+  
   exit(0);
 }
 

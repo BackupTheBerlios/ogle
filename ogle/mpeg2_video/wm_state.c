@@ -185,7 +185,7 @@ static void save_normal_geometry(Display *dpy, Window win)
 static void restore_normal_geometry(Display *dpy, Window win)
 {
   XWindowChanges win_changes;
-  
+  XEvent ev;
   
   // Try to resize
   win_changes.x = normal_state_geometry.x;
@@ -197,12 +197,20 @@ static void restore_normal_geometry(Display *dpy, Window win)
 		       CWX | CWY |
 		       CWWidth | CWHeight,
 		       &win_changes);
-  
+
+  // Wait for a configure notify
+  do {
+    XNextEvent(dpy, &ev);
+  } while(ev.type != ConfigureNotify);
+
+  XPutBackEvent(dpy, &ev);
+
 }
 
 static void switch_to_fullscreen_state(Display *dpy, Window win)
 {
   XEvent ev;
+  XEvent ret_ev;
   XWindowChanges win_changes;
   int x, y;
   XSizeHints *sizehints;
@@ -254,6 +262,35 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 		       &win_changes);
 
 
+
+
+
+  //todo: check if these are correct and how to detect a kwm
+#if 0
+
+    /* Now try to set KWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
+    if(WM_HINTS != None) {
+      long KWMHints = 0;
+      
+      XChangeProperty(mydisplay, window.win,
+		      WM_HINTS, WM_HINTS, 32,
+		      PropModeReplace,
+		      (unsigned char *)&KWMHints,
+		      sizeof(KWMHints)/sizeof(long));
+      found_wm = 1;
+    }
+
+    /* Now try to unset KWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
+    if(WM_HINTS != None) {
+      XDeleteProperty(mydisplay, window.win, WM_HINTS);
+      found_wm = 1;
+    }
+
+
+#endif
+
   // If we have a gnome compliant wm that supports layers, put
   // us above the dock/panel
 
@@ -273,9 +310,13 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     XNextEvent(dpy, &ev);
   } while(ev.type != ConfigureNotify);
   
+  // save the configure event so we can return it
+  ret_ev = ev;
+
   calc_coords(dpy, win, &x, &y, &ev);
   
   while(XCheckTypedEvent(dpy, ConfigureNotify, &ev) == True) {
+    ret_ev = ev;
     calc_coords(dpy, win, &x, &y, &ev);
   }
   
@@ -286,7 +327,6 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   //  if we don't end up at 0,0 try to compensate and move one more time
  
   if(x != 0 || y != 0) {
-    
     fprintf(stderr, "window is not at 0,0 trying to fix that\n");
     
     win_changes.x = 0-x;
@@ -299,9 +339,12 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
       XNextEvent(dpy, &ev);
     } while(ev.type != ConfigureNotify);
     
+    ret_ev = ev;
+    
     calc_coords(dpy, win, &x, &y, &ev);
     
     while(XCheckTypedEvent(dpy, ConfigureNotify, &ev) == True) {
+      ret_ev = ev;
       calc_coords(dpy, win, &x, &y, &ev);
     }
     
@@ -313,6 +356,8 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 
   }
   
+  XPutBackEvent(dpy, &ret_ev);
+
   current_state = WINDOW_STATE_FULLSCREEN;
   
 }
@@ -773,14 +818,8 @@ static int check_for_gnome_wm_layers(Display *dpy)
 }
 
 
-int ChangeWindowState(Display *dpy, Window win,
-		      WindowState_t state,
-		      int *width_return, int *height_return)
+int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
 {
-  Window root_return;
-  int x_return, y_return;
-  unsigned int w_return, h_return;
-  unsigned int bw_return, d_return;
 
   if(state != current_state) {
     
@@ -805,19 +844,6 @@ int ChangeWindowState(Display *dpy, Window win,
       fprintf(stderr, "unknown window state\n");
       break;
     }
-  }
-  
-  XGetGeometry(dpy, win, &root_return,
-	       &x_return, &y_return,
-	       &w_return, &h_return,
-	       &bw_return, &d_return);
-  
-  if(width_return != NULL) {
-    *width_return = w_return;
-  }
-  
-  if(height_return != NULL) {
-    *height_return = h_return;
   }
   
   return 1;

@@ -135,6 +135,35 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				int new_height, int resize_window);
 
 
+static Cursor hidden_cursor;
+
+static void create_transparent_cursor(Display *dpy, Window win)
+{
+  Pixmap cursor_mask;
+  XColor dummy_col;
+  
+  unsigned char cursor_data[] = {
+    0x0 
+  };
+  
+  cursor_mask = XCreateBitmapFromData(dpy, win, cursor_data, 1, 1);
+  hidden_cursor = XCreatePixmapCursor(dpy, cursor_mask, cursor_mask,
+				      &dummy_col, &dummy_col, 0, 0);
+  XFreePixmap(dpy, cursor_mask);
+  
+}
+
+static void hide_cursor(Display *dpy, Window win)
+{
+  XDefineCursor(dpy, win, hidden_cursor);
+}
+
+static void restore_cursor(Display *dpy, Window win)
+{
+  XUndefineCursor(dpy, win);
+}
+
+
 static unsigned long req_serial;
 static int (*prev_xerrhandler)(Display *dpy, XErrorEvent *ev);
 
@@ -466,8 +495,13 @@ Window display_init(yuv_image_t *picture_data,
 			     4, color_depth, CopyFromParent, vinfo.visual, 
 			     xswamask, &xswa);
   
-  XSelectInput(mydisplay, window.win, StructureNotifyMask | ExposureMask);
+  XSelectInput(mydisplay, window.win,
+	       StructureNotifyMask | ExposureMask |
+	       KeyPressMask | ButtonPressMask |
+	       PointerMotionMask);
 
+  create_transparent_cursor(mydisplay, window.win);
+  
   /* Tell other applications/the window manager about us. */
   snprintf(&title[0], 99, "Ogle v%s", VERSION);
   XSetStandardProperties(mydisplay, window.win, &title[0], &title[0], 
@@ -755,127 +789,16 @@ typedef struct {
 } mwmhints_t;
 
 void display_toggle_fullscreen(yuv_image_t *current_image) {
-  
+  int width, height;
+
   /* Toggle the state of the fullscreen flag. */    
   scale.fullscreen = !scale.fullscreen;
   
   if(scale.fullscreen) {
-    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN,
-		      NULL, NULL);
+    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN);
   } else {
-    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_NORMAL,
-		      NULL, NULL);
-    display_adjust_size(current_image, -1, -1);
-    XSync(mydisplay, True);
+    ChangeWindowState(mydisplay, window.win, WINDOW_STATE_NORMAL);  
   }
-  
-
-#if 0
-  /* Unmap window. */
-  XUnmapWindow(mydisplay, window.win);
-  XSync(mydisplay, True); // ? Is this needed?
-  
-  if(scale.fullscreen) {
-    int found_wm = 0;
-    Atom WM_HINTS;
-    
-    /* First try to set MWM hints */
-    WM_HINTS = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", True);
-    if(WM_HINTS != None) {
-      /* Hints used by Motif compliant window managers */
-      mwmhints_t MWMHints = { MWM_HINTS_DECORATIONS, 0, 0, 0, 0 };
-      
-      XChangeProperty(mydisplay, window.win,
-		      WM_HINTS, WM_HINTS, 32,
-		      PropModeReplace,
-		      (unsigned char *)&MWMHints,
-		      sizeof(MWMHints)/sizeof(long));
-      found_wm = 1;
-    }
-    /* Now try to set KWM hints */
-    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
-    if(WM_HINTS != None) {
-      long KWMHints = 0;
-      
-      XChangeProperty(mydisplay, window.win,
-		      WM_HINTS, WM_HINTS, 32,
-		      PropModeReplace,
-		      (unsigned char *)&KWMHints,
-		      sizeof(KWMHints)/sizeof(long));
-      found_wm = 1;
-    }
-    /* Now try to set GNOME hints */
-    WM_HINTS = XInternAtom(mydisplay, "_WIN_HINTS", True);
-    if(WM_HINTS != None) {
-      long GNOMEHints = 0;
-      
-      XChangeProperty(mydisplay, window.win,
-		      WM_HINTS, WM_HINTS, 32,
-		      PropModeReplace,
-		      (unsigned char *)&GNOMEHints,
-		      sizeof(GNOMEHints)/sizeof(long));
-      found_wm = 1;
-    }
-    /* Finally set the transient hints if necessary */
-    if(!found_wm) {
-      XSetTransientForHint(mydisplay,window.win,DefaultRootWindow(mydisplay));
-    }
-    
-  } else {
-    int found_wm = 0;
-    Atom WM_HINTS;
-    
-    /* First try to unset MWM hints */
-    WM_HINTS = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", True);
-    if(WM_HINTS != None) {
-      XDeleteProperty(mydisplay, window.win, WM_HINTS);
-      found_wm = 1;
-    }
-    /* Now try to unset KWM hints */
-    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
-    if(WM_HINTS != None) {
-      XDeleteProperty(mydisplay, window.win, WM_HINTS);
-      found_wm = 1;
-    }
-    /* Now try to unset GNOME hints */
-    WM_HINTS = XInternAtom(mydisplay, "_WIN_HINTS", True);
-    if(WM_HINTS != None) {
-      XDeleteProperty(mydisplay, window.win, WM_HINTS);
-      found_wm = 1;
-    }
-    /* Finally unset the transient hints if necessary */
-    if(!found_wm) {
-      /* NOTE: Does this work? */
-      XSetTransientForHint(mydisplay, window.win, None);
-    }
-  
-  }
-  
-  /* Map window. */
-  XMapWindow(mydisplay, window.win);
-  
-  { /* Wait for map. */
-    XEvent xev;
-    do {
-      XNextEvent(mydisplay, &xev);
-    }
-    while (xev.type != MapNotify || xev.xmap.event != window.win);
-  }
-
-
-  if(scale.fullscreen) {
-    XResizeWindow(mydisplay, window.win, 
-		  /* Change theses to be more careful for xinerama and.. */
-		  DisplayWidth(mydisplay, DefaultScreen(mydisplay)),
-		  DisplayHeight(mydisplay, DefaultScreen(mydisplay)));
-    XRaiseWindow(mydisplay, window.win);
-    XSetInputFocus(mydisplay, window.win, RevertToNone, CurrentTime);
-    XMoveWindow(mydisplay, window.win, 0, 0);
-  }
-  
-  XSync(mydisplay, False);
-
-#endif
   
 }
 
@@ -884,6 +807,73 @@ void display_toggle_fullscreen(yuv_image_t *current_image) {
 Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
 {
     return True;
+}
+
+void check_x_events(yuv_image_t *current_image)
+{
+  XEvent ev;
+  static clocktime_t prev_time;
+  clocktime_t cur_time;
+  static Bool cursor_visible = True;
+  
+  while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
+    
+    switch(ev.type) {
+    case KeyPress:
+      // send keypress to whoever wants it
+      break;
+    case ButtonPress:
+      // send buttonpress to whoever wants it
+
+      if(cursor_visible == False) {
+	restore_cursor(mydisplay, window.win);
+	cursor_visible = True;
+      }
+      clocktime_get(&prev_time);
+      break;
+    case MotionNotify:
+      // send motion notify to whoever wants it
+      if(cursor_visible == False) {
+	restore_cursor(mydisplay, window.win);
+	cursor_visible = True;
+      }
+      clocktime_get(&prev_time);
+      break;
+    case Expose:
+      // remove all Expose events in queue
+      while(XCheckTypedEvent(mydisplay, Expose, &ev) == True);
+      
+      if(ev.xexpose.window == window.win) {
+	if(use_xv) {
+	  draw_win_xv(&window);
+ 	} else {
+	  draw_win_x11(&window);
+	}
+      }
+      break;
+    case ConfigureNotify:
+      // remove all configure notify in queue
+      while(XCheckTypedEvent(mydisplay, ConfigureNotify, &ev) == True); 
+      
+      if(ev.xconfigure.window == window.win) {
+	display_adjust_size(current_image, 
+			    ev.xconfigure.width, 
+			    ev.xconfigure.height);
+      }
+      break;    
+    default:
+      break;
+    }
+  }
+
+  if(cursor_visible == True) {
+    clocktime_get(&cur_time);
+    timesub(&cur_time, &cur_time, &prev_time);
+    if(TIME_S(cur_time) >= 2) {
+      hide_cursor(mydisplay, window.win);
+      cursor_visible = False;
+    }
+  }
 }
 
 void display(yuv_image_t *current_image)
@@ -907,7 +897,7 @@ void display(yuv_image_t *current_image)
   }
   
   window.image = current_image;
-    
+  
   while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
     
     switch(ev.type) {
@@ -1093,4 +1083,7 @@ static void draw_win_xv(window_info *dwin)
   }
 #endif /* HAVE_XV */
 }
+
+
+
 
