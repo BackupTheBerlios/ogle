@@ -919,9 +919,51 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
     break;
+  case DVDCtrlGetState:
+    {
+      MsgEvent_t send_ev;
+      char *state_str;
+      DVDCtrlLongStateEvent_t *state_ev;
+      state_str = get_state_str();
+      
+      send_ev.type = MsgEventQDVDCtrlLong;
+      send_ev.dvdctrllong.cmd.type = DVDCtrlLongState;
+      state_ev = &(send_ev.dvdctrllong.cmd.state);
+      if(state_str != NULL) {
+	strncpy(state_ev->xmlstr, state_str, sizeof(state_ev->xmlstr));
+	state_ev->xmlstr[sizeof(state_ev->xmlstr)-1] = '\0';
+	
+      } else {
+	state_ev->xmlstr[0] = '\0';
+      }
+      
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+      
+      free(state_str);
+    }
+    break;
   default:
     DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
 	  ev.dvdctrl.cmd.type);
+    break;
+  }
+  return res;
+}
+
+int process_long_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
+			   int block, int *still_time)
+{
+  int res = 0;
+      
+  //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
+  
+  switch(ev.dvdctrllong.cmd.type) {
+  case DVDCtrlLongSetState:
+    res = set_state_str(ev.dvdctrllong.cmd.state.xmlstr);
+    break;
+  default:
+    DNOTE("unknown (not handled) DVDCtrlLongEvent %d\n",
+	  ev.dvdctrllong.cmd.type);
     break;
   }
   return res;
@@ -1093,6 +1135,10 @@ static void do_run(void) {
 	 */
 
 	res = process_user_data(ev, &pci, cell, block, &still_time);
+	break;
+      case MsgEventQDVDCtrlLong:
+
+	res = process_long_user_data(ev, &pci, cell, block, &still_time);
 	break;
 	
       default:

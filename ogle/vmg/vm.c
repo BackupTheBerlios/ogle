@@ -23,6 +23,8 @@
 #include <inttypes.h>
 #include <assert.h>
 
+#include <libxml/parser.h>
+
 #include <ogle/msgevents.h>
 
 #include <dvdread/ifo_types.h>
@@ -83,12 +85,364 @@ static int get_PGC(int pgcN);
 static int get_PGCN(void);
 
 
+
+
+int serialize_registers_t (xmlNodePtr cur, registers_t *regs)
+{
+  char str_buf[121];
+  char *buf;
+  int len;
+  int n,i;
+  int len_needed;
+  int register_mode = 1;
+
+  buf = str_buf;
+  len = sizeof(str_buf);
+  len_needed = 0;
+
+  for(i = 0; i < 24; i++) {
+    n = snprintf(buf, len, ",%hx",  regs->SPRM[i]);
+    if(n >= len) {
+      //len too short, continue so we get the total length needed;
+      len_needed+=n;
+      buf+=(len-1);
+      len = 1;
+    } else {
+      buf+=n;
+      len-=n;
+      len_needed+=n;
+    }
+  }
+  
+  if(xmlNewTextChild(cur, NULL, "sprm", str_buf) == NULL) {
+    return 0;
+  }
+
+  buf = str_buf;
+  len = sizeof(str_buf);
+  
+  for(i = 0; i < 16; i++) {
+    n = snprintf(buf, len, "%c%hx", (register_mode ? ',':';'), regs->GPRM[i]);
+    if(n >= len) {
+      //len too short, continue so we get the total length needed;
+      len_needed+=n;
+      buf+=(len-1);
+      len = 1;
+    } else {
+      buf+=n;
+      len-=n;
+      len_needed+=n;
+    }
+  }
+
+  if((cur = xmlNewTextChild(cur, NULL, "gprm", str_buf)) == NULL) {
+    return 0;
+  }
+  
+  return 1;
+}
+
+
+#define NAVSTATE_VERSION "0.0.0"
+
+char *serialize_dvd_state_t(dvd_state_t *state)
+{
+  char str_buf[26];
+  int len = sizeof(str_buf);
+  char *buf;
+  int n,i;
+  char *ret_str;
+  xmlDocPtr doc;
+  xmlNodePtr cur;
+  xmlBufferPtr xmlbuf;
+  
+
+  buf = str_buf;
+
+  if((doc = xmlNewDoc("1.0")) == NULL) {
+    return NULL;
+  }
+  
+  if((cur = xmlNewDocNode(doc, NULL, "navstate", NULL)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+  
+  if(xmlDocSetRootElement(doc, cur)) {
+    xmlFreeNode(cur);
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  xmlNewProp(cur, "version", NAVSTATE_VERSION);
+  
+  
+  if(!serialize_registers_t(cur, &(state->registers))) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->domain);
+  if((xmlNewTextChild(cur, NULL, "domain", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->vtsN);
+  if((xmlNewTextChild(cur, NULL, "vts", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->pgcN);
+  if((xmlNewTextChild(cur, NULL, "pgc", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->pgN);
+  if((xmlNewTextChild(cur, NULL, "pg", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->cellN);
+  if((xmlNewTextChild(cur, NULL, "cell", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->blockN);
+  if((xmlNewTextChild(cur, NULL, "block", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->mode);
+  if((xmlNewTextChild(cur, NULL, "mode", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->rsm_vtsN);
+  if((xmlNewTextChild(cur, NULL, "rsmvts", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->rsm_pgcN);
+  if((xmlNewTextChild(cur, NULL, "rsmpgc", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->rsm_cellN);
+  if((xmlNewTextChild(cur, NULL, "rsmcell", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  snprintf(buf, len, "%d", state->rsm_blockN);
+  if((xmlNewTextChild(cur, NULL, "rsmblock", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+
+  for(i = 0; i < 5; i++) {
+    n = snprintf(buf, len, ",%hx", state->rsm_regs[i]);
+    buf+=n;
+    len-=n;
+  }
+  buf = str_buf;
+  len = sizeof(str_buf);
+  if((xmlNewTextChild(cur, NULL, "rsmregs", buf)) == NULL) {
+    xmlFreeDoc(doc);
+    return NULL;
+  }
+  
+  if((xmlbuf = xmlBufferCreate()) == NULL) {
+    return NULL;
+  }
+  
+  xmlNodeDump(xmlbuf, doc, cur, 0, 0);
+  ret_str = strdup(xmlBufferContent(xmlbuf));
+  xmlBufferFree(xmlbuf);
+  xmlFreeDoc(doc);
+
+  return ret_str;
+}
+
+int deserialize_dvd_state_t(char *xmlstr, dvd_state_t *state)
+{
+  xmlDocPtr doc;
+  xmlNodePtr cur;
+  char *data;
+
+  doc = xmlParseDoc(xmlstr);
+  
+  
+  if((cur = xmlDocGetRootElement(doc)) == NULL) {
+    return 0;
+  }
+
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    char *reg;
+    if((!xmlStrcmp(cur->name, (const xmlChar *)"sprm"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	int i,c;
+	reg = data;
+	for(i = 0; i < 24; i++) {
+	  c = 0;
+	  sscanf(reg, ",%hx%n", &(state->registers.SPRM[i]), &c);
+	  reg+=c;
+	}
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"gprm"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	int i,c;
+	reg = data;
+	for(i = 0; i < 16; i++) {
+	  char regmode;
+	  c = 0;
+	  sscanf(reg, "%c%hx%n", &regmode, &(state->registers.SPRM[i]), &c);
+	  reg+=c;
+	  if(regmode == ',') {
+	    //register mode
+	  } else {
+	    //counter mode
+	  }
+	}
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"domain"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", (int *)&(state->domain));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"vts"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->vtsN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"pgc"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->pgcN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"pg"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->pgN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"cell"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->cellN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"block"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->blockN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"mode"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", (int *)&(state->mode));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"rsmvts"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->rsm_vtsN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"rsmblock"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->rsm_blockN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"rsmpgc"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->rsm_pgcN));	
+	xmlFree(data);
+      }
+    } else if((!xmlStrcmp(cur->name, (const xmlChar *)"rsmcell"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	sscanf(data, "%d", &(state->rsm_cellN));	
+	xmlFree(data);
+      }
+    } else     if((!xmlStrcmp(cur->name, (const xmlChar *)"sprm"))) {
+      if((data = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	int i,c;
+	reg = data;
+	for(i = 0; i < 5; i++) {
+	  c = 0;
+	  sscanf(reg, ",%hx%n", &(state->rsm_regs[i]), &c);
+	  reg+=c;
+	}
+	xmlFree(data);
+      }
+    }
+    
+    cur = cur->next;
+  }
+
+  return 1;
+}
+
+char *get_state_str(void)
+{
+  dvd_state_t save_state;
+  char *state_str = NULL;
+  
+  save_state = state;
+  save_state.pgcN = get_PGCN();
+  state_str = serialize_dvd_state_t(&save_state);
+  
+  return state_str;
+}
+
+int set_state_str(char *state_str)
+{
+  dvd_state_t save_state;
+  
+  if(state_str == NULL) {
+    return 0;
+  }
+  
+  if(!deserialize_dvd_state_t(state_str, &save_state)) {
+    fprintf(stderr, "state_str wrong\n");
+    return 0;
+  }
+  
+  //reads: state.vtsN (if vtsN == state.vtsN) do nothing
+  //writes: state.vtsN
+  ifoOpenNewVTSI(dvd, save_state.vtsN);
+  // sets state.vtsN
+
+  state = save_state;
+  /* set state.domain before calling */
+  //calls get_pgcit()
+  //      needs state.domain and sprm[0] set
+  //      sets pgcit depending on state.domain
+  //writes: state.pgc
+  //        state.pgN
+  //        state.TT_PGCN_REG
+  get_PGC(save_state.pgcN);
+  /* set the rest of state after the call */
+  state = save_state;
+
+  return 1;
+}
+
+
 int set_sprm(unsigned int nr, uint16_t val)
 {
   if(nr > 23) {
     return 0;
   }
-
+  
   state.registers.SPRM[nr] = val;
 
   return 1;

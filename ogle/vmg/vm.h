@@ -51,7 +51,7 @@ typedef struct {
   
   domain_t domain;
   int vtsN; // 0 is vmgm?
-  //  int pgcN; // either this or *pgc is enough. Which to use?
+  int pgcN; // either this or *pgc is enough. Which to use?
   int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN;
   int blockN;
@@ -124,5 +124,7 @@ void vm_get_cell_stat_time(dvd_time_t *current_time, int cellN);
 unsigned int bcd2int(unsigned int bcd);
 unsigned int int2bcd(unsigned int number);
 
-#endif /* VM_HV_INCLUDED */
+char *get_state_str(void);
+int set_state_str(char *state_str);
 
+#endif /* VM_H_INCLUDED */
