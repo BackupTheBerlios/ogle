@@ -57,6 +57,7 @@ char *videodecode_debug = NULL;
 char *demux_debug = NULL;
 
 int ac3_audio_stream = -1;
+int dts_audio_stream = -1;
 int mpeg_audio_stream = -1;
 int pcm_audio_stream = -1;
 int mpeg_video_stream = -1;
@@ -144,8 +145,11 @@ static int streamid_to_capability(uint8_t stream_id, uint8_t subtype)
   int cap = 0;
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-    if((subtype >= 0x80) && (subtype < 0xa0)) {
+    if((subtype >= 0x80) && (subtype < 0x88)) {
       cap = DECODE_AC3_AUDIO;
+
+    } else if((subtype >= 0x88) && (subtype < 0x90)) {
+      cap = DECODE_DTS_AUDIO;
       
     } else if((subtype >= 0x20) && (subtype < 0x40)) {
       cap = DECODE_DVD_SPU;
@@ -169,9 +173,12 @@ static char *streamid_to_decoderstr(uint8_t stream_id, uint8_t subtype)
   char *name = NULL;
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-    if((subtype >= 0x80) && (subtype < 0xa0)) {
+    if((subtype >= 0x80) && (subtype < 0x88)) {
       name = getenv("DVDP_AC3");
       
+    } else if((subtype >= 0x88) && (subtype < 0x90)) {
+      name = getenv("DVDP_DTS");
+
     } else if((subtype >= 0x20) && (subtype < 0x40)) {
       name = getenv("DVDP_SPU");
     }
@@ -197,6 +204,9 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
   if((capability & DECODE_AC3_AUDIO) == capability) {
     name = getenv("DVDP_AC3");
     *ret_capability = DECODE_AC3_AUDIO;
+  } else if((capability & DECODE_DTS_AUDIO) == capability) {
+    name = getenv("DVDP_DTS");
+    *ret_capability = DECODE_DTS_AUDIO;
   } else if((capability & (DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO))
 	    == capability) {
     name = getenv("DVDP_MPEGAUDIO");
@@ -549,10 +559,13 @@ int main(int argc, char *argv[])
   
   program_name = argv[0];
   
-  while((c = getopt(argc, argv, "na:v:s:m:f:r:o:p:d:u:h?")) != EOF) {
+  while((c = getopt(argc, argv, "na:v:s:m:f:r:o:p:d:u:t:h?")) != EOF) {
     switch(c) {
     case 'a':
       ac3_audio_stream = atoi(optarg);
+      break;
+    case 't':
+      dts_audio_stream = atoi(optarg);
       break;
     case 'm':
       mpeg_audio_stream = atoi(optarg);
@@ -685,9 +698,10 @@ int main(int argc, char *argv[])
 
   ev.type = MsgEventQDemuxDefault;
   
-  /* If any stream has specified on the commadline, dexmux only those */
+  /* If any streams are specified on the commadline, dexmux only those */
   if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
-      mpeg_video_stream & subpicture_stream & nav_stream) == -1) {
+      dts_audio_stream & mpeg_video_stream & subpicture_stream &
+      nav_stream) == -1) {
     ev.demuxdefault.state = 1;
   } else {
     ev.demuxdefault.state = 0;
@@ -1192,9 +1206,10 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 {
   int state;
   
-  /* If any stream has specified on the commadline, dexmux only those */
+  /* If any stream is specified on the commadline, dexmux only those */
   if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
-      mpeg_video_stream & subpicture_stream & nav_stream) == -1)
+      dts_audio_stream & mpeg_video_stream & subpicture_stream &
+      nav_stream) == -1)
     state = 0;
   else
     state = 1;
@@ -1204,15 +1219,31 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
     
     if(state) {
 
-      if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
-	 (ac3_audio_stream >= 0)) {
+      if((subtype == (0x80 | (ac3_audio_stream & 0x7))) &&
+	 (ac3_audio_stream >= 0) && (ac3_audio_stream < 8)) {
 	return 1;
       }
       
     } else {
       
       /* dvd, it's an ac3 stream ok */
-      if(((subtype & 0xf0) == 0x80) || ((subtype & 0xf0) == 0x90)) {
+      if((subtype >= 0x80) && (subtype < 0x88)) {
+	return 1;
+      }
+      
+    }
+
+    if(state) {
+
+      if((subtype == (0x88 | (dts_audio_stream & 0x7))) &&
+	 (dts_audio_stream >= 0) && (dts_audio_stream < 8)) {
+	return 1;
+      }
+      
+    } else {
+      
+      /* dvd, it's an dts stream ok */
+      if((subtype >= 0x88) && (subtype < 0x90)) {
 	return 1;
       }
       
