@@ -71,6 +71,12 @@ AC_ARG_ENABLE(gtk2,
 	[ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
   ])
 
+dnl XML_CFLAGS changed to XML_CPPFLAGS somewhere in 2.?.?  ?
+if test "x$XML_CPPFLAGS" = x; then
+   XML_CPPFLAGS=$XML_CFLAGS
+   AC_SUBST(XML_CPPFLAGS)
+fi
+
 dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
   AC_HELP_STRING([--with-dvdcontrol=DIR],
