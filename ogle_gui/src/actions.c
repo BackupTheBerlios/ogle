@@ -161,6 +161,9 @@ void actionPrevPG(void *data)
 void actionQuit(void *data)
 {
   DVDResult_t res;
+
+  autosave_bookmark();
+
   res = DVDCloseNav(nav);
   if(res != DVD_E_Ok ) {
     DVDPerror("DVDCloseNav", res);

@@ -14,6 +14,9 @@
 
 #include "debug_print.h"
 
+extern int bookmarks_autosave;
+extern int bookmarks_autoload;
+
 static char *program_name;
 
 static void(*add_keybinding)(char *, char *);
@@ -88,6 +91,34 @@ static void interpret_bindings(xmlDocPtr doc, xmlNodePtr cur)
   }
 }
 
+static void interpret_bookmarks(xmlDocPtr doc, xmlNodePtr cur)
+{
+  xmlChar *s;
+  
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("autosave", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(!strcmp("yes", s)) {
+	    bookmarks_autosave = 1;
+	  }
+	  free(s);
+	}
+      } else if(!strcmp("autoload", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(!strcmp("yes", s)) {
+	    bookmarks_autoload = 1;
+	  }
+	  free(s);
+	}
+      }
+    }  
+    cur = cur->next;
+  }
+}
+
 static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
 {
   cur = cur->xmlChildrenNode;
@@ -97,6 +128,8 @@ static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("bindings", cur->name)) {
 	interpret_bindings(doc, cur);
+      } else if(!strcmp("bookmarks", cur->name)) {
+	interpret_bookmarks(doc, cur);
       }
     }
     cur = cur->next;

@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <locale.h>
 #include <string.h>
-
+#include <errno.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkx.h>
@@ -46,6 +46,9 @@ DVDNav_t *nav;
 char *dvd_path;
 int msgqid;
 
+int bookmarks_autosave = 0;
+int bookmarks_autoload = 0;
+
 GtkWidget *app;
 
 void set_dvd_path(char *new_path)
@@ -57,6 +60,139 @@ void set_dvd_path(char *new_path)
   if(new_path != NULL) {
     dvd_path = strdup(new_path);
   }
+}
+
+void autosave_bookmark(void) {
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char volid[33];
+  int volid_type;
+  char *state = NULL;
+  int n;
+  
+  if(bookmarks_autosave) {
+    if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+      NOTE("%s", "GetDiscID failed\n");
+      return;
+    }
+    
+    if(DVDGetVolumeIdentifiers(nav, 0, &volid_type, volid, NULL) != DVD_E_Ok) {
+      DNOTE("%s", "GetVolumeIdentifiers failed\n");
+      volid_type = 0;
+    }
+    
+    if(DVDGetState(nav, &state) == DVD_E_Ok) {
+      
+      if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+	if(errno != ENOENT) {
+	  NOTE("%s", "BookmarkOpen failed: ");
+	  perror("");
+	}
+	free(state);
+	return;
+      }
+    
+      n = DVDBookmarkGetNr(bm);
+      
+      if(n == -1) {
+	NOTE("%s", "DVDBookmarkGetNr failed\n");
+      } else if(n > 0) {
+	for(n--; n >= 0; n--) {
+	  char *appinfo;
+	  if(DVDBookmarkGet(bm, n, NULL, NULL,
+			    "common", &appinfo) != -1) {
+	    if(appinfo) {
+	      if(!strcmp(appinfo, "autobookmark")) {
+		if(DVDBookmarkRemove(bm, n) == -1) {
+		  NOTE("%s", "DVDBookmarkRemove failed\n");
+		}
+	      }
+	      free(appinfo);
+	    }
+	  } else {
+	    NOTE("%s", "DVDBookmarkGet failed\n");
+	  }
+	}
+      }
+      
+      
+      
+      if(DVDBookmarkAdd(bm, state, NULL, "common", "autobookmark") == -1) {
+	DNOTE("%s", "BookmarkAdd failed\n");
+	DVDBookmarkClose(bm);
+	free(state);
+	return;
+      }
+      free(state);
+      
+      if(volid_type != 0) {
+	char *disccomment = NULL;
+	if(DVDBookmarkGetDiscComment(bm, &disccomment) != -1) {
+	  if((disccomment == NULL) || (disccomment[0] == '\0')) {
+	    if(DVDBookmarkSetDiscComment(bm, volid) == -1) {
+	      DNOTE("%s", "SetDiscComment failed\n");
+	    }
+	  }
+	  if(disccomment) {
+	    free(disccomment);
+	  }
+	}
+      }
+      if(DVDBookmarkSave(bm, 0) == -1) {
+	NOTE("%s", "BookmarkSave failed\n");
+      }
+      DVDBookmarkClose(bm);
+    }
+  }
+}
+
+void autoload_bookmark(void) {
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char *state = NULL;
+  int n;
+
+  if(!bookmarks_autoload) {
+    return;
+  }
+
+  if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+    NOTE("%s", "GetDiscID failed\n");
+    return;
+  }
+  
+  if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+    if(errno != ENOENT) {
+      NOTE("%s", "BookmarkOpen failed: ");
+      perror("");
+    }
+    return;
+  }
+  
+  n = DVDBookmarkGetNr(bm);
+  
+  if(n == -1) {
+    NOTE("%s", "DVDBookmarkGetNr failed\n");
+  } else if(n > 0) {
+    char *appinfo;
+    if(DVDBookmarkGet(bm, n-1, &state, NULL,
+		      "common", &appinfo) != -1) {
+      if(state) {
+	if(appinfo && !strcmp(appinfo, "autobookmark")) {
+	  if(DVDSetState(nav, state) != DVD_E_Ok) {
+	    NOTE("%s", "DVDSetState failed\n");
+	  }
+	}
+	free(state);
+      }
+      if(appinfo) {
+	free(appinfo);
+      }
+    } else {
+      NOTE("%s", "BookmarkGet failed\n");
+    }
+  }
+  DVDBookmarkClose(bm);
 }
 
 int
@@ -116,6 +252,7 @@ main (int argc, char *argv[])
     if(res != DVD_E_Ok) {
       DVDPerror("main: DVDSetDVDRoot", res);
     }
+    autoload_bookmark();
   }
   
   gtk_main ();

@@ -135,6 +135,7 @@ on_opendvd_activate                  (GtkMenuItem     *menuitem,
     DVDPerror("callbacks.on_opendvd_activate(): DVDSetDVDRoot", res);
     return;
   }
+  autoload_bookmark();
 }
 
 void
@@ -158,6 +159,9 @@ on_exit_activate                      (GtkMenuItem     *menuitem,
 {
   extern DVDNav_t *nav;
   DVDResult_t res;
+  
+  autosave_bookmark();
+
   res = DVDCloseNav(nav);
   if(res != DVD_E_Ok ) {
     DVDPerror("DVDCloseNav", res);

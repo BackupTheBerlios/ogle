@@ -92,5 +92,5 @@ void file_selector_change_root(GtkFileSelection *selector,
     DVDPerror("file_selector_change_root: DVDSetDVDRoot", res);
     return;
   }
-  
+  autoload_bookmark();
 }
