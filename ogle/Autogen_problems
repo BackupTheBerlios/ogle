@@ -1,0 +1,16 @@
+If you don't have all your m4 files installed in a common directory
+and your aclocal is not set up to scan all the different m4 directories,
+the autogen.sh script might fail with something like this:
+
++ aclocal 
+aclocal: configure.in: 12: macro `AM_PROG_LIBTOOL' not found in library
+aclocal: configure.in: 551: macro `AM_PATH_XML2' not found in library
+
+To fix this you will have to enter the lines that are in the autogen.sh script
+manually, changing the aclocal line to include the necessary directories.
+
+aclocal -I <libtool m4 dir> -I <xml m4 dir "xml2-config --prefix"/share/aclocal>
+
+example:
+aclocal -I /usr/.../libtool-1.5/share/aclocal -I /usr/.../libxml2-2.6.2/share/aclocal
+
