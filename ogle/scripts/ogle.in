@@ -24,7 +24,11 @@ DVDP_DEMUX=$DVDP_ROOT/ogle_mpeg_ps
 export DVDP_DEMUX
 DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
 export DVDP_CLI_UI
+if [ -x $DVDP_ROOT/ogle_gui ]; then
 DVDP_UI=$DVDP_ROOT/ogle_gui
+else
+DVDP_UI=$exec_prefix/bin/ogle_gui
+fi
 export DVDP_UI
 #DVDP_AC3=$DVDP_ROOT/ogle_ac3_p
 DVDP_AC3=$DVDP_ROOT/ogle_a52
