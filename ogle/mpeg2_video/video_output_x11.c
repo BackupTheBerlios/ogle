@@ -77,20 +77,28 @@ static int xv_id;
 extern yuv_image_t *reserv_image;
 #endif
 
-//#define SUN_DGA
-
-#ifdef SUN_DGA
+/* needed for sun ffb2 */
 #include <sys/mman.h>
 
-uint32_t *yuyv_fb;
-uint8_t *rgb_fb;
+static uint32_t *yuyv_fb;
+static uint8_t *rgb_fb;
 
-int fb_fd;
-#endif
+static int use_ffb2_yuv2rgb = 0;
+static int fb_fd;
+
+/* end needed for sun ffb2 */
+
 
 extern int XShmGetEventBase(Display *dpy);
 static int CompletionType;
 static int xshmeventbase;
+
+typedef struct {
+  int x0;
+  int y0;
+  int x1;
+  int y1;
+} rect_t;
 
 typedef struct {
   int x;
@@ -111,6 +119,12 @@ typedef struct {
 
 static window_info window;
 
+struct {
+  int width;
+  int height;
+  int horizontal_pixels;
+  int vertical_pixels;
+} dpy_size;
 
 static XVisualInfo vinfo;
 static XShmSegmentInfo shm_info;
@@ -164,6 +178,33 @@ static void display_change_size(yuv_image_t *img, int new_width,
 
 
 static Cursor hidden_cursor;
+
+
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+
+
+
+
+static rect_t clip(rect_t *r1, rect_t *r2)
+{
+  rect_t r;
+  
+  r.x0 = MAX(r1->x0, r2->x0);
+  r.y0 = MAX(r1->y0, r2->y0);
+  
+  r.x1 = MIN(r1->x1, r2->x1);
+  r.y1 = MIN(r1->y1, r2->y1);
+
+  if((r.x0 >= r.x1) || (r.y0 >= r.y1)) {
+    r.x0 = 0;
+    r.y0 = 0;
+    r.x1 = 0;
+    r.y1 = 0;
+  }
+
+  return r;
+}
 
 static void create_transparent_cursor(Display *dpy, Window win)
 {
@@ -457,13 +498,10 @@ Window display_init(yuv_image_t *picture_data,
   XWindowAttributes attribs;
   XSetWindowAttributes xswa;
   unsigned long xswamask;
-  struct {
-    int width;
-    int height;
-    int horizontal_pixels;
-    int vertical_pixels;
-  } dpy_size;
 
+  if(getenv("USE_FFB2_YUV2RGB")) {
+    use_ffb2_yuv2rgb = 1;
+  }
   mydisplay = XOpenDisplay(NULL);
   
   if(mydisplay == NULL) {
@@ -607,23 +645,26 @@ Window display_init(yuv_image_t *picture_data,
     display_init_xshm();
   }
   
-#ifdef SUN_DGA
+  /*** sun ffb2 ***/
   
-  fb_fd = open("/dev/fb", O_RDWR);
-  yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
-	    MAP_SHARED, fb_fd, 0x0701a000);
-  if(yuyv_fb == MAP_FAILED) {
-    perror("mmap");
-    exit(-1);
+  if(use_ffb2_yuv2rgb) {  
+    fb_fd = open("/dev/fb", O_RDWR);
+    yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
+				   MAP_SHARED, fb_fd, 0x0701a000);
+    if(yuyv_fb == MAP_FAILED) {
+      perror("mmap");
+      exit(-1);
+    }
+    
+    rgb_fb = (uint8_t *)mmap(NULL, 4*2048*1024, PROT_READ | PROT_WRITE,
+				  MAP_SHARED, fb_fd, 0x05004000);
+    if(rgb_fb == MAP_FAILED) {
+      perror("mmap");
+      exit(-1);
+    }
   }
+  /*** end sun ffb2 ***/
 
-  rgb_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
-	    MAP_SHARED, fb_fd, 0x05004000);
-  if(rgb_fb == MAP_FAILED) {
-    perror("mmap");
-    exit(-1);
-  }
-#endif
   /* Let the user know what mode we are running in. */
   snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
 	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
@@ -1130,7 +1171,6 @@ void check_x_events(yuv_image_t *current_image)
 
 void display(yuv_image_t *current_image)
 {
-  XEvent ev;
   static int sar_frac_n, sar_frac_d; 
   
   /* New source aspect ratio? */
@@ -1179,7 +1219,6 @@ static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
 
 static void draw_win_x11(window_info *dwin)
 {
-  XWindowAttributes xattr;
   char *address = dwin->ximage->data;
   
 #ifdef HAVE_MLIB
@@ -1199,10 +1238,9 @@ static void draw_win_x11(window_info *dwin)
     address += offs;
 #endif /* HAVE_MLIB */
 
-#ifdef SUN_DGA
-  {
-    int width;
-    int height;
+  /*** sun ffb2 ***/
+
+  if(use_ffb2_yuv2rgb) {
     int stride;
     int n, m;
     unsigned char *y;
@@ -1211,7 +1249,9 @@ static void draw_win_x11(window_info *dwin)
     unsigned int pixel_data;
     area_t fb_area;
     area_t src_area;
-  
+    rect_t fb_rect;
+    rect_t clip_rect;
+
     window.video_area.width = dwin->image->info->picture.horizontal_size;
     window.video_area.height = dwin->image->info->picture.vertical_size;
     window.video_area.x = (int)(window.window_area.width - 
@@ -1221,7 +1261,6 @@ static void draw_win_x11(window_info *dwin)
   
     
     stride = dwin->image->info->picture.padded_width;
-    height = dwin->image->info->picture.padded_height;
     y = dwin->image->y;
     u = dwin->image->u;
     v = dwin->image->v;
@@ -1240,37 +1279,38 @@ static void draw_win_x11(window_info *dwin)
 	    window.video_area.height);
     */
 
-    fb_area.x = window.window_area.x+window.video_area.x;
-    src_area.x = 0;
-    if(fb_area.x < window.window_area.x) {
-      src_area.x = window.window_area.x - fb_area.x;
-      fb_area.x = window.window_area.x;
-    }
+    fb_rect.x0 = window.window_area.x+window.video_area.x;
+    fb_rect.y0 = window.window_area.y+window.video_area.y;
+    fb_rect.x1 = fb_rect.x0 + window.video_area.width;
+    fb_rect.y1 = fb_rect.y0 + window.video_area.height;
     
-    fb_area.y = window.window_area.y+window.video_area.y;
-    src_area.y = 0;
-    if(fb_area.y < window.window_area.y) {
-      src_area.y = window.window_area.y - fb_area.y;
-      fb_area.y = window.window_area.y;
-    }
+    clip_rect.x0 = window.window_area.x;
+    clip_rect.y0 = window.window_area.y;
+    clip_rect.x1 = clip_rect.x0 + window.window_area.width;
+    clip_rect.y1 = clip_rect.y0 + window.window_area.height;
 
-    fb_area.width = window.video_area.width;
-    if(fb_area.x + fb_area.width >
-       window.window_area.x+window.window_area.width) {
-      fb_area.width = (window.window_area.x + window.window_area.width) -
-	fb_area.x;
-    }
-    src_area.width = fb_area.width;
+    fb_rect = clip(&fb_rect, &clip_rect);
+    
+    clip_rect.x0 = 0;
+    clip_rect.y0 = 0;
+    clip_rect.x1 = dpy_size.horizontal_pixels;
+    clip_rect.y1 = dpy_size.vertical_pixels;
 
-    fb_area.height = window.video_area.height;
-    if(fb_area.y + fb_area.height >
-       window.window_area.y+window.window_area.height) {
-      fb_area.height = (window.window_area.y + window.window_area.height) -
-	fb_area.y;
-    }
-    src_area.height = fb_area.height;
+    fb_rect = clip(&fb_rect, &clip_rect);
+    
+    fb_area.x = fb_rect.x0;
+    fb_area.y = fb_rect.y0;
+    fb_area.width = fb_rect.x1 - fb_rect.x0;
+    fb_area.height = fb_rect.y1 - fb_rect.y0;
 
-    /*    
+    if(fb_area.width > 0 && fb_area.height > 0) {
+      src_area.x = fb_area.x - (window.window_area.x+window.video_area.x);
+      src_area.y = fb_area.y - (window.window_area.y+window.video_area.y);
+      src_area.width = fb_area.width;
+      src_area.height = fb_area.height;
+      
+
+    /*
     fprintf(stderr, "===: fb.x: %d fb.y: %d fb.w: %u fb.h: %u\n",
 	    fb_area.x, fb_area.y, fb_area.width, fb_area.height);
 
@@ -1284,16 +1324,17 @@ static void draw_win_x11(window_info *dwin)
       
       u = dwin->image->u+(src_area.y+m)/2*stride/2;
       v = dwin->image->v+(src_area.y+m)/2*stride/2;
-      /*
+      
       for(n = 0; n < src_area.width/2; n++) {
 	pixel_data =
-	  (y[(src_area.x+n)*2]<<24) |
+	  (y[src_area.x+n*2]<<24) |
 	  (u[src_area.x/2+n]<<16) |
-	  (y[(src_area.x+n)*2+1]<<8) | 
+	  (y[src_area.x+n*2+1]<<8) | 
 	  (v[src_area.x/2+n]);
 	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n)] = pixel_data;
       }
-      */
+      
+      /*
       for(n = 0; n < src_area.width/2; n+=4) {
 	int p0,p1,p2,p3;
 	p0 =
@@ -1321,6 +1362,7 @@ static void draw_win_x11(window_info *dwin)
 	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+2)] = p2;
 	yuyv_fb[(fb_area.y+m)*1024+(fb_area.x/2+n+3)] = p3;
       }
+      */
     }
 #ifdef SPU
     if(msgqid != -1) {
@@ -1329,11 +1371,12 @@ static void draw_win_x11(window_info *dwin)
 			 4); 
       // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
     }
-  }
 #endif
-  
+    }
   return;
-#endif
+  }  
+  /*** end sun ffb2 ***/
+
   /* We must some how guarantee that the ximage isn't used by X11.
      Rigth now it's (almost) done by the XSync call at the bottom... */
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
@@ -1354,7 +1397,9 @@ static void draw_win_x11(window_info *dwin)
 
   if(screenshot_spu) {
     screenshot_spu = 0;
-    screenshot_rgb_jpg(dwin->ximage->data, dwin->ximage);
+    screenshot_rgb_jpg(address,
+		       dwin->image->info->picture.padded_width,
+		       dwin->image->info->picture.padded_height);
   }
   
 
@@ -1499,6 +1544,7 @@ static void draw_win_xv(window_info *dwin)
   }
 #endif /* HAVE_XV */
 }
+
 
 
 

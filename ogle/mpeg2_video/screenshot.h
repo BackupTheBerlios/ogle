@@ -19,7 +19,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-void screenshot_rgb_jpg(unsigned char *data, XImage *ximg);
+void screenshot_rgb_jpg(unsigned char *data,
+			unsigned int width, unsigned int height);
 void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg);
 
 #endif /* SCREENSHOT_H_INCLUDED */

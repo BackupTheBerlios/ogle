@@ -94,10 +94,11 @@ METHODDEF(void)
 
 
 
-void screenshot_rgb_jpg(unsigned char *data, XImage *ximg) {
+void screenshot_rgb_jpg(unsigned char *data,
+			unsigned int width, unsigned int height) {
   int x,y;
-  image_height = ximg->height; /* Number of rows in image */
-  image_width  = ximg->width;	/* Number of columns in image */  
+  image_height = height; /* Number of rows in image */
+  image_width  = width;	/* Number of columns in image */  
   
   fprintf(stderr, "screenshot_rgb_jpg()\n");
   jpg_buffer = (JSAMPLE*)malloc(sizeof(JSAMPLE)

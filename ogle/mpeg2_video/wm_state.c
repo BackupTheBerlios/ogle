@@ -223,6 +223,7 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   save_normal_geometry(dpy, win);
   
+#if 1 // bloody wm's that can't cope with unmap/map
   // We have to be unmapped to change motif decoration hints 
   XUnmapWindow(dpy, win);
   
@@ -244,7 +245,7 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     XNextEvent(dpy, &ev);
   } while(ev.type != MapNotify);
   
-  
+#endif  
   /* remove any outstanding configure_notifies */
   XSync(dpy, True);
   
@@ -374,6 +375,7 @@ static void switch_to_normal_state(Display *dpy, Window win)
   sizehints->x = 0; // obsolete but should be set in case
   sizehints->y = 0; // an old wm is used
   
+#if 1 //bloody wm's that can't cope with unmap/map
   // We have to be unmapped to change motif decoration hints 
   XUnmapWindow(dpy, win);
   
@@ -394,7 +396,7 @@ static void switch_to_normal_state(Display *dpy, Window win)
   do {
     XNextEvent(dpy, &ev);
   } while(ev.type != MapNotify);
-  
+#endif
   
   /* remove any outstanding configure_notifies */
   XSync(dpy, True);
