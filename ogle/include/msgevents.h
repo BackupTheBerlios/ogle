@@ -4,6 +4,8 @@
 #include <limits.h>
 #include <inttypes.h>
 
+#include "dvd.h"
+
 #if 0 /* One message queue for every listener */
 
 typedef struct {
