@@ -35,36 +35,6 @@ typedef struct null_instance_s {
 } null_instance_t;
 
 
-/* The one directly exported function */
-ogle_ao_instance_t *ao_null_open(char *dev)
-{
-  return null_open(dev);
-}
-
-
-static 
-ogle_ao_instance_t *null_open(char *dev)
-{
-    null_instance_t *instance;
-    
-    instance = malloc(sizeof(null_instance_t));
-    if(instance == NULL)
-      return NULL;
-    
-    instance->ao.init   = null_init;
-    instance->ao.play   = null_play;
-    instance->ao.close  = null_close;
-    instance->ao.odelay = null_odelay;
-    instance->ao.flush  = null_flush;
-    instance->ao.drain  = null_drain;
-    
-    instance->initialized = 0;
-    instance->sample_rate = 0;
-    instance->samples_written = 0;
-    instance->sample_frame_size = 0;
-    
-    return (ogle_ao_instance_t *)instance;
-}
 
 static
 int null_init(ogle_ao_instance_t *_instance,
@@ -103,7 +73,7 @@ int null_play(ogle_ao_instance_t *_instance, void *samples, size_t nbyte)
 {
   null_instance_t *instance = (null_instance_t *)_instance;
   
-  instance->samples_written += nbytesn / instance->sample_frame_size;
+  instance->samples_written += nbyte / instance->sample_frame_size;
   
   return 0;
 }
@@ -129,8 +99,6 @@ static
 void null_close(ogle_ao_instance_t *_instance)
 {
   null_instance_t *instance = (null_instance_t *)_instance;
-  
-  close(instance->fd);
 }
 
 static
@@ -147,6 +115,38 @@ int null_drain(ogle_ao_instance_t *_instance)
   null_instance_t *instance = (null_instance_t *)_instance;
   
   return 0;
+}
+
+
+static 
+ogle_ao_instance_t *null_open(char *dev)
+{
+    null_instance_t *instance;
+    
+    instance = malloc(sizeof(null_instance_t));
+    if(instance == NULL)
+      return NULL;
+    
+    instance->ao.init   = null_init;
+    instance->ao.play   = null_play;
+    instance->ao.close  = null_close;
+    instance->ao.odelay = null_odelay;
+    instance->ao.flush  = null_flush;
+    instance->ao.drain  = null_drain;
+    
+    instance->initialized = 0;
+    instance->sample_rate = 0;
+    instance->samples_written = 0;
+    instance->sample_frame_size = 0;
+    
+    return (ogle_ao_instance_t *)instance;
+}
+
+
+/* The one directly exported function */
+ogle_ao_instance_t *ao_null_open(char *dev)
+{
+  return null_open(dev);
 }
 
 #endif

@@ -22,6 +22,7 @@
 #include "ogle_ao.h"
 #include "ogle_ao_private.h"
 
+#include "null_audio.h"
 #include "alsa_audio.h"
 #include "obsd_audio.h"
 #include "oss_audio.h"
