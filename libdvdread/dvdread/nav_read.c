@@ -26,10 +26,12 @@
 #include "nav_types.h"
 #include "nav_read.h"
 
+#include "dvdread_internal.h"
+
 void navRead_PCI(pci_t *pci, unsigned char *buffer) {
   int i, j, k;
 
-  assert(sizeof(pci_t) == PCI_BYTES - 1); // -1 for substream id
+  CHECK_VALUE(sizeof(pci_t) == PCI_BYTES - 1); // -1 for substream id
   
   memcpy(pci, buffer, sizeof(pci_t));
 
@@ -74,21 +76,21 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
   /* Asserts */
 
   /* pci pci gi */ 
-  assert(pci->pci_gi.zero1 == 0);
+  CHECK_VALUE(pci->pci_gi.zero1 == 0);
 
   /* pci hli hli_gi */
-  assert(pci->hli.hl_gi.zero1 == 0);
-  assert(pci->hli.hl_gi.zero2 == 0);
-  assert(pci->hli.hl_gi.zero3 == 0);
-  assert(pci->hli.hl_gi.zero4 == 0);
-  assert(pci->hli.hl_gi.zero5 == 0);
+  CHECK_VALUE(pci->hli.hl_gi.zero1 == 0);
+  CHECK_VALUE(pci->hli.hl_gi.zero2 == 0);
+  CHECK_VALUE(pci->hli.hl_gi.zero3 == 0);
+  CHECK_VALUE(pci->hli.hl_gi.zero4 == 0);
+  CHECK_VALUE(pci->hli.hl_gi.zero5 == 0);
 
   /* Are there buttons defined here? */
   if((pci->hli.hl_gi.hli_ss & 0x03) != 0) {
-    assert(pci->hli.hl_gi.btn_ns != 0); 
-    assert(pci->hli.hl_gi.btngr_ns != 0); 
+    CHECK_VALUE(pci->hli.hl_gi.btn_ns != 0); 
+    CHECK_VALUE(pci->hli.hl_gi.btngr_ns != 0); 
   } else {
-    assert((pci->hli.hl_gi.btn_ns != 0 && pci->hli.hl_gi.btngr_ns != 0) 
+    CHECK_VALUE((pci->hli.hl_gi.btn_ns != 0 && pci->hli.hl_gi.btngr_ns != 0) 
 	   || (pci->hli.hl_gi.btn_ns == 0 && pci->hli.hl_gi.btngr_ns == 0));
   }
 
@@ -96,34 +98,34 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
   for(i = 0; i < pci->hli.hl_gi.btngr_ns; i++) {
     for(j = 0; j < (36 / pci->hli.hl_gi.btngr_ns); j++) {
       int n = (36 / pci->hli.hl_gi.btngr_ns) * i + j;
-      assert(pci->hli.btnit[n].zero1 == 0);
-      assert(pci->hli.btnit[n].zero2 == 0);
-      assert(pci->hli.btnit[n].zero3 == 0);
-      assert(pci->hli.btnit[n].zero4 == 0);
-      assert(pci->hli.btnit[n].zero5 == 0);
-      assert(pci->hli.btnit[n].zero6 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero1 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero2 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero3 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero4 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero5 == 0);
+      CHECK_VALUE(pci->hli.btnit[n].zero6 == 0);
       
       if (j < pci->hli.hl_gi.btn_ns) {	
-	assert(pci->hli.btnit[n].x_start <= pci->hli.btnit[n].x_end);
-	assert(pci->hli.btnit[n].y_start <= pci->hli.btnit[n].y_end);
-	assert(pci->hli.btnit[n].up <= pci->hli.hl_gi.btn_ns);
-	assert(pci->hli.btnit[n].down <= pci->hli.hl_gi.btn_ns);
-	assert(pci->hli.btnit[n].left <= pci->hli.hl_gi.btn_ns);
-	assert(pci->hli.btnit[n].right <= pci->hli.hl_gi.btn_ns);
+	CHECK_VALUE(pci->hli.btnit[n].x_start <= pci->hli.btnit[n].x_end);
+	CHECK_VALUE(pci->hli.btnit[n].y_start <= pci->hli.btnit[n].y_end);
+	CHECK_VALUE(pci->hli.btnit[n].up <= pci->hli.hl_gi.btn_ns);
+	CHECK_VALUE(pci->hli.btnit[n].down <= pci->hli.hl_gi.btn_ns);
+	CHECK_VALUE(pci->hli.btnit[n].left <= pci->hli.hl_gi.btn_ns);
+	CHECK_VALUE(pci->hli.btnit[n].right <= pci->hli.hl_gi.btn_ns);
 	//vmcmd_verify(pci->hli.btnit[n].cmd);
       } else {
-	assert(pci->hli.btnit[n].btn_coln == 0);
-	assert(pci->hli.btnit[n].auto_action_mode == 0);
-	assert(pci->hli.btnit[n].x_start == 0);
-	assert(pci->hli.btnit[n].y_start == 0);
-	assert(pci->hli.btnit[n].x_end == 0);
-	assert(pci->hli.btnit[n].y_end == 0);
-	assert(pci->hli.btnit[n].up == 0);
-	assert(pci->hli.btnit[n].down == 0);
-	assert(pci->hli.btnit[n].left == 0);
-	assert(pci->hli.btnit[n].right == 0);
+	CHECK_VALUE(pci->hli.btnit[n].btn_coln == 0);
+	CHECK_VALUE(pci->hli.btnit[n].auto_action_mode == 0);
+	CHECK_VALUE(pci->hli.btnit[n].x_start == 0);
+	CHECK_VALUE(pci->hli.btnit[n].y_start == 0);
+	CHECK_VALUE(pci->hli.btnit[n].x_end == 0);
+	CHECK_VALUE(pci->hli.btnit[n].y_end == 0);
+	CHECK_VALUE(pci->hli.btnit[n].up == 0);
+	CHECK_VALUE(pci->hli.btnit[n].down == 0);
+	CHECK_VALUE(pci->hli.btnit[n].left == 0);
+	CHECK_VALUE(pci->hli.btnit[n].right == 0);
 	for (k = 0; k < 8; k++)
-	  assert(pci->hli.btnit[n].cmd.bytes[k] == 0); //CHECK_ZERO?
+	  CHECK_VALUE(pci->hli.btnit[n].cmd.bytes[k] == 0); //CHECK_ZERO?
       }
     }
   }
@@ -132,7 +134,7 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer) {
 void navRead_DSI(dsi_t *dsi, unsigned char *buffer) {
   int i;
 
-  assert(sizeof(dsi_t) == DSI_BYTES - 1); // -1 for substream id
+  CHECK_VALUE(sizeof(dsi_t) == DSI_BYTES - 1); // -1 for substream id
   
   memcpy(dsi, buffer, sizeof(dsi_t));
 
@@ -181,6 +183,6 @@ void navRead_DSI(dsi_t *dsi, unsigned char *buffer) {
   /* Asserts */
 
   /* dsi dsi gi */
-  assert(dsi->dsi_gi.zero1 == 0);
+  CHECK_VALUE(dsi->dsi_gi.zero1 == 0);
 }
 
