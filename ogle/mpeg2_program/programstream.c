@@ -33,6 +33,9 @@
 #include <errno.h>
 
 #include <ogle/msgevents.h>
+
+#include <dvdread/dvd_reader.h>
+
 #include "programstream.h"
 #include "common.h"
 #include "queue.h"
@@ -108,7 +111,7 @@ int packnr = 0;
 #define MPEG1 0x0
 #define MPEG2 0x1
 
-uint8_t    *buf;
+uint8_t    *disk_buf;
 
 int shmid;
 char *shmaddr;
@@ -219,7 +222,7 @@ static inline uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = GUINT32_FROM_BE(*(uint32_t *)(&buf[offs]));
+    uint32_t new_word = GUINT32_FROM_BE(*(uint32_t *)(&disk_buf[offs]));
     offs+=4;
     cur_word = (cur_word << 32) | new_word;
     bits_left = bits_left+32;
@@ -256,14 +259,17 @@ static inline void drop_bytes(int len)
 }
 
 
-#if 0
+#if 1
 static dvd_reader_t *dvdroot;
 static dvd_file_t *dvdfile;
 
-int open_dvd_root(char *path)
+int dvd_open_root(char *path)
 {
   
-  dvdroot = DVDOpen(path);
+  if((dvdroot = DVDOpen(path)) == NULL) {
+    fprintf(stderr, "demux: couldn't open dvd\n");
+    return -1;
+  }
   
   return 0;
 } 
@@ -275,76 +281,180 @@ int dvd_close_root(void) {
   return 0;
 }
 
-int dvd_open_file(int titlenum, dvd_domain_t domain)
+static int dvd_file_num = -1;
+static dvd_domain_t dvd_file_dom = -1;
+
+int dvd_change_file(int titlenum, dvd_domain_t domain)
 {
+  
+  if(titlenum == dvd_file_num && domain == dvd_file_dom) {
+    return 0;
+  }
   if(dvdfile != NULL && dvdroot != NULL) {
     fprintf(stderr, "demux: warning: closed open file when opening new\n");
     DVDCloseFile(dvdfile);
   }
-  dvdfile = DVDOpenFile(dvdroot, titlenumn domain);
+  if((dvdfile = DVDOpenFile(dvdroot, titlenum, domain)) == NULL) {
+    fprintf(stderr, "demux: couldn't open dvdfile\n");
+    return -1;
+  }
+  dvd_file_num = titlenum;
+  dvd_file_dom = domain;
+
+  return 0;
 }
 
 void dvd_close_file(void)
 {
   DVDCloseFile(dvdfile);
+  dvd_file_num = -1;
+  dvd_file_dom = -1;  
 }
 
 
 int dvd_read_block(char *buf, int boffset, int nblocks)
 {
+  int bytes_read;
+  bytes_read = DVDReadBlocksFromFile(dvdfile, boffset, nblocks, buf);
   
-  DVDReadBlocksFromFile(dvd_file, boffset, nblocks, buf);
+  switch(bytes_read) {
+  case -1:
+    fprintf(stderr, "demux: dvdreadblocksfromfile failed\n");
+    return -1;
+  case 0:
+    fprintf(stderr, "demux: dvdreadblocksfromfile returned 0\n");
+    break;
+  default:
+    break;
+  }
 
   return 0;
 }
 
-int fill_buffer(int nblocks)
+int fill_buffer(int title, dvd_domain_t domain, int boffset, int nblocks)
 {
   int free_blocks;
   char *free_blocks_start;
   char *last_free_byte;
   int next_write_pos;
-  int free_block_offs;
+  static int free_block_offs = 0;
   data_buf_head_t *data_buf_head;
   data_elem_t *data_elems;
   int data_elem_nr;
+  int buf_empty = 0;
+  int first_data_elem_nr;
+  int off;
+  int blocks_in_buf;
+  int size;
 
-  get_demux_range(&vts, &domain, &boffset, &blocks);
+  fprintf(stderr, "demux: fill_buffer: title: %d, domain: %d, off: %d, blocks: %d\n", title, domain, boffset, nblocks);
+  
+  //  get_next_demux_range(&title, &domain, &boffset, &blocks);
   
   data_buf_head = (data_buf_head_t *)data_buf_addr;
   if(data_buf_head == NULL) {
     fprintf(stderr, "demux: fill_buffer, no buffer\n");
     return -1;
   }
+  blocks_in_buf = data_buf_head->buffer_size/2048;
+  fprintf(stderr, "blocks_in_buf: %d\n", blocks_in_buf);
+
   data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
   data_elem_nr = data_buf_head->write_nr;
+  
+  first_data_elem_nr = data_elem_nr;
+  fprintf(stderr, "first_data_elem_nr: %d\n", first_data_elem_nr);
 
   while(1) {
-    if(data_elems[data_elem_nr].in_use) {
-      off = data_elem[data_elem_nr].off/2048;
+    if(data_elems[data_elem_nr].in_use || buf_empty) {
+      /* this block is in use, check if we have enough free space */
+
+      /* offset in buffer of the used block we found */
+      if(buf_empty) {
+	off = blocks_in_buf;
+	free_block_offs = 0;
+      } else {
+	off = data_elems[data_elem_nr].off/2048;
+      }
+      
       if(off < free_block_offs) {
+	
+	/* if the block in use is before the first free block
+	 * we can either use the blocks 
+	 * between the first free block and the end of the buffer
+	 * or
+	 * use the blocks
+	 * between the beginning of the buffer and the used block in use
+	 */
+	
+	/* nr of blocks from first free block to end of buffer */
+	
 	size = blocks_in_buf-free_block_offs;
 	next_write_pos = free_block_offs;
+	
 	if(size < nblocks) {
+	  /* nr of blocks from start of buffer to the block in use */ 
 	  size = off;
 	  next_write_pos = 0;
 	}
+	
       } else {
+	
+	/* the block in use is after the first free block in the buffer */
+	/* nr of blocks from first free block to the block in use */
 	size = off - free_block_offs;
 	next_write_pos = free_block_offs;
+	
       }
       
       if(size < nblocks) {
-	/* wait for more free blocks */
-
+	/* the nr of contigously available blocks is too small, 
+	 * wait for more free blocks */
+	fprintf(stderr, "need more free space, not implemented\n");
       } else {
-	dvd_open
-	dvd_read_block(&buf[next_write_pos*2048], int boffset, int nblocks)
+	/* we have enough free blocks */
+	break;
+      }
+    }
+    
+    /* this block is not in use, check next one */
+    
+    /* check if we have looped through all data_elems */
+    if(!buf_empty) {
+      if(data_elem_nr == first_data_elem_nr) {
+	buf_empty = 1;
+      }
+    }
+    
+    data_elem_nr = 
+      (data_elem_nr+1) % data_buf_head->nr_of_dataelems;
+    
+  }
+  
+  dvd_change_file(title, domain);
+  dvd_read_block(&disk_buf[next_write_pos*2048], boffset, nblocks);
+  fprintf(stderr, "new_write_pos: %d\n", next_write_pos);
+  fprintf(stderr, "dvd_read_block: dst: %u, offset: %d, blocks: %d\n",
+	  &disk_buf[next_write_pos*2048], boffset, nblocks);
 
-	data_elems[data_elem_nr].off = off;
-      data_elems[data_elem_nr].len = len;
+  fprintf(stderr, "data: %02x %02x %02x %02x %02x %02x %02x %02x\n",
+	  disk_buf[next_write_pos*2048],
+	  disk_buf[next_write_pos*2048+1],
+	  disk_buf[next_write_pos*2048+2],
+	  disk_buf[next_write_pos*2048+3],
+	  disk_buf[next_write_pos*2048+4],
+	  disk_buf[next_write_pos*2048+5],
+	  disk_buf[next_write_pos*2048+6],
+	  disk_buf[next_write_pos*2048+7]);
+
+  free_block_offs = next_write_pos + nblocks;
+  fprintf(stderr, "free_block_offs: %d\n", free_block_offs);
+  off_from = next_write_pos*2048;
+  off_to = free_block_offs*2048;
   
-  
+  fprintf(stderr, "off_from: %d, off_to: %d\n",
+	  off_from, off_to);
+  return 0;
 }
 
 #endif
@@ -450,13 +560,15 @@ typedef struct {
   } cmd;
 } demux_q_t;
 
-static demux_q_t demux_q[5];
+static MsgEvent_t demux_q[5];
 static int demux_q_start = 0;
 static int demux_q_len = 0;
 
 void get_next_demux_q(void)
 {
   MsgEvent_t ev;
+  MsgEvent_t *q_ev;
+  
   int new_demux_range = 0;
   if(id_stat(0xe0, 0) == STREAM_DECODE) {
     if(demux_cmd & FlowCtrlCompleteVideoUnit) {
@@ -467,20 +579,6 @@ void get_next_demux_q(void)
     while(!demux_q_len) {
       MsgNextEvent(msgq, &ev);
       switch(ev.type) {
-      case MsgEventQChangeFile:
-	fprintf(stderr, "demux: change file: %s\n", ev.changefile.filename);
-	add_to_demux_q(&ev);
-	break;
-      case MsgEventQPlayCtrl:
-	switch(ev.playctrl.cmd) {
-	case PlayCtrlCmdPlayFromTo:
-	  add_to_demux_q(&ev);
-	  break;
-	default:
-	  fprintf(stderr, "demux: PlayCtrl cmd not implemented\n");
-	  break;
-	}
-	break;
       default:
 	handle_events(&ev);
 	//fprintf(stderr, "demux: unrecognized command\n");
@@ -488,16 +586,32 @@ void get_next_demux_q(void)
       }
     }
     
-    switch(demux_q[demux_q_start].cmd_type) {
+    q_ev = &demux_q[demux_q_start];
+    
+    switch(q_ev->type) {
     case MsgEventQPlayCtrl:
-      off_from = demux_q[demux_q_start].cmd.ctrl.from;
-      off_to = demux_q[demux_q_start].cmd.ctrl.to;
-      demux_cmd = demux_q[demux_q_start].cmd.ctrl.flowcmd;
-      new_demux_range = 1;
+      switch(q_ev->playctrl.cmd) {
+      case PlayCtrlCmdPlayFromTo:
+	off_from = q_ev->playctrl.from;
+	off_to = q_ev->playctrl.to;
+	demux_cmd = q_ev->playctrl.flowcmd;
+	new_demux_range = 1;
+	break;
+      default:
+	fprintf(stderr, "demux: playctrl cmd not handled\n");
+      }
       break;
     case MsgEventQChangeFile:
-      loadinputfile(demux_q[demux_q_start].cmd.file);
-      free(demux_q[demux_q_start].cmd.file);
+      loadinputfile(q_ev->changefile.filename);
+      //free(q_ev->cmd.file);
+      break;
+    case MsgEventQDemuxDVD:
+      fill_buffer(q_ev->demuxdvd.titlenum, q_ev->demuxdvd.domain,
+		  q_ev->demuxdvd.block_offset, q_ev->demuxdvd.block_count);
+      new_demux_range = 1;
+      break;
+    case MsgEventQDemuxDVDRoot:
+      dvd_open_root(q_ev->demuxdvdroot.path);
       break;
     default:
       fprintf(stderr, "demux: that's not possible\n");
@@ -514,22 +628,11 @@ void add_to_demux_q(MsgEvent_t *ev)
   
   if(demux_q_len < 5) {
     pos = (demux_q_start + demux_q_len)%5;
-    demux_q[pos].cmd_type = ev->type;
-    switch(ev->type) {
-    case MsgEventQPlayCtrl:
-      demux_q[pos].cmd.ctrl = ev->playctrl;
-      break;
-    case MsgEventQChangeFile:
-      demux_q[pos].cmd.file = strdup((char *)ev->changefile.filename);
-      break;
-    default:
-      fprintf(stderr, "demux: not supposed to happen\n");
-      break;
-    }
+    memcpy(&demux_q[pos], ev, sizeof(MsgEvent_t));
     demux_q_len++;
     
   } else {
-    fprintf(stderr, "add_to_demux_q: q full\n");
+    fprintf(stderr, "**demux: add_to_demux_q: q full\n");
   }
   
 }
@@ -599,7 +702,8 @@ void system_header()
   if(!system_header_set) {
     system_header_set = 1;
     if(msgqid != -1) {
-      get_buffer(min_bufsize);
+      // this is now allocated before we start reading
+      //get_buffer(min_bufsize);
     }
   }
   
@@ -764,7 +868,7 @@ void push_stream_data(uint8_t stream_id, int len,
 		      uint64_t PTS,
 		      uint64_t DTS)
 {
-  uint8_t *data = &buf[offs-(bits_left/8)];
+  uint8_t *data = &disk_buf[offs-(bits_left/8)];
   uint8_t subtype;
 
   //  fprintf(stderr, "pack nr: %d, stream_id: %02x (%02x), offs: %d, len: %d",
@@ -842,17 +946,17 @@ void push_stream_data(uint8_t stream_id, int len,
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
 	if((subtype >= 0x80) && (subtype < 0x90)) {
-	  fwrite(&buf[offs-(bits_left/8)+4], len-4, 1,
+	  fwrite(&disk_buf[offs-(bits_left/8)+4], len-4, 1,
 		 id_file(stream_id, subtype));
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
-	  fwrite(&buf[offs-(bits_left/8)+1], len-1, 1,
+	  fwrite(&disk_buf[offs-(bits_left/8)+1], len-1, 1,
 		 id_file(stream_id, subtype));
 	} else {
-	  fwrite(&buf[offs-(bits_left/8)], len, 1,
+	  fwrite(&disk_buf[offs-(bits_left/8)], len, 1,
 		 id_file(stream_id, subtype));
 	}
       } else {
-	fwrite(&buf[offs-(bits_left/8)], len, 1,
+	fwrite(&disk_buf[offs-(bits_left/8)], len, 1,
 	       id_file(stream_id, subtype));
       }
       
@@ -1547,8 +1651,8 @@ void loadinputfile(char *infilename)
   static struct stat statbuf;
   int rv;
 
-  if(buf != NULL) {
-    munmap(buf, statbuf.st_size);
+  if(disk_buf != NULL) {
+    munmap(disk_buf, statbuf.st_size);
   }
   
   infilefd = open(infilename, O_RDONLY);
@@ -1564,16 +1668,16 @@ void loadinputfile(char *infilename)
     perror("fstat");
     exit(1);
   }
-  buf = (uint8_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
+  disk_buf = (uint8_t *)mmap(NULL, statbuf.st_size, PROT_READ, MAP_SHARED, infilefd, 0);
   close(infilefd);
-  if(buf == MAP_FAILED) {
+  if(disk_buf == MAP_FAILED) {
     perror("mmap");
     exit(1);
   }
 
   infilelen = statbuf.st_size;
 #ifdef HAVE_MADVISE
-  rv = madvise(buf, infilelen, MADV_SEQUENTIAL);
+  rv = madvise(disk_buf, infilelen, MADV_SEQUENTIAL);
   if(rv == -1) {
     perror("madvise");
     exit(1);
@@ -1796,6 +1900,7 @@ int main(int argc, char **argv)
     }
     fprintf(stderr, "demux: sent register\n");
     
+
     /* wait for load_file command */
     //get_next_demux_q();
     
@@ -1803,11 +1908,18 @@ int main(int argc, char **argv)
       MsgNextEvent(msgq, &regev);
       switch(regev.type) {
       case MsgEventQChangeFile:
+	fprintf(stderr, "demux: got changefile\n");
 	loadinputfile(regev.changefile.filename);
 	fileopen = 1;
 	break;
       case MsgEventQCtrlData:
+	fprintf(stderr, "demux: got ctrldata\n");
 	attach_ctrl_shm(regev.ctrldata.shmid);
+	break;
+      case MsgEventQDemuxDVDRoot:
+	fprintf(stderr, "demux: got dvd root\n");
+	handle_events(&regev);
+	fileopen = 1;
 	break;
       default:
 	handle_events(&regev);
@@ -1819,7 +1931,8 @@ int main(int argc, char **argv)
       }
     }
     fprintf(stderr, "demux: file open\n");
-    
+    get_buffer(4*1024*1024);
+
   } else {
     loadinputfile(argv[optind]);
   }
@@ -1834,9 +1947,19 @@ int main(int argc, char **argv)
   }
   DPRINTF(1, "Signal handler installed!\n");
   
+  fprintf(stderr, "get next demux q\n");
+  get_next_demux_q();
   
-  GETBITS(32, "skip");
-  GETBITS(32, "skip");
+  if(off_from != -1) {
+    //fprintf(stderr, "demux: off_from pack\n");
+    offs = off_from;
+    bits_left = 64;
+    off_from = -1;
+      GETBITS(32, "skip1");
+      GETBITS(32, "skip2");
+  } else {
+    fprintf(stderr, "demux: argh apa\n");
+  }
 
   while(1) {
     //    fprintf(stderr, "Searching for Program Stream\n");
@@ -1903,14 +2026,7 @@ static void handle_events(MsgEvent_t *ev)
     
     break;
   case MsgEventQPlayCtrl:
-    switch(ev->playctrl.cmd) {
-    case PlayCtrlCmdPlayFromTo:
-      add_to_demux_q(ev);
-      break;
-    default:
-      fprintf(stderr, "demux: PlayCtrl cmd not implemented\n");
-      break;
-    }
+    add_to_demux_q(ev);
     break;
   case MsgEventQDemuxStream:
     if(ev->demuxstream.stream_id != MPEG2_PRIVATE_STREAM_1) {
@@ -1925,8 +2041,14 @@ static void handle_events(MsgEvent_t *ev)
   case MsgEventQDemuxDefault:
     init_id_reg(ev->demuxdefault.state);
     break;
+  case MsgEventQDemuxDVD:
+    add_to_demux_q(ev);
+    break;
+  case MsgEventQDemuxDVDRoot:
+    add_to_demux_q(ev);
+    break;
   default:
-    fprintf(stderr, "demux: unrecognized command\n");
+    fprintf(stderr, "demux: unrecognized command: %d\n", ev->type);
     break;
   }
 }
@@ -2329,7 +2451,17 @@ int attach_buffer(int shmid, int size)
     data_buf_head->shmid = shmid;
     data_buf_head->nr_of_dataelems = 900;
     data_buf_head->write_nr = 0;
+    data_buf_head->buffer_start_offset = (sizeof(data_buf_head_t) +
+					  data_buf_head->nr_of_dataelems *
+					  sizeof(data_elem_t) +
+					  2047)/2048*2048;
+    data_buf_head->buffer_size = (size - data_buf_head->buffer_start_offset)
+      / 2048*2048;
     
+    disk_buf = data_buf_addr + data_buf_head->buffer_start_offset;
+    
+    fprintf(stderr, "demux: setup disk_buf: %u\n",
+	    disk_buf);
     data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
     for(n = 0; n < data_buf_head->nr_of_dataelems; n++) {
       data_elems[n].in_use = 0;
@@ -2491,12 +2623,15 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elems[data_elem_nr].off = off;
   data_elems[data_elem_nr].len = len;
   data_elems[data_elem_nr].q_addr = q_addr;
-  if(is_new_file) {
+  /*
+    if(is_new_file) {
     strcpy(data_elems[data_elem_nr].filename, cur_filename);
-  } else {
-    data_elems[data_elem_nr].filename[0] = '\0';
-  }
-
+    } else {
+  */
+  data_elems[data_elem_nr].filename[0] = '\0';
+  /*
+    }
+  */
   data_elems[data_elem_nr].flowcmd = extra_cmd;
 
   if(scr_discontinuity || (demux_cmd & FlowCtrlFlush)) {

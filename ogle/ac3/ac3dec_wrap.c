@@ -298,7 +298,7 @@ int get_q()
   data_elem_t *data_elems;
   data_elem_t *data_elem;
   int elem;
-  
+  uint8_t *data_buffer;
   uint8_t PTS_DTS_flags;
   uint64_t PTS;
   uint64_t DTS;
@@ -328,6 +328,7 @@ int get_q()
   }
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
+  data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
@@ -405,9 +406,11 @@ int get_q()
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
-  change_file(data_elem->filename);
+  //change_file(data_elem->filename);
   
-  fwrite(mmap_base+off, len, 1, outfile);
+  //fwrite(mmap_base+off, len, 1, outfile);
+  
+  fwrite(data_buffer+off, len, 1, outfile);
   
   // release elem
   data_elem->in_use = 0;
