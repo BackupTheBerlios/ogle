@@ -32,7 +32,7 @@ AM_PROG_LIBTOOL
 
 dnl Add the languages which your application supports here.
 ALL_LINGUAS="da de fr nl sv"
-AM_GNU_GETTEXT
+AM_GNU_GETTEXT([use-libtool])
 
 AM_PATH_GTK(,,[AC_MSG_ERROR([You must have gtk+ development files])])
 
@@ -134,7 +134,7 @@ AC_CHECK_LIB(pthread, pthread_create, PTHREAD_LIB="-lpthread",
 AC_SUBST(PTHREAD_LIB)
 
 dnl Architecture specific stuff
-AC_CANONICAL_HOST
+dnl AC_CANONICAL_HOST
 case "$host_os" in
 	solaris*)
 		AC_DEFINE(SOLARIS, 1, [This is a Solaris system])
@@ -172,12 +172,12 @@ dnl ---------------------------------------------------------
 dnl enable warnings
 CFLAGS="$CFLAGS -Wall"
 
-AC_OUTPUT([
-intl/Makefile
-po/Makefile.in
+AC_OUTPUT([ 
 Makefile
 pixmaps/Makefile
 src/Makefile
+intl/Makefile
+po/Makefile.in
 ])
 
 

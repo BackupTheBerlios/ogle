@@ -1,7 +1,8 @@
 #!/bin/sh
 set -x
 
-gettextize --copy --force < /dev/null
+# Don't run gettextize automatically, you shouldn't really
+#gettextize --copy --force < /dev/null
 aclocal
 libtoolize --copy --automake
 automake --copy --add-missing
