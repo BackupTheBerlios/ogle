@@ -121,20 +121,7 @@ int main(int argc, char *argv[])
   
   
   ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
-  {
-    int i;
-    menu_pgci_ut_t pgci_ut;
-    ifoRead_MENU_PGCI_UT(&pgci_ut, vmgi_mat.vmgm_pgci_ut);
-    i = 0;
-    while(i < pgci_ut.nr_of_lang_units && 
-	  memcmp(&pgci_ut.menu_lu[i].lang_code, lang, 2))
-      i++;
-    if(i == pgci_ut.nr_of_lang_units) {
-      printf("** Wrong language\n");
-      i = 0; //error?
-    }
-    pgcit = pgci_ut.menu_lu[i].menu_pgcit;//? copy?  
-  }
+  
   ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
   //goto play_PGC;
   
@@ -359,9 +346,12 @@ int main(int argc, char *argv[])
     goto play_PGC;
     
   case CallSS_FP:
-  case CallSS_VMGM_MENU:
     exit(-1);
+  case CallSS_VMGM_MENU:
+    assert(state.domain == VTS_DOMAIN); //??   
+    exit(-1);    
   case CallSS_VTSM:
+    assert(state.domain == VTS_DOMAIN); //??   
     state.rsm_pgcN = state.pgcN;
     state.rsm_pgN = state.pgN;
     state.rsm_cellN = state.cellN; // = link_values.data2; ??
@@ -369,6 +359,7 @@ int main(int argc, char *argv[])
     get_VTSM(state.vtsN, 1, link_values.data1); // New function?
     goto play_PGC;
   case CallSS_VMGM_PGC:
+    assert(state.domain == VTS_DOMAIN); //??   
     state.rsm_pgcN = state.pgcN;
     state.rsm_pgN = state.pgN;
     state.rsm_cellN = state.cellN;
@@ -377,7 +368,6 @@ int main(int argc, char *argv[])
     goto play_PGC;
   
   }
-
     
   return 0;
 }
