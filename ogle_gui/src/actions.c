@@ -2,7 +2,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
-
+#include <unistd.h>
+#include <sys/time.h>
 #include <gtk/gtk.h>
 
 #include <ogle/dvdcontrol.h>
@@ -17,13 +18,19 @@
 extern ZoomMode_t zoom_mode;
 extern int isPaused;
 extern double speed;
+extern int dvdpipe[2];
 
+int digit_timeout = 0;
+int number_timeout = 0;
+int default_skip_seconds = 15;
+int skip_seconds = 15;
 
 static DVDNav_t *nav;
 
 struct action_number{
   int valid;
   int32_t nr;
+  struct timeval timestamp;
 };
 
 static struct action_number user_nr = { 0, 0 };
@@ -160,15 +167,13 @@ void actionPrevPG(void *data)
 
 void actionQuit(void *data)
 {
-  DVDResult_t res;
+  char buf2[1];
 
-  autosave_bookmark();
-
-  res = DVDCloseNav(nav);
-  if(res != DVD_E_Ok ) {
-    DVDPerror("DVDCloseNav", res);
+  buf2[0] = 'q';
+  
+  if(dvdpipe[1]) {
+    write(dvdpipe[1], buf2, 1);
   }
-  exit(0);
 }
 
 void actionFullScreenToggle(void *data)
@@ -403,29 +408,31 @@ void actionBookmarkRestore(void *data)
 
 void actionDigit(void *data)
 {
-  if(!user_nr.valid) {
-    user_nr.valid = 1;
+  struct timeval curtime;
+  long diff;
+  
+  gettimeofday(&curtime, NULL);
+  diff = curtime.tv_sec - user_nr.timestamp.tv_sec;
+  
+  if(!user_nr.valid || (digit_timeout && (diff > digit_timeout))) {
     user_nr.nr = 0;
   }
-
+  
+  user_nr.timestamp = curtime;
   user_nr.nr = user_nr.nr * 10 + *(uint8_t *)data;
+  user_nr.valid = 1;
 }
 
-static int32_t default_skip_seconds = 10;
-static int32_t skip_seconds = 10;
 
 void actionSkipForward(void *data)
 {
   struct action_number *user = (struct action_number *)data;
   if(user != NULL) {
-    if(user->valid) {
-      if((user->nr == 0) || (user->nr < 0)) {
-       skip_seconds = default_skip_seconds;
-      } else {
-       skip_seconds = user->nr;
-      }
-      user->valid = 0;
-    }     
+    if((user->nr == 0) || (user->nr < 0)) {
+      skip_seconds = default_skip_seconds;
+    } else {
+      skip_seconds = user->nr;
+    }
   } 
 
   DVDTimeSkip(nav, skip_seconds);
@@ -435,49 +442,75 @@ void actionSkipBackward(void *data)
 {
   struct action_number *user = (struct action_number *)data;
   if(user != NULL) {
-    if(user->valid) {
-      if((user->nr == 0) || (user->nr < 0)) {
-       skip_seconds = default_skip_seconds;
-      } else {
-       skip_seconds = user->nr;
-      }
-      user->valid = 0;
-    }     
+    if((user->nr == 0) || (user->nr < 0)) {
+      skip_seconds = default_skip_seconds;
+    } else {
+      skip_seconds = user->nr;
+    }
   } 
 
   DVDTimeSkip(nav, -skip_seconds);
 }
 
+void do_number_action(void *vfun)
+{
+  void (*number_action)(void *) = vfun;
+  struct timeval curtime;
+  long diff;
+  struct action_number *number = NULL;
+  
+  gettimeofday(&curtime, NULL);
+  diff = curtime.tv_sec - user_nr.timestamp.tv_sec;
+  
+  if(number_timeout && (diff > number_timeout)) {
+    user_nr.valid = 0;
+  }
+  if(user_nr.valid) {
+    number = &user_nr;
+  }
+  number_action(number);
+  user_nr.valid = 0;  
+}
+
+void do_action(void *fun)
+{
+  void (*action)(void *) = fun;
+
+  user_nr.valid = 0;  
+  action(NULL);
+}
+
+
 static const uint8_t digits[10] = { 0, 1, 2, 3, 4, 5, 6, 7, 8, 9 };
 
 static action_mapping_t actions[] = {
-  { "Play", actionPlay, NULL },
-  { "PauseToggle", actionPauseToggle, NULL },
+  { "Play", do_action, actionPlay },
+  { "PauseToggle", do_action, actionPauseToggle },
   { "Stop", NULL, NULL },
-  { "FastForward", actionFastForward, NULL },
-  { "SlowForward", actionSlowForward, NULL },
-  { "Faster", actionFaster, NULL },
-  { "Slower", actionSlower, NULL },
-  { "NextPG", actionNextPG, NULL },
-  { "PrevPG", actionPrevPG, NULL },
-  { "UpperButton", actionUpperButtonSelect, NULL },
-  { "LowerButton", actionLowerButtonSelect, NULL },
-  { "LeftButton", actionLeftButtonSelect, NULL },
-  { "RightButton", actionRightButtonSelect, NULL},
-  { "ButtonActivate", actionButtonActivate, &user_nr },
-  { "TitleMenu", actionMenuCallTitle, NULL },
-  { "RootMenu", actionMenuCallRoot, NULL },
-  { "AudioMenu", actionMenuCallAudio, NULL },
-  { "AngleMenu", actionMenuCallAngle, NULL },
-  { "PTTMenu", actionMenuCallPTT, NULL },
-  { "SubtitleMenu", actionMenuCallSubpicture, NULL },
-  { "Resume", actionResume, NULL },
-  { "FullScreenToggle", actionFullScreenToggle, NULL },
-  { "SubtitleToggle", actionSubpictureToggle, NULL },
-  { "Quit", actionQuit, NULL },
-  { "BookmarkAdd", actionBookmarkAdd, NULL },
-  { "BookmarkRemove", actionBookmarkRemove, &user_nr },
-  { "BookmarkRestore", actionBookmarkRestore, &user_nr },
+  { "FastForward", do_action, actionFastForward },
+  { "SlowForward", do_action, actionSlowForward },
+  { "Faster", do_action, actionFaster },
+  { "Slower", do_action, actionSlower },
+  { "NextPG", do_action, actionNextPG },
+  { "PrevPG", do_action, actionPrevPG },
+  { "UpperButton", do_action, actionUpperButtonSelect },
+  { "LowerButton", do_action, actionLowerButtonSelect },
+  { "LeftButton", do_action, actionLeftButtonSelect },
+  { "RightButton", do_action, actionRightButtonSelect},
+  { "ButtonActivate", do_number_action, actionButtonActivate },
+  { "TitleMenu", do_action, actionMenuCallTitle },
+  { "RootMenu", do_action, actionMenuCallRoot },
+  { "AudioMenu", do_action, actionMenuCallAudio },
+  { "AngleMenu", do_action, actionMenuCallAngle },
+  { "PTTMenu", do_action, actionMenuCallPTT },
+  { "SubtitleMenu", do_action, actionMenuCallSubpicture },
+  { "Resume", do_action, actionResume },
+  { "FullScreenToggle", do_action, actionFullScreenToggle },
+  { "SubtitleToggle", do_action, actionSubpictureToggle },
+  { "Quit", do_action, actionQuit },
+  { "BookmarkAdd", do_action, actionBookmarkAdd },
+  { "BookmarkRemove", do_number_action, actionBookmarkRemove },
+  { "BookmarkRestore", do_number_action, actionBookmarkRestore },
   { "DigitZero", actionDigit, (void *)&digits[0] },
   { "DigitOne",  actionDigit, (void *)&digits[1] },
   { "DigitTwo",  actionDigit, (void *)&digits[2] },
@@ -488,8 +521,8 @@ static action_mapping_t actions[] = {
   { "DigitSeven",actionDigit, (void *)&digits[7] },
   { "DigitEight",actionDigit, (void *)&digits[8] },
   { "DigitNine", actionDigit, (void *)&digits[9] },
-  { "SkipForward", actionSkipForward, &user_nr },
-  { "SkipBackward", actionSkipBackward, &user_nr },
+  { "SkipForward", do_number_action, actionSkipForward },
+  { "SkipBackward", do_number_action, actionSkipBackward },
 
   { NULL, NULL }
 };

@@ -22,6 +22,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <locale.h>
 #include <string.h>
 #include <errno.h>
@@ -42,9 +43,10 @@
 #include "myintl.h"
 
 char *program_name;
-DVDNav_t *nav;
+DVDNav_t *nav = NULL;
 char *dvd_path;
 int msgqid;
+int dvdpipe[2];
 
 int bookmarks_autosave = 0;
 int bookmarks_autoload = 0;
@@ -70,6 +72,10 @@ void autosave_bookmark(void) {
   char *state = NULL;
   int n;
   
+  if(!nav) {
+    return;
+  }
+
   if(bookmarks_autosave) {
     if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
       NOTE("%s", "GetDiscID failed\n");
@@ -152,6 +158,10 @@ void autoload_bookmark(void) {
   char *state = NULL;
   int n;
 
+  if(!nav) {
+    return;
+  }
+
   if(!bookmarks_autoload) {
     return;
   }
@@ -194,6 +204,29 @@ void autoload_bookmark(void) {
   }
   DVDBookmarkClose(bm);
 }
+guint dvdpipe_handler_id;
+
+void dvdpipe_handler(gpointer data, gint source,
+		     GdkInputCondition condition)
+{
+  char buf[1];
+  
+  if(!read(source, buf, 1)) {
+    gtk_input_remove(dvdpipe_handler_id);
+  }
+
+  if(buf[0] == 'q') {
+    DVDResult_t res;
+
+    autosave_bookmark();
+    
+    res = DVDCloseNav(nav);
+    if(res != DVD_E_Ok ) {
+      DVDPerror("DVDCloseNav", res);
+    }
+    exit(0);
+  } 
+}
 
 int
 main (int argc, char *argv[])
@@ -210,6 +243,11 @@ main (int argc, char *argv[])
     fprintf(stderr, "Error: Do not start ogle_gui directly. Start ogle\n");
     exit(1);
   }
+  if(pipe(dvdpipe)) {
+    FATAL("dvdpipe: %s", strerror(errno));
+    exit(1);
+  }
+
   msgqid = atoi(argv[2]);
 
   init_interpret_config(program_name,
@@ -219,7 +257,11 @@ main (int argc, char *argv[])
   interpret_config();
   
   gtk_init(&argc, &argv);
-  
+
+  dvdpipe_handler_id = gtk_input_add_full(dvdpipe[0],
+					  GDK_INPUT_READ,
+					  dvdpipe_handler,
+					  NULL, NULL, NULL);
   // Make Solaris 8+24 displays work
   gdk_rgb_init();
   gtk_widget_set_default_colormap(gdk_rgb_get_cmap());

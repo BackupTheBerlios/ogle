@@ -16,6 +16,10 @@
 
 extern int bookmarks_autosave;
 extern int bookmarks_autoload;
+extern int digit_timeout;
+extern int number_timeout;
+extern int default_skip_seconds;
+extern int skip_seconds;
 
 static char *program_name;
 
@@ -121,6 +125,7 @@ static void interpret_bookmarks(xmlDocPtr doc, xmlNodePtr cur)
 
 static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
 {
+  xmlChar *s;
   cur = cur->xmlChildrenNode;
   
   while(cur != NULL) {
@@ -130,6 +135,31 @@ static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
 	interpret_bindings(doc, cur);
       } else if(!strcmp("bookmarks", cur->name)) {
 	interpret_bookmarks(doc, cur);
+      } else if(!strcmp("digit_timeout", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  digit_timeout = atoi(s);
+	  if(digit_timeout < 0 ) {
+	    digit_timeout = 0;
+	  }
+	  free(s);
+	}
+      } else if(!strcmp("number_timeout", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  number_timeout = atoi(s);
+	  if(number_timeout < 0 ) {
+	    number_timeout = 0;
+	  }
+	  free(s);
+	}
+      } else if(!strcmp("default_skiptime", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  default_skip_seconds = atoi(s);
+	  if(default_skip_seconds < 0 ) {
+	    default_skip_seconds = 0;
+	  }
+	  skip_seconds = default_skip_seconds;
+	  free(s);
+	}
       }
     }
     cur = cur->next;
