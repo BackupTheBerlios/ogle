@@ -803,7 +803,7 @@ int main(int argc, char *argv[])
     input_file = NULL;
   }
   
-  /* Print the version info sot that we get it with bug reports. */
+  /* Print the version info so that we get it with bug reports. */
   NOTE("%s %s\n", PACKAGE, VERSION);
   
   ctrl_data_shmid = create_ctrl_data();
@@ -920,7 +920,8 @@ int init_decoder(char *msgqid_str, char *decoderstr)
     }
     */
     // FIXME Very high Hack value
-    if(!strcmp(decoderstr, getenv("DVDP_CLI_UI"))) {
+    if(!strcmp(decoderstr, getenv("DVDP_CLI_UI")) ||
+       !strcmp(decoderstr, getenv("DVDP_UI"))) {
       eargv[n++] = input_file;
     }     
     
