@@ -405,7 +405,13 @@ static bool eval_system_set(int cond, link_t *return_values)
 */
 static void eval_set_op(int op, int reg, int reg2, int data)
 {
-  const int shortmax = (2 << 16) - 1;
+  /* General parameters and System Parameters (GPRMS and SPRMS)
+   * are treated as 16-bit unsinged integers.
+   * in case of overflow, 0xFFFF must be assigned
+   * in case of underflow, 0x0 must be assigned
+   */
+  const int shortmax = (1 << 16) - 1;
+  
   int tmp;
   switch(op) {
     case 1: /* = (assignment) */
