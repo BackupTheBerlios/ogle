@@ -17,6 +17,13 @@ dnl Checks for header files.
 GLIB_CFLAGS=`glib-config --cflags`
 AC_SUBST(GLIB_CFLAGS)
 
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_BIGENDIAN
+AC_C_CONST
+AC_C_INLINE
+
+
 dnl Find X Window System
 AC_PATH_XTRA
 AC_CHECK_HEADER(X11/extensions/Xv.h, AC_DEFINE([HAVE_XV],1,[X11 supports Xv]))
@@ -25,21 +32,22 @@ AC_CHECK_HEADER(X11/extensions/XShm.h,
 
 dnl AC_CHECK_HEADER($x_includes/X11/extensions/Xvlib.h, AC_DEFINE([HAVE_XV]))
 
-dnl Checks for typedefs, structures, and compiler characteristics.
-AC_C_BIGENDIAN
-
 dnl Checks for library functions.
-AC_CHECK_LIB(Xext,main,XEXT_LIB=-lXext,AC_MSG_ERROR(You need libXext),$X_LIBS -lX11 $X_EXTRA_LIBS)
+AC_CHECK_LIB(Xext, main, XEXT_LIB=-lXext, AC_MSG_ERROR(You need libXext), $X_LIBS -lX11 $X_EXTRA_LIBS)
+
+AC_CHECK_LIB(Xext, XShmQueryExtension,, AC_MSG_ERROR(You need XShm), $X_LIBS -lX11)
+
+AC_CHECK_LIB(Xv, XvQueryExtension, XEXT_LIB="$XEXT_LIB -lXv", AC_MSG_WARN(You won't bw able to use Xv), $X_LIBS -lXext)
+
+dnl AC_CHECK_LIB(jpeg, main, XEXT_LIB="$XEXT_LIB -ljpeg", AC_MSG_ERROR(You need libjpeg), $X_LIBS -lX11 $X_EXTRA_LIBS)
 AC_SUBST(XEXT_LIB)
 
-AC_CHECK_LIB(Xv,XvQueryExtension,XEXT_LIB="$XEXT_LIB -lXv",AC_MSG_WARN(You won't bw able to use Xv),$X_LIBS -lXext)
+AC_CHECK_LIB(rt, nanosleep,,AC_MSG_WARN(You need nanosleep))
 
-dnl AC_CHECK_LIB(Xext,XShmQueryExtension,XEXT_LIB="$XEXT_LIB -lXext",AC_MSG_WARN(You won't be able to use XShm),$X_LIBS -lX11)
-AC_CHECK_LIB(jpeg,main,XEXT_LIB="$XEXT_LIB -ljpeg",AC_MSG_ERROR(You need libjpeg),$X_LIBS -lX11 $X_EXTRA_LIBS)
+dnl clock_gettime is in librt on Solaris so this need to be after that test
+AC_CHECK_FUNCS(clock_gettime madvise)
 
-AC_SEARCH_LIBS(sem_init, [rt pthread posix4],,AC_MSG_ERROR(You need sem_init))
-
-
+AC_CHECK_LIB(dvdread, DVDOpen,,AC_MSG_ERROR(You need libdvdread))
 
 dnl Sun MediaLib
 have_mlib=no
@@ -49,9 +57,10 @@ AC_ARG_ENABLE(mlib,
 if test x$enable_mlib = xyes; then
   AC_CHECK_LIB(mlib, main,
                 [ MLIB_CFLAGS="-I/opt/SUNWmlib/include"
-                MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
-		have_mlib=yes
-                AC_DEFINE(HAVE_MLIB,1,[Solaris MultiMedia Library installed]) ],                , -L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib)
+                  MLIB_LIBS="-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib"
+		  have_mlib=yes
+                  AC_DEFINE(HAVE_MLIB,1,[Solaris MultiMedia Library installed])
+                ],, -L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib)
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
@@ -84,18 +93,9 @@ esac
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
-case "$host_os" in
-linux-gnu)
-	AC_DEFINE([USE_SYSV_SEM],1,[Using System V semaphors])
-	;;
-*)
-	AC_DEFINE([USE_POSIX_SEM],1,[Using POSIX semaphors])
-	;;
-esac
-
 INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include -I/usr/pd/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
-AC_CHECK_FUNCS(clock_gettime madvise)
+
 AC_OUTPUT(ogle/Makefile include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
 

@@ -8,4 +8,3 @@ SUBDIRS= ogle \
 	mpeg_audio \
 	vmg \
 	ui
-##subpicture
