@@ -130,7 +130,7 @@ int search_capabilities(int caps, MsgEventClient_t *client, int *ret_caps,
       }
       if(ret_caps != NULL) {
 	*ret_caps = caps_array[n].caps;
-	fprintf(stderr, "found cap: %d\n", *ret_caps);
+	fprintf(stderr, "found cap: %x\n", *ret_caps);
       }
 
       fprintf(stderr, "state cap: %d\n", caps_array[n].state);
@@ -293,11 +293,11 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       
       if(state == CAP_running) {
-	MsgSendEvent(q, ev->reqcapability.client, ev);
+	MsgSendEvent(q, ev->reqcapability.client, retev);
       } else {
 	fprintf(stderr, "ctrl: didn't find capability\n");
 	retev.gntcapability.client = CLIENT_NONE;
-	MsgSendEvent(q, ev->reqcapability.client, ev);
+	MsgSendEvent(q, ev->reqcapability.client, retev);
       }
     }
     break;
