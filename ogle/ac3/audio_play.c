@@ -225,7 +225,11 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
     if(TIME_S(sleep_time) > 0 || TIME_SS(sleep_time) > 0) {
       //sleep so we don't buffer more than buf_time of output
       // needed mostly on solaris which can buffer huge amounts
-      
+      /*
+      fprintf(stderr, "sleep: %ld.%09ld\n", 
+	      TIME_S(sleep_time),
+	      TIME_SS(sleep_time));
+      */
       nanosleep(&sleep_time, NULL);
     }
 

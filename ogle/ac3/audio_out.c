@@ -373,6 +373,22 @@ int get_q()
 
 	pts_offset = (data_buffer+packet_data_offset)[2]<<8 |
 	  (data_buffer+packet_data_offset)[3];
+
+	if(pts_offset ==  0) {
+	  if(PTS_DTS_flags) {
+
+	  fprintf(stderr, "**pts_offset: 0,  nr_frames: %d, pts_flags: %d report bug\n",
+		  (data_buffer+packet_data_offset)[1],
+		  PTS_DTS_flags);
+	  } else if((data_buffer+packet_data_offset)[1] != 0) {
+	  fprintf(stderr, "**pts_offset: 0,  nr_frames: %d, pts_flags: %d report bug\n",
+		  (data_buffer+packet_data_offset)[1],
+		  PTS_DTS_flags);
+	  }	    
+	} else {
+	  pts_offset--;
+	}
+
 #if 0
 	fprintf(stderr, "subid: %02x, ", 
 		(data_buffer+packet_data_offset)[0]);
@@ -416,12 +432,6 @@ int get_q()
 
 
 	  
-  //  fprintf(stderr, "pts_offset: %d\n", pts_offset);
-  if(pts_offset ==  0) {
-    fprintf(stderr, "**pts_offset: 0, report bug\n");
-  } else {
-    pts_offset--;
-  }
   
   if(flush_to_scrid != -1) {
     if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {
