@@ -696,10 +696,33 @@ static void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlAudioAttributes;
 	    send_ev.dvdctrl.cmd.audioattributes.streamnr = streamN;
 	    {
+	      DVDAudioFormat_t af = DVD_AUDIO_FORMAT_Other;
 	      audio_attr_t attr = vm_get_audio_attr(streamN);
 	      memset(&send_ev.dvdctrl.cmd.audioattributes.attr, 0, 
 		     sizeof(DVDAudioAttributes_t)); //TBD
+	      switch(attr.audio_format) {
+	      case 0:
+		af = DVD_AUDIO_FORMAT_AC3;
+		break;
+	      case 2:
+		af = DVD_AUDIO_FORMAT_MPEG1;
+		break;
+	      case 3:
+		af = DVD_AUDIO_FORMAT_MPEG2;
+		break;
+	      case 4:
+		af = DVD_AUDIO_FORMAT_LPCM;
+		break;
+	      case 6:
+		af = DVD_AUDIO_FORMAT_DTS;
+		break;
+	      default:
+		printf("(please send a bug report) ");
+		break;
+	      }
 	      send_ev.dvdctrl.cmd.audioattributes.attr.AudioFormat 
+		= af;
+	      send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
 		= attr.audio_type;
 	      send_ev.dvdctrl.cmd.audioattributes.attr.Language 
 		= attr.lang_code;
