@@ -20,10 +20,10 @@ CC=gcc
 
 # __sun__
 DFLAGS= -g -Wall -O2 `glib-config --cflags` \
-	-DHAVE_MADVISE -DHAVE_SHARE_MMU -DHAVE_CLOCK_GETTIME -DHAVE_MLIB \
+	-DHAVE_MADVISE -DHAVE_SHM_SHARE_MMU -DHAVE_CLOCK_GETTIME \
 	-DUSE_POSIX_SEM \
-	-mcpu=ultrasparc -mvis -I/opt/SUNWmlib/include -I/usr/pd/include
-LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lposix4 
+	-mcpu=ultrasparc -mvis
+LDFLAGS= -lrt 
 
 # __linux__
 
@@ -32,7 +32,7 @@ LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib -ljpeg -lX11 -lXext -lsocket -lnsl -lpos
 #	-DHAVE_MMX -DHAVE_XV\
 #	-DUSE_SYSV_SEM \
 #	-mcpu=pentiumpro -march=pentiumpro -I/usr/pd/include
-#LDFLAGS= -L/usr/X11R6/lib -L/usr/pd/lib  -lX11 -lXext -lnsl -lrt  -lXv
+#LDFLAGS= -lrt 
 
 
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)

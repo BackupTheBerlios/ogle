@@ -20,7 +20,10 @@ CC=gcc
 # To build a clean software/only C, do nothing
 
 # solaris
-DFLAGS= -g -Wall -O6 -mcpu=ultrasparc -DHAVE_SHM_SHARE_MMU
+DFLAGS= -g -Wall -O2 `glib-config --cflags` \
+	-DHAVE_MADVISE -DHAVE_SHM_SHARE_MMU -DHAVE_CLOCK_GETTIME \
+	-DUSE_POSIX_SEM \
+	-mcpu=ultrasparc -mvis
 LDFLAGS= -lrt 
 
 # linux
