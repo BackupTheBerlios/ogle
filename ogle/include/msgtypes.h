@@ -31,7 +31,8 @@ typedef enum {
   CMD_CTRL_CMD = 10,
   CMD_DECODE_NEW_OUTPUT = 11,
   CMD_DECODE_OUTPUT_BUFFER = 12,
-  CMD_OUTPUT_BUFFER = 13
+  CMD_OUTPUT_BUFFER = 13,
+  CMD_SPU_SET_PALETTE = 14
 } cmdtype_t;
 
 typedef enum {
@@ -48,6 +49,10 @@ typedef enum {
   OUTPUT_VIDEO_YUV = 1,
   OUTPUT_SPU = 2
 } output_t;
+
+typedef struct {
+  uint32_t colors[16];
+} cmd_spu_palette_t;
 
 typedef struct {
   char file[PATH_MAX+1];
@@ -117,6 +122,7 @@ typedef struct {
     cmd_ctrl_cmd_t ctrl_cmd;
     cmd_new_output_t new_output;
     cmd_output_buffer_t output_buffer;
+    cmd_spu_palette_t spu_palette;
   } cmd;
 } cmd_t;
 
