@@ -5,7 +5,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui 0.7.5\n"
-"POT-Creation-Date: 2001-11-30 00:09+0100\n"
+"POT-Creation-Date: 2001-12-31 13:43+0100\n"
 "PO-Revision-Date: 2001-11-09 12:00+0100\n"
 "Last-Translator: Oliver Feiler <kiza@claws-and-paws.com>\n"
 "Language-Team: German <kiza@claws-and-paws.com>\n"
@@ -38,7 +38,21 @@ msgstr ""
 msgid "None"
 msgstr "Kein"
 
-#: src/callbacks.c:226
+#. Translators:
+#. See the Swedish translation for the correct iso-8859-1
+#. representations of these, and use them if possible
+#: src/callbacks.c:221
+msgid ""
+"Authors:\n"
+"\n"
+"Bjorn Englund\n"
+"Hakan Hjort\n"
+"Vilhelm Bergman\n"
+"Martin Norback\n"
+"Bjorn Augustsson"
+msgstr ""
+
+#: src/callbacks.c:230
 #, c-format
 msgid "Ogle GUI version %s"
 msgstr ""
@@ -1830,31 +1844,31 @@ msgstr ""
 msgid "Unknown"
 msgstr "Unbekannt"
 
-#: src/menu.c:42
+#: src/menu.c:46
 msgid "Chapter"
 msgstr ""
 
-#: src/menu.c:43
+#: src/menu.c:47
 msgid "Angle"
 msgstr "Winkel"
 
-#: src/menu.c:44
+#: src/menu.c:48
 msgid "Audio"
 msgstr "Ton"
 
-#: src/menu.c:45
+#: src/menu.c:49
 msgid "Subtitle"
 msgstr "Untertitel"
 
-#: src/menu.c:46
+#: src/menu.c:50
 msgid "Root"
 msgstr "Hauptmenü"
 
-#: src/menu.c:47
+#: src/menu.c:51
 msgid "Title"
 msgstr "Titelmenü"
 
-#: src/menu.c:48
+#: src/menu.c:52
 msgid "Resume"
 msgstr "Fortfahren"
 
@@ -1878,180 +1892,168 @@ msgstr "Blickwinkel wählen"
 msgid "Audio select"
 msgstr "Ton wählen"
 
-#. ogle_gui.glade:1201
-#: pixmaps/glade-strings.c:22
-msgid ""
-"Authors:\n"
-"\n"
-"Björn Englund\n"
-"Håkan Hjort\n"
-"Vilhelm Bergman\n"
-"Martin Norbäck\n"
-"Björn Augustsson"
-msgstr ""
-
 #. ogle_gui.glade:92
-#: pixmaps/glade-strings.c:32
+#: pixmaps/glade-strings.c:22
 msgid "E_xit"
 msgstr ""
 
 #. ogle_gui.glade:902
-#: pixmaps/glade-strings.c:35
+#: pixmaps/glade-strings.c:25
 msgid "Enter"
 msgstr "Enter"
 
 #. ogle_gui.glade:378
-#: pixmaps/glade-strings.c:38
+#: pixmaps/glade-strings.c:28
 msgid "Fast forward"
 msgstr "Schneller Vorlauf"
 
 #. ogle_gui.glade:712
-#: pixmaps/glade-strings.c:41
+#: pixmaps/glade-strings.c:31
 msgid "Go up"
 msgstr "Voriges Menü"
 
 #. ogle_gui.glade:826
-#: pixmaps/glade-strings.c:44
+#: pixmaps/glade-strings.c:34
 msgid "Move cursor down"
 msgstr "Cursor nach unten"
 
 #. ogle_gui.glade:750
-#: pixmaps/glade-strings.c:47
+#: pixmaps/glade-strings.c:37
 msgid "Move cursor left"
 msgstr "Cursor nach links"
 
 #. ogle_gui.glade:864
-#: pixmaps/glade-strings.c:50
+#: pixmaps/glade-strings.c:40
 msgid "Move cursor right"
 msgstr "Cursor nach rechts"
 
 #. ogle_gui.glade:788
-#: pixmaps/glade-strings.c:53
+#: pixmaps/glade-strings.c:43
 msgid "Move cursor up"
 msgstr "Cursor nach oben"
 
-#. ogle_gui.glade:1226
-#: pixmaps/glade-strings.c:56
+#. ogle_gui.glade:1220
+#: pixmaps/glade-strings.c:46
 msgid "OK"
 msgstr ""
 
 #. ogle_gui.glade:18
-#: pixmaps/glade-strings.c:59
+#: pixmaps/glade-strings.c:49
 msgid "Ogle"
 msgstr "Ogle"
 
 #. ogle_gui.glade:74
-#: pixmaps/glade-strings.c:62
+#: pixmaps/glade-strings.c:52
 msgid "Open _disc"
 msgstr "_Disc öffnen"
 
 #. ogle_gui.glade:492
-#: pixmaps/glade-strings.c:65
+#: pixmaps/glade-strings.c:55
 msgid "Pause"
 msgstr "Pause"
 
-#. ogle_gui.glade:1177
-#: pixmaps/glade-strings.c:68
+#. ogle_gui.glade:1177 ogle_gui.glade:1195
+#: pixmaps/glade-strings.c:58
 msgid "Placeholder"
 msgstr ""
 
 #. ogle_gui.glade:340
-#: pixmaps/glade-strings.c:71
+#: pixmaps/glade-strings.c:61
 msgid "Play"
 msgstr "Wiedergabe"
 
 #. ogle_gui.glade:621
-#: pixmaps/glade-strings.c:74
+#: pixmaps/glade-strings.c:64
 msgid "Play fast"
 msgstr "Schnelle Wiedergabe"
 
 #. ogle_gui.glade:659
-#: pixmaps/glade-strings.c:77
+#: pixmaps/glade-strings.c:67
 msgid "Play slow"
 msgstr "Zeitlupe"
 
 #. ogle_gui.glade:116
-#: pixmaps/glade-strings.c:80
+#: pixmaps/glade-strings.c:70
 msgid "Properties..."
 msgstr ""
 
 #. ogle_gui.glade:264
-#: pixmaps/glade-strings.c:83
+#: pixmaps/glade-strings.c:73
 msgid "Reverse"
 msgstr "Rückwärts"
 
 #. ogle_gui.glade:226
-#: pixmaps/glade-strings.c:86
+#: pixmaps/glade-strings.c:76
 msgid "Rewind"
 msgstr "Zurückspulen"
 
 #. ogle_gui.glade:955
-#: pixmaps/glade-strings.c:89
+#: pixmaps/glade-strings.c:79
 msgid "Select menu..."
 msgstr "Menü wählen..."
 
 #. ogle_gui.glade:416
-#: pixmaps/glade-strings.c:92
+#: pixmaps/glade-strings.c:82
 msgid "Skip backwards"
 msgstr "Track rückwärts"
 
 #. ogle_gui.glade:568
-#: pixmaps/glade-strings.c:95
+#: pixmaps/glade-strings.c:85
 msgid "Skip forwards"
 msgstr "Track vorwärts"
 
 #. ogle_gui.glade:530
-#: pixmaps/glade-strings.c:98
+#: pixmaps/glade-strings.c:88
 msgid "Step forwards"
 msgstr "Frame vorwärts"
 
 #. ogle_gui.glade:454
-#: pixmaps/glade-strings.c:101
+#: pixmaps/glade-strings.c:91
 msgid "Step reverse"
 msgstr "Frame zurück"
 
 #. ogle_gui.glade:302
-#: pixmaps/glade-strings.c:104
+#: pixmaps/glade-strings.c:94
 msgid "Stop"
 msgstr "Stop"
 
 #. ogle_gui.glade:1031
-#: pixmaps/glade-strings.c:107
+#: pixmaps/glade-strings.c:97
 msgid "Subtitle select"
 msgstr "Untertitel wählen"
 
 #. ogle_gui.glade:170
-#: pixmaps/glade-strings.c:110
+#: pixmaps/glade-strings.c:100
 msgid "_About..."
 msgstr ""
 
 #. ogle_gui.glade:101
-#: pixmaps/glade-strings.c:113
+#: pixmaps/glade-strings.c:103
 msgid "_Edit"
 msgstr ""
 
 #. ogle_gui.glade:47
-#: pixmaps/glade-strings.c:116
+#: pixmaps/glade-strings.c:106
 msgid "_File"
 msgstr "_Titelmenü"
 
 #. ogle_gui.glade:145
-#: pixmaps/glade-strings.c:119
+#: pixmaps/glade-strings.c:109
 msgid "_Full screen"
 msgstr "_Vollbild"
 
 #. ogle_gui.glade:155
-#: pixmaps/glade-strings.c:122
+#: pixmaps/glade-strings.c:112
 msgid "_Help"
 msgstr ""
 
 #. ogle_gui.glade:62
-#: pixmaps/glade-strings.c:125
+#: pixmaps/glade-strings.c:115
 msgid "_Open..."
 msgstr ""
 
 #. ogle_gui.glade:125
-#: pixmaps/glade-strings.c:128
+#: pixmaps/glade-strings.c:118
 msgid "_View"
 msgstr ""
 
