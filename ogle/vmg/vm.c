@@ -645,16 +645,49 @@ void vm_get_video_res(int *width, int *height)
   }
 }
 
+unsigned int bcd2int(unsigned int bcd)
+{
+  unsigned int pot = 1; 
+  unsigned int res = 0; 
+  while(bcd != 0) {
+    res += (bcd & 0x0f) * pot;
+    bcd >>= 4;
+    pot *= 10;
+  }
+  return res;
+}
+
+unsigned int int2bcd(unsigned int number)
+{
+  unsigned int pot = 1; 
+  unsigned int res = 0; 
+  while(number != 0) {
+    res += (number % 10) * pot;
+    number /= 10;
+    pot <<= 4;
+  }
+  return res;
+}
+
 static void time_add(dvd_time_t *acc, dvd_time_t *diff)
 {
+  unsigned int acc_s, diff_s;
   int frame_rate, frames;
   
   assert((acc->frame_u & 0xc0) == (diff->frame_u & 0xc0));
+  // conver from bcd to seconds
+  acc_s = bcd2int(acc->hour) * 60 * 60;
+  acc_s += bcd2int(acc->minute) * 60;
+  acc_s += bcd2int(acc->second);
   
-  acc->hour   += diff->hour;
-  acc->minute += diff->minute;
-  acc->second += diff->second;
-  frames = (acc->frame_u & 0x3f) + (diff->frame_u & 0x3f);
+  diff_s = bcd2int(diff->hour) * 60 * 60;
+  diff_s += bcd2int(diff->minute) * 60;
+  diff_s += bcd2int(diff->second);
+  
+  // add time
+  acc_s += diff_s;
+  
+  frames = bcd2int(acc->frame_u & 0x3f) + bcd2int(diff->frame_u & 0x3f);
 
   switch(acc->frame_u >> 6) {
   case 1:
@@ -668,13 +701,13 @@ static void time_add(dvd_time_t *acc, dvd_time_t *diff)
     break;
   }
    
-  // normalize time  
-  acc->second += frames / frame_rate;
-  acc->frame_u = (frames % frame_rate) | (acc->frame_u & 0xc0);
-  acc->minute += acc->second / 60;
-  acc->second %= 60;
-  acc->hour   += acc->minute / 60;
-  acc->minute %= 60;
+  // normalize time
+  acc_s += frames / frame_rate;
+  // convert back to bcd
+  acc->frame_u = int2bcd(frames % frame_rate) | (acc->frame_u & 0xc0);
+  acc->second = int2bcd(acc_s % 60);
+  acc->minute = int2bcd((acc_s / 60) % 60);
+  acc->hour   = int2bcd(acc_s / (60 * 60));
 }
 
 void vm_get_total_time(dvd_time_t *current_time)

@@ -49,12 +49,11 @@ static void do_run(void);
 
 static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
 {
-  dest->Hours   = source->hour;
-  dest->Minutes = source->minute;
-  dest->Seconds = source->second;
-  dest->Frames  = source->frame_u & 0x3f;
+  dest->Hours   = bcd2int(source->hour);
+  dest->Minutes = bcd2int(source->minute);
+  dest->Seconds = bcd2int(source->second);
+  dest->Frames  = bcd2int(source->frame_u & 0x3f);
 }
-
 
 
 MsgEventQ_t *msgq;
