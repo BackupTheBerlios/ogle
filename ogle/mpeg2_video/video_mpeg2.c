@@ -268,16 +268,20 @@ void block_intra(unsigned int i)
     /*    const unsigned int code = nextbits(16); */
     const unsigned int code = (word >> (24-16));
     
-    if(code>=16384)
+    if(code>=16384) {
       if (pic.coding_ext.intra_vlc_format)
 	tab = &DCTtab0a[(code >> 8) - 4];   // 15
       else
 	tab = &DCTtabnext[(code >> 12) - 4];  // 14
-    else if(code>=1024)
+      /* EOB here for both cases */
+    }
+    else if(code>=1024) {
       if (pic.coding_ext.intra_vlc_format)
 	tab = &DCTtab0a[(code >> 8) - 4];   // 15
       else
 	tab = &DCTtab0[(code >> 8) - 4];   // 14
+      /* Escape here for both cases */
+    }
     else if(code>=512)
       if (pic.coding_ext.intra_vlc_format)
 	tab = &DCTtab1a[(code >> 6) - 8];  // 15
@@ -358,10 +362,10 @@ void block_intra(unsigned int i)
 	  f = 2048;
       }
 #endif
-      mb.QFS[i] = sgn ? -f : f;
       inverse_quantisation_sum += f; // The last bit is the same in f and -f.
+      mb.QFS[i] = sgn ? -f : f;
       
-      n++;      
+      n++;
     }
     
     /* Works like:
@@ -404,9 +408,11 @@ void block_non_intra(unsigned int b)
   unsigned int n = 0;
   int inverse_quantisation_sum = 0;
   
+  /* Make a local 'getbits' implementation. */
   unsigned int left = bits_left;
   unsigned int offset = offs;
-  uint32_t word = nextbits(24);
+  uint64_t lcur_word = cur_word;
+  uint32_t word = (lcur_word << (64-left)) >> 40; //nextbits(24);
   
   DPRINTF(3, "pattern_code(%d) set\n", b);
   
@@ -414,7 +420,7 @@ void block_non_intra(unsigned int b)
   {
     int m;
     for(m = 0; m < 16; m++)
-      memset(((uint64_t *)mb.QFS) + m, 0, sizeof(uint64_t));
+      memset((uint64_t *)mb.QFS + m, 0, sizeof(uint64_t));
   }
   
   while(1) {
@@ -426,10 +432,14 @@ void block_non_intra(unsigned int b)
     if(code >= 16384)
       if(n == 0)
 	tab = &DCTtabfirst[(code >> 12) - 4];
-      else
+      else {
 	tab = &DCTtabnext[(code >> 12) - 4];
-    else if(code >= 1024)
+	/* EOB only here */
+      }
+    else if(code >= 1024) {
       tab = &DCTtab0[(code >> 8) - 4];
+      /* Escape only here */
+    }
     else if(code >= 512)
       tab = &DCTtab1[(code >> 6) - 8];
     else if(code >= 256)
@@ -443,9 +453,7 @@ void block_non_intra(unsigned int b)
     else if(code >= 16)
       tab = &DCTtab6[code - 16];
     else {
-      fprintf(stderr,
-	      "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n",
-	      code);
+      //      fprintf(stderr, "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n", code);
       exit_program(1);
     }
     
@@ -474,7 +482,7 @@ void block_non_intra(unsigned int b)
 	val &= 0xfff;
 	
 	if((val & 2047) == 0) {
-	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+	  //	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
 	
@@ -511,8 +519,8 @@ void block_non_intra(unsigned int b)
       }
 #endif
       
-      mb.QFS[i] = sgn ? -f : f;
       inverse_quantisation_sum += f; // The last bit is the same in f and -f.
+      mb.QFS[i] = sgn ? -f : f;
       
       n++;      
     }
@@ -524,24 +532,27 @@ void block_non_intra(unsigned int b)
     if(left <= 24) {
       if(offset < buf_size) {
 	uint32_t new_word = GUINT32_FROM_BE(buf[offset++]);
-	cur_word = (cur_word << 32) | new_word;
+	lcur_word = (lcur_word << 32) | new_word;
 	left += 32;
       }
       else {
 	bits_left = left;
 	offs = offset;
+	cur_word = lcur_word;
 	read_buf();
 	left = bits_left;
 	offset = offs;
+	lcur_word = cur_word;
       }
     }
-    word = (cur_word << (64-left)) >> 40;
+    word = (lcur_word << (64-left)) >> 40;
   }
   inverse_quantisation_final(inverse_quantisation_sum);
   
   // Clean-up
   bits_left = left;
   offs = offset;
+  cur_word = lcur_word;
   dropbits( 0 ); // eob-token ++
   
   DPRINTF(4, "nr of coeffs: %d\n", n);
@@ -1193,19 +1204,18 @@ void macroblock(void)
 	  dst = (i >= 2) ? dst + width * d : dst;
 	}
 	else {
-	  stride = width / 2; // HACK alert !!!
+	  stride = width / 2;
 	  if( i == 4 )
 	    dst = &dst_image->u[x * 8 + y * width/2 * 8];
 	  else // i == 5
 	    dst = &dst_image->v[x * 8 + y * width/2 * 8];
 	}
-	
 	mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
       }
     }
   } 
   else { /* Non-intra block */
-    
+
     motion_comp(); // Only motion compensate don't add coefficients.
 
     if(mb.modes.macroblock_pattern) {

@@ -16,6 +16,20 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ * This is core functions that are needed for MPEG-1 decoding. 
+ *
+ * It relies on the common functions to parse everything but
+ * the slices level and down.
+ *
+ * The code is a modified and simplified version of the MPEG-2 code.
+ * MPEG-1 can not be interlaced and there are also other extensions 
+ * that are only pressent in MPEG-2. Some functions that could have 
+ * been shared between MPEG-1 and 2 are not because they have been 
+ * simplifid according to what MPEG-1 supports, it should be possible
+ * instead just call the MPEG-2 functions. 
+ */
+ 
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -43,13 +57,6 @@
 
 #include "c_getbits.h"
 #include "video_tables.h"
-
-
-
-
-
-
-
 
 
 
@@ -432,8 +439,6 @@ int block_non_intra(unsigned int b)
 static
 int coded_block_pattern(void)
 {
-  uint8_t cbp = 0;
-  
   DPRINTF(3, "coded_block_pattern\n");
 
   mb.cbp = get_vlc(table_b9, "cbp (b9)");

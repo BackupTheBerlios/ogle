@@ -1384,14 +1384,14 @@ void
 mlib_VideoIDCT8x8_S16_S16(int16_t *block,
 			  int16_t *coeffs)
 {
-  /*
+#ifndef HAVE_MMX
   int i;
   
   for (i=0; i<8; i++)
     idct_row(block + 8*i, coeffs + 8*i);
   for (i=0; i<8; i++)
     idct_col(block + i, block + i);
-  */
+#else
   
   movq_m2r(*coeffs, mm0);
   movq_m2r(*(coeffs+4), mm1);
@@ -1443,6 +1443,7 @@ mlib_VideoIDCT8x8_S16_S16(int16_t *block,
   movq_r2m(mm7, *(block+60));
 	
   IDCT_mmx( block );
+#endif
 }
 
 
@@ -1451,7 +1452,7 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
 			 int16_t *coeffs,
 			 int32_t stride)
 {
-  /*
+#ifndef HAVE_MMX
   int16_t temp[64];
   int i;
   
@@ -1459,7 +1460,7 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
     idct_row(temp + 8*i, coeffs + 8*i);
   for (i=0; i<8; i++)
     idct_col_u8(block + i, temp + i, stride);
-  */
+#else
   int x,y;
   const int n = 8;
   const int jump = stride - n;
@@ -1515,13 +1516,6 @@ mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
 
   IDCT_mmx( coeffs );
   
-#ifndef HAVE_MMX
-  for (y = 0; y < n; y++) {
-    for (x = 0; x < n; x++)
-      *block++ = clip_to_u8(*coeffs++);
-    block += jump;
-  }
-#else  
   pxor_r2r(mm0, mm0);             // load 0 into mm0
   
   for (y = 0; y < n; y++) {

@@ -87,7 +87,7 @@ int total_pos = 0;
 int total_calls = 0;
 
 
-unsigned int debug = 0;
+unsigned int debug = 2;
 int shm_ready = 0;
 static int shmem_flag = 1;
 
@@ -267,9 +267,9 @@ int get_vlc(const vlc_table_t *table, char *func) {
   int pos=0;
   int numberofbits=1;
   int vlc;
-  
+#if 1
   while(table[pos].numberofbits != VLC_FAIL) {
-    vlc=nextbits(numberofbits);
+    vlc = nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
 	DPRINTF(3, "get_vlc(%s): len: %d, vlc: %d, val: %d\n",
@@ -281,7 +281,29 @@ int get_vlc(const vlc_table_t *table, char *func) {
     }
     numberofbits++;
   }
-  fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
+#else
+  int found = 0;
+  numberofbits=0;
+  while(1) {
+    if(table[pos].numberofbits != numberofbits) {
+      numberofbits = table[pos].numberofbits;
+      if(numberofbits == VLC_FAIL)
+	break;
+      vlc = nextbits(numberofbits);
+    }
+    if(table[pos].vlc == vlc) {
+      found = 1;
+      break;
+    }
+    pos++;
+  }
+  if(found) {
+    dropbits(numberofbits);
+    return (table[pos].value);
+  }
+#endif
+  fprintf(stderr, "*** get_vlc(vlc_table *table, \"%s\"): no matching " 
+	  "bitstream found.\nnext 32 bits: %08x, ", func, nextbits(32));
   fprintbits(stderr, 32, nextbits(32));
   fprintf(stderr, "\n");
   exit_program(-1);
@@ -1510,7 +1532,7 @@ void picture_data(void)
 
       /* If the picture should already have been displayed then drop it. */
       /* TODO: More investigation needed. */
-      if(err_time.tv_nsec < 0) {
+      if(err_time.tv_nsec < 0 && forced_frame_rate != 0) {
 	fprintf(stderr, "\n***Drop B-frame in decoder\n");
 	fprintf(stderr, "errpts %ld.%+010ld\n\n",
 		err_time.tv_sec,
