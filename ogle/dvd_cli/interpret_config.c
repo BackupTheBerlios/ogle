@@ -158,7 +158,7 @@ static void interpret_ui(xmlDocPtr doc, xmlNodePtr cur)
   }
 }
 
-static void interpret_drive(xmlDocPtr doc, xmlNodePtr cur)
+static void interpret_device(xmlDocPtr doc, xmlNodePtr cur)
 {
   xmlChar *s;
   
@@ -190,8 +190,8 @@ static void interpret_dvd(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("nav", cur->name)) {
 	interpret_nav(doc, cur);
-      } else if(!strcmp("drive", cur->name)) {
-	interpret_drive(doc, cur);
+      } else if(!strcmp("device", cur->name)) {
+	interpret_device(doc, cur);
       }
     }
     cur = cur->next;
