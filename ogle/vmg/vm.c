@@ -40,7 +40,6 @@ typedef enum {
 struct {
   state_t registers;
   domain_t domain;
-  int vtsN;
   int pgcN;
   int pgN;
   int cellN;
@@ -115,8 +114,9 @@ int main(int argc, char *argv[])
   // Setup State
   state.registers.SPRM[13] = 8; // Parental Level
   state.registers.SPRM[20] = 1; // Player Regional Code
-  state.registers.SPRM[4] = 1; // Title Number
-  state.vtsN = 0;
+  state.registers.SPRM[4] = 1; // Title Number (VTS#)
+  state.registers.SPRM[5] = 1; // VTS Title Number (TT#)
+  state.registers.SPRM[6] = 0; // Title PGC Number
   state.pgcN = 0;
   state.pgN = 0;
   state.cellN = 0;
@@ -196,7 +196,7 @@ int main(int argc, char *argv[])
       if(state.domain != VTSM_DOMAIN)
 	part += cell.first_sector/(1024  * 1024 * 1024 / 2048) + 1;
       name = malloc(16); // Bad!
-      snprintf(name, 14, "VTS_%02i_%c.VOB", state.vtsN, part);
+      snprintf(name, 14, "VTS_%02i_%c.VOB", state.registers.SPRM[4], part);
     }
     
     PUT(6, "%s\t", name);
@@ -269,38 +269,54 @@ int main(int argc, char *argv[])
 	 link_values.data1, link_values.data2, link_values.data3);
   switch(link_values.command) {
   case LinkNoLink: // Vill inte ha det här här..
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);
     
   case LinkTopC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     goto play_Cell;
   case LinkNextC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.cellN += 1; // >nr_of_cells?
     goto play_Cell;    
   case LinkPrevC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.cellN -= 1; // < 1?
     goto play_Cell;   
     
   case LinkTopPG:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     //state.pgN = ?
     goto play_PG;
   case LinkNextPG:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.pgN += 1; // What if pgN becomes > pgc.nr_of_programs?
     state.cellN = 0;
     goto play_PG;
   case LinkPrevPG:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     state.pgN -= 1; // What if pgN becomes < 1?
     state.cellN = 0;
     goto play_PG;
   
   case LinkTopPGC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    exit(-1);  
   case LinkNextPGC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    exit(-1);  
   case LinkPrevPGC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
+    exit(-1);  
   case LinkGoUpPGC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   case LinkTailPGC:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     goto play_PGC_post;
   
   case LinkRSM:
+    state.registers.SPRM[8] = 0x400 * link_values.data1;
     exit(-1);  
   
   case LinkPGCN:
@@ -308,14 +324,17 @@ int main(int argc, char *argv[])
     goto play_PGC;
   
   case LinkPTTN:
+    state.registers.SPRM[8] = 0x400 * link_values.data2;
     exit(-1);  
   
   case LinkPGN:
+    state.registers.SPRM[8] = 0x400 * link_values.data2;
     state.pgN = link_values.data1;
     state.cellN = 0;
     goto play_PG;
   
   case LinkCN:
+    state.registers.SPRM[8] = 0x400 * link_values.data2;
     state.cellN = link_values.data1;
     goto play_Cell;
   
@@ -329,7 +348,7 @@ int main(int argc, char *argv[])
   case JumpVTS_TT:
     assert(state.domain == VTSM_DOMAIN || state.domain == VTS_DOMAIN); //??
     state.domain = VTS_DOMAIN;
-    get_VTS_TT(state.vtsN, link_values.data1);
+    get_VTS_TT(state.registers.SPRM[4], link_values.data1);
     goto play_PGC;
   case JumpVTS_PTT:
     assert(state.domain == VTSM_DOMAIN); //??
@@ -372,7 +391,7 @@ int main(int argc, char *argv[])
   case CallSS_FP:
     assert(state.domain == VTS_DOMAIN); //??   
     state.rsm_cellN = link_values.data1; //??
-    // ?? more sets ??
+    // ?? more sets ?? reset all registers to initial values?
     state.domain = FP_DOMAIN;
     ifoClose();
     ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
@@ -383,14 +402,14 @@ int main(int argc, char *argv[])
     goto play_PGC;
   case CallSS_VMGM_MENU:
     assert(state.domain == VTS_DOMAIN); //??   
-    exit(-1);    
+    exit(-1);
   case CallSS_VTSM:
     assert(state.domain == VTS_DOMAIN); //??   
     state.rsm_pgcN = state.pgcN;
     state.rsm_pgN = state.pgN;
     state.rsm_cellN = state.cellN; // = link_values.data2; ??
     state.domain = VTSM_DOMAIN;
-    get_VTSM(state.vtsN, 1, link_values.data1); // New function?
+    get_VTSM(state.registers.SPRM[4], 1, link_values.data1); // New function?
     goto play_PGC;
   case CallSS_VMGM_PGC:
     assert(state.domain == VTS_DOMAIN); //??   
@@ -427,7 +446,7 @@ void get_VTS_TT(int vts, int tt) {
   ifoClose();
   ifoOpen_VTS(&vtsi_mat, buffer);
   
-  state.vtsN = vts;
+  state.registers.SPRM[4] = vts;
   
   get_VTS_PTT(tt, 1);
 }
@@ -443,6 +462,8 @@ void get_VTS_PTT(int tt, int part) {
   state.pgcN = vts_ptt_srpt.title_info[tt-1].ptt_info[part-1].pgcn;
   state.pgN = vts_ptt_srpt.title_info[tt-1].ptt_info[part-1].pgn;
   state.cellN = 0;
+  state.registers.SPRM[5] = tt;
+  state.registers.SPRM[6] = state.pgcN;
   //ifoFree_VTS_PTT_SRPT(&vts_ptt_srpt);
   
   pgcit = malloc( sizeof(pgcit) );
@@ -516,7 +537,8 @@ void get_VTSM(int vts, int title, int menu) {
   ifoClose();
   ifoOpen_VTS(&vtsi_mat, buffer);
   
-  state.vtsN = vts;
+  state.registers.SPRM[4] = vts;
+  
   assert(title == 1); // I don't know what title is supposed to be used for.
   
   ifoRead_MENU_PGCI_UT(&pgci_ut, vtsi_mat.vtsm_pgci_ut);
