@@ -35,23 +35,23 @@ void DVDPerror(const char *str, DVDResult_t ErrCode);
 
 /* info commands */
 
-DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, const DVDGPRMArray_t *Registers);
-DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, const DVDSPRMArray_t *Registers);
+DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, DVDGPRMArray_t *const Registers);
+DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, DVDSPRMArray_t *const Registers);
 
-DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop);
+DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop);
 DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				  const DVDAudioAttributes_t *Attr);
+				  DVDAudioAttributes_t *const Attr);
 DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				const DVDLangID_t *Language);
+				DVDLangID_t *Language);
 DVDResult_t DVDGetCurrentAudio(DVDNav_t *nav, int *const StreamsAvailable,
 			       DVDAudioStream_t *const CurrentStream);
 DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
 				    DVDBool_t *const Enabled);
-DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav, const DVDLangID_t *Language,
-				       const DVDAudioLangExt_t *AudioExtension);
+DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav, DVDLangID_t *const Language,
+				       DVDAudioLangExt_t *const AudioExtension);
 DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 			       DVDAngle_t *const CurrentAngle);
-DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, const DVDVideoAttributes_t *Attr);
+DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav, DVDVideoAttributes_t *const Attr);
 
 DVDResult_t DVDGetCurrentSubpicture(DVDNav_t *nav,
 				    int *const StreamsAvailable,
@@ -62,13 +62,13 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
 					 DVDBool_t *const Enabled);
 DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
 				       DVDSubpictureStream_t StreamNr,
-				       const DVDSubpictureAttributes_t *Attr);
+				       DVDSubpictureAttributes_t *const Attr);
 DVDResult_t DVDGetSubpictureLanguage(DVDNav_t *nav,
 				     DVDSubpictureStream_t StreamNr,
-				     const DVDLangID_t *Language);
+				     DVDLangID_t *const Language);
 DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
-					    const DVDLangID_t *Language,
-					    const DVDSubpictureLangExt_t *SubpictureExtension);
+					    DVDLangID_t *const Language,
+					    DVDSubpictureLangExt_t *const SubpictureExtension);
 
 
 

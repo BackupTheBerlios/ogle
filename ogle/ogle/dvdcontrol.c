@@ -226,7 +226,7 @@ void DVDPerror(const char *str, DVDResult_t ErrCode)
  * Get the contents of all General Parameters
  * @todo implement function
  */
-DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, const DVDGPRMArray_t *Registers)
+DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, DVDGPRMArray_t *const Registers)
 {
   return DVD_E_NotImplemented;
 }
@@ -235,7 +235,7 @@ DVDResult_t DVDGetAllGPRMs(DVDNav_t *nav, const DVDGPRMArray_t *Registers)
  * Get the contents of all System Parameters
  * @todo implement function
  */
-DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, const DVDSPRMArray_t *Registers)
+DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, DVDSPRMArray_t *const Registers)
 {
   return DVD_E_NotImplemented;
 }
@@ -254,7 +254,7 @@ DVDResult_t DVDGetAllSPRMs(DVDNav_t *nav, const DVDSPRMArray_t *Registers)
  * @retval DVD_E_Ok Success.
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
-DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
+DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, DVDUOP_t *const uop)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -295,7 +295,7 @@ DVDResult_t DVDGetCurrentUOPS(DVDNav_t *nav, const DVDUOP_t *uop)
  * @retval DVD_E_NotImplemented The function is not implemented. 
  */
 DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				  const DVDAudioAttributes_t *Attr)
+				  DVDAudioAttributes_t *const Attr)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -338,7 +338,7 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetAudioLanguage(DVDNav_t *nav, DVDAudioStream_t StreamNr,
-				const DVDLangID_t *Language)
+				DVDLangID_t *const Language)
 {
   return DVD_E_NotImplemented;
 }
@@ -438,8 +438,8 @@ DVDResult_t DVDIsAudioStreamEnabled(DVDNav_t *nav, DVDAudioStream_t StreamNr,
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetDefaultAudioLanguage(DVDNav_t *nav,
-				       const DVDLangID_t *Language,
-				       const DVDAudioLangExt_t *AudioExtension)
+				       DVDLangID_t *const Language,
+				       DVDAudioLangExt_t *const AudioExtension)
 {
   return DVD_E_NotImplemented;
 }
@@ -494,7 +494,7 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetCurrentVideoAttributes(DVDNav_t *nav,
-					 const DVDVideoAttributes_t *Attr)
+					 DVDVideoAttributes_t *const Attr)
 {
   return DVD_E_NotImplemented;
 }
@@ -610,7 +610,7 @@ DVDResult_t DVDIsSubpictureStreamEnabled(DVDNav_t *nav,
  */
 DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
 				       DVDSubpictureStream_t StreamNr,
-				       const DVDSubpictureAttributes_t *Attr)
+				       DVDSubpictureAttributes_t *const Attr)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
@@ -656,7 +656,7 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
  */
 DVDResult_t DVDGetSubpictureLanguage(DVDNav_t *nav,
 				     DVDSubpictureStream_t StreamNr,
-				     const DVDLangID_t *Language)
+				     DVDLangID_t *const Language)
 {
   return DVD_E_NotImplemented;
 }
@@ -674,8 +674,8 @@ DVDResult_t DVDGetSubpictureLanguage(DVDNav_t *nav,
  * @retval DVD_E_NotImplemented The function is not implemented.
  */
 DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
-					    const DVDLangID_t *Language,
-					    const DVDSubpictureLangExt_t *SubpictureExtension)
+					    DVDLangID_t *const Language,
+					    DVDSubpictureLangExt_t *const SubpictureExtension)
 {
   return DVD_E_NotImplemented;
 }
