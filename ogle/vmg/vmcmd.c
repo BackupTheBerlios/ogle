@@ -238,7 +238,7 @@ print_jump_instruction () {
               bits(5,4,4), bits(4,0,8));
           break;
         case 3:
-          printf("CallSS VMGM (pgc %" PRIu8 ", rsm_cell %)" PRIu8 ")", 
+          printf("CallSS VMGM (pgc %" PRIu8 ", rsm_cell %" PRIu8 ")", 
               bits(2,1,15), bits(4,0,8));
           break;
       }
