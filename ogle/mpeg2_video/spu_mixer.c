@@ -259,7 +259,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    fprintf(stderr, "spu_mixer: unrecognized event type (%d)\n", ev->type);
+    fprintf(stderr, "spu_mixer: ignoring event type (%d)\n", ev->type);
     return 0;
     break;
   }
@@ -522,7 +522,7 @@ static void decode_dcsqt(spu_t *spu_info)
   set_byte(spu_info->buffer);
   
   /* Reset state  */
-  //spu_info->menu = 0;
+  //fprintf(stderr, "spu: reset 1\n");
   spu_info->display_start = 0;
   // Maybe some other...
   
@@ -1063,7 +1063,7 @@ static int next_spu_cmd_pending(spu_t *spu_info)
 	  // FIXME: assumes order of src_nr
 	  if(flush_to_scrnr > spu_info->scr_nr) {
 	    /* Reset state  */
-	    //spu_info->menu = 0;
+	    //fprintf(stderr, "spu: flush/reset 2\n");
 	    spu_info->display_start = 0;
 	    spu_info->has_highlight = 0;
 	  }
@@ -1083,29 +1083,33 @@ static int next_spu_cmd_pending(spu_t *spu_info)
     }
     /* starttime measured in 1024/90000 seconds */
     //   PTS_TO_CLOCKTIME(spu_info->next_time, 1024 * start_time);
-    spu_info->next_time = start_time * 1024;
-    spu_info->next_time = spu_info->base_time + spu_info->next_time;
+    spu_info->next_time = spu_info->base_time + start_time * 1024;
     //   timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
   
+  if(ctrl_time[spu_info->scr_nr].offset_valid == OFFSET_NOT_VALID) {
+    return 0;
+  }
   PTS_TO_CLOCKTIME(next_time, spu_info->next_time);
   clocktime_get(&realtime);
   calc_realtime_left_to_scrtime(&errtime, &realtime, &next_time,
 				&ctrl_time[spu_info->scr_nr].sync_point);
   //  timesub(&errtime, &spu_info->next_time, &realtime);
 
-  if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0)
+  if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
+    //fprintf(stderr,"spu: time: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
     return 1;
-  if(spu_info->scr_nr != video_scr_nr) {
+  }
+  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
+    //fprintf(stderr,"spu: spu_info->scr_nr != video_scr_nr\n");
     return 1;
   }
   
   if(flush_to_scrnr != -1) {
     if(flush_to_scrnr > spu_info->scr_nr) { // FIXME: assumes order of src_nr
-      //fprintf(stderr, "spu: flush 2\n");
       
       /* Reset state  */
-      //spu_info->menu = 0;
+      //fprintf(stderr, "spu: flush/reset 3\n");
       spu_info->display_start = 0;
       spu_info->has_highlight = 0;
       
@@ -1226,7 +1230,7 @@ void flush_subpicture(int scr_nr)
     return;
   }
   
-  //fprintf(stderr, "spu: flush 1\n");
+  //fprintf(stderr, "spu: flush_subpicture\n");
   flush_to_scrnr = scr_nr;
 
   while(next_spu_cmd_pending(&spu_info)) {
