@@ -55,7 +55,23 @@ int solaris_init(ogle_ao_instance_t *_instance,
   solaris_instance_t *instance = (solaris_instance_t *)_instance;
   
   if(instance->initialized) {
-    return -1;  // for now we must close and open the device for reinit
+    audio_info_t info;
+    
+    ioctl(instance->fd, AUDIO_DRAIN, 0);
+    
+    AUDIO_INITINFO(&info);
+    info.play.error = 0;
+    info.play.samples = 0;
+    if(ioctl(instance->fd, AUDIO_SETINFO, &info) == -1) {
+      perror("AUDIO_SETINFO");
+    }
+    
+    instance->initialized = 0;
+    instance->sample_rate = 0;
+    instance->samples_written = 0;
+    instance->sample_frame_size = 0;
+    
+    //return -1;  // for now we must close and open the device for reinit
   }
 
   AUDIO_INITINFO(&info);
@@ -89,7 +105,7 @@ int solaris_init(ogle_ao_instance_t *_instance,
     return -1;
   }
   
-  /* Check that we actually got the requested nuber of channles,
+  /* Check that we actually got the requested number of channels,
    * the frequency and precision that we asked for?  */
 
   if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
