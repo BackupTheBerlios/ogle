@@ -5,7 +5,7 @@ create_pipe() {
     if [ ! -p $1 ]; then
 	rm -f $1;
         # So any other user can start the program / rm the pipes
-        mkfifo -m 666 $1;
+        mkfifo $1; chmod 666 $1;
     fi
     # chgrp dvd $1;
 }
@@ -17,7 +17,7 @@ create_pipe "/tmp/audio"
 echo "Build: @BUILDINFO@"
 # and the os version we are running on
 runtime="Runtime: `uname -m -r -s -v`"
-runtime="${runtime} `uname -p`"
+runtime="${runtime} `uname -p 2> /dev/null`"
 echo "$runtime"
 
 # This is were all the helper programs are placed
