@@ -65,9 +65,6 @@ dvd_state_t state;
 
 
 
-// Should this be some where in the state, is it allready?
-char lang[2] = "en";
-
 int debug = 8;
 
 
@@ -83,14 +80,15 @@ static link_t play_PG(void);
 static link_t play_Cell(void);
 static link_t play_Cell_post(void);
 static link_t play_PGC_post(void);
+
 static link_t process_command(link_t link_values);
 
 static void ifoOpenVMGI(void);
 static void ifoOpenVTSI(int vtsN);
 
 static pgcit_t* get_VTS_PGCIT(int vtsN);
-static pgcit_t* get_VTSM_PGCIT(int vtsN, char language[2]);
-static pgcit_t* get_VMGM_PGCIT(char language[2]);
+static pgcit_t* get_VTSM_PGCIT(int vtsN, uint16_t lang);
+static pgcit_t* get_VMGM_PGCIT(uint16_t lang);
 static pgcit_t* get_PGCIT(void);
 static int get_video_aspect(void);
 
@@ -219,7 +217,7 @@ int reset_vm(void)
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
   memset(state.registers.GPRM, 0, sizeof(state.registers.GPRM));
-  state.registers.SPRM[0] = ('U'<<8)|'S'; // Player Menu Languange code
+  state.registers.SPRM[0] = ('e'<<8)|'n'; // Player Menu Languange code
   state.AST_REG = 15;
   state.SPST_REG = 0; // 62 why?
   state.AGL_REG = 1;
@@ -229,7 +227,10 @@ int reset_vm(void)
   state.PTT_REG = 1;
   state.HL_BTNN_REG = 1 << 10;
 
-  state.PTL_REG = 15;           // Parental Level
+  state.PTL_REG = 15; // Parental Level
+  state.registers.SPRM[12] = ('U'<<8)|'S'; // Parental Management Country Code
+  state.registers.SPRM[16] = ('e'<<8)|'n'; // Initial Language Code for Audio
+  state.registers.SPRM[18] = ('e'<<8)|'n'; // Initial Language Code for Spu
   state.registers.SPRM[20] = 1; // Player Regional Code
   
   state.pgN = 0;
@@ -237,7 +238,6 @@ int reset_vm(void)
 
   state.domain = FP_DOMAIN;
   state.rsm_vtsN = 0;
-  //state.rsm_pgcN = 0;
   state.rsm_cellN = 0;
   state.rsm_blockN = 0;
   
@@ -285,7 +285,7 @@ int eval_cmd(vm_cmd_t *cmd)
       assert(link_values.command == PlayThis);
     }
     state.blockN = link_values.data1;
-    return 1; // Something changed
+    return 1; // Something changed, Jump
   } else {
     return 0; // It updated some state thats all...
   }
@@ -310,10 +310,46 @@ int get_next_cell(void)
   return 0; // ??
 }
 
+int vm_top_pg(void)
+{
+  link_t link_values;
+  // Calls play_Cell wich either returns PlayThis or a command
+  link_values = play_PG();
+  
+  if(link_values.command != PlayThis) {
+    /* At the end of this PGC or we encountered a command. */
+    // Terminates first when it gets a PlayThis (or error).
+    link_values = process_command(link_values);
+    assert(link_values.command == PlayThis);
+  }
+  state.blockN = link_values.data1;
+  
+  return 1; // Jump
+}
+
+int vm_next_pg(void)
+{
+  // Udate PG first?
+  state.pgN += 1; 
+  return vm_top_pg();
+}
+
+int vm_prev_pg(void)
+{
+  // Udate PG first?
+  state.pgN -= 1;
+  if(state.pgN == 0) {
+    state.pgN = 1;
+    return 0;
+  }
+  return vm_top_pg();
+}
 
 // Must be called before domain is changed 
-void saveRMSinfo(int cellN, int blockN)
+void saveRSMinfo(int cellN, int blockN)
 {
+  int i;
+  
   if(cellN != 0) {
     state.rsm_cellN = cellN;
     state.rsm_blockN = 0;
@@ -323,6 +359,12 @@ void saveRMSinfo(int cellN, int blockN)
   }
   state.rsm_vtsN = state.vtsN;
   state.rsm_pgcN = get_PGCN();
+  
+  assert(state.rsm_pgcN == state.PGC_REG); // ??
+  
+  for(i = 0; i < 5; i++) {
+    state.rsm_regs[i] = state.registers.SPRM[4 + i];
+  }
 }
 
 domain_t menuid2domain(DVDMenuID_t menuid)
@@ -363,7 +405,7 @@ int vm_menuCall(DVDMenuID_t menuid, int block)
   
   switch(state.domain) {
   case VTS_DOMAIN:
-    saveRMSinfo(0, block);
+    saveRSMinfo(0, block);
     /* FALL THROUGH */
   case VTSM_DOMAIN:
   case VMGM_DOMAIN:
@@ -378,7 +420,7 @@ int vm_menuCall(DVDMenuID_t menuid, int block)
 	assert(link_values.command == PlayThis);
       }
       state.blockN = link_values.data1;
-      return 1;
+      return 1; // Jump
     } else {
       state.domain = old_domain;
     }
@@ -393,6 +435,7 @@ int vm_menuCall(DVDMenuID_t menuid, int block)
 
 int vm_resume(void)
 {
+  int i;
   link_t link_values;
   
   // Check and see if there is any rsm info!!
@@ -407,11 +450,13 @@ int vm_resume(void)
   set_spu_palette(state.pgc->palette); // Erhum...
   
   /* These should never be set in SystemSpace and/or MenuSpace */ 
-  // state.TT_REG = rsm_tt;
+  // state.TT_REG = state.rsm_tt;
   // state.PGC_REG = state.rsm_pgcN;
-  
-  //state.HL_BTNN_REG = rsm_btnn;
-  
+  // state.HL_BTNN_REG = state.rsm_btnn;
+  for(i = 0; i < 5; i++) {
+    state.registers.SPRM[4 + i] = state.rsm_regs[i];
+  }
+
   if(state.rsm_cellN == 0) {
     assert(state.cellN); // Checking if this ever happens
     state.pgN = 1;
@@ -431,7 +476,7 @@ int vm_resume(void)
     state.blockN = state.rsm_blockN;
   }
   
-  return 1;
+  return 1; // Jump
 }
 
 int get_Audio_stream(int audioN)
@@ -696,7 +741,8 @@ static link_t play_Cell_post(void)
     assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 1);
     /* Skip the 'other' angles */
     state.cellN++;
-    while(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode >= 2) {
+    while(state.cellN <= state.pgc->nr_of_cells 
+	  && state.pgc->cell_playback_tbl[state.cellN - 1].block_mode >= 2) {
       state.cellN++;
     }
     break;
@@ -818,35 +864,40 @@ static link_t process_command(link_t link_values)
       break;
       
     case LinkRSM:
-      // Check and see if there is any rsm info!!
-      state.domain = VTS_DOMAIN;
-      ifoOpenVTSI(state.rsm_vtsN);
-      get_PGC(state.rsm_pgcN);
-      
-      set_spu_palette(state.pgc->palette); // Erhum...
-      
-      /* These should never be set in SystemSpace and/or MenuSpace */ 
-      /* state.TT_REG = rsm_tt; ?? */
-      /* state.PGC_REG = state.rsm_pgcN; ?? */
-      
-      if(link_values.data1 != 0)
-	state.HL_BTNN_REG = link_values.data1 << 10;
-     
-      if(state.rsm_cellN == 0) {
-	assert(state.cellN); // Checking if this ever happens
-	/* assert( time/block/vobu is 0 ); */
-	state.pgN = 1;
-	link_values = play_PG();
-      } else { 
-	/* assert( time/block/vobu is _not_ 0 ); */
-	/* play_Cell_at_time */
-	//state.pgN = ?? this gets the righ value in play_Cell
-	state.cellN = state.rsm_cellN;
-	link_values.command = PlayThis;
-	link_values.data1 = state.rsm_blockN;
+      {
+	int i;
+	// Check and see if there is any rsm info!!
+	state.domain = VTS_DOMAIN;
+	ifoOpenVTSI(state.rsm_vtsN);
+	get_PGC(state.rsm_pgcN);
+	
+	set_spu_palette(state.pgc->palette); // Erhum...
+	
+	/* These should never be set in SystemSpace and/or MenuSpace */ 
+	/* state.TT_REG = rsm_tt; ?? */
+	/* state.PGC_REG = state.rsm_pgcN; ?? */
+	for(i = 0; i < 5; i++) {
+	  state.registers.SPRM[4 + i] = state.rsm_regs[i];
+	}
+	
+	if(link_values.data1 != 0)
+	  state.HL_BTNN_REG = link_values.data1 << 10;
+	
+	if(state.rsm_cellN == 0) {
+	  assert(state.cellN); // Checking if this ever happens
+	  /* assert( time/block/vobu is 0 ); */
+	  state.pgN = 1;
+	  link_values = play_PG();
+	} else { 
+	  /* assert( time/block/vobu is _not_ 0 ); */
+	  /* play_Cell_at_time */
+	  //state.pgN = ?? this gets the righ value in play_Cell
+	  state.cellN = state.rsm_cellN;
+	  link_values.command = PlayThis;
+	  link_values.data1 = state.rsm_blockN;
+	}
       }
       break;
-      
     case LinkPGCN:
       get_PGC(link_values.data1);
       link_values = play_PGC();
@@ -928,36 +979,20 @@ static link_t process_command(link_t link_values)
       
     case CallSS_FP:
       assert(state.domain == VTS_DOMAIN); //??   
-      if(link_values.data1 != 0) {
-	state.rsm_cellN = link_values.data1;
-	state.rsm_blockN = 0;
-      } else {
-	state.rsm_cellN = state.cellN;
-	//state.rsm_blockN = ; // must be set outside (i.e in nav.c)
-      }
-      state.rsm_vtsN = state.vtsN;
-      state.rsm_pgcN = get_PGCN(); // Must be called before domain is changed
-    
+      // Must be called before domain is changed
+      saveRSMinfo(link_values.data1, /* We dont have block info */ 0);
       get_FP_PGC();
       link_values = play_PGC();
       break;
     case CallSS_VMGM_MENU:
       assert(state.domain == VTS_DOMAIN); //??   
-      if(link_values.data2 != 0) {
-	state.rsm_cellN = link_values.data2;
-	state.rsm_blockN = 0;
-      } else {
-	state.rsm_cellN = state.cellN;
-	//state.rsm_blockN = ; // must be set outside (i.e in nav.c)
-      }
-      state.rsm_vtsN = state.vtsN;
-      state.rsm_pgcN = get_PGCN(); // Must be called before domain is changed
-      
+      // Must be called before domain is changed
+      saveRSMinfo(link_values.data2, /* We dont have block info */ 0);      
       state.domain = VMGM_DOMAIN;
       if(get_MENU(link_values.data1) != -1) {
 	link_values = play_PGC();
       } else {
-	link_values.command = LinkRSM;
+	link_values.command = LinkRSM; /* This might be dangerous */
 	link_values.data1 = 0;
 	link_values.data2 = 0;
 	link_values.data3 = 0;
@@ -965,21 +1000,13 @@ static link_t process_command(link_t link_values)
       break;
     case CallSS_VTSM:
       assert(state.domain == VTS_DOMAIN); //??   
-      if(link_values.data2 != 0) {
-	state.rsm_cellN = link_values.data2;
-	state.rsm_blockN = 0;
-      } else {
-	state.rsm_cellN = state.cellN;
-	//state.rsm_blockN = ; // must be set outside (i.e in nav.c)
-      }      
-      state.rsm_vtsN = state.vtsN;
-      state.rsm_pgcN = get_PGCN(); // Must be called before domain is changed
-      
+      // Must be called before domain is changed
+      saveRSMinfo(link_values.data2, /* We dont have block info */ 0);
       state.domain = VTSM_DOMAIN;
       if(get_MENU(link_values.data1) != -1) {
 	link_values = play_PGC();
       } else {
-	link_values.command = LinkRSM;
+	link_values.command = LinkRSM; /* This might be dangerous */
 	link_values.data1 = 0;
 	link_values.data2 = 0;
 	link_values.data3 = 0;
@@ -987,28 +1014,20 @@ static link_t process_command(link_t link_values)
       break;
     case CallSS_VMGM_PGC:
       assert(state.domain == VTS_DOMAIN); //??   
-      if(link_values.data2 != 0) {
-	state.rsm_cellN = link_values.data2;
-	state.rsm_blockN = 0;
-      } else {
-	state.rsm_cellN = state.cellN;
-	//state.rsm_blockN = ; // must be set outside (i.e in nav.c)
-      }      
-      state.rsm_vtsN = state.vtsN;
-      state.rsm_pgcN = get_PGCN(); // Must be called before domain is changed
-      
+      // Must be called before domain is changed
+      saveRSMinfo(link_values.data2, /* We dont have block info */ 0);
       state.domain = VMGM_DOMAIN;
       if(get_PGC(link_values.data1) != -1) {
 	link_values = play_PGC();
       } else {
-	link_values.command = LinkRSM;
+	link_values.command = LinkRSM; /* This might be dangerous */
 	link_values.data1 = 0;
 	link_values.data2 = 0;
 	link_values.data3 = 0;
       }
       break;
     case PlayThis:
-      /* Never happens. */
+      /* Should never happen. */
       break;
     }
     
@@ -1142,6 +1161,9 @@ static int get_PGC(int pgcN)
   //state.pgcN = pgcN;
   state.pgc = pgcit->pgci_srp[pgcN - 1].pgc;
   
+  if(state.domain == VTS_DOMAIN)
+    state.PGC_REG = pgcN; // ??  
+  
   return 0;
 }
 
@@ -1257,9 +1279,10 @@ static pgcit_t* get_VTS_PGCIT(int vtsN)
   return vtsi.vts_pgcit;
 }
 
-static pgcit_t* get_VTSM_PGCIT(int vtsN, char language[2])
+static pgcit_t* get_VTSM_PGCIT(int vtsN, uint16_t lang)
 {
   int i;
+  char language[2] = {(char)(lang >> 8), (char)(lang & 0xff)};
   
   ifoOpenVTSI(vtsN);
   if(vtsi.vtsm_pgci_ut == NULL) {
@@ -1279,9 +1302,10 @@ static pgcit_t* get_VTSM_PGCIT(int vtsN, char language[2])
   return vtsi.vtsm_pgci_ut->menu_lu[i].menu_pgcit;
 }
 
-static pgcit_t* get_VMGM_PGCIT(char language[2])
+static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
 {
   int i;
+  char language[2] = {(char)(lang >> 8), (char)(lang & 0xff)};
   
   ifoOpenVMGI();
   if(vmgi.vmgm_pgci_ut == NULL) {
@@ -1308,9 +1332,9 @@ static pgcit_t* get_PGCIT(void) {
   if(state.domain == VTS_DOMAIN) {
     pgcit = get_VTS_PGCIT(state.vtsN);
   } else if(state.domain == VTSM_DOMAIN) {
-    pgcit = get_VTSM_PGCIT(state.vtsN, /* XXX */ lang);
+    pgcit = get_VTSM_PGCIT(state.vtsN, state.registers.SPRM[0]);
   } else if(state.domain == VMGM_DOMAIN) {
-    pgcit = get_VMGM_PGCIT( /* XXX */ lang);
+    pgcit = get_VMGM_PGCIT(state.registers.SPRM[0]);
   } else {
     pgcit = NULL;    /* Should never hapen */
   }

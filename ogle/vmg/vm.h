@@ -11,9 +11,9 @@ typedef enum {
   VTSM_DOMAIN = 8
 } domain_t;  
 
-/*
-  State: SPRM, GPRM, Domain, pgc, pgN, cellN, ?
-*/
+/**
+ * State: SPRM, GPRM, Domain, pgc, pgN, cellN, ?
+ */
 typedef struct {
   registers_t registers;
   
@@ -29,7 +29,7 @@ typedef struct {
   /* Resume info */
   int rsm_vtsN;
   int rsm_blockN; /* of nav_packet */
-  uint16_t rsm_regs[5];
+  uint16_t rsm_regs[5]; /* system registers 4-8 */
   int rsm_pgcN;
   int rsm_cellN;
 } dvd_state_t;

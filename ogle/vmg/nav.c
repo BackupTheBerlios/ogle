@@ -46,6 +46,9 @@ extern int eval_cmd(vm_cmd_t *cmd);
 extern int get_next_cell();
 extern int vm_menuCall(int menuid, int block);
 extern int vm_resume(void);
+extern int vm_top_pg(void);
+extern int vm_next_pg(void);
+extern int vm_prev_pg(void);
 extern int get_Audio_stream(int audioN);
 extern int get_Spu_stream(int spuN);
 extern int get_Spu_active_stream(void);
@@ -54,11 +57,56 @@ extern void get_Spu_info(int *num_avail, int *current);
 
 
 
-
-
+/**
+ * Update any info the demuxer needs, and then send a reange of sectors
+ * that shall be demuxed.
+ */
 static void send_demux_sectors(int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
+  static int audio_stream_id = -1, spu_stream_id = -1; // FIXME ??? static
   MsgEvent_t ev;
+
+#if 1
+  /* Tell the demuxer which audio track to demux */ 
+  {
+    int sN = get_Audio_stream(state.AST_REG);
+    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
+    if(sN != audio_stream_id) {
+      audio_stream_id = sN;
+      
+      fprintf(stderr, "nav: sending audio demuxstream %d\n", sN);
+      
+      ev.type = MsgEventQDemuxStreamChange;
+      ev.demuxstreamchange.stream_id = 0xbd; // AC3
+      ev.demuxstreamchange.subtype = 0x80 | audio_stream_id;
+      if(send_demux(msgq, &ev) == -1) {
+	fprintf(stderr, "vm: didn't set demuxstream\n");
+      }
+      fprintf(stderr, "nav: sent\n");
+    }
+  }
+#endif
+
+#if 1
+  /* Tell the demuxer which spu track to demux */ 
+  {
+    int sN = get_Spu_active_stream();
+    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
+    if(sN != spu_stream_id) {
+      spu_stream_id = sN;
+      
+      fprintf(stderr, "nav: sending spu demuxstream %d\n", sN);
+    
+      ev.type = MsgEventQDemuxStreamChange;
+      ev.demuxstreamchange.stream_id = 0xbd; // SPU
+      ev.demuxstreamchange.subtype = 0x20 | spu_stream_id;
+      if(send_demux(msgq, &ev) == -1) {
+	fprintf(stderr, "vm: didn't set demuxstream\n");
+      }
+      fprintf(stderr, "nav: sent\n");
+    }
+  }
+#endif
   
   ev.type = MsgEventQPlayCtrl;
   ev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
@@ -205,7 +253,7 @@ int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
     if(ce->type != DVDCtrlMouseSelect) {
       fprintf(stderr, "!!!auto_action_mode!!!\n");
       is_action = 1;
-      }
+    }
     break;
   case 2:
   case 3:
@@ -216,8 +264,8 @@ int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   
   /* If a new button has been selected or if one has been activated. */
   /* Determine the correct area and send the information to the spu decoder. */
-  /* Possible optimization: don't send if its the same as last time. */
-  {
+  /* Don't send if its the same as last time. */
+  if(is_action || button_nr != ((*btn_reg) >> 10)) {
     btni_t *button;
     button = &pci->hli.btnit[button_nr - 1];
     send_highlight(button->x_start, button->y_start, 
@@ -227,26 +275,30 @@ int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   
   /* Write the (updated) value to the button register. */
   *btn_reg = button_nr << 10;
+  
   return is_action;
 }
 
 
-static void process_pci(pci_t *pci, uint16_t *btn_nr) {
-  
+static void process_pci(pci_t *pci, uint16_t *btn_reg) {
+  /* Keep the button register value in a local variable. */
+  uint16_t button_nr = (*btn_reg) >> 10;
+	  
   /* Check if this is alright, i.e. pci->hli.hl_gi.hli_ss == 1 only 
-     for the first menu pic packet? What about looping menus */
-  
-  // FIXME TODO XXX $$$ Does not work for menu that only have one nav pack!
+   * for the first menu pic packet? Should be.
+   * What about looping menus? Will reset it every loop.. */
   
   if(pci->hli.hl_gi.hli_ss == 1) {
-    if(pci->hli.hl_gi.fosl_btnn != 0)
-      *btn_nr = pci->hli.hl_gi.fosl_btnn;
+    if(pci->hli.hl_gi.fosl_btnn != 0) {
+      button_nr = pci->hli.hl_gi.fosl_btnn;
+      fprintf(stderr, "forced select button %d\n", pci->hli.hl_gi.fosl_btnn);
+    }
   }
   
   /* Paranoia.. */
   if((pci->hli.hl_gi.hli_ss & 0x03) != 0
-     && *btn_nr > pci->hli.hl_gi.btn_ns) {
-    *btn_nr = 1;
+     && button_nr > pci->hli.hl_gi.btn_ns) {
+    button_nr = 1;
   }
 
   /* FIXME TODO XXX $$$ */
@@ -254,13 +306,14 @@ static void process_pci(pci_t *pci, uint16_t *btn_nr) {
   /* Determine the correct area and send the information to the spu decoder. */
   /* Possible optimization: don't send if its the same as last time. */
   {
-    btni_t *button;
-    button = &pci->hli.btnit[*btn_nr - 1];
+    btni_t *button = &pci->hli.btnit[button_nr - 1];
     send_highlight(button->x_start, button->y_start, 
 		   button->x_end, button->y_end, 
 		   pci->hli.btn_colit.btn_coli[button->btn_coln-1][0]);
   }
   
+  /* Write the (updated) value to the button register. */  
+  *btn_reg = button_nr << 10;
 }
 
 
@@ -275,7 +328,7 @@ cell_playback_t *cell;
 
 
 
-void do_init_cell(void) {
+void do_init_cell(int flush) {
   
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
   still_time = cell->still_time;
@@ -304,44 +357,12 @@ void do_init_cell(void) {
   block = state.blockN;
   assert(cell->first_sector + block <= cell->last_sector);
   
-#if 1
-  /* Tell the demuxer which audio track to demux */ 
-  {
-    MsgEvent_t ev;
-    int sN = get_Audio_stream(state.AST_REG);
-    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
-    fprintf(stderr, "nav: sending audio demuxstream %d\n", sN);
-    
-    ev.type = MsgEventQDemuxStreamChange;
-    ev.demuxstreamchange.stream_id = 0xbd; // AC3
-    ev.demuxstreamchange.subtype = 0x80 | sN;
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-  }
-  fprintf(stderr, "nav: sent\n");
-#endif
-
-#if 1
-  /* Tell the demuxer which spu track to demux */ 
-  {
-    MsgEvent_t ev;
-    int sN = get_Spu_active_stream();
-    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no audio_
-    fprintf(stderr, "nav: sending spu demuxstream %d\n", sN);
-    
-    ev.type = MsgEventQDemuxStreamChange;
-    ev.demuxstreamchange.stream_id = 0xbd; // SPU
-    ev.demuxstreamchange.subtype = 0x20 | sN;
-    if(send_demux(msgq, &ev) == -1) {
-      fprintf(stderr, "vm: didn't set demuxstream\n");
-    }
-  }
-  fprintf(stderr, "nav: sent\n");
-#endif
   
   /* Get the pci/dsi data */
-  send_demux_sectors(cell->first_sector + block, 1, 0);
+  if(flush)
+    send_demux_sectors(cell->first_sector + block, 1, FlowCtrlFlush);
+  else
+    send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
   pending_lbn = cell->first_sector + block;
 
 }
@@ -352,7 +373,7 @@ void do_next_cell(void) {
   get_next_cell();
   block = 0; // or rsm_block??, get it from get_next_cell()!!
 
-  do_init_cell();
+  do_init_cell(0);
 }
 
 
@@ -366,13 +387,11 @@ void do_run(void) {
   
   start_vm();
   block = 0;
-  do_init_cell();
+  do_init_cell(0);
   dsi.dsi_gi.nv_pck_lbn = -1;
   
   
   while(1) {
-    /* To avoid doing << 10 and >> 10 all the time we make a local copy */
-
     MsgEvent_t ev;
     int got_data;
     
@@ -382,24 +401,29 @@ void do_run(void) {
     /* Have we read the last dsi packet we asked for? Then request the next. */
     if(pending_lbn == dsi.dsi_gi.nv_pck_lbn
        && cell->first_sector + block <= cell->last_sector) {
-      int flush_video;
+      int complete_video;
       
       /* Is there any video data in the next vobu? */
-      if((dsi.vobu_sri.next & 0x80000000)== 0) {
-	flush_video = FlowCtrlCompleteVideoUnit;
+      if((dsi.vobu_sri.next & 0x80000000) == 0 
+	 && dsi.vobu_gi.vobu_1stref_ea != 0 
+	 /* &&  there were video in this */) {
+	complete_video = FlowCtrlCompleteVideoUnit;
 	fprintf(stderr, "flush_video = 1;\n");
       } else {
-	flush_video = FlowCtrlNone;
+	complete_video = FlowCtrlNone;
       }
       
       /* Demux/play the content of this vobu */
       send_demux_sectors(cell->first_sector + block + 1, 
-			 dsi.dsi_gi.vobu_ea, flush_video);
+			 dsi.dsi_gi.vobu_ea, complete_video);
       
       
       /* The next vobu is where... (make this a function) */
       
       if(0 /*angle && change_angle*/) {
+	/* if( seamless )
+	   else // non seamless 
+	*/
 	;
       } else {
 	/* .. top two bits are flags */  
@@ -421,18 +445,17 @@ void do_run(void) {
 	/* Handle forced activate button here */
 	if(pci.hli.hl_gi.foac_btnn != 0 && 
 	   (pci.hli.hl_gi.hli_ss & 0x03) != 0) {
-	  uint16_t sl_button_nr = state.HL_BTNN_REG >> 10;
-	  
+	  uint16_t button_nr = state.HL_BTNN_REG >> 10;
 	  /* Forced action 0x3f means selected button, 
 	     otherwise use the specified button */
 	  if(pci.hli.hl_gi.foac_btnn != 0x3f)
-	    sl_button_nr = pci.hli.hl_gi.foac_btnn;
-	  if(sl_button_nr > pci.hli.hl_gi.btn_ns)
+	    button_nr = pci.hli.hl_gi.foac_btnn;
+	  if(button_nr > pci.hli.hl_gi.btn_ns)
 	    ; // error selected but out of range...
+	  state.HL_BTNN_REG = button_nr << 10;
 	  
-	  state.HL_BTNN_REG = sl_button_nr << 10;
-	  if(eval_cmd(&pci.hli.btnit[sl_button_nr - 1].cmd)) {
-	    do_init_cell();
+	  if(eval_cmd(&pci.hli.btnit[button_nr - 1].cmd)) {
+	    do_init_cell(/* ?? */ 0);
 	    dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
 	}
@@ -523,9 +546,20 @@ void do_run(void) {
 	case DVDCtrlGoUp:
 	case DVDCtrlForwardScan:
 	case DVDCtrlBackwardScan:
+	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
+		  ev.dvdctrl.cmd.type);
+	  break;
+	  
 	case DVDCtrlNextPGSearch:
+	  res = vm_next_pg();
+	  break;
 	case DVDCtrlPrevPGSearch:
+	  res = vm_prev_pg();
+	  break;
 	case DVDCtrlTopPGSearch:
+	  res = vm_top_pg();
+	  break;
+	  
 	case DVDCtrlPTTSearch:
 	case DVDCtrlPTTPlay:
 	case DVDCtrlTitlePlay:
@@ -539,9 +573,10 @@ void do_run(void) {
 	  break;
 	case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
 	  {
+	    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
+#if 0 /* This is updated next time send_demux_sectors is called */	    
 	    MsgEvent_t send_ev;
 	    int sN;
-	    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
 	    sN = get_Audio_stream(state.AST_REG);
 	    if(sN < 0 || sN > 7) sN = 7; // XXX == -1 for _no audio_
 	    send_ev.type = MsgEventQDemuxStreamChange;
@@ -550,14 +585,17 @@ void do_run(void) {
 	    if(send_demux(msgq, &send_ev) == -1) {
 	      fprintf(stderr, "vm: didn't set demuxstream\n");
 	    }
+#endif
 	  }
 	  break;
 	case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
 	  {
+	    state.SPST_REG = ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
+	    state.SPST_REG = state.SPST_REG | 0x40; // Turn it on
+#if 0 /* This is updated next time send_demux_sectors is called */	    
 	    MsgEvent_t send_ev;
 	    int sN;
-	    state.SPST_REG = ev.dvdctrl.cmd.subpicturestreamchange.streamnr;
-	    sN = get_Spu_stream(state.SPST_REG);
+	    sN = get_Spu_active_stream();
 	    if(sN < 0 || sN > 31) sN = 31; // XXX == -1 for _no spu_
 	    send_ev.type = MsgEventQDemuxStreamChange;
 	    send_ev.demuxstreamchange.stream_id = 0xbd; // AC3
@@ -565,6 +603,7 @@ void do_run(void) {
 	    if(send_demux(msgq, &send_ev) == -1) {
 	      fprintf(stderr, "vm: didn't set demuxstream\n");
 	    }
+#endif
 	  }
 	  break;
 	case DVDCtrlGetCurrentAudio:
@@ -650,7 +689,7 @@ void do_run(void) {
       }
       
       if(res != 0) {/* a jump has occured */
-	do_init_cell();
+	do_init_cell(/* Flush streams */1);
 	dsi.dsi_gi.nv_pck_lbn = -1;
       }
       
@@ -672,16 +711,13 @@ void do_run(void) {
 	  continue;
 	}
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
-	  fprintf(stdout, "Menu detected\n");
-	  print_pci_packet(stdout, &pci);
+	  //fprintf(stdout, "Menu detected\n");
+	  //print_pci_packet(stdout, &pci);
 	}
 	
 	/* !!! Evaluate and Instantiate the new pci packets !!! */
-	{
-	  uint16_t sl_button_nr = state.HL_BTNN_REG >> 10;
-	  process_pci(&pci, &sl_button_nr);
-	  state.HL_BTNN_REG = sl_button_nr << 10;
-	}
+	process_pci(&pci, &state.HL_BTNN_REG);
+
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
 	/* XXX inte läsa till dsi utan något annat minne? */
 	read_dsi_packet(&dsi, &buffer[1], len);
