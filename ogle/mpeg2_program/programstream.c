@@ -1,3 +1,4 @@
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/mman.h>
@@ -21,6 +22,9 @@ unsigned int bytes_read = 0;
 extern char *optarg;
 extern int optind, opterr, optopt;
 
+/* Variables for getbits */
+unsigned int bits_left = 64;
+uint64_t cur_word = 0;
 
 unsigned int nextbits(unsigned int nr_of_bits);
 
@@ -34,6 +38,31 @@ FILE *video_file;
 FILE *audio_file;
 FILE *subtitle_file;
 FILE *infile;
+
+#define DEBUG
+
+#ifdef DEBUG
+#define DPRINTF(level, text...) \
+if(debug > level) \
+{ \
+    fprintf(stderr, ## text); \
+}
+#else
+#define DPRINTF(level, text...)
+#endif
+
+#ifdef DEBUG
+#define DPRINTBITS(level, bits, value) \
+{ \
+  int n; \
+  for(n = 0; n < bits; n++) { \
+    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+  } \
+}
+#else
+#define DPRINTBITS(level, bits, value)
+#endif
+
 int   infilefd;
 void* infileaddr;
 
@@ -135,7 +164,7 @@ main(int argc, char **argv)
     fprintf(stderr, "Searching for Program Stream\n");
     if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
       fprintf(stderr, "Found Program Stream\n");
-      program_stream();
+      MPEG2_program_stream();
     }
     resync();
   }
@@ -146,6 +175,59 @@ resync() {
   fprintf(stderr, "Resyncing\n");
   buf_start = 0;
   buf_fill = 0;
+}
+
+/* 2.3 Definition of bytealigned() function */
+int bytealigned(void)
+{
+  return !(bits_left%8);
+}
+
+#ifdef DEBUG
+uint32_t getbits(unsigned int nr, char *func)
+#else
+//static inline   
+uint32_t getbits(unsigned int nr)
+#endif
+{
+  uint32_t result;
+
+  result = (cur_word << (64-bits_left)) >> 32;
+  result = result >> (32-nr);
+  bits_left -=nr;
+  if(bits_left <= 32) {
+    uint32_t new_word = buf[offs++];
+    if(offs >= READ_SIZE/4)
+      read_buf();
+    cur_word = (cur_word << 32) | new_word;
+    bits_left = bits_left+32;
+  }
+
+  return result;
+}
+
+unsigned int nextbits(unsigned int nr_of_bits)
+{
+  uint32_t result = (cur_word << (64-bits_left)) >> 32;
+  return result >> (32-nr);
+}
+
+void marker_bit(void)                                                           {
+  if(!GETBITS(1, "markerbit")) {
+    fprintf(stderr, "*** incorrect marker_bit in stream\n");
+    exit(-1);
+  }
+}
+ 
+/* 2.3 Definition of next_start_code() function */
+void next_start_code(void)
+{ 
+  while(!bytealigned()) {
+    GETBITS(1, "next_start_code");
+  } 
+  while(nextbits(24) != 0x000001) {
+    GETBITS(8, "next_start_code");
+  } 
 }
 
 get_data()
@@ -203,31 +285,15 @@ unsigned char inspect_byte(unsigned int offset)
   return buf[(buf_start+offset)%buf_len];
 }
 
-unsigned int nextbits(unsigned int nr_of_bits)
-{
-  /* Only called on byte boundaries */
-  unsigned int bits;
-  int n = 0;
-  unsigned int nr_of_bytes = (nr_of_bits+7)/8;
-  
-  for(;n < nr_of_bytes; n++) {
-    ((unsigned char *)&bits)[n] = inspect_byte(n);
-  }
-  
-  return bits;
-}
-  
-
-program_stream()
+MPEG2_program_stream()
 {
 
-  fprintf(stderr, "program_stream()\n");
+  DPRINTF(2,"MPEG2_program_stream()\n");
   do {
     pack();
   } while(nextbits(32) == MPEG2_PS_PACK_START_CODE); 
-  if(nextbits(32) == MPEG2_PS_PROGRAM_END_CODE) {
-    fprintf(stderr, "MPEG Program End\n");
-    buf_free(4);
+  if(getbits(32) == MPEG2_PS_PROGRAM_END_CODE) {
+    DPRINTF(2, "MPEG Program End\n");
   } else {
     fprintf(stderr, "*** Lost Sync\n");
     fprintf(stderr, "*** after: %u bytes\n", bytes_read);
@@ -305,145 +371,91 @@ int get_bytes(unsigned int len, unsigned char **data)
 
 pack_header()
 {
-  unsigned long int system_clock_reference_base;
-  unsigned int system_clock_reference_extension;
-  unsigned int program_mux_rate;
-  unsigned int pack_stuffing_length;
-  
-  unsigned char *data;
-  int alloced;
+  uint64_t system_clock_reference_base;
+  uint16_t system_clock_reference_extension;
+  uint32_t program_mux_rate;
+  uint8_t  pack_stuffing_length;
 
-  //fprintf(stderr, "pack_header()\n");
+  DPRINTF(2, "pack_header()\n");
 
-  buf_free(4); // pack_start_code
-  
-  alloced = get_bytes(10, &data);
-  
-  if(data[0]&0xC0 != 0x40) {
-    fprintf(stderr, "*ph 01\n");
+  getbits(32); // pack_start_code
+  getbits(2); // '01'
+  system_clock_reference_base = getbits(3) << 30; // [32..30]
+  marker_bit();
+  system_clock_reference_base |= getbits(15) << 15; // [29..15]
+  marker_bit();
+  system_clock_reference_base |= getbits(15); // [14..0]
+  marker_bit();
+  system_clock_reference_extension = getbits(9);
+  marker_bit();
+  program_mux_rate = getbits(22);
+  marker_bit();
+  marker_bit();
+  getbits(5); // reserved
+  pack_stuffing_length = getbits(3);
+  for(i=0;i<pack_stuffing_length;i++) {
+    getbits(8); // stuffing_byte
   }
+  DPRINTF(3, "system_clock_reference_base: %lu\n",
+      system_clock_reference_base);
+  DPRINTF(3, "system_clock_reference_extension: %u\n",
+      system_clock_reference_extension);
+  DPRINTF(3, "program_mux_rate: %u\n",
+      program_mux_rate);
+  DPRINTF(3, "pack_stuffing_length: %u\n",
+      pack_stuffing_length);
 
-  // 01ccc1cc cccccccc ccccc1cc cccccccc ccccc1ee eeeeeee1 mmmmmmmm mmmmmmmm mmmmmm11 rrrrrsss
-  
-  system_clock_reference_base =
-    (data[0]&0x38)<<27 | (data[0]&0x03)<<28 | (data[1])<<20 |
-    (data[2]&0xf8)<<12 | (data[2]&0x03)<<13 | (data[3])<<5 |
-    ((data[3]>>2)&0x3f);
-  
-  
-  system_clock_reference_extension =
-    (data[4]&0x03)<<7 | ((data[5]>>1)&0x7f);
-  
-  program_mux_rate =
-    (data[6])<<14 | (data[7])<<6 | ((data[8]>>2)&0x3f);
-  
-  pack_stuffing_length = data[9]&0x07;
-  
-  if(alloced == 1) {
-    buf_free(10);
-  }
-  if(pack_stuffing_length) {
-    if(get_bytes(pack_stuffing_length, &data) == 1) {
-      buf_free(pack_stuffing_length);
-    }
-  }
-  /*
-    fprintf(stderr, "system_clock_reference_base: %lu\n",
-    system_clock_reference_base);
-    fprintf(stderr, "system_clock_reference_extension: %u\n",
-    system_clock_reference_extension);
-    fprintf(stderr, "program_mux_rate: %u\n",
-    program_mux_rate);
-    fprintf(stderr, "pack_stuffing_length: %u\n",
-    pack_stuffing_length);
-  
-    fprintf(stderr, "next_header: %08x\n", nextbits(32));
-  */
   if(nextbits(32) == MPEG2_PS_SYSTEM_HEADER_START_CODE) {
-    //fprintf(stderr, "Found System_Header\n");
     system_header();
   }
 }
 
-
-
-
 system_header()
 {
-  unsigned short header_length;
-  unsigned int rate_bound;
-  unsigned char audio_bound;
-  unsigned char fixed_flag;
-  unsigned char CSPS_flag;
-  unsigned char system_audio_lock_flag;
-  unsigned char system_video_lock_flag;
-  unsigned char video_bound;
+  uint16_t header_length;
+  uint32_t rate_bound;
+  uint8_t audio_bound;
+  uint8_t fixed_flag;
+  uint8_t CSPS_flag;
+  uint8_t system_audio_lock_flag;
+  uint8_t system_video_lock_flag;
+  uint8_t video_bound;
 
+  DPRINTF(2, "system_header()\n");
+  
+  getbits(32); // system_header_start_code
+  header_length          = getbits(16);
+  marker_bit();
+  rate_bound             = getbits(22);
+  marker_bit();          
+  audio_bound            = getbits(6);
+  fixed_flag             = getbits(1);
+  CSPS_flag              = getbits(1);
+  system_audio_lock_flag = getbits(1);
+  system_video_lock_flag = getbits(1);
+  marker_bit();
+  video_bound            = getbits(5);
+  getbits(8); // reserved_byte
 
-  int alloced;
-  unsigned char *data;
+  DPRINTF(3, "header_length:          %hu\n", header_length);
+  DPRINTF(3, "rate_bound:             %u\n", rate_bound);
+  DPRINTF(3, "audio_bound:            %u\n", audio_bound);
+  DPRINTF(3, "fixed_flag:             %u\n", fixed_flag);
+  DPRINTF(3, "CSPS_flag:              %u\n", CSPS_flag);
+  DPRINTF(3, "system_audio_lock_flag: %u\n", system_audio_lock_flag);
+  DPRINTF(3, "system_video_lock_flag: %u\n", system_video_lock_flag);
+  DPRINTF(3, "video_bound:            %u\n", video_bound);
   
-  //fprintf(stderr, "system_header()\n");
-  
-  
-  buf_free(4); // system_header_start_code
-  
-  alloced = get_bytes(8, &data);
-  
-  header_length = data[0]<<8 | data[1];
-  
-  rate_bound = (data[2]&0x7f)<<15 | (data[3])<<7 | (data[4]>>1)&0x7f;
-
-  audio_bound = (data[5]>>2)&0x3f;
-  
-  fixed_flag = (data[5]>>1)&0x01;
-  
-  CSPS_flag = (data[5])&0x01;
-  
-  system_audio_lock_flag = (data[6]>>7)&0x01;
-
-  system_video_lock_flag = (data[6]>>6)&0x01;
-  
-  video_bound = data[6]&0x1f;
-  
-  if(alloced == 1) {
-    buf_free(8);
-  }
-#if 0
-  fprintf(stderr, "header_length: %hu\n", header_length);
-  fprintf(stderr, "rate_bound: %u\n", rate_bound);
-  fprintf(stderr, "audio_bound: %u\n", audio_bound);
-  fprintf(stderr, "fixed_flag: %u\n", fixed_flag);
-  fprintf(stderr, "CSPS_flag: %u\n", CSPS_flag);
-  fprintf(stderr, "system_audio_lock_flag: %u\n", system_audio_lock_flag);
-  fprintf(stderr, "system_video_lock_flag: %u\n", system_video_lock_flag);
-  fprintf(stderr, "video_bound: %u\n", video_bound);
-#endif
-  
-  //hhhhhhhh hhhhhhhh 1rrrrrrr rrrrrrrr rrrrrrr1 aaaaaafc av1vvvvv rrrrrrrr
-  
-  alloced = get_bytes(header_length-6, &data);
-  {
-    int n = 0;
-    while(data[0+n*3]&0x80) {
-#if 0
-      fprintf(stderr, "stream_id: %x\n", data[0+n*3]);
-      fprintf(stderr, "P-STD_buffer_bound_scale: %u\n",
-	      (data[1]>>5)&0x01);
-      fprintf(stderr, "P-STD_buffer_size_scale: %u\n",
-	      (data[1]&0x1f)<<8 | (data[2]));
-#endif
-      n++;
-    }
-    
-    buf_free(header_length-6);
-    
-    if(header_length-6 != n*3) {
-      fprintf(stderr, "* header_length error\n");
-    }
+  while(nextbits(1) == 1) {
+    stream_id = getbits(8);
+    getbits(2); // '11'
+    P_STD_buffer_bound_scale = getbits(1);
+    P_STD_buffer_size_bound  = getbits(13);
+    DPRINTF(3, "stream_id:                %u\n", stream_id);
+    DPRINTF(3, "P-STD_buffer_bound_scale: %u\n", P_STD_buffer_bound_scale);
+    DPRINTF(3, "P-STD_buffer_size_bound:  %u\n", P_STD_buffer_size_bound);
   }
 }
-
 
 PES_packet()
 {
@@ -491,20 +503,13 @@ PES_packet()
   unsigned char PES_extension_field_length = 0;
     
 
-  //fprintf(stderr, "PES_packet()\n");
+  DPRINTF(2, "PES_packet()\n");
 
-  buf_free(3); //packet_start_code_prefix
-  
-  tmp = nextbits(24);
-  stream_id = (tmp>>24)&0xff;
-  //fprintf(stderr, "stream_id: %02X\n", stream_id);
-  
-  PES_packet_length = (tmp>>8)&0xffff;
-  //fprintf(stderr, "PES_packet_length: %u\n", PES_packet_length);
-  
-  buf_free(3);
-  
-  alloced = get_bytes(PES_packet_length, &data);
+  getbits(24); // packat_start_code_prefix;
+  stream_id = getbits(8);
+  PES_packet_length = getbits(16);
+  DPRINTF(3, "stream_id:         %02X\n", stream_id);
+  DPRINTF(3, "PES_packet_length: %u\n", PES_packet_length);
   
   if((stream_id != MPEG2_PRIVATE_STREAM_2) &&
      (stream_id != MPEG2_PADDING_STREAM)) {
