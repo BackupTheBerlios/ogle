@@ -58,7 +58,9 @@ test "${RPM_BUILD_ROOT}" != "/" && rm -rf ${RPM_BUILD_ROOT}
 %defattr(-, root, root)
 %doc AUTHORS COPYING README
 %{_bindir}/*
-%{_datadir}/ogle
+%dir %{_datadir}/ogle
+%config %{_datadir}/ogle/oglerc
+%{_datadir}/ogle/_conf.dtd
 %dir %{_libdir}/ogle
 %{_libdir}/ogle/*.so.*
 %{_libdir}/ogle/ogle_*
