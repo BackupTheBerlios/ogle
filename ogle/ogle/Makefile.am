@@ -22,7 +22,7 @@ pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h
 INCLUDES = @TOP_INCLUDES@
 
 libmsgevents_la_SOURCES = msgevents.c
-libmsgevents_la_LDFLAGS = -version-info 4:0:0
+libmsgevents_la_LDFLAGS = -version-info 5:0:1
 
 libdvdcontrol_la_SOURCES = dvdcontrol.c
 libdvdcontrol_la_LIBADD = libmsgevents.la

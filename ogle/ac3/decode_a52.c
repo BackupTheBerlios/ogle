@@ -317,7 +317,7 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
       
 	new_format.sample_rate = handle->sample_rate;
 	new_format.sample_resolution = 16;
-
+	new_format.sample_format = SampleFormat_A52float;
 	init_sample_conversion((adec_handle_t *)handle, &new_format, 256*6);
 
 	free(new_format.ch_array);
@@ -422,6 +422,7 @@ adec_handle_t *init_a52(void)
   handle->buf_ptr = (uint8_t *)handle->coded_buf;
   handle->bytes_needed = 7;
   handle->sample_rate = 0;
+  handle->decoding_flags = 0;
   //  handle->decoded_format = NULL;
 
   {

@@ -407,7 +407,7 @@ int get_q()
 	WARNING("DTS Audio not implemented\n");
       } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	//lpcm
-
+	static int first = 1;
 	// lpcm dvd
 	// frame rate 600Hz (48/96kHz)
 	// 16/20/24 bits
@@ -445,7 +445,10 @@ int get_q()
 	if(pts_offset > 0) {
 	  pts_offset--;
 	}
-	WARNING("LPCM Audio not completely implemented\n");
+	if(first) {
+	  WARNING("LPCM Audio not completely implemented\n");
+	  first = 0;
+	}
       } else {
 	ERROR("Unhandled PrivateStream1 subtype: %02x\n", subtype);
       }
