@@ -550,7 +550,6 @@ int ogle_sysv_shmrm(int shmid)
 
 int ogle_shmrm_all(void)
 {
-  int n;
   
 #ifdef HAVE_POSIX_SHM
   remove_all_shmids(&created_shmids, ogle_shmrm);
