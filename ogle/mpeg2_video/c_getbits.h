@@ -74,9 +74,6 @@ extern uint64_t cur_word;
 #define GETBITS(a,b) getbits(a)
 #endif
 
-#ifdef STATS
-extern uint64_t stats_bits_read;
-#endif
 
 /* ---------------------------------------------------------------------- */
 #ifdef GETBITS64
@@ -101,9 +98,6 @@ uint32_t getbits(unsigned int nr)
 #endif
 {
   uint32_t result;
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
   //  result = cur_word >> (64-nr); //+
@@ -130,9 +124,6 @@ uint32_t getbits(unsigned int nr)
 static inline
 void dropbits(unsigned int nr)
 {
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   //cur_word = cur_word << nr; //+
   bits_left -= nr;
   if(bits_left <= 32) {
@@ -174,9 +165,6 @@ uint32_t getbits(unsigned int nr)
 #endif
 {
   uint32_t result;
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
   bits_left -=nr;
@@ -197,9 +185,6 @@ uint32_t getbits(unsigned int nr)
 static inline
 void dropbits(unsigned int nr)
 {
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   bits_left -= nr;
   if(bits_left <= 32) {
     uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
@@ -228,9 +213,6 @@ uint32_t getbits(unsigned int nr)
 {
   uint32_t result;
   uint32_t rem;
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   if(nr <= bits_left) {
     result = (cur_word << (32-bits_left)) >> (32-nr);
     bits_left -=nr;
@@ -261,9 +243,6 @@ uint32_t getbits(unsigned int nr)
 static inline
 void dropbits(unsigned int nr)
 {
-#ifdef STATS
-  stats_bits_read+=nr;
-#endif
   bits_left -= nr;
   if(bits_left <= 0) {
     next_word();

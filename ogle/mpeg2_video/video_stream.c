@@ -398,7 +398,7 @@ int main(int argc, char **argv)
   }
 #endif
   while(!feof(infile)) {
-    DPRINTF(1, "Looking for new Video Sequence\n");
+    DPRINTF(0, "Looking for new Video Sequence\n");
     video_sequence();
   }
 #endif
@@ -433,7 +433,7 @@ void video_sequence(void) {
     return;
   }
   
-  DPRINTF(1, "Found Sequence Header\n");
+  DPRINTF(0, "Found Sequence Header\n");
 
   sequence_header();
 
@@ -481,7 +481,7 @@ void video_sequence(void) {
       
       if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
 	if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
-	  DPRINTF(1, "*** not a sequence header or end code\n");
+	  DPRINTF(0, "*** not a sequence header or end code\n");
 	  break;
 	}
 	
@@ -532,9 +532,9 @@ void video_sequence(void) {
   /* If we are exiting there should be a sequence end code following. */
   if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
     GETBITS(32, "Sequence End Code");
-    DPRINTF(1, "Found Sequence End\n");
+    DPRINTF(0, "Found Sequence End\n");
   } else {
-    DPRINTF(1, "*** Didn't find Sequence End\n");
+    DPRINTF(0, "*** Didn't find Sequence End\n");
   }
 
 }
@@ -546,7 +546,7 @@ void sequence_header(void)
   uint32_t sequence_header_code;
   long int frame_interval_nsec;
   
-  DPRINTF(1, "sequence_header\n");
+  DPRINTF(0, "sequence_header\n");
   
   sequence_header_code = GETBITS(32, "sequence header code");
   if(sequence_header_code != MPEG2_VS_SEQUENCE_HEADER_CODE) {
@@ -1550,7 +1550,7 @@ void picture_data(void)
   
   DPRINTF(2," switching buffers\n");
   
-
+  
   if( MPEG2 )
     do {
       mpeg2_slice();

@@ -178,7 +178,7 @@ void read_buf()
 {
   uint8_t *packet_base = &mmap_base[packet.offset];
   int end_bytes;
-  int i;
+  int i, j;
   
   /* How many bytes are there left? (0, 1, 2 or 3). */
   end_bytes = &packet_base[packet.length] - (uint8_t *)&buf[buf_size];
@@ -201,9 +201,12 @@ void read_buf()
     /* How many bytes to the next 4 byte boundary? (0, 1, 2 or 3). */
     start_bytes = (4 - ((long)packet_base % 4)) % 4; 
     
+    /* Do we have that many bytes in the packet? */
+    j = start_bytes < packet.length ? start_bytes : packet.length;
+    
     /* Read them, as we have at least 24 bits free they will fit. */
     i = 0;
-    while( i < start_bytes ) {
+    while( j-- ) {
       //cur_word=cur_word|(((uint64_t)packet_base[i++])<<(56-bits_left)); //+
       cur_word  = (cur_word << 8) | packet_base[i++];
       bits_left += 8;
@@ -213,13 +216,28 @@ void read_buf()
     buf_size = (packet.length - start_bytes) / 4; // Number of 32 bit words
     offs = 0;
     
-    /* Make sure we have enough bits before we return/ */
-    if(bits_left <= 32) {
-      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
-      //cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
-      cur_word = (cur_word << 32) | new_word;
-      bits_left += 32;
+    /* If there were fewer bytes than needed to get to the first 4 byte boundary,
+       then we need to make this inte a valid 'empty' packet. */
+    if( start_bytes > packet.length ) {
+      /* This make the computation of end_bytes come 0 and 
+	 forces us to call read_buff() the next time get/dropbits are used. */
+      packet.length = start_bytes;
+      buf_size = 0;
     }
+    
+    /* Make sure we have enough bits before we return */
+    if(bits_left <= 32) {
+      /* If the buffer is empty get the next one. */
+      if(offs >= buf_size)
+	read_buf();
+      else {
+	uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
+	//cur_word = cur_word | (((uint64_t)new_word) << (32-bits_left)); //+
+	cur_word = (cur_word << 32) | new_word;
+	bits_left += 32;
+      }
+    }
+  
   } else {
     /* The trick!! 
        We have enough data to return. Infact it's so much data that we 
