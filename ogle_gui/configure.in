@@ -38,9 +38,12 @@ AM_PATH_GTK
 AM_PATH_LIBGLADE
 dnl Hack to get the path to the libglade so-file
 LIBGLADE_PREFIX=`$LIBGLADE_CONFIG --prefix`
-AC_DEFINE_UNQUOTED(LIBGLADE_LIB, 
-  "${LIBGLADE_PREFIX}/lib/libglade.so.0",
-  [Location of the libglade lib (for dlopen)])
+AC_DEFINE_UNQUOTED(LIBGLADE_LIBDIR, "${LIBGLADE_PREFIX}/lib",
+  [Prefix for libglade])
+dnl this should be something different for some bsd (libglade.so.4 i
+dnl think), but I don't know how to check for it properly
+AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.so.0",
+  [Name of the libglade lib (for dlopen)])
 
 dnl Set PACKAGE_LOCALE_DIR in config.h.
 if test "x${prefix}" = "xNONE"; then
@@ -139,14 +142,14 @@ dnl config file
 dnl ---------------------------------------------------------
 
 if test "x${prefix}" = "xNONE"; then
-  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${ac_default_prefix}/share/ogle/oglerc")
   CONFIG_FILE="${ac_default_prefix}/share/ogle/oglerc"
   CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle/ogle_conf.dtd"
 else
-  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${prefix}/share/ogle/oglerc")
   CONFIG_FILE="${prefix}/share/ogle/oglerc"
   CONFIG_FILE_DTD="${prefix}/share/ogle/ogle_conf.dtd"
 fi
+AC_DEFINE_UNQUOTED(CONFIG_FILE, "${CONFIG_FILE}",
+  [Location of the oglerc config file])
 
 AC_SUBST(CONFIG_FILE)
 AC_SUBST(CONFIG_FILE_DTD)
@@ -155,6 +158,8 @@ dnl ---------------------------------------------------------
 dnl end config file
 dnl ---------------------------------------------------------
 
+dnl enable warnings
+CFLAGS="$CFLAGS -Wall"
 
 AC_OUTPUT([
 intl/Makefile

@@ -54,7 +54,12 @@ void my_glade_setup ()
   void *glade_lib;
   char *home;
 
-  glade_lib = dlopen (LIBGLADE_LIB, RTLD_NOW);
+  // First try to open libglade.so in the path given by libglade-config
+  glade_lib = dlopen (LIBGLADE_LIBDIR "/" LIBGLADE_LIB, RTLD_NOW);
+  if (glade_lib == NULL) {
+    // next, try without path
+    glade_lib = dlopen (LIBGLADE_LIB, RTLD_NOW);
+  }
   if (glade_lib == NULL) {
     fprintf(stderr, "Error during dlopen: %s\n", dlerror());
     gtk_exit(1);
