@@ -434,6 +434,10 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
       size = sizeof(MsgQAnyEvent_t) + sizeof(DVDCtrlLongAnyEvent_t)
 	+ strlen(event_send->dvdctrllong.cmd.dvdroot.path)+1;
       break;
+    case DVDCtrlLongSetState:
+      size = sizeof(MsgQAnyEvent_t) + sizeof(DVDCtrlLongAnyEvent_t)
+	+ strlen(event_send->dvdctrllong.cmd.state.xmlstr)+1;
+      break;
     default:
       size = sizeof(MsgQDVDCtrlLongEvent_t);
       break;

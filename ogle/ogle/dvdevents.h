@@ -119,18 +119,27 @@ typedef enum {
   DVDCtrlCurrentDomain,
   
   DVDCtrlGetCurrentLocation,
-  DVDCtrlCurrentLocation
+  DVDCtrlCurrentLocation,
+  
+  DVDCtrlGetState
 
 } DVDCtrlEventType_t;
 
 typedef enum {
-  DVDCtrlLongSetDVDRoot
+  DVDCtrlLongSetDVDRoot,
+  DVDCtrlLongState,
+  DVDCtrlLongSetState
 } DVDCtrlLongEventType_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
   char path[PATH_MAX];
 } DVDCtrlLongDVDRootEvent_t;
+
+typedef struct {
+  DVDCtrlLongEventType_t type;
+  char xmlstr[1024];
+} DVDCtrlLongStateEvent_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
@@ -492,6 +501,7 @@ typedef union {
   DVDCtrlLongEventType_t type;
   DVDCtrlLongAnyEvent_t any;
   DVDCtrlLongDVDRootEvent_t dvdroot;
+  DVDCtrlLongStateEvent_t state;
 } DVDCtrlLongEvent_t;
 
 

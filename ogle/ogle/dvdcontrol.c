@@ -857,6 +857,48 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
   return DVD_E_NotImplemented;
 }
 
+/**
+ * Get the state
+ * @todo handle other return events.
+ * @todo more return values.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param state This will be set to point to the returned state.
+ * Use free() when not needed any more. 
+ *
+ * @return If successful DVD_E_Ok is returned and the char pointer pointed
+ * to by state will be updated. Otherwise an error code  is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified Failure. 
+ */
+DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetState;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrlLong) &&
+       (ev.dvdctrllong.cmd.type == DVDCtrlLongState)) {
+      if(ev.dvdctrllong.cmd.state.xmlstr[0] != '\0') {
+	*state = strdup(ev.dvdctrllong.cmd.state.xmlstr);
+	if(*state != NULL) {
+	  return DVD_E_Ok;
+	}
+      }
+      return DVD_E_Unspecified;
+    }
+  } 
+}
+
 /** @} end of dvdinfo */
 
 /** 
@@ -2064,7 +2106,33 @@ DVDResult_t DVDPlayerRegionSelect(DVDNav_t *nav, DVDPlayerRegion_t region)
   return DVD_E_Ok;
 }
 
+/** 
+ * Sets the state
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param state Pointer to the state to set.
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified Failure.
+ */
+DVDResult_t DVDSetState(DVDNav_t *nav, char *state)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrlLong;
+  ev.dvdctrllong.cmd.type = DVDCtrlLongSetState;
+  strncpy(ev.dvdctrllong.cmd.state.xmlstr, state,
+	  sizeof(ev.dvdctrllong.cmd.state.xmlstr));
+  ev.dvdctrllong.cmd.state.xmlstr[sizeof(ev.dvdctrllong.cmd.state.xmlstr)-1]
+    = '\0';
   
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
+
 /** @} end of dvdctrl */
 
 /** @} end of dvdnav */

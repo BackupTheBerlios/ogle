@@ -61,10 +61,10 @@ static xmlNodePtr get_bookmark(xmlDocPtr doc, xmlNodePtr cur, int nr)
  * Open and and read the file that contains the bookmarks for a dvd.
  * @param dvdid This is the dvddiscid and will be used to locate the correct
  * file to read from.
- * @param file  Normally this should be NULL to use the standard bookmark file.
- * If the bookmarks should be read from a specific file, name it here.
- * The default filename used when none is specified is
- * $HOME/.ogle/bookmarks/<dvddiscid>
+ * @param dir  This should be NULL to use the standard bookmark directory.
+ * If the bookmarks should be read from another directory, name it here.
+ * The default directory used when none is specified is
+ * $HOME/.ogle/bookmarks
  *
  * @param create Set this to 1 if the bookmark file should be create in case
  * it doesn't exist. 0 if it shouldn't be created.
@@ -75,7 +75,7 @@ static xmlNodePtr get_bookmark(xmlDocPtr doc, xmlNodePtr cur, int nr)
  * the failure was file related.
  *
  */
-DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
+DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *dir, int create)
 {
   DVDBookmark_t *bm;
   char *home = NULL;
@@ -90,7 +90,7 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
     sprintf(&dvdid_str[n*2], "%02x", dvdid[n]);
   }
 
-  if(file == NULL) {
+  if(dir == NULL) {
     home = getenv("HOME");
     if(home == NULL) {
       return NULL;
@@ -120,8 +120,15 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
       strcat(filename, dvdid_str);
     }
   } else {
-    filename = strdup(file);
+    filename = malloc( strlen(dir) + 1 + strlen(dvdid_str) + 1 );
+    if(filename == NULL) {
+      return NULL;
+    }
+    strcpy(filename, dir);
+    strcat(filename, "/");
+    strcat(filename, dvdid_str);
   }
+  
   xmlKeepBlanksDefault(0);
 
   
@@ -129,14 +136,17 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
     close(fd);
   } else {
     if(!create || (errno != ENOENT)) {
+      free(filename);
       return NULL;
     } else {
       if((fd = open(filename, O_RDONLY | O_CREAT, 0644)) != -1) {
 	close(fd);
 	if((doc = new_bookmark_doc(dvdid_str)) == NULL) {
+	  free(filename);
 	  return NULL;
 	}
       } else {
+	free(filename);
 	return NULL;
       }
     } 
@@ -146,19 +156,23 @@ DVDBookmark_t *DVDBookmarkOpen(unsigned char dvdid[16], char *file, int create)
     xmlChar *prop;
 
     if((doc = xmlParseFile(filename)) == NULL) {
+      free(filename);
       return NULL;
     }
     if((cur = xmlDocGetRootElement(doc)) == NULL) {
       xmlFree(doc);
+      free(filename);
       return NULL;
     }
     if((prop = xmlGetProp(cur, "dvddiscid")) == NULL) {
       xmlFree(doc);
+      free(filename);
       return NULL;
     }
     if(xmlStrcmp(prop, (const xmlChar *)dvdid_str)) {
       xmlFree(prop);
       xmlFree(doc);
+      free(filename);
       return NULL;
     }
     xmlFree(prop);
