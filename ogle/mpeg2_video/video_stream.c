@@ -1124,6 +1124,99 @@ void sequence_header(void)
 
 }
 
+void setup_shm(int num_pels)
+{ 
+  //  int num_pels = seq.horizontal_size * seq.vertical_size;
+  
+  if(ref_image1->y == NULL) {
+    DPRINTF(1, "allocateing buffers\n");
+    ref_image1->y = memalign(8, num_pels);
+    ref_image1->u = memalign(8, num_pels/4);
+    ref_image1->v = memalign(8, num_pels/4);
+    
+    ref_image2->y = memalign(8, num_pels);
+    ref_image2->u = memalign(8, num_pels/4);
+    ref_image2->v = memalign(8, num_pels/4);
+    
+    b_image->y = memalign(8, num_pels);
+    b_image->u = memalign(8, num_pels/4);
+    b_image->v = memalign(8, num_pels/4);
+    
+    if (shmem_flag) {
+      /* Create shared memory image */
+      myximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+				 ZPixmap, NULL, &shm_info,
+				 seq.horizontal_size,
+				 seq.vertical_size);
+      
+      ximage_ref1 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+				    ZPixmap, NULL, &shm_info_ref1,
+				    seq.horizontal_size,
+				    seq.vertical_size);
+      
+      ximage_ref2 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
+				    ZPixmap, NULL, &shm_info_ref2,
+				    seq.horizontal_size,
+				    seq.vertical_size);
+      if (myximage == NULL) {
+	fprintf(stderr, 
+		"Shared memory: couldn't create Shm image\n");
+	goto shmemerror;
+      }
+      
+      /* Get a shared memory segment */
+      shm_info.shmid = shmget(IPC_PRIVATE,
+			      myximage->bytes_per_line * myximage->height, 
+			      IPC_CREAT | 0777);
+      
+      shm_info_ref1.shmid = shmget(IPC_PRIVATE,
+				   myximage->bytes_per_line * myximage->height, 
+				   IPC_CREAT | 0777);
+      
+      shm_info_ref2.shmid = shmget(IPC_PRIVATE,
+				   myximage->bytes_per_line * myximage->height, 
+				   IPC_CREAT | 0777);
+      if (shm_info.shmid < 0) {
+	XDestroyImage(myximage);
+	fprintf(stderr, "Shared memory: Couldn't get segment\n");
+	goto shmemerror;
+      }
+      
+      /* Attach shared memory segment */
+      shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+      shm_info_ref1.shmaddr = (char *) shmat(shm_info_ref1.shmid, 0, 0);
+      shm_info_ref2.shmaddr = (char *) shmat(shm_info_ref2.shmid, 0, 0);
+      if (shm_info.shmaddr == ((char *) -1)) {
+	XDestroyImage(myximage);
+	fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+	goto shmemerror;
+      }
+      
+      myximage->data = shm_info.shmaddr;
+      ximage_ref1->data = shm_info_ref1.shmaddr;
+      ximage_ref2->data = shm_info_ref2.shmaddr;
+      shm_info.readOnly = False;
+      shm_info_ref1.readOnly = False;
+      shm_info_ref2.readOnly = False;
+      XShmAttach(mydisplay, &shm_info);
+      XShmAttach(mydisplay, &shm_info_ref1);
+      XShmAttach(mydisplay, &shm_info_ref2);
+        XSync(mydisplay, 0);
+    } else {
+    shmemerror:
+      shmem_flag = 0;
+      myximage = XGetImage(mydisplay, mywindow, 0, 0,
+			   seq.horizontal_size,
+			   seq.vertical_size,
+			   AllPlanes, ZPixmap);
+    }
+    ImageData = myximage->data;
+    imagedata_ref1 = ximage_ref1->data;
+    imagedata_ref2 = ximage_ref2->data;
+  } 
+}
+
+
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
 
@@ -1203,96 +1296,7 @@ void sequence_extension(void) {
   seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
-  { 
-    int num_pels = seq.horizontal_size * seq.vertical_size;
-   
-    if(ref_image1->y == NULL) {
-      DPRINTF(1, "allocateing buffers\n");
-      ref_image1->y = memalign(8, num_pels);
-      ref_image1->u = memalign(8, num_pels/4);
-      ref_image1->v = memalign(8, num_pels/4);
-      
-      ref_image2->y = memalign(8, num_pels);
-      ref_image2->u = memalign(8, num_pels/4);
-      ref_image2->v = memalign(8, num_pels/4);
-      
-      b_image->y = memalign(8, num_pels);
-      b_image->u = memalign(8, num_pels/4);
-      b_image->v = memalign(8, num_pels/4);
-
-      if (shmem_flag) {
-        /* Create shared memory image */
-        myximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
-                                   ZPixmap, NULL, &shm_info,
-                                   seq.horizontal_size,
-                                   seq.vertical_size);
-
-        ximage_ref1 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
-				      ZPixmap, NULL, &shm_info_ref1,
-				      seq.horizontal_size,
-				      seq.vertical_size);
-
-        ximage_ref2 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
-				      ZPixmap, NULL, &shm_info_ref2,
-				      seq.horizontal_size,
-				      seq.vertical_size);
-        if (myximage == NULL) {
-          fprintf(stderr, 
-                  "Shared memory: couldn't create Shm image\n");
-          goto shmemerror;
-        }
-        
-        /* Get a shared memory segment */
-        shm_info.shmid = shmget(IPC_PRIVATE,
-                                myximage->bytes_per_line * myximage->height, 
-                                IPC_CREAT | 0777);
-
-        shm_info_ref1.shmid = shmget(IPC_PRIVATE,
-				     myximage->bytes_per_line * myximage->height, 
-				     IPC_CREAT | 0777);
-
-        shm_info_ref2.shmid = shmget(IPC_PRIVATE,
-				     myximage->bytes_per_line * myximage->height, 
-				     IPC_CREAT | 0777);
-        if (shm_info.shmid < 0) {
-          XDestroyImage(myximage);
-          fprintf(stderr, "Shared memory: Couldn't get segment\n");
-          goto shmemerror;
-        }
-        
-        /* Attach shared memory segment */
-        shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
-        shm_info_ref1.shmaddr = (char *) shmat(shm_info_ref1.shmid, 0, 0);
-        shm_info_ref2.shmaddr = (char *) shmat(shm_info_ref2.shmid, 0, 0);
-        if (shm_info.shmaddr == ((char *) -1)) {
-          XDestroyImage(myximage);
-          fprintf(stderr, "Shared memory: Couldn't attach segment\n");
-          goto shmemerror;
-        }
-
-        myximage->data = shm_info.shmaddr;
-        ximage_ref1->data = shm_info_ref1.shmaddr;
-        ximage_ref2->data = shm_info_ref2.shmaddr;
-        shm_info.readOnly = False;
-        shm_info_ref1.readOnly = False;
-        shm_info_ref2.readOnly = False;
-        XShmAttach(mydisplay, &shm_info);
-        XShmAttach(mydisplay, &shm_info_ref1);
-        XShmAttach(mydisplay, &shm_info_ref2);
-        XSync(mydisplay, 0);
-      } else {
-      shmemerror:
-        shmem_flag = 0;
-        myximage = XGetImage(mydisplay, mywindow, 0, 0,
-                             seq.horizontal_size,
-                             seq.vertical_size,
-                             AllPlanes, ZPixmap);
-      }
-      ImageData = myximage->data;
-      imagedata_ref1 = ximage_ref1->data;
-      imagedata_ref2 = ximage_ref2->data;
-    } 
-  }
+  setup_shm(seq.horizontal_size * seq.vertical_size);
 }
 
 /* 6.2.2.2 Extension and user data */
