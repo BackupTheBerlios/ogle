@@ -385,8 +385,10 @@ DpyInfoOrigin_t DpyInfoSetUpdateGeometry(Display *dpy, int screen_nr,
 DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 					     DpyInfoOrigin_t origin)
 {
+#if defined(HAVE_XINERAMA) || defined(HAVE_XF86VIDMODE)
   int event_base, error_base;
-  
+#endif
+
   switch(origin) {
   case DpyInfoOriginUser:
     if(update_resolution_user(&dpyinfo, dpy, screen_nr)) {

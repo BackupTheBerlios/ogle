@@ -240,7 +240,7 @@ typedef struct {
 } pointer_mapping_t;
 
 static unsigned int pointer_mappings_index = 0;
-static unsigned int nr_pointer_mappings = 0;
+//static unsigned int nr_pointer_mappings = 0;
 
 static pointer_mapping_t *pointer_mappings;
 

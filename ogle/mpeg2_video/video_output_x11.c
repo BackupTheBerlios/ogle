@@ -1626,7 +1626,7 @@ static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
 
 static void draw_win_x11(window_info *dwin)
 {
-  int sar_frac_n, sar_frac_d; 
+  int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */ 
   char *address = dwin->ximage->data;
   
 #ifdef HAVE_MLIB
@@ -1789,7 +1789,7 @@ static void draw_win_x11(window_info *dwin)
     
 #ifdef SPU
     if(msgqid != -1) {
-      mix_subpicture_rgb(&rgb_fb[fb_area.y*2048+fb_area.x], 2048,
+      mix_subpicture_rgb((char *)&rgb_fb[fb_area.y*2048+fb_area.x], 2048,
 			 fb_area.height, 
 			 4); 
       // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
@@ -1898,7 +1898,7 @@ static void draw_win_x11(window_info *dwin)
     int y;
    
     for(y = 0; y < dwin->ximage->height; y++) {
-      int x;
+      //int x;
 
 #ifdef HAVE_MLIB
       mlib_memcpy(&rgb_fb[y*2048],

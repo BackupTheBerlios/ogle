@@ -223,11 +223,12 @@ static int convert_s16be_to_s16ne(int16_t *s16be, int16_t *s16ne,
 				  int nr_samples, int nr_channels,
 				  int *channels)
 {
-  int i;
 
 #if WORDS_BIGENDIAN == 1
   memcpy(s16ne, s16be, nr_samples * nr_channels * sizeof(int16_t));
 #else
+  int i;
+
   for (i = 0; i < nr_samples * nr_channels; i++) {
     ((uint16_t *)s16ne)[i] =
       ((((uint16_t *)s16be)[i] >> 8) & 0xff) | 
@@ -291,9 +292,8 @@ static int convert_ac3frame_to_iec61937frame(uint16_t *ac3,
 					     uint16_t *iec61937,
 					     int nr_samples)
 {
-  int i;
   
-  uint32_t syncword, crc1, fscod,frmsizecod,bsid,bsmod,frame_size;
+  uint32_t fscod,frmsizecod,bsmod,frame_size;
   uint8_t *data_out = (uint8_t *)iec61937;
   uint8_t *data_in = (uint8_t *)ac3;
   int frame_bytes;
@@ -325,11 +325,9 @@ static int convert_dtsframe_to_iec61937frame(uint16_t *dts,
 					     uint16_t *iec61937,
 					     int nr_samples)
 {
-  int i;
   
   uint8_t *data_out = (uint8_t *)iec61937;
   uint8_t *data_in = (uint8_t *)dts;
-  int frame_bytes;
   int fsize;
   int burst_len;  
   fsize = (data_in[5] & 0x03) << 12 |
@@ -350,7 +348,7 @@ static int convert_dtsframe_to_iec61937frame(uint16_t *dts,
     data_out[4] = 0x0d;			/* DTS-3 (2048-sample bursts) */
     break;
   default:
-    FATAL("IEC61937-5: %s-sample bursts not supported\n", nr_samples);
+    FATAL("IEC61937-5: %d-sample bursts not supported\n", nr_samples);
     data_out[4] = 0x00;
     break;
   }

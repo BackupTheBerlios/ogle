@@ -39,7 +39,6 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
   int delay;
   int srate;
   static int frqlck_cnt = 0;
-  static int frqlck = 0;
   static double frq_correction = 1.0;
   audio_sync_t *s = &(h->config->sync);
   int odelay_fail = 0;
@@ -87,7 +86,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
     if(ctrl_data->speed == 1.0) {
       clocktime_t real_time, scr_time, delay_time;
       clocktime_t t1, t2;
-      clocktime_t drift, delta_sync_time;
+      clocktime_t delta_sync_time;
       clocktime_t sleep_time = { 0, 0 };
 
       clocktime_get(&real_time);
@@ -160,8 +159,10 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 		fprintf(stderr, "-");
 	      }
 	      /*
-		timesub(&drift, &real_time, &last_sync);
 		{
+		clocktime_t drift;
+
+		timesub(&drift, &real_time, &last_sync);		
 		fprintf(stderr, "[%+07ld / %+07ld]",
 		TIME_SS(t2), TIME_SS(drift));
 		

@@ -332,18 +332,18 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   int elem;
   
   uint8_t *data_buffer;
-  uint8_t PTS_DTS_flags;
-  uint64_t PTS;
-  uint64_t DTS;
+  //uint8_t PTS_DTS_flags;
+  //uint64_t PTS;
+  //uint64_t DTS;
   uint64_t SCR_base;
   uint16_t SCR_ext = 0;
   uint8_t SCR_flags;
-  int scr_nr;
+  //int scr_nr;
   int off;
   int len;
-  static int prev_scr_nr = 0;
-  static int packnr = 0;
-  static clocktime_t time_offset = { 0, 0 };
+  //static int prev_scr_nr = 0;
+  //static int packnr = 0;
+  //static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
   
   /* Should never hapen if you call wait_q first */

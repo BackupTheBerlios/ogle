@@ -147,7 +147,7 @@ static int decode_mpeg(adec_mpeg_handle_t *h, uint8_t *start, int len,
 	}
       } else {
 	int frame_pts_valid;
-	uint64_t frame_PTS;
+	uint64_t frame_PTS = 0; /* init to shut up compiler */
 	int frame_scr_nr;
 	mad_synth_frame(&h->synth, &h->frame);
 	

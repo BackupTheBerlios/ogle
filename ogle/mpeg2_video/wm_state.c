@@ -745,7 +745,7 @@ static int check_for_EWMH_wm(Display *dpy, char **wm_name_return)
       }
       
       if(type_return != XA_WINDOW) {
-	WARNING("check_for_EWMH: property has wrong type (%d)\n",
+	WARNING("check_for_EWMH: property has wrong type (%ld)\n",
 		type_return);
 	if(prop_return != NULL) {
 	  XFree(prop_return);
