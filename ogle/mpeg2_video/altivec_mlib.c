@@ -27,11 +27,10 @@
  *    data as it's loaded.
  * 2) Unfortunately, AltiVec doesn't do 8-byte loads and stores.  This
  *    means that the fastest paths are only applicable to the Y channel.
- *    U and V operations have to use 4-byte operations with lvewx/stvewx.
- *    Also unfortunately, these instructions have extremely weird
- *    alignment behavior, so they're currently only used in the special
- *    case where the regions have the same modulo 16 alignment (which
- *    happens to occur a lot).
+ *    For 8-byte operations on the U and V channels, there are two cases.
+ *    When the alignment of the input and output are the same, we can do
+ *    16-byte loads and just do two 4-byte stores.  For the unmatched
+ *    alignment case, we have to do a rotation of the loaded data first.
  * 3) The `i[0-7]' variables look silly, but they prevent GCC from
  *    generating gratuitous multiplies, and allow the loaded constants
  *    to be recycled several times in the IDCT routine.
@@ -48,78 +47,12 @@
 #define	ASSERT(x)
 #endif
 
-static inline void
-mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
-			    uint8_t *ref_block,
-                            int width, int height,
-			    int32_t stride)
+void
+mlib_Init(void)
 {
-	int x, y;
- 
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] =
-			    (curr_block[x] + ref_block[x] + 1) >> 1;
-		ref_block += stride;
-		curr_block += stride;
-	}
-}
-
-static inline void
-mlib_VideoCopyRef_U8_U8 (uint8_t *curr_block,
-                         uint8_t *ref_block,
-                         int32_t width,
-                         int32_t height,
-                         int32_t stride)
-{
-	int x, y;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] = ref_block[x];
-		ref_block += stride;
-		curr_block += stride;
-	}
-}
-
-static inline void
-mlib_VideoInterpAveX_U8_U8(uint8_t *curr_block, 
-                           uint8_t *ref_block,
-                           int width, int height,
-                           int32_t frame_stride,   
-                           int32_t field_stride) 
-{
-	int x, y;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] =
-			    (curr_block[x] +
-			     ((ref_block[x] + ref_block[x+1] + 1) >> 1) + 1) >> 1;
-		ref_block += frame_stride;
-		curr_block += frame_stride;
-	}
-}
-
-static inline void
-mlib_VideoInterpAveY_U8_U8(uint8_t *curr_block, 
-                           uint8_t *ref_block,
-                           int width, int height,
-                           int32_t frame_stride,   
-                           int32_t field_stride) 
-{
-	int x, y;
-	uint8_t *ref_block_next = ref_block + field_stride;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] =
-			    (curr_block[x] + 
-			     ((ref_block[x] + ref_block_next[x] + 1) >> 1) + 1) >> 1;
-		curr_block     += frame_stride;
-		ref_block      += frame_stride;
-		ref_block_next += frame_stride;
-	}
+	asm("
+		mtspr	0x100,%0
+	" : : "b" (-1));
 }
 
 static inline void
@@ -138,44 +71,6 @@ mlib_VideoInterpAveXY_U8_U8(uint8_t *curr_block,
 			    (curr_block[x] + 
 			     ((ref_block[x] + ref_block_next[x] +
 			       ref_block[x+1] + ref_block_next[x+1] + 2) >> 2) + 1) >> 1;
-		curr_block     += frame_stride;
-		ref_block      += frame_stride;
-		ref_block_next += frame_stride;
-	}
-}
-
-static inline void
-mlib_VideoInterpX_U8_U8(uint8_t *curr_block, 
-			uint8_t *ref_block,
-			int width, int height,
-			int32_t frame_stride,   
-			int32_t field_stride) 
-{
-	int x, y;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] =
-			    (ref_block[x] + ref_block[x+1] + 1) >> 1;
-		ref_block += frame_stride;
-		curr_block += frame_stride;
-	}
-}
-
-static inline void
-mlib_VideoInterpY_U8_U8(uint8_t *curr_block, 
-			uint8_t *ref_block,
-			int width, int height,
-			int32_t frame_stride,   
-			int32_t field_stride) 
-{
-	int x, y;
-	uint8_t *ref_block_next = ref_block + field_stride;
-
-	for (y = 0; y < height; y++) {
-		for (x = 0; x < width; x++)
-			curr_block[x] =
-			    (ref_block[x] + ref_block_next[x] + 1) >> 1;
 		curr_block     += frame_stride;
 		ref_block      += frame_stride;
 		ref_block_next += frame_stride;
@@ -622,98 +517,170 @@ mlib_VideoCopyRefAve_U8_U8_8x8(uint8_t *curr_block,
 			       uint8_t *ref_block,
 			       int32_t stride)
 {
-	ASSERT(((int)curr_block & 3) == 0);
+	ASSERT(((int)curr_block & 7) == 0);
 
-	if ((((int)ref_block ^ (int)curr_block) & 15) != 0)
-		mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 8, 8, stride);
-	else {
+	if ((((int)ref_block ^ (int)curr_block) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 3,%1,%2
+			lvsl 4,%1,%3
+			lvsr 5,%0,%2
+			lvsr 6,%0,%3
+			vperm 3,3,3,5
+			vperm 4,4,4,6
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i0 + stride));
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+	} else {
 		int i0 = 0, i1 = 4;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 	}
 }
@@ -723,55 +690,190 @@ mlib_VideoCopyRefAve_U8_U8_8x4(uint8_t *curr_block,
 			       uint8_t *ref_block,
 			       int32_t stride)
 {
-	ASSERT(((int)curr_block & 3) == 0);
+	ASSERT(((int)curr_block & 7) == 0);
 
-	if ((((int)ref_block ^ (int)curr_block) & 15) != 0)
-		mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 8, 4, stride);
-	else {
+	if ((((int)ref_block ^ (int)curr_block) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 3,%1,%2
+			lvsl 4,%1,%3
+			lvsr 5,%0,%2
+			lvsr 6,%0,%3
+			vperm 3,3,3,5
+			vperm 4,4,4,6
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i0 + stride));
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,3
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			lvx 2,%0,%2
+			vperm 0,0,1,4
+			vavgub 0,0,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+	} else {
 		int i0 = 0, i1 = 4;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%0,%2
-			lvewx 1,%0,%3
-			lvewx 2,%1,%2
-			lvewx 3,%1,%3
-			vavgub 0,0,2
-			vavgub 1,1,3
+			lvx 0,%0,%2
+			lvx 1,%1,%2
+			vavgub 0,0,1
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+	}
+}
+
+void
+mlib_VideoCopyRef_U8_U8_16x16_multiple(uint8_t *curr_block,
+				       uint8_t *ref_block,
+				       int32_t stride,
+				       int32_t count)
+{
+	ASSERT(((int)curr_block & 15) == 0);
+	ASSERT(((int)ref_block & 15) == 0);
+	
+	while (count--) {
+		int i0 = 0;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+		i0 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvx 0,%0,%2
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0));
+
+		curr_block += 16, ref_block += 16;
 	}
 }
 
@@ -1094,70 +1196,204 @@ mlib_VideoCopyRef_U8_U8_16x8(uint8_t *curr_block,
 }
 
 void 
+mlib_VideoCopyRef_U8_U8_8x8_multiple(uint8_t *curr_block,
+				     uint8_t *ref_block,
+				     int32_t stride,
+				     int32_t count)
+{
+	ASSERT(((int)curr_block & 7) == 0);
+
+	while (count--) {
+		int i0 = 0, i1 = 4;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+		i0 += stride, i1 += stride;
+		asm("
+			lvx 0,%1,%2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%3
+		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
+
+		curr_block += 8, ref_block += 8;
+	}
+}
+
+void 
 mlib_VideoCopyRef_U8_U8_8x8(uint8_t *curr_block,
 			    uint8_t *ref_block,
 			    int32_t stride)
 {
-	ASSERT(((int)curr_block & 3) == 0);
+	ASSERT(((int)curr_block & 7) == 0);
 
-	if ((((int)ref_block ^ (int)curr_block) & 15) != 0)
-		mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 8, 8, stride);
-	else {
+	if ((((int)ref_block ^ (int)curr_block) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 2,%1,%2
+			lvsl 3,%1,%3
+			lvsr 4,%0,%2
+			lvsr 5,%0,%3
+			vperm 2,2,2,4
+			vperm 3,3,3,5
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i0 + stride));
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+	} else {
 		int i0 = 0, i1 = 4;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 	}
 }
@@ -1167,38 +1403,78 @@ mlib_VideoCopyRef_U8_U8_8x4(uint8_t *curr_block,
 			    uint8_t *ref_block,
 			    int32_t stride)
 {
-	ASSERT(((int)curr_block & 3) == 0);
+	ASSERT(((int)curr_block & 7) == 0);
 
-	if ((((int)ref_block ^ (int)curr_block) & 15) != 0)
-		mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 8, 4, stride);
-	else {
+	if ((((int)ref_block ^ (int)curr_block) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 2,%1,%2
+			lvsl 3,%1,%3
+			lvsr 4,%0,%2
+			lvsr 5,%0,%3
+			vperm 2,2,2,4
+			vperm 3,3,3,5
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i0 + stride));
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,2
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += stride, ref_block += stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 0,0,1,3
+			stvewx 0,%0,%2
+			stvewx 0,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+	} else {
 		int i0 = 0, i1 = 4;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 		i0 += stride, i1 += stride;
 		asm("
-			lvewx 0,%1,%2
-			lvewx 1,%1,%3
+			lvx 0,%1,%2
 			stvewx 0,%0,%2
-			stvewx 1,%0,%3
+			stvewx 0,%0,%3
 		" : : "b" (curr_block), "b" (ref_block), "b" (i0), "b" (i1));
 	}
 }
@@ -1273,7 +1549,51 @@ mlib_VideoInterpAveX_U8_U8_8x8(uint8_t *curr_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
-	mlib_VideoInterpAveX_U8_U8 (curr_block, ref_block, 8, 8, frame_stride, field_stride);
+	int i;
+	const int i0 = 0, i1 = 16, i2 = 4;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	asm("
+		vspltisb 0,1
+		lvsl 2,%1,%2
+		lvsr 3,%0,%2
+		lvsl 4,%1,%3
+		lvsr 5,%0,%3
+		vperm 2,2,2,3
+		vperm 4,4,4,5
+		vaddubs 3,2,0
+		vaddubs 5,4,0
+	" : : "b" (curr_block), "b" (ref_block),
+	      "b" (i0), "b" (i0 + frame_stride));
+	for (i = 0; i < 4; i++) {
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,2
+			vperm 7,0,1,3
+			lvx 8,%0,%2
+			vavgub 6,6,7
+			vavgub 6,6,8
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,4
+			vperm 7,0,1,5
+			lvx 8,%0,%2
+			vavgub 6,6,7
+			vavgub 6,6,8
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+	}
 }
 
 void 
@@ -1282,7 +1602,51 @@ mlib_VideoInterpAveX_U8_U8_8x4(uint8_t *curr_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
-	mlib_VideoInterpAveX_U8_U8 (curr_block, ref_block, 8, 4, frame_stride, field_stride);
+	int i;
+	const int i0 = 0, i1 = 16, i2 = 4;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	asm("
+		vspltisb 0,1
+		lvsl 2,%1,%2
+		lvsr 3,%0,%2
+		lvsl 4,%1,%3
+		lvsr 5,%0,%3
+		vperm 2,2,2,3
+		vperm 4,4,4,5
+		vaddubs 3,2,0
+		vaddubs 5,4,0
+	" : : "b" (curr_block), "b" (ref_block),
+	      "b" (i0), "b" (i0 + frame_stride));
+	for (i = 0; i < 2; i++) {
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,2
+			vperm 7,0,1,3
+			lvx 8,%0,%2
+			vavgub 6,6,7
+			vavgub 6,6,8
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,4
+			vperm 7,0,1,5
+			lvx 8,%0,%2
+			vavgub 6,6,7
+			vavgub 6,6,8
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+	}
 }
 
 void
@@ -1391,7 +1755,77 @@ mlib_VideoInterpAveY_U8_U8_8x8(uint8_t *curr_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
-	mlib_VideoInterpAveY_U8_U8 (curr_block, ref_block, 8, 8, frame_stride, field_stride);
+	int i;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	if (((((int)ref_block ^ (int)curr_block) | field_stride) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 4,%1,%3
+			lvsl 5,%1,%4
+			lvsl 6,%2,%3
+			lvsl 7,%2,%4
+			lvsr 8,%0,%3
+			lvsr 9,%0,%4
+			vperm 4,4,4,8
+			vperm 5,5,5,9
+			vperm 6,6,6,8
+			vperm 7,7,7,9
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (ref_block + field_stride),
+		      "b" (i0), "b" (i0 + frame_stride));
+		for (i = 0; i < 4; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,4
+				vperm 9,2,3,6
+				lvx 10,%0,%3
+				vavgub 8,8,9
+				vavgub 8,8,10
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,5
+				vperm 9,2,3,7
+				lvx 10,%0,%3
+				vavgub 8,8,9
+				vavgub 8,8,10
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+		}
+	} else {
+		int i0 = 0, i1 = 4;
+		for (i = 0; i < 8; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%2,%3
+				lvx 2,%0,%3
+				vavgub 0,0,1
+				vavgub 0,0,2
+				stvewx 0,%0,%3
+				stvewx 0,%0,%4
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1));
+			i0 += frame_stride, i1 += frame_stride;
+		}
+	}
 }
 
 void 
@@ -1400,7 +1834,77 @@ mlib_VideoInterpAveY_U8_U8_8x4(uint8_t *curr_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
-	mlib_VideoInterpAveY_U8_U8 (curr_block, ref_block, 8, 4, frame_stride, field_stride);
+	int i;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	if (((((int)ref_block ^ (int)curr_block) | field_stride) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 4,%1,%3
+			lvsl 5,%1,%4
+			lvsl 6,%2,%3
+			lvsl 7,%2,%4
+			lvsr 8,%0,%3
+			lvsr 9,%0,%4
+			vperm 4,4,4,8
+			vperm 5,5,5,9
+			vperm 6,6,6,8
+			vperm 7,7,7,9
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (ref_block + field_stride),
+		      "b" (i0), "b" (i0 + frame_stride));
+		for (i = 0; i < 2; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,4
+				vperm 9,2,3,6
+				lvx 10,%0,%3
+				vavgub 8,8,9
+				vavgub 8,8,10
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,5
+				vperm 9,2,3,7
+				lvx 10,%0,%3
+				vavgub 8,8,9
+				vavgub 8,8,10
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+		}
+	} else {
+		int i0 = 0, i1 = 4;
+		for (i = 0; i < 4; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%2,%3
+				lvx 2,%0,%3
+				vavgub 0,0,1
+				vavgub 0,0,2
+				stvewx 0,%0,%3
+				stvewx 0,%0,%4
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1));
+			i0 += frame_stride, i1 += frame_stride;
+		}
+	}
 }
 
 void
@@ -1565,7 +2069,47 @@ mlib_VideoInterpX_U8_U8_8x8(uint8_t *curr_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
-	mlib_VideoInterpX_U8_U8 (curr_block, ref_block, 8, 8, frame_stride, field_stride);
+	int i;
+	const int i0 = 0, i1 = 16, i2 = 4;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	asm("
+		vspltisb 0,1
+		lvsl 2,%1,%2
+		lvsr 3,%0,%2
+		lvsl 4,%1,%3
+		lvsr 5,%0,%3
+		vperm 2,2,2,3
+		vperm 4,4,4,5
+		vaddubs 3,2,0
+		vaddubs 5,4,0
+	" : : "b" (curr_block), "b" (ref_block),
+	      "b" (i0), "b" (i0 + frame_stride));
+	for (i = 0; i < 4; i++) {
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,2
+			vperm 7,0,1,3
+			vavgub 6,6,7
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,4
+			vperm 7,0,1,5
+			vavgub 6,6,7
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+	}
 }
 
 void 
@@ -1574,7 +2118,47 @@ mlib_VideoInterpX_U8_U8_8x4(uint8_t *curr_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
-	mlib_VideoInterpX_U8_U8 (curr_block, ref_block, 8, 4, frame_stride, field_stride);
+	int i;
+	const int i0 = 0, i1 = 16, i2 = 4;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	asm("
+		vspltisb 0,1
+		lvsl 2,%1,%2
+		lvsr 3,%0,%2
+		lvsl 4,%1,%3
+		lvsr 5,%0,%3
+		vperm 2,2,2,3
+		vperm 4,4,4,5
+		vaddubs 3,2,0
+		vaddubs 5,4,0
+	" : : "b" (curr_block), "b" (ref_block),
+	      "b" (i0), "b" (i0 + frame_stride));
+	for (i = 0; i < 2; i++) {
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,2
+			vperm 7,0,1,3
+			vavgub 6,6,7
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+		asm("
+			lvx 0,%1,%2
+			lvx 1,%1,%3
+			vperm 6,0,1,4
+			vperm 7,0,1,5
+			vavgub 6,6,7
+			stvewx 6,%0,%2
+			stvewx 6,%0,%4
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (i0), "b" (i1), "b" (i2));
+		curr_block += frame_stride, ref_block += frame_stride;
+	}
 }
 
 void
@@ -1675,7 +2259,71 @@ mlib_VideoInterpY_U8_U8_8x8(uint8_t *curr_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
-	mlib_VideoInterpY_U8_U8 (curr_block, ref_block, 8, 8, frame_stride, field_stride);
+	int i;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	if (((((int)ref_block ^ (int)curr_block) | field_stride) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 4,%1,%3
+			lvsl 5,%1,%4
+			lvsl 6,%2,%3
+			lvsl 7,%2,%4
+			lvsr 8,%0,%3
+			lvsr 9,%0,%4
+			vperm 4,4,4,8
+			vperm 5,5,5,9
+			vperm 6,6,6,8
+			vperm 7,7,7,9
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (ref_block + field_stride),
+		      "b" (i0), "b" (i0 + frame_stride));
+		for (i = 0; i < 4; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,4
+				vperm 9,2,3,6
+				vavgub 8,8,9
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,5
+				vperm 9,2,3,7
+				vavgub 8,8,9
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+		}
+	} else {
+		int i0 = 0, i1 = 4;
+		for (i = 0; i < 8; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%2,%3
+				vavgub 0,0,1
+				stvewx 0,%0,%3
+				stvewx 0,%0,%4
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1));
+			i0 += frame_stride, i1 += frame_stride;
+		}
+	}
 }
 
 void 
@@ -1684,7 +2332,71 @@ mlib_VideoInterpY_U8_U8_8x4(uint8_t *curr_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
-	mlib_VideoInterpY_U8_U8 (curr_block, ref_block, 8, 4, frame_stride, field_stride);
+	int i;
+
+	ASSERT(((int)curr_block & 7) == 0);
+
+	if (((((int)ref_block ^ (int)curr_block) | field_stride) & 15) != 0) {
+		const int i0 = 0, i1 = 16, i2 = 4;
+		asm("
+			lvsl 4,%1,%3
+			lvsl 5,%1,%4
+			lvsl 6,%2,%3
+			lvsl 7,%2,%4
+			lvsr 8,%0,%3
+			lvsr 9,%0,%4
+			vperm 4,4,4,8
+			vperm 5,5,5,9
+			vperm 6,6,6,8
+			vperm 7,7,7,9
+		" : : "b" (curr_block), "b" (ref_block),
+		      "b" (ref_block + field_stride),
+		      "b" (i0), "b" (i0 + frame_stride));
+		for (i = 0; i < 2; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,4
+				vperm 9,2,3,6
+				vavgub 8,8,9
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%1,%4
+				lvx 2,%2,%3
+				lvx 3,%2,%4
+				vperm 8,0,1,5
+				vperm 9,2,3,7
+				vavgub 8,8,9
+				stvewx 8,%0,%3
+				stvewx 8,%0,%5
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1), "b" (i2));
+			curr_block += frame_stride, ref_block += frame_stride;
+		}
+	} else {
+		int i0 = 0, i1 = 4;
+		for (i = 0; i < 4; i++) {
+			asm("
+				lvx 0,%1,%3
+				lvx 1,%2,%3
+				vavgub 0,0,1
+				stvewx 0,%0,%3
+				stvewx 0,%0,%4
+			" : : "b" (curr_block), "b" (ref_block),
+			      "b" (ref_block + field_stride),
+			      "b" (i0), "b" (i1));
+			i0 += frame_stride, i1 += frame_stride;
+		}
+	}
 }
 
 void
@@ -1779,11 +2491,6 @@ mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
 	mlib_VideoInterpXY_U8_U8 (curr_block, ref_block, 8, 4, frame_stride, field_stride);
 }
 
-void mlib_VideoAddBlock_U8_S16(uint8_t *output, int16_t *input, int32_t stride) 
-{
-	; /* We should really add this even if it's not used currently */
-}
-
 void mlib_ClearCoeffs(int16_t *coeffs)
 {
 	asm("
@@ -1834,7 +2541,7 @@ void mlib_ClearCoeffs(int16_t *coeffs)
  ***************************************************************/
 
 static const int16_t SpecialConstants[8] __attribute__ ((aligned (16))) = {
-	23170, 13573, 6518, 21895, -23170, -21895, 0, 0 };
+	23170, 13573, 6518, 21895, -23170, -21895, 32, 0 };
 
 static const int16_t PreScale[64] __attribute__ ((aligned (16))) = {
 	16384, 22725, 21407, 19266, 16384, 19266, 21407, 22725, 
@@ -1847,56 +2554,63 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 {
 	ASSERT(((int)output & 7) == 0);
 
+	/* Load constants, input data, and prescale factors.  Do prescaling. */
 	asm("
 		vspltish        31,0
 		vspltish	16,4
 
-		lvx     24,0,%1
-		vsplth  25,24,0
-		vsplth  26,24,1
-		vsplth  27,24,2
-		vsplth  28,24,3
-		vsplth  29,24,4
-		vsplth  30,24,5
+		lvx		24,0,%1
+		vsplth		25,24,0
+		vsplth		26,24,1
+		vsplth		27,24,2
+		vsplth		28,24,3
+		vsplth		29,24,4
+		vsplth		30,24,5
 
-		addi	5,0,0
-		addi    6,0,16
-		lvx     0,%0,5
-		lvx     1,%0,6
-		vsl	0,0,16
-		vsl	1,1,16
-		addi    7,0,32
-		addi    8,0,48
-		lvx     2,%0,7
-		lvx     3,%0,8
-		vsl	2,2,16
-		vsl	3,3,16
-		addi    9,0,64
-		addi    10,0,80
-		lvx     4,%0,9
-		lvx     5,%0,10
-		vsl	4,4,16
-		vsl	5,5,16
-		addi    11,0,96
-		addi    12,0,112
-		lvx     6,%0,11
-		lvx     7,%0,12
-		vsl	6,6,16
-		vsl	7,7,16
+		vsplth		24,24,6
 
-		lvx     0+8,%2,5
-		lvx     1+8,%2,6
-		vmhraddshs      0,0,0+8,31
-		vmhraddshs      1,1,1+8,31
-		lvx     2+8,%2,7
-		lvx     3+8,%2,8
-		vmhraddshs      2,2,2+8,31
-		vmhraddshs      3,3,3+8,31
-		vmhraddshs      4,4,0+8,31
-		vmhraddshs      5,5,3+8,31
-		vmhraddshs      6,6,2+8,31
-		vmhraddshs      7,7,1+8,31
+		addi		5,0,0
+		addi		6,0,16
+		lvx		0,%0,5
+		lvx		1,%0,6
+		vsl		0,0,16
+		vsl		1,1,16
+		addi		7,0,32
+		addi		8,0,48
+		lvx		2,%0,7
+		lvx		3,%0,8
+		vsl		2,2,16
+		vsl		3,3,16
+		addi		9,0,64
+		addi		10,0,80
+		lvx		4,%0,9
+		lvx		5,%0,10
+		vsl		4,4,16
+		vsl		5,5,16
+		addi		11,0,96
+		addi		12,0,112
+		lvx		6,%0,11
+		lvx		7,%0,12
+		vsl		6,6,16
+		vsl		7,7,16
 
+		lvx		0+8,%2,5
+		lvx		1+8,%2,6
+		vmhraddshs	0,0,0+8,31
+		vmhraddshs	1,1,1+8,31
+		lvx		2+8,%2,7
+		lvx		3+8,%2,8
+		vmhraddshs	2,2,2+8,31
+		vmhraddshs	3,3,3+8,31
+		vmhraddshs	4,4,0+8,31
+		vmhraddshs	5,5,3+8,31
+		vmhraddshs	6,6,2+8,31
+		vmhraddshs	7,7,1+8,31
+	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
+	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+
+	/* Transpose the matrix. */
+	asm("
 		vmrghh	0+8,0,4
 		vmrglh	1+8,0,4
 		vmrghh	2+8,1,5
@@ -1923,32 +2637,42 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmrglh	5,2+16,6+16
 		vmrghh	6,3+16,7+16
 		vmrglh	7,3+16,7+16
+	");
 
+	/* First stage. */
+	asm("
 		vmhraddshs      19,27,1,31
 		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
 		vmhraddshs      17,28,5,3
 		vmhraddshs      13,30,3,5
+	");
 
+	/* Second stage. */
+	asm("
 		vaddshs		15,0,4
 		vsubshs		10,0,4
 		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
 		vmhraddshs      12,26,6,2
-
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
 		vaddshs		11,11,17
+	");
 
+	/* Third stage. */
+	asm("
 		vaddshs		17,15,12
 		vsubshs		12,15,12
 		vaddshs		15,10,14
 		vsubshs		10,10,14
-
 		vsubshs		14,18,13
 		vaddshs		13,18,13
+	");
 
+	/* Fourth stage. */
+	asm("
 		vaddshs		0,17,11
 		vmhraddshs      1,25,13,15
 		vmhraddshs      2,25,14,10
@@ -1957,7 +2681,10 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmhraddshs      5,29,14,10
 		vmhraddshs      6,29,13,15
 		vsubshs		7,17,11
+	");
 
+	/* Transpose the matrix again. */
+	asm("
 		vmrghh  0+8,0,4
 		vmrglh  1+8,0,4
 		vmrghh  2+8,1,5
@@ -1984,32 +2711,48 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmrglh  5,2+16,6+16
 		vmrghh  6,3+16,7+16
 		vmrglh  7,3+16,7+16
+	");
 
+	/* Add a rounding bias for the final shift.  v0 is added into every
+	   vector, so the bias propagates from here. */
+	asm("
+		vaddshs	0,0,24
+	");
+
+	/* First stage. */
+	asm("
 		vmhraddshs      19,27,1,31
 		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
 		vmhraddshs      17,28,5,3
 		vmhraddshs      13,30,3,5
+	");
 
+	/* Second stage. */
+	asm("
 		vaddshs		15,0,4
 		vsubshs		10,0,4
 		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
 		vmhraddshs      12,26,6,2
-
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
 		vaddshs		11,11,17
+	");
 
+	/* Third stage. */
+	asm("
 		vaddshs		17,15,12
 		vsubshs		12,15,12
 		vaddshs		15,10,14
 		vsubshs		10,10,14
-
 		vsubshs		14,18,13
 		vaddshs		13,18,13
+	");
 
+	/* Fourth stage. */
+	asm("
 		vaddshs		0,17,11
 		vmhraddshs	1,25,13,15
 		vmhraddshs	2,25,14,10
@@ -2018,8 +2761,10 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmhraddshs	5,29,14,10
 		vmhraddshs	6,29,13,15
 		vsubshs		7,17,11
-	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
-	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+	");
+
+	/* Load final scale factor and permutations for loading the reference
+	   data we're adding to. */
 	asm("
 		vspltish	16,6
 		vspltisb	19,-1
@@ -2028,6 +2773,8 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmrghb		17,19,17
 		vmrghb		18,19,18
 	" : : "b" (output), "b" (0), "b" (0+stride));
+
+	/* Copy out each 8 values, adding to the existing frame. */
 	asm("
 		lvx		0+8,%0,%1
 		lvx		1+8,%0,%3
@@ -2105,60 +2852,67 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 }  
 
-void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int stride)
+void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 {
 	ASSERT(((int)output & 7) == 0);
 
+	/* Load constants, input data, and prescale factors.  Do prescaling. */
 	asm("
 		vspltish        31,0
 		vspltish	16,4
 
-		lvx     24,0,%1
-		vsplth  25,24,0
-		vsplth  26,24,1
-		vsplth  27,24,2
-		vsplth  28,24,3
-		vsplth  29,24,4
-		vsplth  30,24,5
+		lvx		24,0,%1
+		vsplth		25,24,0
+		vsplth		26,24,1
+		vsplth		27,24,2
+		vsplth		28,24,3
+		vsplth		29,24,4
+		vsplth		30,24,5
 
-		addi	5,0,0
-		addi    6,0,16
-		lvx     0,%0,5
-		lvx     1,%0,6
-		vsl	0,0,16
-		vsl	1,1,16
-		addi    7,0,32
-		addi    8,0,48
-		lvx     2,%0,7
-		lvx     3,%0,8
-		vsl	2,2,16
-		vsl	3,3,16
-		addi    9,0,64
-		addi    10,0,80
-		lvx     4,%0,9
-		lvx     5,%0,10
-		vsl	4,4,16
-		vsl	5,5,16
-		addi    11,0,96
-		addi    12,0,112
-		lvx     6,%0,11
-		lvx     7,%0,12
-		vsl	6,6,16
-		vsl	7,7,16
+		vsplth		24,24,6
 
-		lvx     0+8,%2,5
-		lvx     1+8,%2,6
-		vmhraddshs      0,0,0+8,31
-		vmhraddshs      1,1,1+8,31
-		lvx     2+8,%2,7
-		lvx     3+8,%2,8
-		vmhraddshs      2,2,2+8,31
-		vmhraddshs      3,3,3+8,31
-		vmhraddshs      4,4,0+8,31
-		vmhraddshs      5,5,3+8,31
-		vmhraddshs      6,6,2+8,31
-		vmhraddshs      7,7,1+8,31
+		addi		5,0,0
+		addi		6,0,16
+		lvx		0,%0,5
+		lvx		1,%0,6
+		vsl		0,0,16
+		vsl		1,1,16
+		addi		7,0,32
+		addi		8,0,48
+		lvx		2,%0,7
+		lvx		3,%0,8
+		vsl		2,2,16
+		vsl		3,3,16
+		addi		9,0,64
+		addi		10,0,80
+		lvx		4,%0,9
+		lvx		5,%0,10
+		vsl		4,4,16
+		vsl		5,5,16
+		addi		11,0,96
+		addi		12,0,112
+		lvx		6,%0,11
+		lvx		7,%0,12
+		vsl		6,6,16
+		vsl		7,7,16
 
+		lvx		0+8,%2,5
+		lvx		1+8,%2,6
+		vmhraddshs	0,0,0+8,31
+		vmhraddshs	1,1,1+8,31
+		lvx		2+8,%2,7
+		lvx		3+8,%2,8
+		vmhraddshs	2,2,2+8,31
+		vmhraddshs	3,3,3+8,31
+		vmhraddshs	4,4,0+8,31
+		vmhraddshs	5,5,3+8,31
+		vmhraddshs	6,6,2+8,31
+		vmhraddshs	7,7,1+8,31
+	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
+	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+
+	/* Transpose the matrix. */
+	asm("
 		vmrghh	0+8,0,4
 		vmrglh	1+8,0,4
 		vmrghh	2+8,1,5
@@ -2185,32 +2939,42 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int stride)
 		vmrglh	5,2+16,6+16
 		vmrghh	6,3+16,7+16
 		vmrglh	7,3+16,7+16
+	");
 
+	/* First stage. */
+	asm("
 		vmhraddshs      19,27,1,31
 		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
 		vmhraddshs      17,28,5,3
 		vmhraddshs      13,30,3,5
+	");
 
+	/* Second stage. */
+	asm("
 		vaddshs		15,0,4
 		vsubshs		10,0,4
 		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
 		vmhraddshs      12,26,6,2
-
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
 		vaddshs		11,11,17
+	");
 
+	/* Third stage. */
+	asm("
 		vaddshs		17,15,12
 		vsubshs		12,15,12
 		vaddshs		15,10,14
 		vsubshs		10,10,14
-
 		vsubshs		14,18,13
 		vaddshs		13,18,13
+	");
 
+	/* Fourth stage. */
+	asm("
 		vaddshs		0,17,11
 		vmhraddshs      1,25,13,15
 		vmhraddshs      2,25,14,10
@@ -2219,7 +2983,10 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int stride)
 		vmhraddshs      5,29,14,10
 		vmhraddshs      6,29,13,15
 		vsubshs		7,17,11
+	");
 
+	/* Transpose the matrix again. */
+	asm("
 		vmrghh  0+8,0,4
 		vmrglh  1+8,0,4
 		vmrghh  2+8,1,5
@@ -2246,32 +3013,48 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int stride)
 		vmrglh  5,2+16,6+16
 		vmrghh  6,3+16,7+16
 		vmrglh  7,3+16,7+16
+	");
 
+	/* Add a rounding bias for the final shift.  v0 is added into every
+	   vector, so the bias propagates from here. */
+	asm("
+		vaddshs	0,0,24
+	");
+
+	/* First stage. */
+	asm("
 		vmhraddshs      19,27,1,31
 		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
 		vmhraddshs      17,28,5,3
 		vmhraddshs      13,30,3,5
+	");
 
+	/* Second stage. */
+	asm("
 		vaddshs		15,0,4
 		vsubshs		10,0,4
 		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
 		vmhraddshs      12,26,6,2
-
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
 		vaddshs		11,11,17
+	");
 
+	/* Third stage. */
+	asm("
 		vaddshs		17,15,12
 		vsubshs		12,15,12
 		vaddshs		15,10,14
 		vsubshs		10,10,14
-
 		vsubshs		14,18,13
 		vaddshs		13,18,13
+	");
 
+	/* Fourth stage. */
+	asm("
 		vaddshs		0,17,11
 		vmhraddshs	1,25,13,15
 		vmhraddshs	2,25,14,10
@@ -2280,11 +3063,14 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int stride)
 		vmhraddshs	5,29,14,10
 		vmhraddshs	6,29,13,15
 		vsubshs		7,17,11
-	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
-	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+	");
+
+	/* Load final scale factor. */
 	asm("
 		vspltish	16,6
 	");
+
+	/* Copy out each 8 values. */
 	asm("
 		vsrah		0,0,16
 		vsrah		1,1,16
