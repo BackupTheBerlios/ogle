@@ -74,11 +74,10 @@ extern const vlc_table_t table_b11[];
 /* Table B-9 --- Variable length codes for coded_block_pattern. */
 extern const vlc_table_t table_b9[];
 
+/* Derived from Figure 7-1. Definition of scan[a][v][u] */
+extern const uint8_t scan[2][64];
 
-/* Figure 7-1. Definition of scan[0][v][u] */
-extern const uint8_t scan[2][8][8];
-
-/* Derived from Figure 7-1. Definition of scan[0][v][u] */
+/* Derived from Figure 7-1. Definition of scan[a][v][u] */
 extern const uint8_t inverse_scan[2][64];
 
 /* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */

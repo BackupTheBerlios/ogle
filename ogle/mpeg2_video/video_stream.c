@@ -33,6 +33,7 @@
 #include <mlib_sys.h>
 #include <mlib_video.h>
 #include <mlib_algebra.h>
+#define mlib_Init() (void)0
 #else
 #ifdef HAVE_MMX
 #include "mmx.h"
@@ -304,7 +305,7 @@ int main(int argc, char **argv)
   }
   
   init_program();
-  
+  mlib_Init();
   //init_out_q(nr_of_buffers);
   
   if(msgqid == -1) {
@@ -576,12 +577,10 @@ void sequence_header(void)
     
     /* 7.3.1 Inverse scan for matrix download */
     {
-      int v, u;
-      for (v=0; v<8; v++) {
-	for (u=0; u<8; u++) {
-	  seq.header.intra_inverse_quantiser_matrix[v*8+u] =
-	    seq.header.intra_quantiser_matrix[scan[0][v][u]];
-	}
+      int v;
+      for(v=0; v < 64; v++) {
+	seq.header.intra_inverse_quantiser_matrix[v] =
+	  seq.header.intra_quantiser_matrix[scan[0][v]];
       }
     }
     
@@ -603,12 +602,10 @@ void sequence_header(void)
    
     /** 7.3.1 Inverse scan for matrix download */
     {
-      int v, u;
-      for (v=0; v<8; v++) {
-	for (u=0; u<8; u++) {
-	  seq.header.non_intra_inverse_quantiser_matrix[v*8+u] =
-	    seq.header.non_intra_quantiser_matrix[scan[0][v][u]];
-	}
+      int v;
+      for(v=0; v < 64; v++) {
+	seq.header.non_intra_inverse_quantiser_matrix[v] =
+	  seq.header.non_intra_quantiser_matrix[scan[0][v]];
       }
     }
     
@@ -2193,12 +2190,10 @@ void quant_matrix_extension()
     
     /* 7.3.1 Inverse scan for matrix download */
     {
-      int v, u;
-      for (v=0; v<8; v++) {
-	for (u=0; u<8; u++) {
-	  seq.header.intra_inverse_quantiser_matrix[v*8+u] =
-	    seq.header.intra_quantiser_matrix[scan[0][v][u]];
-	}
+      int v;
+      for(v=0; v < 64; v++) {
+	seq.header.intra_inverse_quantiser_matrix[v] =
+	  seq.header.intra_quantiser_matrix[scan[0][v]];
       }
     }
   }
@@ -2214,12 +2209,10 @@ void quant_matrix_extension()
    
     /*  7.3.1 Inverse scan for matrix download */
     {
-      int v, u;
-      for (v=0; v<8; v++) {
-	for (u=0; u<8; u++) {
-	  seq.header.non_intra_inverse_quantiser_matrix[v*8+u] =
-	    seq.header.non_intra_quantiser_matrix[scan[0][v][u]];
-	}
+      int v;
+      for(v=0; v < 64; v++) {
+	seq.header.non_intra_inverse_quantiser_matrix[v] =
+	  seq.header.non_intra_quantiser_matrix[scan[0][v]];
       }
     }
   }

@@ -24,6 +24,13 @@ static uint64_t ones = 0x0001000100010001ULL;
 static uint64_t twos = 0x0002000200020002ULL;
 
 //#define MC_MMX_verify
+
+void
+mlib_Init(void)
+{
+  return;
+}
+
 static inline uint8_t
 clip_to_u8 (int16_t value)
 {
