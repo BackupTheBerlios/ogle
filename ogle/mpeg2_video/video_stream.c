@@ -19,6 +19,12 @@
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+
+int dctstat[128];
+int total_pos = 0;
+int total_calls = 0;
+
+
 static int shmem_flag = 1;
 static XVisualInfo vinfo;
 XShmSegmentInfo shm_info;
@@ -46,7 +52,7 @@ XWindowAttributes attribs;
 #define ALLOC_SIZE 2048
 #define BUF_SIZE_MAX 2048*8
 
-#define DEBUG
+//#define DEBUG
 
 
 #ifdef DEBUG
@@ -56,7 +62,7 @@ if(debug > level) \
     fprintf(stderr, ## text); \
 }
 #else
-#define DPRINTF(level, text...) 
+#define DPRINTF(level, text...)
 #endif
 
 #ifdef DEBUG
@@ -195,12 +201,21 @@ typedef struct {
 
   int16_t f[6][8*8] __attribute__ ((aligned (8)));
 
+  //int16_t f[6][8*8]; // CC
+
   int8_t motion_vector_count;
   int8_t motion_vertical_field_select[2][2];
 
   int16_t delta[2][2][2];
 
   int8_t skipped;
+
+  int quantiser_scale;
+  int intra_dc_mult;
+
+  int16_t QFS[64];
+  int16_t QF[8][8];
+  int16_t F_bis[8][8];
 } macroblock_t;
 
 macroblock_t mb;
@@ -296,6 +311,16 @@ void next_word(void)
     if(!fread(&buf[buf_pos], 1, 4, infile)) {
       if(feof(infile)) {
 	fprintf(stderr, "*End Of File\n");
+	fprintf(stderr, "get_dct average: %f\n", (double)total_pos/(double)total_calls);
+	{
+	  int n;
+	  double percent = 0.0;
+	  
+	  for(n = 0; n < 128; n++) {
+	    fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
+		    percent+=(double)dctstat[n]/(double)total_calls);
+	  }
+	}
 	exit(0);
       } else {
 	fprintf(stderr, "**File Error\n");
@@ -895,6 +920,23 @@ void picture_coding_extension(void)
   pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
   pic.coding_ext.f_code[1][1] = GETBITS(4, "f_code[1][1]");
   pic.coding_ext.intra_dc_precision = GETBITS(2, "intra_dc_precision");
+
+  /** opt4 **/
+  switch(pic.coding_ext.intra_dc_precision) {
+  case 0x0:
+    mb.intra_dc_mult = 8;
+    break;
+  case 0x1:
+    mb.intra_dc_mult = 4;
+    break;
+  case 0x2:
+    mb.intra_dc_mult = 2;
+    break;
+  case 0x3:
+    mb.intra_dc_mult = 1;
+    break;
+  }
+  /**/
   pic.coding_ext.picture_structure = GETBITS(2, "picture_structure");
 
 #ifdef DEBUG
@@ -1251,6 +1293,11 @@ void slice(void)
     }
   }
   slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
+  /** opt4 **/
+  mb.quantiser_scale =
+    q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+  /**/
+
   if(nextbits(1) == 1) {
     slice_data.intra_slice_flag = GETBITS(1, "intra_slice_flag");
     slice_data.intra_slice = GETBITS(1, "intra_slice");
@@ -1410,6 +1457,10 @@ void macroblock(void)
 
   if(mb.modes.macroblock_quant) {
     slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
+    /** opt4 **/
+    mb.quantiser_scale =
+      q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+    /**/
   }
   if(mb.modes.macroblock_motion_forward ||
      (mb.modes.macroblock_intra &&
@@ -1792,26 +1843,282 @@ int get_vlc(vlc_table_t *table, char *func) {
   return VLC_FAIL;
 }
 
-/* 6.2.6 Block */
-void block(unsigned int i)
+
+
+
+void inverse_scan()
+{
+  int v,u;
+  
+  for (v=0; v<8; v++) {
+    for (u=0; u<8; u++) {
+      mb.QF[v][u] = mb.QFS[scan[pic.coding_ext.alternate_scan][v][u]];
+    }
+  }
+}
+
+
+/* inverse quantisation  (currently only supports 4:2:0)*/
+/* 7.4.5 Summary */
+
+void inverse_quantisation()
+{
+  int v, u;
+  int sum;
+  
+  if(mb.modes.macroblock_intra) {
+    mb.F_bis[0][0] = mb.intra_dc_mult * mb.QF[0][0];
+    u = 1;
+  } else {
+    u = 0;
+  }
+  
+#define OPT6
+#ifndef OPT6
+  
+  for(v = 0; v < 8; v++) {
+    for(; u<8; u++) {
+      // other coefficients
+      
+      if(mb.modes.macroblock_intra) {
+	mb.F_bis[v][u] = 
+	  (mb.QF[v][u]*
+	   seq.header.intra_inverse_quantiser_matrix[v][u]*
+	   mb.quantiser_scale*2)/32;
+      } else {
+	
+#define OPT5
+#ifndef OPT5
+	mb.F_bis[v][u] =
+	  (((mb.QF[v][u]*2)+sign(mb.QF[v][u])) *
+	   seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	   mb.quantiser_scale)/32;
+#else
+	mb.F_bis[v][u] =
+	  (((mb.QF[v][u]*2)+(mb.QF[v][u] > 0 ? 1: (mb.QF[v][u] < 0 ? -1 : 0))) *
+	   seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	   mb.quantiser_scale)/32;
+#endif
+      }
+      
+    }
+    u = 0;
+  }
+  
+#else
+  
+  if(mb.modes.macroblock_intra) {
+    for(v = 0; v < 8; v++) {
+      for(; u<8; u++) {
+	// other coefficients
+	mb.F_bis[v][u] = 
+	  (mb.QF[v][u]*
+	   seq.header.intra_inverse_quantiser_matrix[v][u]*
+	   mb.quantiser_scale*2)/32;
+      }
+      u = 0;
+    }
+  } else {
+    for(v = 0; v < 8; v++) {
+      for(; u<8; u++) {
+	// other coefficients
+	
+	mb.F_bis[v][u] =
+	  (((mb.QF[v][u]*2)+(mb.QF[v][u] > 0 ? 1: (mb.QF[v][u] < 0 ? -1 : 0))) *
+	   seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	   mb.quantiser_scale)/32;
+	
+      }
+      u = 0;
+    }
+  }
+#endif
+  
+  sum = 0;
+  for(v=0; v<8; v++) {
+    for(u=0; u<8; u++) {
+      if(mb.F_bis[v][u] > 2047) {
+	mb.F_bis[v][u] = 2047;
+      } else if(mb.F_bis[v][u] < -2048) {
+	mb.F_bis[v][u] = -2048;
+      }
+      sum = sum+mb.F_bis[v][u];
+    }
+  }
+  
+  if((sum & 1) == 0) {
+    if((mb.F_bis[7][7]&1) != 0) {
+      mb.F_bis[7][7] = mb.F_bis[7][7]-1;
+    } else {
+      mb.F_bis[7][7] = mb.F_bis[7][7]+1;
+    }
+  }
+  
+  
+}
+
+
+void variable_length_decoding(int i, int cc)
 {
   uint16_t dct_dc_size_luminance;
   uint16_t dct_dc_differential = 0;
   uint16_t dct_dc_size_chrominance;
   int n = 0;
-  int16_t QFS[64];
-  int16_t QF[8][8];
-  int16_t F_bis[8][8];
-  int16_t F_prim[8][8];
-  int16_t F[8][8];
-
-
+  
   int16_t dct_diff;
   int16_t half_range;
-  uint8_t cc;
   runlevel_t runlevel;
   int eob_not_read;
   int m;
+
+  DPRINTF(3, "pattern_code(%d) set\n", i);
+  
+  if(mb.modes.macroblock_intra) {
+    
+    if(i < 4) {
+      
+      dct_dc_size_luminance = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
+      DPRINTF(4, "luma_size: %d\n", dct_dc_size_luminance);
+      
+      if(dct_dc_size_luminance != 0) {
+	
+	dct_dc_differential = GETBITS(dct_dc_size_luminance, "dct_dc_differential (luma)");
+	
+	DPRINTF(4, "luma_val: %d, ", dct_dc_differential);
+	
+      }
+      
+      if(dct_dc_size_luminance == 0) {
+	dct_diff = 0;
+      } else {
+	half_range = 1<<(dct_dc_size_luminance-1);
+	
+	if(dct_dc_differential >= half_range) {
+	  dct_diff = (int16_t) dct_dc_differential;
+	} else {
+	  dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
+	}
+	
+	DPRINTF(4, "%d\n", dct_diff);
+	
+      }
+      mb.QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
+      mb.dc_dct_pred[cc] = mb.QFS[n];
+      DPRINTF(4, "QFS[%d]: %d\n", n, mb.QFS[n]);
+    } else {
+      
+      dct_dc_size_chrominance = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
+      
+      DPRINTF(4, "chroma_size: %d\n", dct_dc_size_chrominance);
+      
+      if(dct_dc_size_chrominance != 0) {
+	dct_dc_differential = GETBITS(dct_dc_size_chrominance, "dct_dc_differential (chroma)");
+	
+	DPRINTF(4, "chroma_val: %d, ", dct_dc_differential);
+	
+      }
+      
+      if(dct_dc_size_chrominance == 0) {
+	dct_diff = 0;
+      } else {
+	half_range = 1<<(dct_dc_size_chrominance-1);
+	if(dct_dc_differential >= half_range) {
+	  dct_diff = (int16_t) dct_dc_differential; 
+	} else {
+	  dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
+	}
+	
+	DPRINTF(4, "%d\n", dct_diff);
+	
+      }
+      mb.QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
+      mb.dc_dct_pred[cc] = mb.QFS[n];
+    }
+    
+    if((mb.QFS[0] < 0) || (mb.QFS[0] > ((1<<(8+pic.coding_ext.intra_dc_precision))-1))) {
+      fprintf(stderr, "*** QFS[0] (%d) Out of Range\n", mb.QFS[0]);
+      exit(-1);
+    }
+    n++;
+  } else {
+    
+    //First DCT coefficient
+    get_dct(&runlevel, DCT_DC_FIRST, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_first");
+    
+#ifdef DEBUG
+    if(runlevel.run != VLC_END_OF_BLOCK) {
+      DPRINTF(4, "coeff run: %d, level: %d\n",
+	      runlevel.run, runlevel.level);
+    }
+#endif
+    
+    for(m = 0; m < runlevel.run; m++) {
+      mb.QFS[n] = 0;
+      n++;
+    }
+    mb.QFS[n] =  runlevel.level;
+    n++;
+  }
+  
+  /* 7.2.2.4 Summary */
+  eob_not_read = 1;
+  while(eob_not_read) {
+    //fprintf(stderr, "Subsequent dct_dc\n");
+    //Subsequent DCT coefficients
+    get_dct(&runlevel, DCT_DC_SUBSEQUENT, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_subsequent");
+    
+#ifdef DEBUG
+    if(runlevel.run != VLC_END_OF_BLOCK) {
+      DPRINTF(4, "coeff run: %d, level: %d\n",
+	      runlevel.run, runlevel.level);
+    }
+#endif
+    
+    if(runlevel.run == VLC_END_OF_BLOCK) {
+      eob_not_read = 0;
+      while(n<64) {
+	mb.QFS[n] = 0;
+	n++;
+      }
+    } else {
+      for(m = 0; m < runlevel.run; m++) {
+	mb.QFS[n] = 0;
+	n++;
+      }
+      mb.QFS[n] =  runlevel.level;
+      n++;      
+    }
+    if(n > 64) {
+      fprintf(stderr, "********* more than 64\n");
+      exit(-1);
+    }
+  }
+  
+  DPRINTF(4, "nr of coeffs: %d\n", n);
+}
+
+
+ 
+/* 6.2.6 Block */
+void block(unsigned int i)
+{
+  //  uint16_t dct_dc_size_luminance;
+  //uint16_t dct_dc_differential = 0;
+  //uint16_t dct_dc_size_chrominance;
+  //  int n = 0;
+  //  int16_t QFS[64];
+  //int16_t QF[8][8];
+  //int16_t F_bis[8][8];
+  //  int16_t F_prim[8][8];
+  //int16_t F[8][8];
+
+
+  //  int16_t dct_diff;
+  //int16_t half_range;
+  uint8_t cc;
+  //runlevel_t runlevel;
+  //int eob_not_read;
+  //int m;
 
   
   /* Table 7-1. Definition of cc, colour component index */ 
@@ -1821,7 +2128,8 @@ void block(unsigned int i)
     cc = (i%2)+1;
   }
   if(mb.pattern_code[i]) {
-    
+    variable_length_decoding(i, cc);
+#if 0
     DPRINTF(3, "pattern_code(%d) set\n", i);
     
     if(mb.modes.macroblock_intra) {
@@ -1853,9 +2161,9 @@ void block(unsigned int i)
 	  DPRINTF(4, "%d\n", dct_diff);
 
 	}
-	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
-	mb.dc_dct_pred[cc] = QFS[n];
-	DPRINTF(4, "QFS[%d]: %d\n", n, QFS[n]);
+	mb.QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
+	mb.dc_dct_pred[cc] = mb.QFS[n];
+	DPRINTF(4, "QFS[%d]: %d\n", n, mb.QFS[n]);
       } else {
 
 	dct_dc_size_chrominance = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
@@ -1882,12 +2190,12 @@ void block(unsigned int i)
 	  DPRINTF(4, "%d\n", dct_diff);
 
 	}
-	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
-	mb.dc_dct_pred[cc] = QFS[n];
+	mb.QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
+	mb.dc_dct_pred[cc] = mb.QFS[n];
       }
       
-      if((QFS[0] < 0) || (QFS[0] > ((1<<(8+pic.coding_ext.intra_dc_precision))-1))) {
-	fprintf(stderr, "*** QFS[0] (%d) Out of Range\n", QFS[0]);
+      if((mb.QFS[0] < 0) || (mb.QFS[0] > ((1<<(8+pic.coding_ext.intra_dc_precision))-1))) {
+	fprintf(stderr, "*** QFS[0] (%d) Out of Range\n", mb.QFS[0]);
 	exit(-1);
       }
       n++;
@@ -1904,10 +2212,10 @@ void block(unsigned int i)
 #endif
 
       for(m = 0; m < runlevel.run; m++) {
-	QFS[n] = 0;
+	mb.QFS[n] = 0;
 	n++;
       }
-      QFS[n] =  runlevel.level;
+      mb.QFS[n] =  runlevel.level;
       n++;
     }
 
@@ -1928,15 +2236,15 @@ void block(unsigned int i)
       if(runlevel.run == VLC_END_OF_BLOCK) {
 	eob_not_read = 0;
 	while(n<64) {
-	  QFS[n] = 0;
+	  mb.QFS[n] = 0;
 	  n++;
 	}
       } else {
 	for(m = 0; m < runlevel.run; m++) {
-	  QFS[n] = 0;
+	  mb.QFS[n] = 0;
 	  n++;
 	}
-	QFS[n] =  runlevel.level;
+	mb.QFS[n] =  runlevel.level;
 	n++;      
       }
       if(n > 64) {
@@ -1944,23 +2252,29 @@ void block(unsigned int i)
 	exit(-1);
       }
     }
-
+#endif
     DPRINTF(4, "nr of coeffs: %d\n", n);
-   
+    
     /* 7.3 Inverse scan */
-    {
+    inverse_scan();
+#if 0
+   {
       int v,u;
       
       for (v=0; v<8; v++) {
 	for (u=0; u<8; u++) {
-	  QF[v][u] = QFS[scan[pic.coding_ext.alternate_scan][v][u]];
+	  mb.QF[v][u] = mb.QFS[scan[pic.coding_ext.alternate_scan][v][u]];
 	}
       }
     }
+#endif
 
-
+    inverse_quantisation();
+#if 0
     /* inverse quantisation  (currently only supports 4:2:0)*/
     /* 7.4.5 Summary */
+    /** orig **/
+    /*
     {
       int v, u;
       int sum;
@@ -1973,8 +2287,8 @@ void block(unsigned int i)
       for(v = 0; v < 8; v++) {
 	for(u=0; u<8; u++) {
 	  if((u==0) && (v==0) && (mb.modes.macroblock_intra)) {
-	    /* intra dc coefficient */
-            /* Table 6-13 Intra DC precision */
+	    // intra dc coefficient 
+            // Table 6-13 Intra DC precision
 	    switch(pic.coding_ext.intra_dc_precision) {
 	    case 0x0:
 	      intra_dc_mult = 8;
@@ -1990,35 +2304,143 @@ void block(unsigned int i)
 	      break;
 	    }
 	    
-	    F_bis[0][0] = intra_dc_mult * QF[v][u];
+	    mb.F_bis[0][0] = intra_dc_mult * mb.QF[v][u];
 	  } else {
-	    /* other coefficients */
+	    // other coefficients
 	    
 	    if(mb.modes.macroblock_intra) {
-	      F_bis[v][u] = 
-		(QF[v][u]*
+	      mb.F_bis[v][u] = 
+		(mb.QF[v][u]*
 		 seq.header.intra_inverse_quantiser_matrix[v][u]*
 		 quantiser_scale*2)/32;
 	    } else {
-	      F_bis[v][u] =
-		(((QF[v][u]*2)+sign(QF[v][u])) *
+	      mb.F_bis[v][u] =
+		(((mb.QF[v][u]*2)+sign(mb.QF[v][u])) *
 		 seq.header.non_intra_inverse_quantiser_matrix[v][u] *
 		 quantiser_scale)/32;
 	    }
 	  }
 	}
       }
+    }
+    */
+    /** opt 4 **/
+    {
+      int v, u;
+      int sum;
+      //      int quantiser_scale;
+      //int intra_dc_mult = 0;
       
+      // moved up to slice() and macroblock()
+      /*
+
+      // moved up to slice() and macroblock()
+//      quantiser_scale =
+//	q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+
+      // moved up to picture_coding_extension()
+	  if(mb.modes.macroblock_intra) {
+	    // intra dc coefficient 
+            // Table 6-13 Intra DC precision 
+	    switch(pic.coding_ext.intra_dc_precision) {
+	    case 0x0:
+	      intra_dc_mult = 8;
+	      break;
+	    case 0x1:
+	      intra_dc_mult = 4;
+	      break;
+	    case 0x2:
+	      intra_dc_mult = 2;
+	      break;
+	    case 0x3:
+	      intra_dc_mult = 1;
+	      break;
+	    }
+	    
+	    mb.F_bis[0][0] = intra_dc_mult * mb.QF[v][u];
+	  } 
+      */
+
+      if(mb.modes.macroblock_intra) {
+	mb.F_bis[0][0] = mb.intra_dc_mult * mb.QF[0][0];
+	u = 1;
+      } else {
+	u = 0;
+      }
+	
+#define OPT6
+#ifndef OPT6
+      
+      for(v = 0; v < 8; v++) {
+	for(; u<8; u++) {
+	  // other coefficients
+	  
+	  if(mb.modes.macroblock_intra) {
+	    mb.F_bis[v][u] = 
+	      (mb.QF[v][u]*
+	       seq.header.intra_inverse_quantiser_matrix[v][u]*
+	       mb.quantiser_scale*2)/32;
+	  } else {
+	    
+#define OPT5
+#ifndef OPT5
+	    mb.F_bis[v][u] =
+	      (((mb.QF[v][u]*2)+sign(mb.QF[v][u])) *
+	       seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	       mb.quantiser_scale)/32;
+#else
+	    mb.F_bis[v][u] =
+	      (((mb.QF[v][u]*2)+(mb.QF[v][u] > 0 ? 1: (mb.QF[v][u] < 0 ? -1 : 0))) *
+	       seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	       mb.quantiser_scale)/32;
+#endif
+	  }
+	  
+	}
+	u = 0;
+      }
+      
+#else
+      
+      if(mb.modes.macroblock_intra) {
+	for(v = 0; v < 8; v++) {
+	  for(; u<8; u++) {
+	    // other coefficients
+	    mb.F_bis[v][u] = 
+	      (mb.QF[v][u]*
+	       seq.header.intra_inverse_quantiser_matrix[v][u]*
+	       mb.quantiser_scale*2)/32;
+	  }
+	  u = 0;
+	}
+      } else {
+	for(v = 0; v < 8; v++) {
+	  for(; u<8; u++) {
+	    // other coefficients
+	  
+	    mb.F_bis[v][u] =
+	      (((mb.QF[v][u]*2)+(mb.QF[v][u] > 0 ? 1: (mb.QF[v][u] < 0 ? -1 : 0))) *
+	       seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+	       mb.quantiser_scale)/32;
+	    
+	  }
+	  u = 0;
+	}
+      }
+#endif
+
+      /** orig **/
+      /*      
       sum = 0;
       for(v=0; v<8; v++) {
 	for(u=0; u<8; u++) {
-	  if(F_bis[v][u] > 2047) {
+	  if(mb.F_bis[v][u] > 2047) {
 	    F_prim[v][u] = 2047;
 	  } else {
-	    if(F_bis[v][u] < -2048) {
+	    if(mb.F_bis[v][u] < -2048) {
 	      F_prim[v][u] = -2048;
 	    } else {
-	      F_prim[v][u] = F_bis[v][u];
+	      F_prim[v][u] = mb.F_bis[v][u];
 	    }
 
 	  }
@@ -2034,13 +2456,61 @@ void block(unsigned int i)
 	  F[7][7] = F_prim[7][7]+1;
 	}
       }
+      */
+      
+      /** optimized  opt1 **/
+      /*
+      sum = 0;
+      for(v=0; v<8; v++) {
+	for(u=0; u<8; u++) {
+	  if(mb.F_bis[v][u] > 2047) {
+	    mb.F_bis[v][u] = 2047;
+	  } else if(mb.F_bis[v][u] < -2048) {
+	    mb.F_bis[v][u] = -2048;
+	  }
+	  sum = sum+mb.F_bis[v][u];
+	  F[v][u] = mb.F_bis[v][u];
+	}
+      }
+
+      if((sum & 1) == 0) {
+	if((F[7][7]&1) != 0) {
+	  F[7][7] = F_prim[7][7]-1;
+	} else {
+	  F[7][7] = F_prim[7][7]+1;
+	}
+      }
+      */
+
+      /** opt2 **/
+      
+      sum = 0;
+      for(v=0; v<8; v++) {
+	for(u=0; u<8; u++) {
+	  if(mb.F_bis[v][u] > 2047) {
+	    mb.F_bis[v][u] = 2047;
+	  } else if(mb.F_bis[v][u] < -2048) {
+	    mb.F_bis[v][u] = -2048;
+	  }
+	  sum = sum+mb.F_bis[v][u];
+	}
+      }
+
+      if((sum & 1) == 0) {
+	if((mb.F_bis[7][7]&1) != 0) {
+	  mb.F_bis[7][7] = mb.F_bis[7][7]-1;
+	} else {
+	  mb.F_bis[7][7] = mb.F_bis[7][7]+1;
+	}
+      }
+      
       
     }
     
-
+#endif
     
     
-    mlib_VideoIDCT_IEEE_S16_S16(mb.f[i], (mlib_s16 *)F);      
+    mlib_VideoIDCT_IEEE_S16_S16(mb.f[i], (mlib_s16 *)mb.F_bis);      
     
   } else {
     // pattern[i] == 0
@@ -2292,6 +2762,13 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 	  runlevel->run   = table[pos].run;
 	  runlevel->level = (sign?-1:1) * table[pos].level;
 	}
+
+	  /* profiling info */
+	  total_pos +=pos;
+	  total_calls++;
+    
+	  dctstat[pos]++;
+	  
 	return;
       }
       pos++;
@@ -2299,6 +2776,7 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
     numberofbits++;
   }
   fprintf(stderr, "*** get_dct(): no matching bitstream found.\n");
+
   exit(1);
   return;
 }
@@ -3584,5 +4062,16 @@ void exit_program()
   shmctl (shm_info.shmid, IPC_RMID, 0);
   shmctl (shm_info_ref1.shmid, IPC_RMID, 0);
   shmctl (shm_info_ref2.shmid, IPC_RMID, 0);
+
+	{
+	  int n;
+	  double percent = 0.0;
+	  
+	  for(n = 0; n < 128; n++) {
+	    fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
+		    percent+=(double)dctstat[n]/(double)total_calls);
+	  }
+	}
+
   exit(0);
 }
