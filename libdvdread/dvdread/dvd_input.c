@@ -26,6 +26,14 @@
 #include "dvd_reader.h"
 #include "dvd_input.h"
 
+/* The function pointers that is the exported interface of this file. */
+dvd_input_t (*DVDinput_open)  (const char *);
+int         (*DVDinput_close) (dvd_input_t);
+int         (*DVDinput_seek)  (dvd_input_t, int);
+int         (*DVDinput_title) (dvd_input_t, int); 
+int         (*DVDinput_read)  (dvd_input_t, void *, int, int);
+char *      (*DVDinput_error) (dvd_input_t);
+
 /* For libdvdcss */
 typedef struct dvdcss_s *dvdcss_handle;
 
