@@ -67,7 +67,7 @@ extern void exit_program(int exitcode) ATTRIBUTE_NORETURN;
 #if PRAGMA_NORETURN
 #pragma does_not_return (exit_program) 
 #endif
-extern void motion_comp();
+extern void motion_comp(void);
 extern void motion_comp_add_coeff(unsigned int i);
 extern int get_vlc(const vlc_table_t *table, char *func);
 
@@ -135,7 +135,7 @@ void reset_dc_dct_pred(void)
 }
 
 static
-void reset_PMV()
+void reset_PMV(void)
 {
   DPRINTFI(3, "Resetting PMV\n");
 
@@ -150,7 +150,7 @@ void reset_PMV()
 }
 
 static
-void reset_vectors()
+void reset_vectors(void)
 {
   DPRINTFI(3, "Resetting motion vectors\n");
   

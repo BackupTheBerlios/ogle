@@ -66,7 +66,7 @@ buf_data_t id_reg_ps1[256];
 
 int register_id(uint8_t id, int subtype);
 int id_registered(uint8_t id, uint8_t subtype);
-int init_id_reg();
+int init_id_reg(stream_state_t default_state);
 //int wait_for_msg(mq_cmdtype_t cmdtype);
 //int eval_msg(mq_cmd_t *cmd);
 int get_buffer(int size);
@@ -169,7 +169,7 @@ int new_file;
     static uint32_t stat_n_packets                     = 0;
 #endif //STATS
 
-void usage()
+void usage(void)
 {
   fprintf(stderr, "Usage: %s [-v <video file>] [-a <audio file>] [-s <subtitle file> -i <subtitle_id>] [-d <debug level>] <input file>\n", 
 	  program_name);
@@ -620,7 +620,7 @@ int stream_open = 0;
 
 
 
-void system_header()
+void system_header(void)
 {
   uint16_t header_length;
   uint32_t rate_bound;
@@ -687,7 +687,7 @@ void system_header()
 
 
 
-int pack_header()
+int pack_header(void)
 {
   uint64_t system_clock_reference;
   uint64_t system_clock_reference_base;
@@ -965,7 +965,7 @@ void push_stream_data(uint8_t stream_id, int len,
 }
 
 
-void PES_packet()
+void PES_packet(void)
 {
   uint16_t PES_packet_length;
   uint8_t stream_id;
@@ -1236,7 +1236,7 @@ void PES_packet()
 
 // MPEG-1 packet
 
-void packet()
+void packet(void)
 {
   uint8_t stream_id;
   uint16_t packet_length;
@@ -1313,7 +1313,7 @@ void packet()
 }
 
 
-void pack()
+void pack(void)
 {
   uint32_t start_code;
   uint8_t stream_id;
@@ -1478,7 +1478,7 @@ void pack()
 
 }
 
-void MPEG2_program_stream()
+void MPEG2_program_stream(void)
 {
 
   DPRINTF(2,"MPEG2_program_stream()\n");
