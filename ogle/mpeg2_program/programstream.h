@@ -1,3 +1,5 @@
+#include <inttypes.h>
+
 //#define LITTLE_ENDIAN
 #define BIG_ENDIAN 
 
@@ -26,5 +28,16 @@
 #define MPEG2_PADDING_STREAM 0xBE
 #define MPEG2_PRIVATE_STREAM_2 0xBF
 
+enum {
+      PACK_TYPE_OFF_LEN, 
+      PACK_TYPE_LOAD_FILE
+     };
 
+
+struct off_len_packet {
+	               uint8_t  cmd;
+                       uint32_t off;
+                       uint32_t len;
+                      };
+              
 

@@ -352,21 +352,26 @@ void pack_header()
 
 void push_stream_data(uint8_t stream_id, int len)
 {
-  uint8_t* data = &buf[offs-(bits_left/8)];
+  uint8_t *data = &buf[offs-(bits_left/8)];
+  static struct off_len_packet pack;
+
+  pack.cmd = PACK_TYPE_OFF_LEN;
+  pack.off = offs-(bits_left/8);
+  pack.len = len;
+
   DPRINTF(5, "bitsleft: %d\n", bits_left);
+
   if(stream_id == 0xe0) {
     if(video) {
-      fwrite(data, len, 1, video_file);
+      fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
     }
-
-    DPRINTF(4, "Video packet: %u bytes\n", len);
-    
+    DPRINTF(4, "Video packet: %u bytes\n", len);    
   } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     DPRINTF(4, "Private_stream_1 packet: %u bytes\n", len);
     if(audio) {
       DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
       if(*data == 0x80) {
-        fwrite(data+4, len-4, 1, audio_file);
+	fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
       }
     }
     if(subtitle) {
@@ -377,7 +382,7 @@ void push_stream_data(uint8_t stream_id, int len)
       }
             if(*data == subtitle_id ){ 
       	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-      	fwrite(data+1, len-1, 1, subtitle_file);
+	fwrite(&pack, sizeof(struct off_len_packet), 1, video_file);
       }
     }
   } else {
