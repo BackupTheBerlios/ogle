@@ -28,8 +28,8 @@
 #include <limits.h>
 #include <inttypes.h>
 
-#include <ogle/dvd.h>
-#include <ogle/dvdevents.h>
+#include "dvd.h"
+#include "dvdevents.h"
 
 #include <sys/param.h>
 
@@ -105,7 +105,7 @@ typedef union {
     MsgEventQType_t type;
     long int clientid;
     struct sockaddr_un server_addr;
-    int sd; //local socket
+    int sd; /* local socket */
     struct sockaddr_un client_addr;
   } socket;
   

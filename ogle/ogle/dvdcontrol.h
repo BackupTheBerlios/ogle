@@ -19,9 +19,9 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <ogle/dvd.h>
-#include <ogle/msgevents.h> /* Only for the hack with DVDNextEvent !! */
-#include <ogle/dvdbookmarks.h>
+#include "dvd.h"
+#include "msgevents.h" /* Only for the hack with DVDNextEvent !! */
+#include "dvdbookmarks.h"
 
 #include <sys/param.h>
 
