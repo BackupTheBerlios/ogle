@@ -1328,6 +1328,7 @@ void extension_and_user_data(unsigned int i) {
 void picture_coding_extension(void)
 {
   uint32_t extension_start_code;
+  int m,n;
 
   DPRINTF(3, "picture_coding_extension\n");
 
@@ -1339,6 +1340,14 @@ void picture_coding_extension(void)
   pic.coding_ext.f_code[0][1] = GETBITS(4, "f_code[0][1]");
   pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
   pic.coding_ext.f_code[1][1] = GETBITS(4, "f_code[1][1]");
+  for(n = 0; n < 2; n++) {
+    for(m = 0; m < 2; m++) {
+      if(pic.coding_ext.f_code[n][m] == 0) {
+	pic.coding_ext.f_code[n][m] = 1;
+	fprintf(stderr, "f_code[%d][%d] == ZERO\n", n, m);
+      }
+    }
+  }
   pic.coding_ext.intra_dc_precision = GETBITS(2, "intra_dc_precision");
 
   /** opt4 **/
@@ -1481,7 +1490,7 @@ void group_of_pictures_header(void)
 void picture_header(void)
 {
   uint32_t picture_start_code;
-
+  int n;
   DPRINTF(3, "picture_header\n");
 
   seq.mb_row = 0;
@@ -1577,6 +1586,10 @@ void picture_header(void)
      (pic.header.picture_coding_type == PIC_CODING_TYPE_B)) {
     pic.header.full_pel_vector[0] = GETBITS(1, "full_pel_forward_vector");
     pic.header.forward_f_code = GETBITS(3, "forward_f_code");
+    if(pic.header.forward_f_code == 0) {
+      pic.header.forward_f_code = 1;
+      fprintf(stderr, " ** forward_f_code == ZERO\n", n);
+    }
     pic.coding_ext.f_code[0][0] = pic.header.forward_f_code;
     pic.coding_ext.f_code[0][1] = pic.header.forward_f_code;
   }
@@ -1584,6 +1597,10 @@ void picture_header(void)
   if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
     pic.header.full_pel_vector[1] = GETBITS(1, "full_pel_backward_vector");
     pic.header.backward_f_code = GETBITS(3, "backward_f_code");
+    if(pic.header.backward_f_code == 0) {
+      pic.header.backward_f_code = 1;
+      fprintf(stderr, "** backward_f_code == ZERO\n", n);
+    }
     pic.coding_ext.f_code[1][0] = pic.header.backward_f_code;
     pic.coding_ext.f_code[1][1] = pic.header.backward_f_code;
   }
