@@ -288,48 +288,67 @@ int vm_menu_call(DVDMenuID_t menuid, int block)
 }
 
 
-int vm_resume(void)
+static int vm_resume_int(link_t *link_return)
 {
   int i;
   link_t link_values;
   
   // Check and see if there is any rsm info!!
   if(state.rsm_vtsN == 0) {
-    return 0;
+    return 0; // Fail
   }
   
   state.domain = VTS_DOMAIN;
-  ifoOpenNewVTSI(dvd, state.rsm_vtsN);
+  ifoOpenNewVTSI(dvd, state.rsm_vtsN); // FIXME check return value
   get_PGC(state.rsm_pgcN); // FIXME check return value
   
   /* These should never be set in SystemSpace and/or MenuSpace */ 
   // state.TTN_REG = state.rsm_tt;
   // state.TT_PGCN_REG = state.rsm_pgcN;
-  // state.HL_BTNN_REG = state.rsm_btnn;
+  // state.HL_BTNN_REG = state.rsm_btnn; ??
   for(i = 0; i < 5; i++) {
     state.registers.SPRM[4 + i] = state.rsm_regs[i];
   }
 
   if(state.rsm_cellN == 0) {
     assert(state.cellN); // Checking if this ever happens
+    /* assert( time/block/vobu is 0 ); */
     state.pgN = 1;
     link_values = play_PG();
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-    state.blockN = link_values.data1;
   } else { 
+    /* assert( time/block/vobu is _not_ 0 ); */
+    /* play_Cell_at_time */
     state.cellN = state.rsm_cellN;
     state.blockN = state.rsm_blockN;
     //state.pgN = ?? does this gets the righ value in play_Cell, no!
     if(update_PGN()) {
-      ; /* Were at or past the end of the PGC, should not happen for a RSM */
+      /* Were at or past the end of the PGC, should not happen for a RSM */
       assert(0);
-      play_PGC_post();
+      link_values = play_PGC_post();
+    } else {
+      link_t do_nothing = { PlayThis, state.blockN, 0, 0 };
+      link_values = do_nothing;
     }
   }
   
+  *link_return = link_values;
+  return 1; // Success
+}
+
+
+int vm_resume(void)
+{
+  link_t link_values;
+  
+  if(!vm_resume_int(&link_values))
+    return 0;
+  
+  link_values = process_command(link_values);
+  assert(link_values.command == PlayThis);
+  state.blockN = link_values.data1;
   return 1; // Jump
 }
+
 
 /**
  * Return the substream id for 'logical' audio stream audioN.
@@ -966,42 +985,14 @@ static link_t process_command(link_t link_values)
       break;
       
     case LinkRSM:
-      {
-	int i;
-	// Check and see if there is any rsm info!!
-	state.domain = VTS_DOMAIN;
-	ifoOpenNewVTSI(dvd, state.rsm_vtsN);
-	get_PGC(state.rsm_pgcN);
-	
-	/* These should never be set in SystemSpace and/or MenuSpace */ 
-	/* state.TTN_REG = rsm_tt; ?? */
-	/* state.TT_PGCN_REG = state.rsm_pgcN; ?? */
-	for(i = 0; i < 5; i++) {
-	  state.registers.SPRM[4 + i] = state.rsm_regs[i];
-	}
-	
-	if(link_values.data1 != 0)
-	  state.HL_BTNN_REG = link_values.data1 << 10;
-	
-	if(state.rsm_cellN == 0) {
-	  assert(state.cellN); // Checking if this ever happens
-	  /* assert( time/block/vobu is 0 ); */
-	  state.pgN = 1;
-	  link_values = play_PG();
-	} else { 
-	  /* assert( time/block/vobu is _not_ 0 ); */
-	  /* play_Cell_at_time */
-	  //state.pgN = ?? update_PGN() takes care of this
-	  state.cellN = state.rsm_cellN;
-	  link_values.command = PlayThis;
-	  link_values.data1 = state.rsm_blockN;
-	  if(update_PGN()) {
-	    /* Were at the end of the PGC, should not happen for a RSM */
-	    assert(0);
-	    link_values.command = LinkTailPGC;
-	    link_values.data1 = 0;  /* No button */
-	  }
-	}
+      if(link_values.data1 != 0)
+	state.HL_BTNN_REG = link_values.data1 << 10;
+      
+      /* Updates link_values if successful */
+      if(!vm_resume_int(&link_values)) {
+	/* Nothing / Faild.  What should we do? Do we need closer interaction
+	 * with the command evaluatore to be able to turn this in to a NOP? */
+	return do_nothing;
       }
       break;
     case LinkPGCN:
