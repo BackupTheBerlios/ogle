@@ -1,5 +1,5 @@
 AC_INIT(xvattr.c)
-AM_INIT_AUTOMAKE(xvattr, 1.2)
+AM_INIT_AUTOMAKE(xvattr, 1.3)
      
 dnl Checks for programs.
 AC_PROG_CC
