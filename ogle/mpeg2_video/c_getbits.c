@@ -36,7 +36,7 @@
 #include "timemath.h"
 #include "sync.h"
 #include "ip_sem.h"
-
+#include "msgevents.h"
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
 #endif
@@ -52,22 +52,23 @@ extern uint64_t DTS;
 extern int scr_nr;
 
 extern int msgqid;
+extern int output_client;
+extern int input_stream;
+
 int stream_shmid = -1;
 char *stream_shmaddr;
 
 int data_buf_shmid = -1;
 char *data_buf_shmaddr;
 
-int wait_for_msg(mq_cmdtype_t cmdtype);
-int chk_for_msg();
 int get_q();
-int eval_msg(mq_cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 int attach_ctrl_shm(int shmid);
+void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 
 
-
+MsgEventQ_t *msgq;
 
 FILE *infile;
 char *infilename;
@@ -106,7 +107,16 @@ static void change_file(char *new_filename)
   static struct stat statbuf;
   int rv;
   static char *cur_filename = NULL;
-  
+
+
+  if(new_filename == NULL) {
+    return;
+  }
+  //if no filename do nothing
+  if(new_filename[0] == '\0') {
+    return;
+  }
+
   // if same filename do nothing
   if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
     return;
@@ -124,7 +134,6 @@ static void change_file(char *new_filename)
     perror(new_filename);
     exit(1);
   }
-
 
   cur_filename = strdup(new_filename);
   rv = fstat(filefd, &statbuf);
@@ -153,10 +162,9 @@ static void change_file(char *new_filename)
 }
 
 
-
 void get_next_packet()
 {
-
+  MsgEvent_t ev;
   if(msgqid == -1) {
     if(mmap_base == NULL) {
       static clocktime_t time_offset = { 0, 0 };
@@ -178,22 +186,8 @@ void get_next_packet()
   } else {
     
     if(stream_shmid != -1) {
-      // msg
-      while(chk_for_msg() != -1)
-	;
-      
-      // Q
       get_q();
     } 
-    
-    /*
-    while(mmap_base == NULL) {
-      wait_for_msg(CMD_FILE_OPEN);
-    }
-    */
-    while(stream_shmid == -1) {
-      wait_for_msg(CMD_DECODE_STREAM_BUFFER);
-    }
     
   }
 }  
@@ -342,113 +336,29 @@ void next_word(void)
 
 
 
-
-int send_msg(mq_msg_t *msg, int mtext_size)
+void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
-  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
-    perror("video_dec: msgsnd1");
-    return -1;
-  }
-  return 0;
-}
-
-
-int wait_for_msg(mq_cmdtype_t cmdtype)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
   
-  while(cmd->cmdtype != cmdtype) {
-    if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
-	      MTYPE_VIDEO_DECODE_MPEG, 0) == -1) {
-      perror("msgrcv");
-      return -1;
-    } else {
-      //fprintf(stderr, "video_decode: got msg\n");
-      eval_msg(cmd);
-    }
-    if(cmdtype == CMD_ALL) {
-      break;
-    }
-  }
-  return 0;
-}
-
-int chk_for_msg()
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
-	    MTYPE_VIDEO_DECODE_MPEG, IPC_NOWAIT) == -1) {
-    if(errno != ENOMSG) {
-      perror("msgrcv");
-    }
-    return -1;
-  } else {
-    //fprintf(stderr, "video_decode: got msg\n");
-    eval_msg(cmd);
-  }
-  return 0;
-}
-
-
-
-
-int eval_msg(mq_cmd_t *cmd)
-{
-  mq_msg_t sendmsg;
-  mq_cmd_t *sendcmd;
-  
-  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
-  
-  switch(cmd->cmdtype) {
-  case CMD_FILE_OPEN:
-    //fprintf(stderr, "video_dec: got file open '%s'\n",
-    //    cmd->cmd.file_open.file);
-    change_file(cmd->cmd.file_open.file);
+  switch(ev->type) {
+  case MsgEventQNotify:
+    DPRINTF(1, "video_decode: got notification\n");
     break;
-  case CMD_CTRL_DATA:
-    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
-    break;
-  case CMD_DECODE_STREAM_BUFFER:
-    //fprintf(stderr, "video_dec: got stream %x, %x buffer \n",
-    //	    cmd->cmd.stream_buffer.stream_id,
-    //    cmd->cmd.stream_buffer.subtype);
-    attach_stream_buffer(cmd->cmd.stream_buffer.stream_id,
-			 cmd->cmd.stream_buffer.subtype,
-			 cmd->cmd.stream_buffer.q_shmid);
-    
+  case MsgEventQDecodeStreamBuf:
+    DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
+	    ev->decodestreambuf.stream_id,
+	    ev->decodestreambuf.subtype);
+    attach_stream_buffer(ev->decodestreambuf.stream_id,
+			 ev->decodestreambuf.subtype,
+			 ev->decodestreambuf.q_shmid);
     
     break;
-  case CMD_CTRL_CMD:
-    {
-      static mq_ctrlcmd_t prevcmd = CTRLCMD_PLAY;
-      switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
-      case CTRLCMD_STOP:
-	if(prevcmd != CTRLCMD_STOP) {
-	  wait_for_msg(CMD_ALL);
-	}
-	break;
-      case CTRLCMD_PLAY:
-	break;
-      default:
-	break;
-      }
-    }
+  case MsgEventQCtrlData:
+    attach_ctrl_shm(ev->ctrldata.shmid);
     break;
   default:
-    fprintf(stderr, "video_dec: unrecognized command cmdtype: %x\n",
-	    cmd->cmdtype);
-    return -1;
+    fprintf(stderr, "*video_decoder: unrecognized event type\n");
     break;
   }
-  
-  return 0;
 }
 
 
@@ -485,6 +395,8 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
   }    
   
+  input_stream = 1;
+  
   return 0;
   
 }
@@ -500,6 +412,7 @@ int get_q()
   int elem;
   static int delayed_posts = 0;
   int n;
+  MsgEvent_t ev;
   //  uint8_t PTS_DTS_flags;
   //  uint64_t PTS;
   //  uint64_t DTS;
@@ -508,10 +421,6 @@ int get_q()
   int len;
   static int have_buf = 0;
 
-  //#ifdef SYNCMASTER
-  static int prev_scr_nr = 0;
-  static clocktime_t time_offset = { 0, 0 };
-  //#endif
 
   //fprintf(stderr, "video_dec: get_q()\n");
   
@@ -522,34 +431,53 @@ int get_q()
   
   // release prev elem
 
-  if(have_buf) {
+  if(have_buf > 50) {
+    int n;
+    int m;
+    data_elem_t *delem;
+        
+    data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
+    m = elem;
     
-    data_elem->in_use = 0;
-
-    if(ip_sem_getvalue(&q_head->queue, BUFS_FULL) < 50) {
-      for(n = 0; n < delayed_posts+1; n++) {
-	if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
-	  perror("video_decode: get_q(), sem_post()");
-	  exit(1); // XXX 
-	}
+    for(n = have_buf; n > 0; n--) {
+      delem = &data_elems[q_elems[m].data_elem_index];
+      delem->in_use = 0;
+      q_elems[m].in_use = 0;
+      m--;
+      if(m < 0) {
+	m = q_head->nr_of_qelems-1;
       }
-      delayed_posts = 0;
-    } else {
-      delayed_posts++;
+      have_buf--;
+    }
+
+    if(q_head->writer_requests_notification) {
+      q_head->writer_requests_notification = 0;
+      ev.type = MsgEventQNotify;
+      if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+	fprintf(stderr, "video_decode: couldn't send notification\n");
+      }
+    }
+
+    q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+    elem = q_head->read_nr;  
+
+  }
+  if(have_buf) {
+    q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+    elem = q_head->read_nr;  
+  }
+  // wait for buffer
+  if(!q_elems[elem].in_use) {
+    q_head->reader_requests_notification = 1;
+    
+    while(!q_elems[elem].in_use) {
+      //fprintf(stderr, "video_decode: waiting for notification1\n");
+      MsgNextEvent(msgq, &ev);
+      handle_events(msgq, &ev);
     }
   }
-  
-  n = ip_sem_getvalue(&q_head->queue, BUFS_FULL);
-  if(n < 50) {
-    fprintf(stderr, "* Q %d\n", n);
-  }
 
-  if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
-    perror("video_decode: get_q(), sem_wait()");
-    exit(1); // XXX 
-  }
-
-  have_buf = 1;
+  have_buf++;
 
   data_head = (data_buf_head_t *)data_buf_shmaddr;
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
@@ -565,27 +493,6 @@ int get_q()
     DTS = data_elem->DTS;
   }
   
-  //#ifdef SYNCMASTER
-  
-  if(ctrl_data->sync_master <= SYNC_VIDEO) {
-    ctrl_data->sync_master = SYNC_VIDEO;
-    
-    //TODO release scr_nr when done
-    if(prev_scr_nr != scr_nr) {
-      ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
-    }
-    
-    if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
-      if(PTS_DTS_flags & 0x2) {
-	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
-      }
-    }
-    if(PTS_DTS_flags & 0x2) {
-      time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
-    }
-    prev_scr_nr = scr_nr;
-  }
-  //#endif
   
   change_file(data_elem->filename);
   
@@ -594,15 +501,14 @@ int get_q()
   
   packet.offset = off;
   packet.length = len;
-  
-  //fprintf(stderr, "video_dec: got q off: %d, len: %d\n",
-  //  packet.offset, packet.length);
   /*
+  fprintf(stderr, "video_dec: got q off: %d, len: %d\n",
+	  packet.offset, packet.length);
+  
   fprintf(stderr, "ac3: flags: %01x, pts: %llx, dts: %llx\noff: %d, len: %d\n",
 	  PTS_DTS_flags, PTS, DTS, off, len);
   */
 
-  q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
   return 0;
 }

@@ -24,6 +24,40 @@
 #endif
 
 
+
+
+#ifdef DEBUG
+int debug;
+#endif
+
+#ifdef DEBUG
+#define DPRINTF(level, text...) \
+if(debug > level) \
+{ \
+    fprintf(stderr, ## text); \
+}
+#else
+#define DPRINTF(level, text...)
+#endif
+
+#ifdef DEBUG
+#define DPRINTBITS(level, bits, value) \
+{ \
+  int n; \
+  for(n = 0; n < bits; n++) { \
+    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+  } \
+}
+#else
+#define DPRINTBITS(level, bits, value)
+#endif
+
+#ifdef DEBUG
+#define GETBYTES(a,b) getbytes(a,b)
+#else
+#define GETBYTES(a,b) getbytes(a)
+#endif
+
 typedef struct {
   int spu_size;
   uint16_t DCSQT_offset;
@@ -61,9 +95,8 @@ typedef struct {
 
 
 
-static int ctrl_data_shmid;
-static ctrl_data_t *ctrl_data;
-static ctrl_time_t *ctrl_time;
+extern ctrl_data_t *ctrl_data;
+extern ctrl_time_t *ctrl_time;
 
 static int stream_shmid;
 static char *stream_shmaddr;
@@ -82,13 +115,19 @@ static spu_t spu_info = { 0 };
 static int initialized = 0;
 
 static uint32_t palette_yuv[16];
-static uint32_t palette_rgb[16];
+static uint32_t palette_rgb[16] = {
+  0x0000ff, 0x00ff00, 0xff0000, 0x00ffff,
+  0xff00ff, 0xffff00, 0xffffff, 0x000000,
+  0x000080, 0x008000, 0x800000, 0x008080,
+  0x800080, 0x808000, 0x808080, 0x000000
+};
 
-static highlight_t highlight  = { 0 };
+static highlight_t highlight  = { {0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450 };
 
 extern int video_scr_nr;
 extern int msgqid;
 
+extern MsgEventQ_t *msgq;
 
 #define MAX_BUF_SIZE 65536
 
@@ -174,31 +213,66 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
   }    
   
-  initialized |= 1;
-
+  initialized = 1;
+  fprintf(stderr, "**************\n");
   return 0;
   
 }
 
-static int attach_ctrl_shm(int shmid)
+
+
+static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
-  char *shmaddr;
   
-  if(shmid >= 0) {
-    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("spu_mixer: attach_ctrl_data(), shmat()");
-      return -1;
-    }
+  switch(ev->type) {
+  case MsgEventQNotify:
+    DPRINTF(1, "spu_mixer: got notification\n");
+    break;
+  case MsgEventQDecodeStreamBuf:
+    DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
+	    ev->decodestreambuf.stream_id,
+	    ev->decodestreambuf.subtype);
+    fprintf(stderr, "+++++++++++++++++++\n");
+  
+    attach_stream_buffer(ev->decodestreambuf.stream_id,
+			 ev->decodestreambuf.subtype,
+			 ev->decodestreambuf.q_shmid);
     
-    ctrl_data_shmid = shmid;
-    ctrl_data = (ctrl_data_t*)shmaddr;
-    ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
+    break;
+  case MsgEventQSPUPalette:
+    {
+      int n;
+      for(n = 0; n < 16; n++) {
+	palette_yuv[n] = ev->spupalette.colors[n];
+	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
+      }
+    }
+    break;
+  case MsgEventQSPUHighlight:
+    {
+      int n;
+      
+      highlight.x_start = ev->spuhighlight.x_start;
+      highlight.y_start = ev->spuhighlight.y_start;
+      highlight.x_end = ev->spuhighlight.x_end;
+      highlight.y_end = ev->spuhighlight.y_end;
 
-  }    
-  initialized |= 2;
-  return 0;
-  
+      for(n = 0; n < 4; n++) {
+	highlight.color[n] = ev->spuhighlight.color[n];
+      }
+      for(n = 0; n < 4; n++) {
+	highlight.contrast[n] = ev->spuhighlight.contrast[n];
+      }
+    }
+    break;
+  default:
+    fprintf(stderr, "spu_mixer: unrecognized event type\n");
+    return 0;
+    break;
+  }
+  return 1;
 }
+
 
 
 static void change_file(char *new_filename)
@@ -255,6 +329,7 @@ static void change_file(char *new_filename)
 
 static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *new_scr_nr)
 {
+  MsgEvent_t ev;
   q_head_t *q_head;
   q_elem_t *q_elems;
   data_buf_head_t *data_head;
@@ -277,13 +352,12 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   elem = q_head->read_nr;
   
   if(!read_offset) {    
-    if(ip_sem_trywait(&q_head->queue, BUFS_FULL) == -1) {
-      switch(errno) {
-      case EAGAIN:
+    
+    if(!q_elems[elem].in_use) {
+      q_head->reader_requests_notification = 1;
+      
+      if(!q_elems[elem].in_use) {
 	return 0;
-      default:
-	perror("spu_mixer: get_q(), sem_wait()");
-	return -1;
       }
     }
     fprintf(stderr, "spu_mixer: get element\n");
@@ -343,19 +417,27 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   
   // release elem
   fprintf(stderr, "spu_mixer: release element\n");
-  q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+  
+  
   data_elem->in_use = 0;
-
-  if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
-    perror("spu: get_q(), sem_post()");
-    return -1;
+  q_elems[elem].in_use = 0;
+  
+  if(q_head->writer_requests_notification) {
+    q_head->writer_requests_notification = 0;
+    ev.type = MsgEventQNotify;
+    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+      fprintf(stderr, "spu_mixer: couldn't send notification\n");
+    }
   }
   
+  q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
+  elem = q_head->read_nr;
+
   return cpy_len;
 }
 
 
-
+/*
 static int eval_msg(mq_cmd_t *cmd)
 {
   mq_msg_t sendmsg;
@@ -432,15 +514,18 @@ static int chk_for_msg(void)
   }
   return 0;
 }
-
+*/
 
 int init_spu(void)
 {
+  
   fprintf(stderr, "spu_mixer: init\n");
   spu_info.buffer = malloc(MAX_BUF_SIZE);
   spu_info.next_buffer = malloc(MAX_BUF_SIZE);
   if(spu_info.buffer == NULL || spu_info.next_buffer == NULL)
     perror("init_spu");
+
+  register_event_handler(handle_events);
 
   return 0;
 }
@@ -521,37 +606,6 @@ int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime, int *scr_nr)
 }
 
 
-#ifdef DEBUG
-int debug;
-#endif
-
-#ifdef DEBUG
-#define DPRINTF(level, text...) \
-if(debug > level) \
-{ \
-    fprintf(stderr, ## text); \
-}
-#else
-#define DPRINTF(level, text...)
-#endif
-
-#ifdef DEBUG
-#define DPRINTBITS(level, bits, value) \
-{ \
-  int n; \
-  for(n = 0; n < bits; n++) { \
-    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-  } \
-}
-#else
-#define DPRINTBITS(level, bits, value)
-#endif
-
-#ifdef DEBUG
-#define GETBYTES(a,b) getbytes(a,b)
-#else
-#define GETBYTES(a,b) getbytes(a)
-#endif
 
 static uint8_t *byte_pos;
 
@@ -1022,12 +1076,14 @@ void mix_subpicture(char *data, int width, int height)
    * If there then is an active overlay call the acutal mix function.
    */
 
-  chk_for_msg();
+  //chk_for_msg();
   
-  if((initialized & 3) != 3) {
+
+  if(!initialized) {
     return;
   }
 
+  
   while(next_spu_cmd_pending(&spu_info)) {
 
     if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {

@@ -450,7 +450,7 @@ void block_non_intra(unsigned int b)
     else if(code >= 16)
       tab = &DCTtab6[code - 16];
     else {
-      //      fprintf(stderr, "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n", code);
+      fprintf(stderr, "(vlc) invalid huffman code 0x%x in vlc_get_block_coeff()\n", code);
       exit_program(1);
     }
     
@@ -473,7 +473,7 @@ void block_non_intra(unsigned int b)
 	val &= 0xfff;
 
 	if((val & 2047) == 0) {
-	  //	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
+	  fprintf(stderr,"invalid escape in vlc_get_block_coeff()\n");
 	  exit_program(1);
 	}
 

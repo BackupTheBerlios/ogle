@@ -1,5 +1,5 @@
 #ifndef MSGTYPES_H
-#define MSGTYPE_H
+#define MSGTYPES_H
 
 #include <limits.h>
 #include <inttypes.h>
@@ -171,4 +171,4 @@ typedef struct {
   int size;
 } shm_bufinfo_t;
 
-#endif
+#endif /* MSGTYPES_H */

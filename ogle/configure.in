@@ -89,7 +89,7 @@ linux-gnu)
 	;;
 esac
 
-INCLUDES='-I. -I$(top_srcdir)/include'
+INCLUDES='-I. -I$(top_srcdir)/include -I/usr/pd/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
 AC_CHECK_FUNCS(clock_gettime madvise)

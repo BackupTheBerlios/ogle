@@ -95,3 +95,15 @@ int timecompare(const clocktime_t *s1,
   return 0;
 }
 
+
+void timemul(clocktime_t *d, const clocktime_t *s1, double mult)
+{
+
+  double tv = (double)s1->tv_sec*CT_FRACTION + (double)s1->tv_nsec;
+  
+  tv *= mult;
+  
+  d->tv_nsec = ((long long int)tv)%CT_FRACTION;
+  d->tv_sec = ((long long int)tv)/CT_FRACTION;
+}
+

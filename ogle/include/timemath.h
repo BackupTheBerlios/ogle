@@ -41,4 +41,6 @@ void timeadd(clocktime_t *d, const clocktime_t *s1, const clocktime_t *s2);
 
 int timecompare(const clocktime_t *s1, const clocktime_t *s2); 
 
+void timemul(clocktime_t *d, const clocktime_t *s1, double mult);
+
 #endif /* TIMEMATH_H */

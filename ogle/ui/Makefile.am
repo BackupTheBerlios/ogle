@@ -17,3 +17,4 @@
 
 bin_PROGRAMS = ui
 ui_SOURCES = ui.c
+ui_LDADD = $(top_builddir)/common/libcommon.a

@@ -32,7 +32,7 @@ EXTRA_DIST = \
 	mmx_mlib.c mmx.h \
 	c_mlib.c c_mlib.h
 
-bin_PROGRAMS = video_stream
+bin_PROGRAMS = video_stream video_output
 
 INCLUDES = @X_CFLAGS@ @MLIB_CFLAGS@ @GLIB_CFLAGS@
 
@@ -40,12 +40,17 @@ video_stream_SOURCES = \
 	video_stream.c video_stream.h \
 	video_mpeg1.c video_mpeg2.c video_motion.c \
 	c_getbits.c c_getbits.h \
-	video_output_x11.c video_output.c \
-	yuv2rgb.c yuv2rgb.h \
 	video_tables.c video_tables.h \
-	screenshot.c screenshot.h \
-	spu_mixer.c spu_mixer.h \
 	video_types.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
 
+video_output_SOURCES = \
+	video_output_x11.c video_output.c \
+	yuv2rgb.c yuv2rgb.h \
+	screenshot.c screenshot.h \
+	spu_mixer.c spu_mixer.h \
+	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
+
 video_stream_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a
+
+video_output_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a

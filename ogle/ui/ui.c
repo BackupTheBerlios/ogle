@@ -15,7 +15,7 @@
 #include "common.h"
 #include "msgtypes.h"
 #include "queue.h"
-
+#include "msgevents.h"
 
 int wait_for_msg(mq_cmdtype_t cmdtype);
 int eval_msg(mq_cmd_t *cmd);
@@ -33,6 +33,12 @@ ctrl_time_t *ctrl_time;
 int stream_shmid;
 char *stream_shmaddr;
 int msgqid = -1;
+
+static MsgEventQ_t *msgq;
+
+MsgEventClient_t demux_client;
+MsgEventClient_t spu_client;
+
 
 void usage()
 {
@@ -76,11 +82,99 @@ int main(int argc, char *argv[])
   if((infile = fopen("/tmp/cmd", "r")) == NULL) {
     fprintf(stderr, "******* file err\n");
   }
+  
+  {
+    MsgEvent_t ev;
 
+    fprintf(stderr, "ui: opening msg q\n");
+    
+    // get a handle
+    if((msgq = MsgOpen(msgqid)) == NULL) {
+      fprintf(stderr, "ui: couldn't get message q\n");
+      exit(-1);
+    }
+    
+    fprintf(stderr, "ui: msg open q\n");
+    
+    // register with the resource manager and tell what we can do
+    ev.type = MsgEventQRegister;
+    ev.registercaps.capabilities = UI_DVD_CLI | UI_MPEG_CLI;
+    
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "ui: couldn't register\n");
+    }
+
+    fprintf(stderr, "ui: registered q\n");
+    
+    ev.type = MsgEventQReqCapability;
+    ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "ui: didn't get cap\n");
+    }
+
+    fprintf(stderr, "ui: requested capability q\n");
+
+
+    while(!demux_client) {
+      MsgNextEvent(msgq, &ev);
+      switch(ev.type) {
+      case MsgEventQGntCapability:
+	if((ev.gntcapability.capability & (DEMUX_MPEG2_PS | DEMUX_MPEG1))
+	   == (DEMUX_MPEG2_PS | DEMUX_MPEG1)) {
+	  demux_client = ev.gntcapability.capclient;
+	} else {
+	  fprintf(stderr, "ui: capabilities not requested\n");
+	}
+	break;
+      default:
+	fprintf(stderr, "ui: event not wanted %d, from %ld\n",
+		ev.type, ev.any.client);
+	break;
+      }
+    }
+
+    if(demux_client) {
+      fprintf(stderr, "ui: got capability\n");
+    }
+    
+
+  }
   input();
   return 0;
 }
 
+
+
+
+
+int request_spu()
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQReqCapability;
+  ev.reqcapability.capability = DECODE_DVD_SPU;
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    fprintf(stderr, "ui: didn't get cap\n");
+  }
+  
+  while(!spu_client) {
+    MsgNextEvent(msgq, &ev);
+    switch(ev.type) {
+    case MsgEventQGntCapability:
+      if((ev.gntcapability.capability & (DECODE_DVD_SPU))
+	 == (DECODE_DVD_SPU)) {
+	spu_client = ev.gntcapability.capclient;
+      } else {
+	fprintf(stderr, "ui: capabilities not requested\n");
+      }
+      break;
+    default:
+      fprintf(stderr, "ui: event not wanted %d, from %ld\n",
+	      ev.type, ev.any.client);
+      break;
+    }
+  }
+  return 0;
+}
 
 int send_msg(mq_msg_t *msg, int mtext_size)
 {
@@ -144,64 +238,73 @@ int input() {
   char *tok;
   int m,n;
   int time;
+  MsgEventClient_t rcpt;
+  MsgEvent_t sendev;
   
   sendcmd = (mq_cmd_t *)&msg.mtext;
 
   fprintf(stderr, "****input()\n");
   while(!feof(infile)) {
-    msg.mtype = MTYPE_CTL;
-    sendcmd->cmdtype = CMD_CTRL_CMD;
-
+    rcpt = demux_client;
+    sendev.type = MsgEventQNone;
+    
     fgets(cmdstr, CMDSTR_LEN, infile);
     cmdstr[strlen(cmdstr)-1] = '\0';
     
     fprintf(stderr, "****input() got line\n");
     
     
-    cmd = CTRLCMD_NONE;
     fprintf(stderr, "string: .%s.\n", cmdstr);
     tok = strtok(cmdstr, " ");
     fprintf(stderr, "cmd: .%s.\n", tok);
     if(strcmp(tok, "play") == 0) {
-      cmd = CTRLCMD_PLAY;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlay;
       fprintf(stderr, "****input() play\n");
       
     } else if(strcmp(tok, "play_from") == 0) {
-      cmd = CTRLCMD_PLAY_FROM;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayFrom;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_from = strtol(tok, NULL, 0);
+      sendev.playctrl.from = strtol(tok, NULL, 0);
 
     } else if(strcmp(tok, "play_to") == 0) {
-      cmd = CTRLCMD_PLAY_TO;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayTo;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_to = strtol(tok, NULL, 0);
+      sendev.playctrl.to = strtol(tok, NULL, 0);
       
     } else if(strcmp(tok, "play_from_to") == 0) {
-      cmd = CTRLCMD_PLAY_FROM_TO;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_from = strtol(tok, NULL, 0);
+      sendev.playctrl.from = strtol(tok, NULL, 0);
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_to = strtol(tok, NULL, 0);
+      sendev.playctrl.to = strtol(tok, NULL, 0);
       
     } else if(strcmp(tok, "play_from_s") == 0) {
-      cmd = CTRLCMD_PLAY_FROM;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayFrom;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_from = strtol(tok, NULL, 0)*2048;
+      sendev.playctrl.from = strtol(tok, NULL, 0)*2048;
 
     } else if(strcmp(tok, "play_to_s") == 0) {
-      cmd = CTRLCMD_PLAY_TO;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayTo;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_to = (strtol(tok, NULL, 0)+1)*2048;
+      sendev.playctrl.to = (strtol(tok, NULL, 0)+1)*2048;
       
     } else if(strcmp(tok, "play_from_to_s") == 0) {
-      cmd = CTRLCMD_PLAY_FROM_TO;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdPlayFromTo;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_from = strtol(tok, NULL, 0)*2048;
+      sendev.playctrl.from = strtol(tok, NULL, 0)*2048;
       tok = strtok(NULL, " ");
-      sendcmd->cmd.ctrl_cmd.off_to = (strtol(tok, NULL, 0)+1)*2048;
+      sendev.playctrl.to = (strtol(tok, NULL, 0)+1)*2048;
       
     } else if(strcmp(tok, "stop") == 0) {
-      cmd = CTRLCMD_STOP;
+      sendev.type = MsgEventQPlayCtrl;
+      sendev.playctrl.cmd = PlayCtrlCmdStop;
       fprintf(stderr, "****input() stop\n");
 
 
@@ -209,47 +312,51 @@ int input() {
 
     } else if(strcmp(tok, "palette") == 0) {
       int n;
-      msg.mtype = MTYPE_SPU_DECODE;
-      sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
-      
+      sendev.type = MsgEventQSPUPalette;
+      if(!spu_client) {
+	request_spu();
+      }
+      rcpt = spu_client;
+
       for(n = 0; n < 16; n++) {
 	tok = strtok(NULL, " ");
-	sendcmd->cmd.spu_palette.colors[n] = strtol(tok, NULL, 0);
+	sendev.spupalette.colors[n] = strtol(tok, NULL, 0);
       }
       
     } else if(strcmp(tok, "highlight") == 0) {
       int n;
-      msg.mtype = MTYPE_SPU_DECODE;
-      sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
+      sendev.type = MsgEventQSPUHighlight;
+      if(!spu_client) {
+	request_spu();
+      }
+      rcpt = spu_client;
       
       tok = strtok(NULL, " ");
-      sendcmd->cmd.spu_highlight.x_start = strtol(tok, NULL, 0);
+      sendev.spuhighlight.x_start = strtol(tok, NULL, 0);
       tok = strtok(NULL, " ");
-      sendcmd->cmd.spu_highlight.y_start = strtol(tok, NULL, 0);
+      sendev.spuhighlight.y_start = strtol(tok, NULL, 0);
       tok = strtok(NULL, " ");
-      sendcmd->cmd.spu_highlight.x_end = strtol(tok, NULL, 0);
+      sendev.spuhighlight.x_end = strtol(tok, NULL, 0);
       tok = strtok(NULL, " ");
-      sendcmd->cmd.spu_highlight.y_end = strtol(tok, NULL, 0);
+      sendev.spuhighlight.y_end = strtol(tok, NULL, 0);
       for(n = 0; n < 4; n++) {
 	tok = strtok(NULL, " ");
-	sendcmd->cmd.spu_highlight.color[n] =
+	sendev.spuhighlight.color[n] =
 	  (unsigned char)strtol(tok, NULL, 0);
       }
       for(n = 0; n < 4; n++) {
 	tok = strtok(NULL, " ");
-	sendcmd->cmd.spu_highlight.contrast[n] =
+	sendev.spuhighlight.contrast[n] =
 	  (unsigned char)strtol(tok, NULL, 0);
       }
       
     } else if(strcmp(tok, "file") == 0) {
-      
-      msg.mtype = MTYPE_DEMUX;
-      sendcmd->cmdtype = CMD_FILE_OPEN;
+      sendev.type = MsgEventQChangeFile;
       
       tok = strtok(NULL, " ");
-      strcpy(sendcmd->cmd.file_open.file, tok);
-      
 
+      strncpy(sendev.changefile.filename, tok, PATH_MAX);
+      sendev.changefile.filename[PATH_MAX] = '\0';
       
     } else if(strcmp(tok, "btn") == 0) {
       msg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
@@ -282,24 +389,24 @@ int input() {
       sendcmd->cmd.dvdctrl_cmd.button_nr = strtol(tok, NULL, 0);	
       
       
+    } else if(strcmp(tok, "speed") == 0) {
+      rcpt = CLIENT_RESOURCE_MANAGER;
+      sendev.type = MsgEventQSpeed;
+      tok = strtok(NULL, " ");
+      sscanf(tok, "%lf", &sendev.speed.speed);
     }
     
 
     fprintf(stderr, "****input() tok end\n");
 
-    switch(sendcmd->cmdtype) {
-    case CMD_CTRL_CMD:
-      if(cmd != CTRLCMD_NONE) {
-	sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd;
-	
-	send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
+    if(sendev.type != MsgEventQNone) {
+      if(MsgSendEvent(msgq, rcpt, &sendev) == -1) {
+	fprintf(stderr, "ui: couldn't send user cmd\n");
       }
-      break;
-    case CMD_FILE_OPEN:
-      send_msg(&msg, sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-      break;
+    }
+    switch(sendcmd->cmdtype) {
     case CMD_SPU_SET_HIGHLIGHT:
-      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_highlight_t));      
+      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_highlight_t));
       break;
     case CMD_SPU_SET_PALETTE:
       send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_palette_t));

@@ -363,7 +363,14 @@ void motion_comp()
       
       d = bwd_ref_image->v - bwd_ref_image->u;
       half_height = (mb.motion_vector_count == 2) ? 1 :0; // ??
-      
+      /*
+      fprintf(stderr, "motion[%d][%d][%d](%d, %d, %d, %d);",
+	      !!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD),
+	      half_height,
+	      half_flags_y,
+	      dst_y, pred_y, stride, stride);
+      */
+
       motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]
 	[half_height][half_flags_y](dst_y, pred_y, stride, stride);
       motion[!!(mb.modes.macroblock_type & MACROBLOCK_MOTION_FORWARD)]

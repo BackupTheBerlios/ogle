@@ -51,7 +51,8 @@ export DVDP_VIDEO
 DVDP_VMG=RUNNING
 export DVDP_VMG
 #DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
-DVDP_SPU=RUNNING
+DVDP_SPU=$DVDP_ROOT/mpeg2_video/video_output
 export DVDP_SPU
-
+DVDP_VIDEO_OUT=$DVDP_ROOT/mpeg2_video/video_output
+export DVDP_VIDEO_OUT
 $DVDP_CTRL $*

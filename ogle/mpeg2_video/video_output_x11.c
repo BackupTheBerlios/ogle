@@ -42,8 +42,6 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
-#include <glib.h>
-
 #include "common.h"
 #include "video_types.h"
 #include "yuv2rgb.h"
@@ -111,6 +109,7 @@ static double sar;
 static double xscale_factor;
 
 extern int msgqid;
+extern yuv_image_t *image_bufs;
 
 extern void display_process_exit(void);
 
@@ -119,7 +118,10 @@ void display_change_size(int new_width, int new_height);
 
 void display_init(int padded_width, int padded_height,
 		  int horizontal_size, int vertical_size,
-		  buf_ctrl_head_t *buf_ctrl_head)
+		  picture_data_elem_t *pinfo,
+		  yuv_image_t *picture_data,
+		  data_buf_head_t *picture_data_head,
+		  char *picture_buf_base)
 {
   int screen;
 
@@ -138,12 +140,6 @@ void display_init(int padded_width, int padded_height,
 
 
 
-#ifdef SPU
-  if(msgqid != -1) {
-    init_spu();
-  }
-#endif
-
   /* Check for availability of shared memory */
   if (!XShmQueryExtension(mydisplay)) {
     fprintf(stderr, "No shared memory available!\n");
@@ -154,14 +150,14 @@ void display_init(int padded_width, int padded_height,
   screen = DefaultScreen(mydisplay);
 
   sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
-  xscale_factor = sar/buf_ctrl_head->picture_infos[0].picture.sar;
+  xscale_factor = sar/pinfo->picture.sar;
   fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
 	  DisplayHeightMM(mydisplay, screen),
 	  DisplayWidthMM(mydisplay, screen),
 	  DisplayHeight(mydisplay, screen),
 	  DisplayWidth(mydisplay, screen));
   fprintf(stderr, "*** src_sar: %f, dst_sar: %f, xscale: %f\n",
-	  buf_ctrl_head->picture_infos[0].picture.sar,
+	  pinfo->picture.sar,
 	  sar, xscale_factor);
 
 
@@ -308,9 +304,9 @@ void display_init(int padded_width, int padded_height,
                                          IPC_CREAT | 0777);
               shm_info.shmaddr = shmat (shm_info.shmid, 0, 0);
 #else
-              shm_info.shmid = buf_ctrl_head->shmid;
+              shm_info.shmid = picture_data_head->shmid;
 
-              shm_info.shmaddr = buf_ctrl_head->shmaddr;;
+              shm_info.shmaddr = picture_buf_base;
 
 #endif
 	      
@@ -318,10 +314,10 @@ void display_init(int padded_width, int padded_height,
 #if 0 // HAVE_XV_NO_CP // TODO hack
               xv_image->data = shm_info.shmaddr;
 #else
-	      xv_image->data = buf_ctrl_head->picture_infos[0].picture.y;
+	      xv_image->data = picture_data->y;
 #endif
               XShmAttach (mydisplay, &shm_info);
-              XSync (mydisplay, FALSE);
+              XSync (mydisplay, False);
               shmctl (shm_info.shmid, IPC_RMID, 0);
               //memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
 	      
@@ -409,8 +405,8 @@ void display_init(int padded_width, int padded_height,
 /* TODO display_change_size needs to be fixed */
 
 void display_change_size(int new_width, int new_height) {
-  int padded_width = windows[0].image->padded_width;
-  int padded_height = windows[0].image->padded_height;
+  int padded_width = windows[0].image->info->padded_width;
+  int padded_height = windows[0].image->info->padded_height;
   
   // Check to not 'reallocate' if the size is the same or less than 
   // minimum size...
@@ -713,8 +709,8 @@ void display(yuv_image_t *current_image)
 	  else { /* Scale size */
 #if defined(HAVE_MLIB) || defined(HAVE_XV)
 	    int x = atoi(&buff[0]);
-	    display_change_size(windows[0].image->horizontal_size * x, 
-				windows[0].image->vertical_size * x);
+	    display_change_size(windows[0].image->info->horizontal_size * x, 
+				windows[0].image->info->vertical_size * x);
 #endif
 	  }
 	  break;
@@ -739,10 +735,10 @@ void display(yuv_image_t *current_image)
 void draw_win_x11(debug_win *dwin)
 { 
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
-          dwin->image->padded_width,
-          dwin->image->padded_height,
-          dwin->image->padded_width*(pixel_stride/8),
-          dwin->image->padded_width, dwin->image->padded_width/2 );
+          dwin->image->info->padded_width,
+          dwin->image->info->padded_height,
+          dwin->image->info->padded_width*(pixel_stride/8),
+          dwin->image->info->padded_width, dwin->image->info->padded_width/2 );
             
   if(dwin->grid) {
     if(dwin->color_grid) {
@@ -759,7 +755,7 @@ void draw_win_x11(debug_win *dwin)
 
   XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
 	       0, 0, 0, 0, 
-               dwin->image->horizontal_size, dwin->image->vertical_size, 1);
+               dwin->image->info->horizontal_size, dwin->image->info->vertical_size, 1);
   // XSync(mydisplay, False); or
   // XFlushmydisplay);
 }
@@ -776,7 +772,7 @@ void draw_win(debug_win *dwin)
   char *address = dwin->data;
   
   int dest_size = dwin->ximage->bytes_per_line * dwin->ximage->height;
-  int sorce_size = dwin->image->padded_width*(pixel_stride/8) * dwin->image->padded_height;
+  int sorce_size = dwin->image->info->padded_width*(pixel_stride/8) * dwin->image->info->padded_height;
   
   int offs = dest_size - sorce_size - 4096;
   if( offs > 0 )
@@ -790,16 +786,17 @@ void draw_win(debug_win *dwin)
      Rigth now it's done by the XSync call at the bottom... */
   
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
-	  dwin->image->padded_width, 
-	  dwin->image->padded_height, 
-	  dwin->image->padded_width*(pixel_stride/8),
-	  dwin->image->padded_width, dwin->image->padded_width/2 );
+	  dwin->image->info->padded_width, 
+	  dwin->image->info->padded_height, 
+	  dwin->image->info->padded_width*(pixel_stride/8),
+	  dwin->image->info->padded_width,
+	  dwin->image->info->padded_width/2 );
 
 #ifdef SPU
   if(msgqid != -1) {
     mix_subpicture(address,
-		   dwin->image->padded_width,
-		   dwin->image->padded_height);
+		   dwin->image->info->padded_width,
+		   dwin->image->info->padded_height);
   }
 #endif
 
@@ -811,8 +808,8 @@ void draw_win(debug_win *dwin)
     }       
   }       
   
-  if( (scaled_image_width != dwin->image->horizontal_size) ||
-      (scaled_image_height != dwin->image->vertical_size )) {
+  if( (scaled_image_width != dwin->image->info->horizontal_size) ||
+      (scaled_image_height != dwin->image->info->vertical_size )) {
     /* Destination image */
     mimage_d = mlib_ImageCreateStruct(MLIB_BYTE, 4,
 				      scaled_image_width, 
@@ -821,19 +818,19 @@ void draw_win(debug_win *dwin)
 				      dwin->data);
     /* Source image */
     mimage_s = mlib_ImageCreateStruct(MLIB_BYTE, 4, 
-				      dwin->image->horizontal_size, 
-				      dwin->image->vertical_size,
-				      dwin->image->padded_width*4, address);
+				      dwin->image->info->horizontal_size, 
+				      dwin->image->info->vertical_size,
+				      dwin->image->info->padded_width*4, address);
     /* Extra fast 2x Zoom */
-    if((scaled_image_width == 2 * dwin->image->horizontal_size) &&
-       (scaled_image_height == 2 * dwin->image->vertical_size)) {
+    if((scaled_image_width == 2 * dwin->image->info->horizontal_size) &&
+       (scaled_image_height == 2 * dwin->image->info->vertical_size)) {
       mlib_ImageZoomIn2X(mimage_d, mimage_s, 
 			 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     } else {
       mlib_ImageZoom 
 	(mimage_d, mimage_s,
-	 (double)scaled_image_width/(double)dwin->image->horizontal_size, 
-	 (double)scaled_image_height/(double)dwin->image->vertical_size,
+	 (double)scaled_image_width/(double)dwin->image->info->horizontal_size, 
+	 (double)scaled_image_height/(double)dwin->image->info->vertical_size,
 	 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     }
     mlib_ImageDelete(mimage_s);
@@ -876,20 +873,20 @@ void draw_win(debug_win *dwin)
     dst = xv_image->data;
 #if 0 // HAVE_XV_NO_CP  // TODO hack, needs checking for correctness
     /* Copy Y data */
-    size = dwin->image->padded_width*dwin->image->padded_height;
+    size = dwin->image->info->padded_width*dwin->image->info->padded_height;
     memcpy(dst + xv_image->offsets[0], dwin->image->y, size); 
     /* Copy U data */
-    size = dwin->image->padded_width*dwin->image->padded_height/4;
+    size = dwin->image->info->padded_width*dwin->image->info->padded_height/4;
     memcpy(dst + xv_image->offsets[1], dwin->image->v, size);
     /* Copy V data */
-    size = dwin->image->padded_width*dwin->image->padded_height/4;
+    size = dwin->image->info->padded_width*dwin->image->info->padded_height/4;
     memcpy(dst + xv_image->offsets[2], dwin->image->u, size);
 #else
     xv_image->data = dwin->image->y;
 #endif
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
-                  dwin->image->horizontal_size, dwin->image->vertical_size,
+                  dwin->image->info->horizontal_size, dwin->image->info->vertical_size,
                   0, 0, 
                   scaled_image_width, scaled_image_height,
                   True);

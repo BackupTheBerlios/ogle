@@ -3,6 +3,7 @@
 
 #include "timemath.h"
 #include "ip_sem.h"
+#include "queue.h"
 
 /* "There's len bytes of data for you in your file at this offset." */
 struct off_len_packet {
@@ -19,7 +20,7 @@ struct load_file_packet {
 
 
 /* Imagetype. */
-
+/*
 typedef struct {
   uint8_t *y; //[480][720];  //y-component image
   uint8_t *u; //[480/2][720/2]; //u-component
@@ -34,7 +35,7 @@ typedef struct {
   uint16_t display_height;
   float sar;
 } yuv_image_t;
-
+*/
 
 typedef struct {
   yuv_image_t picture;
@@ -62,7 +63,8 @@ typedef struct {
 typedef enum {
   MODE_STOP,
   MODE_PLAY,
-  MODE_PAUSE
+  MODE_PAUSE,
+  MODE_SPEED
 } playmode_t;
 
 typedef enum {
@@ -82,6 +84,11 @@ typedef struct {
 
 typedef struct {
   playmode_t mode;
+  int slow;
+  int fast;
+  double speed;
+  clocktime_t vt_offset;
+  clocktime_t rt_start;
   int sync_master;
 } ctrl_data_t;
 

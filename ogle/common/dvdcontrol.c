@@ -7,7 +7,7 @@
 
 
 
-static int send_msg(int msgqid, mq_msg_t *msg, int mtext_size)
+static int send_msg(int msgqid, mq_msg_t *msg, size_t mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("dvd: msgsnd1");
@@ -19,7 +19,7 @@ static int send_msg(int msgqid, mq_msg_t *msg, int mtext_size)
 
 static int send_cmd(int msgqid, mq_msg_t *msg)
 {
-  int msize;
+  size_t msize;
   mq_cmd_t *cmd;
   
   cmd = (mq_cmd_t *)&msg->mtext;
@@ -50,7 +50,7 @@ DVDResult_t DVDLeftButtonSelect(int msgqid)
   
   send_cmd(msgqid, &msg);
   
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDRightButtonSelect(int msgqid)
@@ -64,7 +64,7 @@ DVDResult_t DVDRightButtonSelect(int msgqid)
   
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDUpperButtonSelect(int msgqid)
@@ -78,7 +78,7 @@ DVDResult_t DVDUpperButtonSelect(int msgqid)
   
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDLowerButtonSelect(int msgqid)
@@ -92,7 +92,7 @@ DVDResult_t DVDLowerButtonSelect(int msgqid)
   
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDButtonActivate(int msgqid)
@@ -106,7 +106,7 @@ DVDResult_t DVDButtonActivate(int msgqid)
   
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDButtonSelect(int msgqid, int Button)
@@ -121,7 +121,7 @@ DVDResult_t DVDButtonSelect(int msgqid, int Button)
 
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button)
@@ -136,79 +136,57 @@ DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button)
 
   send_cmd(msgqid, &msg);
 
-  return DVD_E_OK;
+  return DVD_E_Ok;
 }
 
 DVDResult_t DVDMouseSelect(int msgqid, int x, int y)
 {
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)&msg.mtext;
-  
-  cmd->cmdtype = CMD_DVDCTRL_CMD;
-  cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_CHECK_MOUSE_SELECT;
-  cmd->cmd.dvdctrl_cmd.mouse_x = (unsigned int) x;
-  cmd->cmd.dvdctrl_cmd.mouse_y = (unsigned int) y;
-  
-  send_cmd(msgqid, &msg);
-
-  return DVD_E_OK;
+  return DVD_E_NotImplemented;
 }
 
 DVDResult_t DVDMouseActivate(int msgqid, int x, int y)
 {
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)&msg.mtext;
-  
-  cmd->cmdtype = CMD_DVDCTRL_CMD;
-  cmd->cmd.dvdctrl_cmd.cmd = DVDCTRL_CMD_CHECK_MOUSE_ACTIVATE;
-  cmd->cmd.dvdctrl_cmd.mouse_x = (unsigned int) x;
-  cmd->cmd.dvdctrl_cmd.mouse_y = (unsigned int) y;
-
-  send_cmd(msgqid, &msg);
-
-  return DVD_E_OK;
+  return DVD_E_NotImplemented;
 }
 
 DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t MenuId)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  return DVD_E_NotImplemented;
 }
 
 DVDResult_t DVDResume(int msgqid)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  return DVD_E_NotImplemented;
 }
 
 DVDResult_t DVDGoUP(int msgqid)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  return DVD_E_NotImplemented;
 }
 
 DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t Lang)
 {
-  return DVD_E_NOT_IMPLEMENTED;
+  return DVD_E_NotImplemented;
 }
 
 
-const static char DVD_E_OK_STR[] = "OK";
-const static char DVD_E_NOT_IMPLEMENTED_STR[] = "Not Implemented";
-const static char DVD_E_NO_SUCH_ERROR_STR[] = "No such error code";
+const static char DVD_E_Ok_STR[] = "OK";
+const static char DVD_E_NotImplemented_STR[] = "Not Implemented";
+const static char DVD_E_NoSuchError_STR[] = "No such error code";
 
 void DVDPerror(const char *str, DVDResult_t ErrCode)
 {
   const char *errstr;
 
   switch(ErrCode) {
-  case DVD_E_OK:
-    errstr = DVD_E_OK_STR;
+  case DVD_E_Ok:
+    errstr = DVD_E_Ok_STR;
     break;
-  case DVD_E_NOT_IMPLEMENTED:
-    errstr = DVD_E_NOT_IMPLEMENTED_STR;
+  case DVD_E_NotImplemented:
+    errstr = DVD_E_NotImplemented_STR;
     break;
   default:
-    errstr = DVD_E_NO_SUCH_ERROR_STR;
+    errstr = DVD_E_NoSuchError_STR;
     break;
   }
 

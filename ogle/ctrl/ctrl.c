@@ -17,6 +17,8 @@
 #include "msgtypes.h"
 #include "queue.h"
 #include "ip_sem.h"
+#include "msgevents.h"
+#include "timemath.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -24,16 +26,17 @@
 
 int create_msgq();
 int init_demux(char *msqqid_str);
-int init_decode(char *msgqid_str);
-int chk_for_msg(void);
-int eval_msg(mq_cmd_t *cmd);
+int init_decoder(char *msgqid_str, char *decoderstr);
+//int chk_for_msg(void);
+//int eval_msg(mq_cmd_t *cmd);
 int send_msg(mq_msg_t *msg, int mtext_size);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
-int create_q(int nr_of_elems, int buf_shmid);
-int wait_for_msg(mq_cmdtype_t cmdtype);
+int create_q(int nr_of_elems, int buf_shmid, 
+	     MsgEventClient_t writer, MsgEventClient_t reader);
+//int wait_for_msg(mq_cmdtype_t cmdtype);
 int create_ctrl_data();
-int init_ctrl(char *msgqid_str);
-
+int init_ui(char *msgqid_str);
+int register_stream(uint8_t stream_id, uint8_t subtype);
 
 void int_handler();
 void remove_q_shm();
@@ -43,6 +46,7 @@ void destroy_msgq();
 int msgqid;
 
 int ctrl_data_shmid;
+ctrl_data_t *ctrl_data;
 
 mq_msg_t msg;
 char *program_name;
@@ -74,14 +78,411 @@ void usage(void)
 }
 
 
+int next_client_id = CLIENT_UNINITIALIZED+1;
+int demux_registered = 0;
+MsgEventClient_t demux_client;
 
+
+typedef enum {
+  CAP_started = 1,
+  CAP_running = 2
+} cap_state_t;
+
+typedef struct {
+  MsgEventClient_t client;
+  int caps;
+  cap_state_t state;
+} caps_t;
+
+static caps_t *caps_array = NULL;
+static int nr_caps = 0;
+
+int register_capabilities(MsgEventClient_t client, int caps, cap_state_t state)
+{
+  if(nr_caps >= 20) {
+    fprintf(stderr, "ctrl: WARNING more than 20 capabilities registered\n");
+  }
+  nr_caps++;
+  caps_array = realloc(caps_array, sizeof(caps_t)*nr_caps);
+  caps_array[nr_caps-1].client = client;
+  caps_array[nr_caps-1].caps = caps;
+  caps_array[nr_caps-1].state = state;
+  return 0;
+}
+
+int search_capabilities(int caps, MsgEventClient_t *client, int *ret_caps,
+			cap_state_t *ret_state)
+{
+  int n;
+  int nr = 0;
+
+  if(client != NULL) {
+    *client = CLIENT_NONE;
+  }
+  fprintf(stderr, "searching cap: %d\n", caps);
+  
+  for(n = 0; n < nr_caps; n++) {
+    if((caps_array[n].caps & caps) == caps) {
+      nr++;
+      if(client != NULL) {
+	*client = caps_array[n].client;
+        fprintf(stderr, "found capclient: %ld\n", *client);
+      }
+      if(ret_caps != NULL) {
+	*ret_caps = caps_array[n].caps;
+	fprintf(stderr, "found cap: %d\n", *ret_caps);
+      }
+
+      fprintf(stderr, "state cap: %d\n", caps_array[n].state);
+
+      if(ret_state != NULL) {
+	*ret_state = caps_array[n].state;
+      }
+    }
+  }
+
+  
+  return nr;
+}
+
+
+static int streamid_to_capability(uint8_t stream_id, uint8_t subtype)
+{
+  int cap = 0;
+
+  if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+    if((subtype >= 0x80) && (subtype < 0xa0)) {
+      cap = DECODE_AC3_AUDIO;
+      
+    } else if((subtype >= 0x20) && (subtype < 0x40)) {
+      cap = DECODE_DVD_SPU;
+    }
+    
+  } else if((stream_id >= 0xc0) && (stream_id < 0xe0)) {
+    cap = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
+    
+  } else if((stream_id >= 0xe0) && (stream_id < 0xf0)) {
+    cap = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
+    
+  } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
+    cap = DECODE_DVD_NAV;
+  }
+  
+  return cap;
+}
+
+static char *streamid_to_decoderstr(uint8_t stream_id, uint8_t subtype)
+{
+  char *name = NULL;
+
+  if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+    if((subtype >= 0x80) && (subtype < 0xa0)) {
+      name = getenv("DVDP_AC3");
+      
+    } else if((subtype >= 0x20) && (subtype < 0x40)) {
+      name = getenv("DVDP_SPU");
+    }
+    
+  } else if((stream_id >= 0xc0) && (stream_id < 0xe0)) {
+    name = getenv("DVDP_MPEGAUDIO");
+    
+  } else if((stream_id >= 0xe0) && (stream_id < 0xf0)) {
+    name = getenv("DVDP_VIDEO");
+    
+  } else if(stream_id == MPEG2_PRIVATE_STREAM_2) {
+    name = getenv("DVDP_VMG");
+  }
+  
+  return name;
+}
+
+static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
+{
+  MsgEvent_t s_ev;
+  MsgEvent_t r_ev;
+  MsgEventClient_t rcpt;
+  char *decodername;
+  int capability;
+  
+  switch(ev->type) {
+  case MsgEventQInitReq:
+    fprintf(stderr, "ctrl: _MsgEventQInitReq, new_id: %d\n", next_client_id);
+    ev->type = MsgEventQInitGnt;
+    ev->initgnt.newclientid = next_client_id++;
+    MsgSendEvent(q, CLIENT_UNINITIALIZED, ev);
+    break;
+  case MsgEventQRegister:
+    fprintf(stderr, "ctrl: _MsgEventQRegister\n");
+    register_capabilities(ev->registercaps.client,
+			  ev->registercaps.capabilities,
+			  CAP_running);
+    break;
+  case MsgEventQReqCapability:
+    {
+      cap_state_t state = 0;
+      fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
+      ev->type = MsgEventQGntCapability;
+      while(search_capabilities(ev->reqcapability.capability,
+				&ev->gntcapability.capclient,
+				&ev->reqcapability.capability,
+				&state) &&
+	    (state != CAP_running)) {
+	MsgNextEvent(q, &r_ev);
+	handle_events(q, &r_ev);
+      }
+      if(state == CAP_running) {
+	MsgSendEvent(q, ev->gntcapability.client, ev);
+      } else {
+	fprintf(stderr, "ctrl: didn't find capability\n");
+	MsgSendEvent(q, ev->gntcapability.client, ev);
+      }
+    }
+    break;
+  case MsgEventQReqBuf:
+    {
+      shm_bufinfo_t bufinfo;
+      
+      fprintf(stderr, "ctrl: _got request for buffer size %d\n",
+	      ev->reqbuf.size);
+      if(get_buffer(ev->reqbuf.size, &bufinfo) == -1) {
+	bufinfo.shmid = -1;
+      }
+      
+      s_ev.type = MsgEventQGntBuf;
+      s_ev.gntbuf.shmid = bufinfo.shmid;
+      s_ev.gntbuf.size = bufinfo.size;
+      MsgSendEvent(q, ev->reqbuf.client, &s_ev);
+    }
+    break;
+  case MsgEventQReqStreamBuf:
+    {
+      int shmid;
+      cap_state_t state = 0;
+      fprintf(stderr, "ctrl: _new stream %x, %x\n",
+	      ev->reqstreambuf.stream_id,
+	      ev->reqstreambuf.subtype);
+      
+      if(register_stream(ev->reqstreambuf.stream_id,
+			 ev->reqstreambuf.subtype)) {
+	// this stream is wanted
+	
+	
+	// check if we have a decoder
+	
+	//TODO check which decoder handles the stream and start it
+	//if there isn't already one running that is free to use
+	// TODO clean up logic/functions
+	
+
+	capability = streamid_to_capability(ev->reqstreambuf.stream_id,
+					    ev->reqstreambuf.subtype);
+	// check if there is a decoder running or started
+	if(!search_capabilities(capability, &rcpt, NULL, NULL)) {
+	  
+	  decodername = streamid_to_decoderstr(ev->reqstreambuf.stream_id,
+					       ev->reqstreambuf.subtype);
+	  
+	  if((capability & VIDEO_OUTPUT) || (capability & DECODE_DVD_SPU)) {
+	    fprintf(stderr, "****ctrl: registered VO or SPU started\n");
+	  }
+	  if(capability == DECODE_DVD_SPU) {
+	    register_capabilities(0,
+				  DECODE_DVD_SPU | VIDEO_OUTPUT,
+				  CAP_started);
+	  } else {	    
+	    register_capabilities(0,
+				  capability,
+				  CAP_started);
+	  }
+	  fprintf(stderr, "ctrl: starting decoder %d %s\n", capability,
+		  decodername);
+	  init_decoder(msgqid_str, decodername);
+	  fprintf(stderr, "ctrl: started decoder %d\n", capability);
+	 
+	}
+	
+	while(!search_capabilities(capability, &rcpt, NULL, &state) ||
+	      (state != CAP_running)) {
+	  MsgNextEvent(q, &r_ev);
+	  handle_events(q, &r_ev);
+	}
+	
+	// we now have a decoder running ready to decode the stream
+	
+	// send ctrl_data shm: let client know where the timebase
+	// data is
+	fprintf(stderr, "ctrl: sending ctrldata\n");
+	s_ev.type = MsgEventQCtrlData;
+	s_ev.ctrldata.shmid = ctrl_data_shmid;
+	
+	MsgSendEvent(q, rcpt, &s_ev);
+	
+	// at this point we know both reader and writer client
+	// for the buffer.
+	
+	// lets create the buffer
+	
+	shmid = create_q(ev->reqstreambuf.nr_of_elems,
+			 ev->reqstreambuf.data_buf_shmid,
+			 ev->reqstreambuf.client,
+			 rcpt);
+	
+	
+	// let the writer know which streambuffer to connect to
+	s_ev.type = MsgEventQGntStreamBuf;
+	s_ev.gntstreambuf.q_shmid = shmid;
+	s_ev.gntstreambuf.stream_id =
+	  ev->reqstreambuf.stream_id; 
+	s_ev.gntstreambuf.subtype =
+	  ev->reqstreambuf.subtype; 
+	
+	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev);
+	
+	// connect the streambuf  to the reader
+	
+	s_ev.type = MsgEventQDecodeStreamBuf;
+	s_ev.decodestreambuf.q_shmid = shmid;
+	s_ev.decodestreambuf.stream_id =
+	  ev->reqstreambuf.stream_id;
+	s_ev.decodestreambuf.subtype = 
+	  ev->reqstreambuf.subtype;
+	
+	MsgSendEvent(q, rcpt, &s_ev);
+	
+      } else {
+	// we don't want this stream
+	// respond with the shmid set to -1
+	
+	s_ev.type = MsgEventQGntStreamBuf;
+	s_ev.gntstreambuf.q_shmid = -1;
+	s_ev.gntstreambuf.stream_id =
+	  ev->reqstreambuf.stream_id; 
+	s_ev.gntstreambuf.subtype =
+	  ev->reqstreambuf.subtype; 
+	
+	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev);
+      }
+    }
+    break;
+  case MsgEventQReqPicBuf:
+    {
+      int shmid;
+      cap_state_t state;
+      fprintf(stderr, "ctrl: _new pic q\n");
+      
+      // check if we have a decoder
+      
+      //TODO check which decoder handles the stream and start it
+      //if there isn't already one running that is free to use
+      // TODO clean up logic/functions
+      
+      //TODO hmm start here or have decoder request cap first or
+      //
+      if(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, NULL)) {
+	
+	fprintf(stderr, "****ctrl: registered VO|SPU started\n");
+	register_capabilities(0,
+			      VIDEO_OUTPUT | DECODE_DVD_SPU,
+			      CAP_started);
+	
+	init_decoder(msgqid_str, getenv("DVDP_VIDEO_OUT"));
+	fprintf(stderr, "ctrl: started video_out\n");
+      }
+      while(!search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, &state) ||
+	    (state != CAP_running)) {
+	MsgNextEvent(q, &r_ev);
+	handle_events(q, &r_ev);
+      }
+      fprintf(stderr, "ctrl: got capability video_out\n");
+      
+      // we now have a decoder running ready to decode the stream
+      
+      // send ctrl_data shm: let client know where the timebase
+      // data is
+      fprintf(stderr, "ctrl: sending ctrldata\n");
+      s_ev.type = MsgEventQCtrlData;
+      s_ev.ctrldata.shmid = ctrl_data_shmid;
+	
+      MsgSendEvent(q, rcpt, &s_ev);
+	
+      // at this point we know both reader and writer client
+      // for the buffer.
+      
+      // lets create the buffer
+	
+      shmid = create_q(ev->reqpicbuf.nr_of_elems,
+		       ev->reqpicbuf.data_buf_shmid,
+		       ev->reqpicbuf.client,
+		       rcpt);
+      
+      
+      // let the writer know which picbuffer to connect to
+      s_ev.type = MsgEventQGntPicBuf;
+      s_ev.gntpicbuf.q_shmid = shmid;
+      
+      fprintf(stderr, "ctrl: create_q, q_shmid: %d picture_buf_shmid: %d\n",
+	      shmid,  ev->reqpicbuf.data_buf_shmid);
+      
+      MsgSendEvent(q, ev->reqpicbuf.client, &s_ev);
+      
+      // connect the picbuf  to the reader
+      
+      s_ev.type = MsgEventQAttachQ;
+      s_ev.attachq.q_shmid = shmid;
+      
+      MsgSendEvent(q, rcpt, &s_ev);
+	
+    }
+    break;
+  case MsgEventQSpeed:
+    {
+      clocktime_t rt;
+      clocktime_t tmptime, tmptime2;
+      
+      clocktime_get(&rt);
+      fprintf(stderr, "ctrl: _MsgEventQSpeed\n");
+      fprintf(stderr, "ctrl: speed: %.2f\n", ev->speed.speed);
+      if(ctrl_data->mode != MODE_SPEED) {
+	TIME_S(ctrl_data->vt_offset) = 0;
+	TIME_SS(ctrl_data->vt_offset) = 0;
+	ctrl_data->rt_start = rt;
+	ctrl_data->speed = 1.0;
+      }
+      timesub(&tmptime, &rt, &ctrl_data->rt_start);
+      timemul(&tmptime2, &tmptime, ctrl_data->speed);
+      timesub(&tmptime, &tmptime, &tmptime2);
+      timeadd(&ctrl_data->vt_offset, &ctrl_data->vt_offset, &tmptime);
+      
+      ctrl_data->rt_start = rt;
+      ctrl_data->speed = ev->speed.speed;
+      
+      
+      if(ctrl_data->speed == 1.0) {
+	ctrl_data->mode = MODE_SPEED;
+      } else {
+	ctrl_data->mode = MODE_SPEED;
+      }
+
+    }
+    break;
+  default:
+    fprintf(stderr, "ctrl: handle_events: msgtype %d not handled\n",
+	    ev->type);
+    break;
+  }
+}
 
 int main(int argc, char *argv[])
 {
   struct sigaction sig;
   pid_t demux_pid = -1;
   int c;
+  MsgEventQ_t q;
+  MsgEvent_t ev;
+  MsgEvent_t r_ev;
+  cap_state_t state;
 
+  
   sig.sa_handler = int_handler;
 
   if(sigaction(SIGINT, &sig, NULL) == -1) {
@@ -164,11 +565,56 @@ int main(int argc, char *argv[])
     fprintf(stderr, "max_bytes: %ld\n", msgqinfo.msg_qbytes);
 
   }
-  
-  init_ctrl(msgqid_str);
 
-  demux_pid = init_demux(msgqid_str);
+  q.msqid = msgqid;
+  q.mtype = CLIENT_RESOURCE_MANAGER;
+
+  init_ui(msgqid_str);
+
   
+  demux_pid = init_demux(msgqid_str);
+
+
+  while(!search_capabilities(DEMUX_MPEG2_PS, NULL, NULL, NULL)) {
+    MsgNextEvent(&q, &ev);
+    switch(ev.type) {
+    case MsgEventQInitReq:
+      fprintf(stderr, "ctrl: MsgEventQInitReq, new_id: %d\n", next_client_id);
+      ev.type = MsgEventQInitGnt;
+      ev.initgnt.newclientid = next_client_id++;
+      MsgSendEvent(&q, CLIENT_UNINITIALIZED, &ev);
+      break;
+    case MsgEventQRegister:
+      fprintf(stderr, "ctrl: MsgEventQRegister\n");
+      register_capabilities(ev.registercaps.client,
+			    ev.registercaps.capabilities,
+			    CAP_running);
+      break;
+    case MsgEventQReqCapability:
+      fprintf(stderr, "ctrl: MsgEventQReqCapability\n");
+      ev.type = MsgEventQGntCapability;
+      state = 0;
+      while(search_capabilities(ev.reqcapability.capability,
+				&ev.gntcapability.capclient,
+				&ev.reqcapability.capability,
+				&state) &&
+	    (state != CAP_running)) {
+	MsgNextEvent(&q, &r_ev);
+	handle_events(&q, &r_ev);
+      }
+      if(state == CAP_running) {
+	MsgSendEvent(&q, ev.gntcapability.client, &ev);
+      } else {
+	fprintf(stderr, "ctrl: didn't find capability\n");
+	MsgSendEvent(&q, ev.gntcapability.client, &ev);
+      }
+      break;
+    default:
+      fprintf(stderr, "ctrl2: msgtype not wanted\n");
+      break;
+    }
+    
+  }
   if(input_file != NULL) {
     mq_cmd_t *cmd;
     
@@ -187,8 +633,8 @@ int main(int argc, char *argv[])
   
   
   while(1){
-    wait_for_msg(CMD_ALL);
-    //  sleep(1);
+    MsgNextEvent(&q, &ev);
+    handle_events(&q, &ev);
   }
   
   
@@ -196,70 +642,25 @@ int main(int argc, char *argv[])
 }
 
 
-int chk_for_msg(void)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  
-  if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_CTL, IPC_NOWAIT) == -1) {
-    if(errno == ENOMSG) {
-      fprintf(stderr ,"ctrl: no msg in q\n");
-      return 0;
-    }
-    perror("msgrcv");
-    return -1;
-  } else {
-    //fprintf(stderr, "ctrl: got msg\n");
-    eval_msg(cmd);
-  }
-  
-  return 1;
-}
-
-
-int wait_for_msg(mq_cmdtype_t cmdtype)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  while(cmd->cmdtype != cmdtype) {
-    if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_CTL, 0) == -1) {
-      perror("msgrcv");
-      return -1;
-    } else {
-      //fprintf(stderr, "ctrl: got msg\n");
-      eval_msg(cmd);
-    }
-    if(cmdtype == CMD_ALL) {
-      break;
-    }
-  }
-  return 0;
-}
-
-
-int init_ctrl(char *msgqid_str)
+int init_ui(char *msgqid_str)
 {
   pid_t pid;
   int n;
   char *eargv[16];
-  char *ctrl_name;
-  char *ctrl_path = getenv("DVDP_UI");
+  char *ui_name;
+  char *ui_path = getenv("DVDP_UI");
 
   //TODO clean up filename handling
   
-  if(ctrl_path == NULL) {
+  if(ui_path == NULL) {
     fprintf(stderr, "DVDP_UI not set\n");
     return(-1);
   }
 
-  if((ctrl_name = strrchr(ctrl_path, '/')+1) == NULL) {
-    ctrl_name = ctrl_path;
+  if((ui_name = strrchr(ui_path, '/')+1) == NULL) {
+    ui_name = ui_path;
   }
-  if(ctrl_name > &ctrl_path[strlen(ctrl_path)]) {
+  if(ui_name > &ui_path[strlen(ui_path)]) {
     fprintf(stderr, "illegal file name?\n");
     return -1;
   }
@@ -273,15 +674,15 @@ int init_ctrl(char *msgqid_str)
     /* child process */
     
     n = 0;
-    eargv[n++] = ctrl_name;
+    eargv[n++] = ui_name;
     eargv[n++] = "-m";
     eargv[n++] = msgqid_str;
 
     eargv[n++] = NULL;
     
-    if(execv(ctrl_path, eargv) == -1) {
-      perror("execv ctrl");
-      fprintf(stderr, "path: %s\n", ctrl_path);
+    if(execv(ui_path, eargv) == -1) {
+      perror("execv ui");
+      fprintf(stderr, "path: %s\n", ui_path);
     }
 
     exit(-1);
@@ -362,6 +763,74 @@ int init_demux(char *msgqid_str)
 }
 
 
+int init_decoder(char *msgqid_str, char *decoderstr)
+{
+  pid_t pid;
+  char *eargv[16];
+  char *decode_name;
+  char *decode_path = decoderstr;
+  int n;
+  
+  if(decode_path == NULL) {
+    fprintf(stderr, "decoder not set\n");
+    return(-1);
+  }
+  
+  if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
+    decode_name = decode_path;
+  }
+  if(decode_name > &decode_path[strlen(decode_path)]) {
+    fprintf(stderr, "illegal file name?\n");
+    return -1;
+  }
+  
+  fprintf(stderr, "ctrl: init decoder %s\n", decode_name);
+
+  /* fork/exec decoder */
+
+  switch(pid = fork()) {
+  case 0:
+    /* child process */
+    n = 0;
+    eargv[n++] = decode_name;
+    eargv[n++] = "-m";
+    eargv[n++] = msgqid_str;
+
+    /* TODO fix for different decoders 
+    if(output_bufs != NULL) {
+      eargv[n++] = "-r";
+      eargv[n++] = output_bufs;
+    }
+    if(framerate != NULL) {
+      eargv[n++] = "-f";
+      eargv[n++] = framerate;
+    }
+
+    if(videodecode_debug != NULL) {
+      eargv[n++] = "-d";
+      eargv[n++] = videodecode_debug;
+    }
+    */
+    eargv[n++] = NULL;
+    
+    if(execv(decode_path, eargv) == -1) {
+      perror("execv decode");
+      fprintf(stderr, "path: %s\n", decode_path);
+    }
+    exit(-1);
+    break;
+  case -1:
+    /* fork failed */
+    perror("fork");
+    break;
+  default:
+    /* parent process */
+    break;
+  }
+  return pid;
+
+}
+#if 0
 int init_mpeg_video_decoder(char *msgqid_str)
 {
   pid_t pid;
@@ -637,7 +1106,7 @@ int init_mpeg_audio_decoder(char *msgqid)
   
 }
 
-
+#endif
 
 
 
@@ -701,532 +1170,6 @@ void destroy_msgq()
 
 
 
-int eval_msg(mq_cmd_t *cmd)
-{
-  mq_msg_t sendmsg;
-  mq_cmd_t *sendcmd;
-  
-  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
-  
-  switch(cmd->cmdtype) {
-  case CMD_DEMUX_REQ_BUFFER:
-    {
-      shm_bufinfo_t bufinfo;
-
-      fprintf(stderr, "ctrl: got request for buffer size %d\n",
-	      cmd->cmd.req_buffer.size);
-      if(get_buffer(cmd->cmd.req_buffer.size, &bufinfo) == -1) {
-	bufinfo.shmid = -1;
-      }
-      
-      sendmsg.mtype = MTYPE_DEMUX;
-      sendcmd->cmdtype = CMD_DEMUX_GNT_BUFFER;
-      sendcmd->cmd.gnt_buffer.shmid = bufinfo.shmid;
-      sendcmd->cmd.gnt_buffer.size = bufinfo.size;
-      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_gnt_buffer_t));
-      
-    }
-    break;
-  case CMD_DEMUX_NEW_STREAM:
-    {
-      int shmid;
-      fprintf(stderr, "ctrl: new stream %x, %x\n",
-	      cmd->cmd.new_stream.stream_id,
-	      cmd->cmd.new_stream.subtype);
-      //      if(!((cmd->cmd.new_stream.stream_id == MPEG2_PRIVATE_STREAM_1) &&
-      //	   !(cmd->cmd.new_stream.subtype == 0x80))) {
-      
-      if(register_stream(cmd->cmd.new_stream.stream_id,
-			 cmd->cmd.new_stream.subtype)) {
-	
-	fprintf(stderr, "NR: %d\n",cmd->cmd.new_stream.nr_of_elems);
-	shmid = create_q(cmd->cmd.new_stream.nr_of_elems,
-			 cmd->cmd.new_stream.data_buf_shmid);
-	
-      } else {
-	shmid = -1;
-      }
-      
-      /*
-      if((cmd->cmd.new_stream.stream_id == MPEG2_PRIVATE_STREAM_1) &&
-	 !(cmd->cmd.new_stream.subtype == 0x80)) {
-	shmid = -1;
-      } else {
-	
-	fprintf(stderr, "NR: %d\n",cmd->cmd.new_stream.nr_of_elems);
-	shmid = create_q(cmd->cmd.new_stream.nr_of_elems,
-			 cmd->cmd.new_stream.data_buf_shmid);
-      }
-      */
-
-
-
-      sendmsg.mtype = MTYPE_DEMUX;
-      sendcmd->cmdtype = CMD_DEMUX_STREAM_BUFFER;
-
-      sendcmd->cmd.stream_buffer.q_shmid = shmid;
-      fprintf(stderr, "shmid: %d\n", shmid);
-      sendcmd->cmd.stream_buffer.stream_id =
-	cmd->cmd.new_stream.stream_id; 
-      sendcmd->cmd.stream_buffer.subtype =
-	cmd->cmd.new_stream.subtype; 
-      fprintf(stderr, "send_msg\n");
-      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-
-      if(shmid >= 0) {
-	// lets start the decoder
-	if((cmd->cmd.new_stream.stream_id) == MPEG2_PRIVATE_STREAM_1) {
-	  if((cmd->cmd.new_stream.subtype >= 0x80) &&
-	     (cmd->cmd.new_stream.subtype < 0x90)) {
-	    
-	    init_dolby_ac3_decoder(msgqid_str);
-	    
-
-	    // send ctrl shm
-	    
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_CTRL_DATA;
-	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     sizeof(mq_cmd_ctrl_data_t));
-	    
-
-	    // temporary fix to mmap infile
-	    /*
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_FILE_OPEN;
-
-	    strcpy(sendcmd->cmd.file_open.file, input_file);
-	    
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     strlen(sendcmd->cmd.file_open.file)+1);
-	    */
-
-	    // ac3 stream
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	    sendcmd->cmd.stream_buffer.q_shmid = shmid;
-	    sendcmd->cmd.stream_buffer.stream_id =
-	      cmd->cmd.new_stream.stream_id; 
-	    sendcmd->cmd.stream_buffer.subtype =
-	      cmd->cmd.new_stream.subtype; 
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	    
-	  } else if((cmd->cmd.new_stream.subtype >= 0x20) &&
-		    (cmd->cmd.new_stream.subtype < 0x40)) {
-	    
-	    init_spu_decoder(msgqid_str);
-	    
-
-	    // send ctrl shm
-	    
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_CTRL_DATA;
-	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     sizeof(mq_cmd_ctrl_data_t));
-	    
-
-	    // temporary fix to mmap infile
-	    /*
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_FILE_OPEN;
-
-	    strcpy(sendcmd->cmd.file_open.file, input_file);
-	    
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     strlen(sendcmd->cmd.file_open.file)+1);
-	    */
-
-	    // ac3 stream
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	    sendcmd->cmd.stream_buffer.q_shmid = shmid;
-	    sendcmd->cmd.stream_buffer.stream_id =
-	      cmd->cmd.new_stream.stream_id; 
-	    sendcmd->cmd.stream_buffer.subtype =
-	      cmd->cmd.new_stream.subtype; 
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-
-	  }
-	  
-	} else if((cmd->cmd.new_stream.stream_id >= 0xc0) &&
-		  (cmd->cmd.new_stream.stream_id < 0xe0)) {
-	  init_mpeg_audio_decoder(msgqid_str);
-	  // mpeg audio stream
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_data_t));
-	  
-	  
-	  // temporary fix to mmap infile
-	  /*
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-	  
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		   strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-
-	  // mpeg audio stream
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-            cmd->cmd.new_stream.stream_id; 
-          sendcmd->cmd.stream_buffer.subtype =
-            cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	  
-	} else if((cmd->cmd.new_stream.stream_id >= 0xe0) &&
-		  (cmd->cmd.new_stream.stream_id < 0xf0)) {
-	  init_mpeg_video_decoder(msgqid_str);
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		   sizeof(mq_cmd_ctrl_data_t));
-	  
-	  // mpeg video stream
-	  /*
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-
-	  send_msg(&sendmsg,
-		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-	  
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-	    cmd->cmd.new_stream.stream_id; 
-	  sendcmd->cmd.stream_buffer.subtype =
-	    cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	} else if(cmd->cmd.new_stream.stream_id == 0xbf) {
-	  
-	  init_mpeg_private_stream_2_decoder(msgqid_str);
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		   sizeof(mq_cmd_ctrl_data_t));
-	  
-	  // mpeg private stream 2 
-	  /*
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-
-	  send_msg(&sendmsg,
-		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-	  
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-	    cmd->cmd.new_stream.stream_id; 
-	  sendcmd->cmd.stream_buffer.subtype =
-	    cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	}
-	
-      }
-    }
-    break;
-  case CMD_DECODE_NEW_OUTPUT:
-    {
-      int q_shmid;
-      shm_bufinfo_t bufinfo;
-      
-      fprintf(stderr, "ctrl: new output %d\n",
-	      cmd->cmd.new_output.type);
-
-
-      if(get_buffer(cmd->cmd.new_output.data_buf_size, &bufinfo) == -1) {
-	bufinfo.shmid = -1;
-      }
-
-
-      fprintf(stderr, "NR: %d\n",cmd->cmd.new_stream.nr_of_elems);
-      q_shmid = create_q(cmd->cmd.new_output.nr_of_elems,
-			 bufinfo.shmid);
-      
-      
-      sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-      sendcmd->cmdtype = CMD_DECODE_OUTPUT_BUFFER;
-      sendcmd->cmd.output_buffer.data_shmid = bufinfo.shmid;
-      sendcmd->cmd.output_buffer.data_size = bufinfo.size;
-      sendcmd->cmd.output_buffer.q_shmid = q_shmid;
-      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_output_buffer_t));
-      
-
-
-
-      sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-      fprintf(stderr, "shmid: %d\n", q_shmid);
-      sendcmd->cmd.stream_buffer.stream_id =
-	cmd->cmd.new_stream.stream_id; 
-      sendcmd->cmd.stream_buffer.subtype =
-	cmd->cmd.new_stream.subtype; 
-      fprintf(stderr, "send_msg\n");
-      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-
-      if(q_shmid >= 0) {
-	// lets start the decoder
-	if((cmd->cmd.new_stream.stream_id) == MPEG2_PRIVATE_STREAM_1) {
-	  if((cmd->cmd.new_stream.subtype >= 0x80) &&
-	     (cmd->cmd.new_stream.subtype < 0x90)) {
-	    
-	    init_dolby_ac3_decoder(msgqid_str);
-	    
-
-	    // send ctrl shm
-	    
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_CTRL_DATA;
-	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     sizeof(mq_cmd_ctrl_data_t));
-	    
-
-	    // temporary fix to mmap infile
-	    /*
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_FILE_OPEN;
-
-	    strcpy(sendcmd->cmd.file_open.file, input_file);
-	    
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     strlen(sendcmd->cmd.file_open.file)+1);
-	    */
-
-	    // ac3 stream
-	    sendmsg.mtype = MTYPE_AUDIO_DECODE_AC3;
-	    sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	    sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-	    sendcmd->cmd.stream_buffer.stream_id =
-	      cmd->cmd.new_stream.stream_id; 
-	    sendcmd->cmd.stream_buffer.subtype =
-	      cmd->cmd.new_stream.subtype; 
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	    
-	  } else if((cmd->cmd.new_stream.subtype >= 0x20) &&
-		    (cmd->cmd.new_stream.subtype < 0x40)) {
-	    
-	    init_spu_decoder(msgqid_str);
-	    
-
-	    // send ctrl shm
-	    
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_CTRL_DATA;
-	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		     sizeof(mq_cmd_ctrl_data_t));
-	    
-
-	    // temporary fix to mmap infile
-	    /*
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_FILE_OPEN;
-
-	    strcpy(sendcmd->cmd.file_open.file, input_file);
-	    
-	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
-		     strlen(sendcmd->cmd.file_open.file)+1);
-	    */
-
-	    // ac3 stream
-	    sendmsg.mtype = MTYPE_SPU_DECODE;
-	    sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	    sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-	    sendcmd->cmd.stream_buffer.stream_id =
-	      cmd->cmd.new_stream.stream_id; 
-	    sendcmd->cmd.stream_buffer.subtype =
-	      cmd->cmd.new_stream.subtype; 
-	    
-	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-
-	  }
-	  
-	} else if((cmd->cmd.new_stream.stream_id >= 0xc0) &&
-		  (cmd->cmd.new_stream.stream_id < 0xe0)) {
-	  init_mpeg_audio_decoder(msgqid_str);
-	  // mpeg audio stream
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_data_t));
-	  
-	  
-	  // temporary fix to mmap infile
-	  /*
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-	  
-	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
-		   strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-
-	  // mpeg audio stream
-	  sendmsg.mtype = MTYPE_AUDIO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-            cmd->cmd.new_stream.stream_id; 
-          sendcmd->cmd.stream_buffer.subtype =
-            cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	  
-	} else if((cmd->cmd.new_stream.stream_id >= 0xe0) &&
-		  (cmd->cmd.new_stream.stream_id < 0xf0)) {
-	  init_mpeg_video_decoder(msgqid_str);
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		   sizeof(mq_cmd_ctrl_data_t));
-	  
-	  // mpeg video stream
-	  /*
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-
-	  send_msg(&sendmsg,
-		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-	  
-	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-	    cmd->cmd.new_stream.stream_id; 
-	  sendcmd->cmd.stream_buffer.subtype =
-	    cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	} else if(cmd->cmd.new_stream.stream_id == 0xbf) {
-	  
-	  init_mpeg_private_stream_2_decoder(msgqid_str);
-
-
-	  // send ctrl shm
-	  
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_CTRL_DATA;
-	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
-		   sizeof(mq_cmd_ctrl_data_t));
-	  
-	  // mpeg private stream 2 
-	  /*
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_FILE_OPEN;
-	  strcpy(sendcmd->cmd.file_open.file, input_file);
-
-	  send_msg(&sendmsg,
-		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
-	  */
-	  
-	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
-	  sendcmd->cmdtype = CMD_DECODE_STREAM_BUFFER;
-	  sendcmd->cmd.stream_buffer.q_shmid = q_shmid;
-	  sendcmd->cmd.stream_buffer.stream_id =
-	    cmd->cmd.new_stream.stream_id; 
-	  sendcmd->cmd.stream_buffer.subtype =
-	    cmd->cmd.new_stream.subtype; 
-	  
-	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
-	  
-	}
-	
-      }
-    }
-    break;
-  case CMD_CTRL_CMD:
-    /*
-    sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
-    sendcmd->cmdtype = cmd->cmdtype;
-    sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
-    
-    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
-    */
-    sendmsg.mtype = MTYPE_DEMUX;
-    sendcmd->cmdtype = cmd->cmdtype;
-    sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
-    
-    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
-    
-    break;
-  default:
-    fprintf(stderr, "ctrl: unrecognized command cmdtype: %x\n",
-	    cmd->cmdtype);
-    return -1;
-    break;
-  }
-  
-  return 0;
-}
-
-
 int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
@@ -1257,13 +1200,16 @@ int get_buffer(int size, shm_bufinfo_t *bufinfo)
 }
 
   
-int create_q(int nr_of_elems, int buf_shmid)
+int create_q(int nr_of_elems, int buf_shmid,
+	     MsgEventClient_t writer,  MsgEventClient_t reader)
 {
   
   int shmid;
   char *shmaddr;
   q_head_t *q_head;
-  
+  q_elem_t *q_elems;
+  int n;
+
   fprintf(stderr, "create_q\n");
   fprintf(stderr, "shmget\n");
   if((shmid = shmget(IPC_PRIVATE,
@@ -1296,7 +1242,16 @@ int create_q(int nr_of_elems, int buf_shmid)
   q_head->nr_of_qelems = nr_of_elems;
   q_head->write_nr = 0;
   q_head->read_nr = 0;
-
+  q_head->writer = writer;
+  q_head->reader = reader;
+  q_head->writer_requests_notification = 0;
+  q_head->reader_requests_notification = 0;
+  
+  q_elems = (q_elem_t *)(shmaddr+sizeof(q_head_t));
+  
+  for(n = 0; n < nr_of_elems; n++) {
+    q_elems[n].in_use = 0;
+  }
   if(shmdt(shmaddr) == -1) {
     perror("create_q(), shmdt()");
   }
@@ -1310,7 +1265,6 @@ int create_ctrl_data()
 {
   int shmid;
   char *shmaddr;
-  ctrl_data_t *ctrl;
   ctrl_time_t *ctrl_time;
   int n;
   int nr_of_offsets = 16;
@@ -1335,9 +1289,9 @@ int create_ctrl_data()
 
   add_q_shmid(shmid);
   
-  ctrl = (ctrl_data_t *)shmaddr;
-  ctrl->mode = MODE_STOP;
-  ctrl->sync_master = SYNC_NONE;
+  ctrl_data = (ctrl_data_t *)shmaddr;
+  ctrl_data->mode = MODE_STOP;
+  ctrl_data->sync_master = SYNC_NONE;
   ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   
   for(n = 0; n < nr_of_offsets; n++) {

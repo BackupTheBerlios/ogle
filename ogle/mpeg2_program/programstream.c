@@ -38,7 +38,7 @@
 #include "queue.h"
 #include "mpeg.h"
 #include "ip_sem.h"
-
+#include "msgevents.h"
 
 
 #ifndef SHM_SHARE_MMU
@@ -53,6 +53,7 @@ typedef enum {
 } stream_state_t;
   
 typedef struct {
+  int infile;
   FILE *file;
   int shmid;
   char *shmaddr;
@@ -65,8 +66,8 @@ buf_data_t id_reg_ps1[256];
 int register_id(uint8_t id, int subtype);
 int id_registered(uint8_t id, uint8_t subtype);
 int init_id_reg();
-int wait_for_msg(mq_cmdtype_t cmdtype);
-int eval_msg(mq_cmd_t *cmd);
+//int wait_for_msg(mq_cmdtype_t cmdtype);
+//int eval_msg(mq_cmd_t *cmd);
 int get_buffer(int size);
 int send_msg(mq_msg_t *msg, int mtext_size);
 int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
@@ -75,10 +76,14 @@ char *id_qaddr(uint8_t id, uint8_t subtype);
 FILE *id_file(uint8_t id, uint8_t subtype);
 void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid, char *shmaddr, FILE *file);
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS);
+	     uint64_t PTS, uint64_t DTS, int is_new_file);
 int attach_buffer(int shmid, int size);
-int chk_for_msg(void);
+//int chk_for_msg(void);
 void loadinputfile(char *infilename);
+void add_to_demux_q(MsgEvent_t *ev);
+static void handle_events(MsgEvent_t *ev);
+int id_infile(uint8_t id, uint8_t subtype);
+void id_setinfile(uint8_t id, uint8_t subtype, int newfile);
 
 typedef struct {
   uint8_t *buf_start;
@@ -86,9 +91,9 @@ typedef struct {
   int in_use;
 } q_elem;
 
-int msgqid = -1;
+static int msgqid = -1;
 
-
+static MsgEventQ_t *msgq;
 
 int scr_discontinuity = 0;
 uint64_t SCR_base;
@@ -141,6 +146,7 @@ long  infilelen;
 uint32_t offs;
 
 char cur_filename[PATH_MAX+1];
+int new_file;
 
 // #define DEBUG
 
@@ -336,9 +342,9 @@ typedef enum {
 
 
 typedef struct {
-  cmd_type_t cmd_type;
+  MsgEventType_t cmd_type;
   union {
-    mq_cmd_ctrl_cmd_t ctrl;
+    MsgQPlayCtrlEvent_t ctrl;
     char *file;
   } cmd;
 } demux_q_t;
@@ -349,21 +355,44 @@ static int demux_q_len = 0;
 
 void get_next_demux_q(void)
 {
+  MsgEvent_t ev;
   int new_demux_range = 0;
   while(!new_demux_range) {
     while(!demux_q_len) {
-      wait_for_msg(CMD_CTRL_CMD);
+      MsgNextEvent(msgq, &ev);
+      switch(ev.type) {
+      case MsgEventQChangeFile:
+	fprintf(stderr, "demux: change file: %s\n", ev.changefile.filename);
+	add_to_demux_q(&ev);
+	break;
+      case MsgEventQPlayCtrl:
+	switch(ev.playctrl.cmd) {
+	case PlayCtrlCmdPlayFromTo:
+	  add_to_demux_q(&ev);
+	  break;
+	default:
+	  fprintf(stderr, "demux: PlayCtrl cmd not implemented\n");
+	  break;
+	}
+	break;
+      default:
+	fprintf(stderr, "demux: unrecognized command\n");
+	break;
+      }
     }
     
     switch(demux_q[demux_q_start].cmd_type) {
-    case CMD_CTRL:
-      off_from = demux_q[demux_q_start].cmd.ctrl.off_from;
-      off_to = demux_q[demux_q_start].cmd.ctrl.off_to;
+    case MsgEventQPlayCtrl:
+      off_from = demux_q[demux_q_start].cmd.ctrl.from;
+      off_to = demux_q[demux_q_start].cmd.ctrl.to;
       new_demux_range = 1;
       break;
-    case CMD_FILE:
+    case MsgEventQChangeFile:
       loadinputfile(demux_q[demux_q_start].cmd.file);
       free(demux_q[demux_q_start].cmd.file);
+      break;
+    default:
+      fprintf(stderr, "demux: that's not possible\n");
       break;
     }
     demux_q_start = (demux_q_start+1)%5;
@@ -371,19 +400,23 @@ void get_next_demux_q(void)
   }
 }
 
-void add_to_demux_q(int type, void *cmd)
+void add_to_demux_q(MsgEvent_t *ev)
 {
   int pos;
   
   if(demux_q_len < 5) {
     pos = (demux_q_start + demux_q_len)%5;
-    demux_q[pos].cmd_type = type;
-    switch(type) {
-    case CMD_CTRL:
-      demux_q[pos].cmd.ctrl = *(mq_cmd_ctrl_cmd_t *)cmd;
+    demux_q[pos].cmd_type = ev->type;
+    switch(ev->type) {
+    case MsgEventQPlayCtrl:
+      demux_q[pos].cmd.ctrl = ev->playctrl;
       break;
-    case CMD_FILE:
-      demux_q[pos].cmd.file = strdup((char *)cmd);
+    case MsgEventQChangeFile:
+      demux_q[pos].cmd.file = strdup((char *)ev->changefile.filename);
+      break;
+    default:
+      fprintf(stderr, "demux: not supposed to happen\n");
+      break;
     }
     demux_q_len++;
     
@@ -668,21 +701,30 @@ void push_stream_data(uint8_t stream_id, int len,
     //      stream_id, subtype);
 
     if(msgqid != -1) {
+      int infile;
+      int is_newfile;
+      infile = id_infile(stream_id, subtype);
+      if(infile != new_file) {
+	id_setinfile(stream_id, subtype, new_file);
+	is_newfile = 1;
+      } else {
+	is_newfile = 0;
+      }
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
 	if((subtype >= 0x80) && (subtype < 0x90)) {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
-		   PTS_DTS_flags, PTS, DTS);
+		   PTS_DTS_flags, PTS, DTS, is_newfile);
 	} else if((subtype >= 0x20) && (subtype < 0x40)) {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
-		   PTS_DTS_flags, PTS, DTS);
+		   PTS_DTS_flags, PTS, DTS, is_newfile);
 	} else {
 	  put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		   PTS_DTS_flags, PTS, DTS);
+		   PTS_DTS_flags, PTS, DTS, is_newfile);
 	}
       } else {
 	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
-		 PTS_DTS_flags, PTS, DTS);
+		 PTS_DTS_flags, PTS, DTS, is_newfile);
       }
     } else {
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
@@ -1061,7 +1103,7 @@ void pack()
   uint8_t stream_id;
   uint8_t is_PES = 0;
   int mpeg_version;
-  
+  MsgEvent_t ev;
 
   SCR_flags = 0;
 
@@ -1072,7 +1114,6 @@ void pack()
 	//fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
 	off_to = -1;
 	get_next_demux_q();
-	//wait_for_msg(CMD_CTRL_CMD);
       }
     }
     if(off_from != -1) {
@@ -1083,8 +1124,10 @@ void pack()
       GETBITS(32, "skip1");
       GETBITS(32, "skip2");
     }
-
-    chk_for_msg();
+    
+    while(MsgCheckEvent(msgq, &ev) != -1) {
+      handle_events(&ev);
+    }
   }
   
   mpeg_version = pack_header();
@@ -1109,7 +1152,10 @@ void pack()
 	GETBITS(32, "skip1");
 	GETBITS(32, "skip2");
       }
-      chk_for_msg();
+
+      while(MsgCheckEvent(msgq, &ev) != -1) {
+	handle_events(&ev);
+      }
     }
 
     next_start_code();
@@ -1134,7 +1180,9 @@ void pack()
 	  GETBITS(32, "skip1");
 	  GETBITS(32, "skip2");
 	}
-	chk_for_msg();
+	while(MsgCheckEvent(msgq, &ev) != -1) {
+	  handle_events(&ev);
+	}
       }
 
       next_start_code();
@@ -1202,8 +1250,9 @@ void pack()
 	  GETBITS(32, "skip1");
 	  GETBITS(32, "skip2");
 	}
-	
-	chk_for_msg();
+	while(MsgCheckEvent(msgq, &ev) != -1) {
+	  handle_events(&ev);
+	}
       }
     }
     break;
@@ -1271,13 +1320,6 @@ void loadinputfile(char *infilename)
   static struct stat statbuf;
   int rv;
 
-#if 0
-  struct {
-    uint32_t type;
-    struct load_file_packet body;
-  } lf_pack;
-#endif
-
   if(buf != NULL) {
     munmap(buf, statbuf.st_size);
   }
@@ -1312,6 +1354,7 @@ void loadinputfile(char *infilename)
 #endif
   DPRINTF(1, "All mmap systems ok!\n");
 
+  new_file++;
 }
 
 
@@ -1489,9 +1532,43 @@ int main(int argc, char **argv)
 
 
   if(msgqid != -1) {
+    MsgEvent_t regev;
+    int fileopen = 0;
     init_id_reg();
+    // get a handle
+    if((msgq = MsgOpen(msgqid)) == NULL) {
+      fprintf(stderr, "demux: couldn't get message q\n");
+      exit(-1);
+    }
+    fprintf(stderr, "demux: msgq opened, clientnr: %d\n",
+	    msgq->mtype);
+
+    // register with the resource manager and tell what we can do
+    regev.type = MsgEventQRegister;
+    regev.registercaps.capabilities = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &regev) == -1) {
+      fprintf(stderr, "demux: register\n");
+    }
+    fprintf(stderr, "demux: sent register\n");
+    
     /* wait for load_file command */
-    get_next_demux_q();
+    //get_next_demux_q();
+    
+    while(!fileopen) {
+      MsgNextEvent(msgq, &regev);
+      switch(regev.type) {
+      case MsgEventQChangeFile:
+	loadinputfile(regev.changefile.filename);
+	fileopen = 1;
+	break;
+      default:
+	fprintf(stderr, "demux: msg not wanted %d, from %d\n",
+		regev.type, regev.any.client);
+	break;
+      }
+    }
+    fprintf(stderr, "demux: file open\n");
+    
   } else {
     loadinputfile(argv[optind]);
   }
@@ -1554,11 +1631,46 @@ int create_shm(int size)
 */
 
 
+static void handle_events(MsgEvent_t *ev)
+{
+  
+  switch(ev->type) {
+  case MsgEventQNotify:
+    DPRINTF(1, "demux: got notify\n");
+    break;
+  case MsgEventQChangeFile:
+    DPRINTF(1, "demux: change file: %s\n", ev->changefile.filename);
+    add_to_demux_q(ev);
+    break;
+  case MsgEventQGntStreamBuf:
+    DPRINTF(1, "demux: got stream %x, %x buffer \n",
+	    ev->gntstreambuf.stream_id,
+	    ev->gntstreambuf.subtype);
+    attach_decoder_buffer(ev->gntstreambuf.stream_id,
+			  ev->gntstreambuf.subtype,
+			  ev->gntstreambuf.q_shmid);
+    
+    break;
+  case MsgEventQPlayCtrl:
+    switch(ev->playctrl.cmd) {
+    case PlayCtrlCmdPlayFromTo:
+      add_to_demux_q(ev);
+      break;
+    default:
+      fprintf(stderr, "demux: PlayCtrl cmd not implemented\n");
+      break;
+    }
+    break;
+  default:
+    fprintf(stderr, "demux: unrecognized command\n");
+    break;
+  }
+}
+
 int register_id(uint8_t id, int subtype)
 {
-  /* TODO clean up */
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
+  MsgEvent_t ev;
+  
   data_buf_head_t *data_buf_head;
   int qsize;
   
@@ -1566,43 +1678,53 @@ int register_id(uint8_t id, int subtype)
     
     data_buf_head = (data_buf_head_t *)data_buf_addr;
     
-    cmd = (mq_cmd_t *)&msg.mtext;
-    
     /* send create decoder request msg*/
-    msg.mtype = MTYPE_CTL;
-    cmd->cmdtype = CMD_DEMUX_NEW_STREAM;
-    cmd->cmd.new_stream.stream_id = id;
-    cmd->cmd.new_stream.subtype = subtype; // different private streams
+    ev.type = MsgEventQReqStreamBuf;
+    ev.reqstreambuf.stream_id = id;
+    ev.reqstreambuf.subtype = subtype;
+
+    /* TODO how should we decide buf sizes? */
     switch(id) {
     case MPEG2_PRIVATE_STREAM_1:
-      if((subtype&0x1f) == 0x80) {
-	qsize = 30;
-      } else if((subtype&0x1f) == 0x20) {
-	qsize = 30;
+      if((subtype&~0x1f) == 0x80) {
+	qsize = 100;
+      } else if((subtype&~0x1f) == 0x20) {
+	qsize = 100;
       } else {
-	qsize = 30;
+	qsize = 100;
       }
       break;
     case MPEG2_PRIVATE_STREAM_2:
-      qsize = 10;
+      qsize = 100;
       break;
     default:
       qsize = 300;
       break;
     }
+
+    ev.reqstreambuf.nr_of_elems = qsize;
+    ev.reqstreambuf.data_buf_shmid = data_buf_head->shmid;
       
-    cmd->cmd.new_stream.nr_of_elems = qsize;
-    cmd->cmd.new_stream.data_buf_shmid = data_buf_head->shmid;
-    send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_new_stream_t));
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "demux: couldn't send streambuf request\n");
+    }
     
     /* wait for answer */
     
     while(!id_registered(id, subtype)) {
-      //fprintf(stderr, "waiting for answer\n");
-      wait_for_msg(CMD_DEMUX_STREAM_BUFFER);
+      MsgNextEvent(msgq, &ev);
+      if(ev.type == MsgEventQGntStreamBuf) {
+	DPRINTF(1, "demux: got stream %x, %x buffer \n",
+		ev.gntstreambuf.stream_id,
+		ev.gntstreambuf.subtype);
+	attach_decoder_buffer(ev.gntstreambuf.stream_id,
+			      ev.gntstreambuf.subtype,
+			      ev.gntstreambuf.q_shmid);
+      } else {
+	handle_events(&ev);
+      }
     }
-    //fprintf(stderr, "got answer\n");
-    //TODO maybe not set buffer in wait_for_msg ?
+
   } else {
     /* TODO fix */
     /*
@@ -1621,6 +1743,24 @@ int id_stat(uint8_t id, uint8_t subtype)
     } else {
       return id_reg_ps1[subtype].state;
     }
+}
+
+int id_infile(uint8_t id, uint8_t subtype)
+{
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    return id_reg[id].infile;
+  } else {
+    return id_reg_ps1[subtype].infile;
+  }
+}
+
+void id_setinfile(uint8_t id, uint8_t subtype, int newfile)
+{
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    id_reg[id].infile = newfile;
+  } else {
+    id_reg_ps1[subtype].infile = newfile;
+  }
 }
 
 char *id_qaddr(uint8_t id, uint8_t subtype)
@@ -1663,13 +1803,15 @@ void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid,
       id_reg[stream_id].shmaddr = shmaddr;
       id_reg[stream_id].state = state;
       id_reg[stream_id].file = file;
+      id_reg[stream_id].infile = -1;
       
     } else {
       id_reg_ps1[subtype].shmid = shmid;
       id_reg_ps1[subtype].shmaddr = shmaddr;
       id_reg_ps1[subtype].state = state;
       id_reg_ps1[subtype].file = file;
-      
+      id_reg_ps1[subtype].infile = -1;
+ 
     }
 }
   
@@ -1694,109 +1836,6 @@ int init_id_reg()
 }
 
 
-
-int chk_for_msg(void)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  
-  if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_DEMUX, IPC_NOWAIT) == -1) {
-    if(errno == ENOMSG) {
-      //fprintf(stderr ,"demux: no msg in q\n");
-      return 0;
-    }
-    perror("msgrcv");
-    return -1;
-  } else {
-    fprintf(stderr, "demux: got msg\n");
-    eval_msg(cmd);
-  }
-  
-  return 1;
-}
-
-int wait_for_msg(mq_cmdtype_t cmdtype)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  while(cmd->cmdtype != cmdtype) {
-    if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_DEMUX, 0) == -1) {
-      perror("msgrcv");
-      return -1;
-    } else {
-      //fprintf(stderr, "demux: got msg\n");
-      eval_msg(cmd);
-    }
-  }
-  return 0;
-}
-
-int eval_msg(mq_cmd_t *cmd)
-{
-  
-  switch(cmd->cmdtype) {
-  case CMD_FILE_OPEN:
-    fprintf(stderr, "demux: open file: %s\n", cmd->cmd.file_open.file);
-    add_to_demux_q(CMD_FILE, cmd->cmd.file_open.file);
-    break;
-  case CMD_DEMUX_GNT_BUFFER:
-    fprintf(stderr, "demux: got buffer id %d, size %d\n",
-	    cmd->cmd.gnt_buffer.shmid,
-	    cmd->cmd.gnt_buffer.size);
-    attach_buffer(cmd->cmd.gnt_buffer.shmid,
-		  cmd->cmd.gnt_buffer.size);
-    break;
-  case CMD_DEMUX_STREAM_BUFFER:
-    fprintf(stderr, "demux: got stream %x, %x buffer \n",
-	    cmd->cmd.stream_buffer.stream_id,
-	    cmd->cmd.stream_buffer.subtype);
-    attach_decoder_buffer(cmd->cmd.stream_buffer.stream_id,
-			  cmd->cmd.stream_buffer.subtype,
-			  cmd->cmd.stream_buffer.q_shmid);
-
-    break;
-  case CMD_CTRL_CMD:
-    {
-      static mq_ctrlcmd_t prevcmd = CTRLCMD_PLAY;
-      switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
-      case CTRLCMD_STOP:
-	if(prevcmd != CTRLCMD_STOP) {
-	  wait_for_msg(CMD_ALL);
-	}
-	break;
-      case CTRLCMD_PLAY:
-	break;
-      case CTRLCMD_PLAY_FROM:
-	off_from = cmd->cmd.ctrl_cmd.off_from;
-	off_to = -1;
-	break;
-      case CTRLCMD_PLAY_TO:
-	off_from = -1;
-	off_to = cmd->cmd.ctrl_cmd.off_to;
-	break;
-      case CTRLCMD_PLAY_FROM_TO:
-	add_to_demux_q(CMD_CTRL, &cmd->cmd.ctrl_cmd);
-	break;
-      default:
-	break;
-      }
-    }
-    break;
-  default:
-    fprintf(stderr, "demux: unrecognized command\n");
-    return -1;
-    break;
-  }
-  
-  return 0;
-}
-
-
-  
 int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 {
   char *shmaddr;
@@ -1854,24 +1893,29 @@ int attach_buffer(int shmid, int size)
 
 int get_buffer(int size)
 {
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
+  MsgEvent_t ev;
   
   size+= sizeof(data_buf_head_t)+900*sizeof(data_elem_t);
 
-  msg.mtype = MTYPE_CTL;
-  cmd = (mq_cmd_t *)&msg.mtext;
+  ev.type = MsgEventQReqBuf;
+  ev.reqbuf.size = size;
   
-  cmd->cmdtype = CMD_DEMUX_REQ_BUFFER;
-  cmd->cmd.req_buffer.size = size;
-  
-  if(msgsnd(msgqid, &msg,
-	    sizeof(mq_cmdtype_t)+sizeof(mq_cmd_req_buffer_t),
-	    0) == -1) {
-    perror("msgsnd");
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    fprintf(stderr, "demux: couldn't send buffer request\n");
   }
-
-  wait_for_msg(CMD_DEMUX_GNT_BUFFER);
+  
+  while(ev.type != MsgEventQGntBuf) {
+    MsgNextEvent(msgq, &ev);
+    if(ev.type == MsgEventQGntBuf) {
+      DPRINTF(1, "demux: got buffer id %d, size %d\n",
+	      ev.gntbuf.shmid,
+	      ev.gntbuf.size);
+      return attach_buffer(ev.gntbuf.shmid,
+			   ev.gntbuf.size);
+    } else {
+      handle_events(&ev);
+    }
+  }
   
   return 0;
 }
@@ -1890,7 +1934,7 @@ int send_msg(mq_msg_t *msg, int mtext_size)
 
 
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
-	     uint64_t PTS, uint64_t DTS)
+	     uint64_t PTS, uint64_t DTS, int is_new_file)
 {
   q_head_t *q_head = NULL;
   q_elem_t *q_elem;
@@ -1899,6 +1943,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   int data_elem_nr;
   int elem;
   int n;
+  MsgEvent_t ev;
   int nr_waits = 0;
   
   static int scr_nr = 0;
@@ -1909,11 +1954,13 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
   data_elem_nr = data_buf_head->write_nr;
   
-  /* It's a circular list and it the next packet is still in use we need
+  /* It's a circular list and if the next packet is still in use we need
    * to wait for it to be become available. 
    * We migh also do someting smarter here but provided that we have a
    * large enough buffer this will not be common.
    */
+
+  // TODO clean and simplify
   while(data_elems[data_elem_nr].in_use) {
     nr_waits++;
     /* If this element is in use we have to wait untill it is released.
@@ -1935,10 +1982,23 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     
     q_head = (q_head_t *)data_elems[data_elem_nr].q_addr;
     
+#if 1 /* msgq */
+    q_head->writer_requests_notification = 1;
+
+    while(data_elems[data_elem_nr].in_use) {
+      DPRINTF(1, "demux: waiting for notification\n");
+      MsgNextEvent(msgq, &ev);
+      handle_events(&ev);
+    }
+    //q_head->writer_requests_notification = 0;
+    
+#else
     if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
       perror("demux: put_in_q(), sem_wait()");
       exit(1); // XXX 
     }
+#endif
+
   }
   /* Now the element should be free. 'paranoia check' */
   if(data_elems[data_elem_nr].in_use) {
@@ -1948,13 +2008,14 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   
   /* If decremented earlier, then increment it now to restore the normal 
    * maximum free buffers for the queue. */
+#if 0
   for(n = 0; n < nr_waits; n++) {
     if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
       perror("demux: put_in_q(), sem_post()");
       exit(1); // XXX 
     }
   }
-  
+#endif
   
   
   
@@ -1972,9 +2033,11 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   data_elems[data_elem_nr].off = off;
   data_elems[data_elem_nr].len = len;
   data_elems[data_elem_nr].q_addr = q_addr;
-  data_elems[data_elem_nr].in_use = 1;
-  strcpy(data_elems[data_elem_nr].filename, cur_filename);
-
+  if(is_new_file) {
+    strcpy(data_elems[data_elem_nr].filename, cur_filename);
+  } else {
+    data_elems[data_elem_nr].filename[0] = '\0';
+  }
   if(scr_discontinuity) {
     scr_discontinuity = 0;
     scr_nr = (scr_nr+1)%16;
@@ -1982,6 +2045,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   }
 
   data_elems[data_elem_nr].scr_nr = scr_nr;
+  data_elems[data_elem_nr].in_use = 1;
 
   data_buf_head->write_nr = 
     (data_buf_head->write_nr+1) % data_buf_head->nr_of_dataelems;
@@ -1996,31 +2060,46 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
   elem = q_head->write_nr;
   
+#if 0
   /* Make sure that there is room for it. */
   if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
     perror("demux: put_in_q(), sem_wait()");
     exit(1); // XXX 
   }
-
+#else
+  if(q_elem[elem].in_use) {
+    q_head->writer_requests_notification = 1;
+    
+    while(q_elem[elem].in_use) {
+      DPRINTF(1, "demux: waiting for notification2\n");
+      MsgNextEvent(msgq, &ev);
+      handle_events(&ev);
+    }
+    //    q_head->writer_requests_notification = 0;
+  }
+#endif
+  
   q_elem[elem].data_elem_index = data_elem_nr;
-  /*
-  q_elem[elem].PTS_DTS_flags = PTS_DTS_flags;
-  q_elem[elem].PTS = PTS;
-  q_elem[elem].DTS = DTS;
-  q_elem[elem].SCR_base = SCR_base;
-  q_elem[elem].SCR_ext = SCR_ext;
-  q_elem[elem].SCR_flags = SCR_flags;
-  q_elem[elem].off = off;
-  q_elem[elem].len = len;
-  */
+  q_elem[elem].in_use = 1;
   
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
-  /* Let the consumber know that there is data available for consumption. */
+#if 1
+  if(q_head->reader_requests_notification) {
+    q_head->reader_requests_notification = 0;
+    ev.type = MsgEventQNotify;
+    if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+      fprintf(stderr, "demux: couldn't send notification\n");
+    }
+  }
+
+#else
+  /* Let the consumer know that there is data available for consumption. */
   if(ip_sem_post(&q_head->queue, BUFS_FULL) == -1) {
     perror("demux: put_in_q(), sem_post()");
     exit(1); // XXX 
   }
+#endif
   
   return 0;
 }
