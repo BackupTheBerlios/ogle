@@ -2557,104 +2557,72 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 	/* Load constants, input data, and prescale factors.  Do prescaling. */
 	asm("
 		vspltish        31,0
-		vspltish	16,4
-
 		lvx		24,0,%1
-		vsplth		25,24,0
-		vsplth		26,24,1
-		vsplth		27,24,2
-		vsplth		28,24,3
-		vsplth		29,24,4
-		vsplth		30,24,5
-
-		vsplth		24,24,6
+		vspltish	23,4
 
 		addi		5,0,0
-		addi		6,0,16
+		vsplth		29,24,4
 		lvx		0,%0,5
-		lvx		1,%0,6
-		vsl		0,0,16
-		vsl		1,1,16
+		addi		6,0,16
+		vsplth		28,24,3
+		lvx		0+16,%2,5
 		addi		7,0,32
+		vsplth		27,24,2
+		lvx		1,%0,6
 		addi		8,0,48
+		vsplth		26,24,1
+		lvx		1+16,%2,6
+		addi		5,0,64
+		vsplth		25,24,0
 		lvx		2,%0,7
+		addi		6,0,80
+		vslh		0,0,23
+		lvx		2+16,%2,7
+		addi		7,0,96
+		vslh		1,1,23
 		lvx		3,%0,8
-		vsl		2,2,16
-		vsl		3,3,16
-		addi		9,0,64
-		addi		10,0,80
-		lvx		4,%0,9
-		lvx		5,%0,10
-		vsl		4,4,16
-		vsl		5,5,16
-		addi		11,0,96
-		addi		12,0,112
-		lvx		6,%0,11
-		lvx		7,%0,12
-		vsl		6,6,16
-		vsl		7,7,16
-
-		lvx		0+8,%2,5
-		lvx		1+8,%2,6
-		vmhraddshs	0,0,0+8,31
-		vmhraddshs	1,1,1+8,31
-		lvx		2+8,%2,7
-		lvx		3+8,%2,8
-		vmhraddshs	2,2,2+8,31
-		vmhraddshs	3,3,3+8,31
-		vmhraddshs	4,4,0+8,31
-		vmhraddshs	5,5,3+8,31
-		vmhraddshs	6,6,2+8,31
-		vmhraddshs	7,7,1+8,31
+		vslh		2,2,23
+		lvx		3+16,%2,8
+		addi		8,0,112
+		vslh		3,3,23
+		lvx		4,%0,5
+		vsplth		30,24,5
+		lvx		5,%0,6
+		vsplth		24,24,6
+		lvx		6,%0,7
+		vslh		4,4,23
+		lvx		7,%0,8
+		vslh		5,5,23
+		vmhraddshs	0,0,0+16,31
+		vslh		6,6,23
+		vmhraddshs	4,4,0+16,31
+		vslh		7,7,23
 	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
-	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+	  : "cc", "r5", "r6", "r7", "r8", "memory");
 
-	/* Transpose the matrix. */
 	asm("
-		vmrghh	0+8,0,4
-		vmrglh	1+8,0,4
-		vmrghh	2+8,1,5
-		vmrglh	3+8,1,5
-		vmrghh	4+8,2,6
-		vmrglh	5+8,2,6
-		vmrghh	6+8,3,7
-		vmrglh	7+8,3,7
+		vmhraddshs	1,1,1+16,31
+		vmhraddshs	5,5,3+16,31
+		vmhraddshs	2,2,2+16,31
+		vmhraddshs	6,6,2+16,31
+		vmhraddshs	3,3,3+16,31
+		vmhraddshs	7,7,1+16,31
 
-		vmrghh	0+16,0+8,4+8
-		vmrglh	1+16,0+8,4+8
-		vmrghh	2+16,1+8,5+8
-		vmrglh	3+16,1+8,5+8
-		vmrghh	4+16,2+8,6+8
-		vmrglh	5+16,2+8,6+8
-		vmrghh	6+16,3+8,7+8
-		vmrglh	7+16,3+8,7+8
 
-		vmrghh	0,0+16,4+16
-		vmrglh	1,0+16,4+16
-		vmrghh	2,1+16,5+16
-		vmrglh	3,1+16,5+16
-		vmrghh	4,2+16,6+16
-		vmrglh	5,2+16,6+16
-		vmrghh	6,3+16,7+16
-		vmrglh	7,3+16,7+16
-	");
-
-	/* First stage. */
-	asm("
-		vmhraddshs      19,27,1,31
-		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
-		vmhraddshs      17,28,5,3
+		vmhraddshs      19,27,1,31
+		vmhraddshs      12,26,6,2
 		vmhraddshs      13,30,3,5
+		vmhraddshs      17,28,5,3
+		vsubshs		18,19,7
 	");
 
 	/* Second stage. */
 	asm("
+		vmhraddshs      19,26,2,31
 		vaddshs		15,0,4
 		vsubshs		10,0,4
-		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
-		vmhraddshs      12,26,6,2
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
@@ -2673,21 +2641,21 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 
 	/* Fourth stage. */
 	asm("
-		vaddshs		0,17,11
-		vmhraddshs      1,25,13,15
 		vmhraddshs      2,25,14,10
-		vaddshs		3,12,16
 		vsubshs		4,12,16
+		vmhraddshs      1,25,13,15
+		vaddshs		0,17,11
 		vmhraddshs      5,29,14,10
+		vmrghh  0+8,0,4
+		vaddshs		3,12,16
+		vmrglh  1+8,0,4
 		vmhraddshs      6,29,13,15
+		vmrghh  2+8,1,5
 		vsubshs		7,17,11
 	");
 
 	/* Transpose the matrix again. */
 	asm("
-		vmrghh  0+8,0,4
-		vmrglh  1+8,0,4
-		vmrghh  2+8,1,5
 		vmrglh  3+8,1,5
 		vmrghh  4+8,2,6
 		vmrglh  5+8,2,6
@@ -2703,14 +2671,20 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmrghh  6+16,3+8,7+8
 		vmrglh  7+16,3+8,7+8
 
-		vmrghh  0,0+16,4+16
 		vmrglh  1,0+16,4+16
-		vmrghh  2,1+16,5+16
-		vmrglh  3,1+16,5+16
-		vmrghh  4,2+16,6+16
-		vmrglh  5,2+16,6+16
-		vmrghh  6,3+16,7+16
 		vmrglh  7,3+16,7+16
+		vmrglh  3,1+16,5+16
+		vmrghh  2,1+16,5+16
+		vmhraddshs      11,27,7,1
+		vmrghh  6,3+16,7+16
+		vmhraddshs      19,27,1,31
+		vmrglh  5,2+16,6+16
+		vmhraddshs      12,26,6,2
+		vmrghh  0,0+16,4+16
+		vmhraddshs      13,30,3,5
+		vmrghh  4,2+16,6+16
+		vmhraddshs      17,28,5,3
+		vsubshs		18,19,7
 	");
 
 	/* Add a rounding bias for the final shift.  v0 is added into every
@@ -2719,22 +2693,12 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vaddshs	0,0,24
 	");
 
-	/* First stage. */
-	asm("
-		vmhraddshs      19,27,1,31
-		vsubshs		18,19,7
-		vmhraddshs      11,27,7,1
-		vmhraddshs      17,28,5,3
-		vmhraddshs      13,30,3,5
-	");
-
 	/* Second stage. */
 	asm("
+		vmhraddshs      19,26,2,31
 		vaddshs		15,0,4
 		vsubshs		10,0,4
-		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
-		vmhraddshs      12,26,6,2
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
@@ -2753,22 +2717,21 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 
 	/* Fourth stage. */
 	asm("
-		vaddshs		0,17,11
-		vmhraddshs	1,25,13,15
 		vmhraddshs	2,25,14,10
-		vaddshs		3,12,16
 		vsubshs		4,12,16
+		vmhraddshs	1,25,13,15
+		vaddshs		0,17,11
 		vmhraddshs	5,29,14,10
+		vaddshs		3,12,16
+		vspltish	23,6
 		vmhraddshs	6,29,13,15
 		vsubshs		7,17,11
 	");
 
-	/* Load final scale factor and permutations for loading the reference
-	   data we're adding to. */
+	/* Load and permutations for the reference data we're adding to. */
 	asm("
-		vspltish	16,6
-		vspltisb	19,-1
 		lvsl		17,%0,%1
+		vspltisb	19,-1
 		lvsl		18,%0,%2
 		vmrghb		17,19,17
 		vmrghb		18,19,18
@@ -2776,76 +2739,76 @@ void mlib_VideoIDCTAdd_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 
 	/* Copy out each 8 values, adding to the existing frame. */
 	asm("
+		vsrah		0,0,23
 		lvx		0+8,%0,%1
+		vsrah		1,1,23
 		lvx		1+8,%0,%3
 		vperm		0+8,0+8,31,17
 		vperm		1+8,1+8,31,18
-		vsrah		0,0,16
-		vsrah		1,1,16
 		vaddshs		0,0,0+8
 		vaddshs		1,1,1+8
 		vmaxsh		0,0,31
 		vmaxsh		1,1,31
 		vpkuhus		0,0,0
-		vpkuhus		1,1,1
 		stvewx		0,%0,%1
+		vpkuhus		1,1,1
 		stvewx		0,%0,%2
 		stvewx		1,%0,%3
 		stvewx		1,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
+		vsrah		2,2,23
 		lvx		2+8,%0,%1
+		vsrah		3,3,23
 		lvx		3+8,%0,%3
 		vperm		2+8,2+8,31,17
 		vperm		3+8,3+8,31,18
-		vsrah		2,2,16
-		vsrah		3,3,16
 		vaddshs		2,2,2+8
 		vaddshs		3,3,3+8
 		vmaxsh		2,2,31
 		vmaxsh		3,3,31
 		vpkuhus		2,2,2
-		vpkuhus		3,3,3
 		stvewx		2,%0,%1
+		vpkuhus		3,3,3
 		stvewx		2,%0,%2
 		stvewx		3,%0,%3
 		stvewx		3,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
+		vsrah		4,4,23
 		lvx		4+8,%0,%1
+		vsrah		5,5,23
 		lvx		5+8,%0,%3
 		vperm		4+8,4+8,31,17
 		vperm		5+8,5+8,31,18
-		vsrah		4,4,16
-		vsrah		5,5,16
 		vaddshs		4,4,4+8
 		vaddshs		5,5,5+8
 		vmaxsh		4,4,31
 		vmaxsh		5,5,31
 		vpkuhus		4,4,4
-		vpkuhus		5,5,5
 		stvewx		4,%0,%1
+		vpkuhus		5,5,5
 		stvewx		4,%0,%2
 		stvewx		5,%0,%3
 		stvewx		5,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
+		vsrah		6,6,23
 		lvx		6+8,%0,%1
+		vsrah		7,7,23
 		lvx		7+8,%0,%3
 		vperm		6+8,6+8,31,17
 		vperm		7+8,7+8,31,18
-		vsrah		6,6,16
-		vsrah		7,7,16
 		vaddshs		6,6,6+8
 		vaddshs		7,7,7+8
 		vmaxsh		6,6,31
 		vmaxsh		7,7,31
 		vpkuhus		6,6,6
-		vpkuhus		7,7,7
 		stvewx		6,%0,%1
+		vpkuhus		7,7,7
 		stvewx		6,%0,%2
 		stvewx		7,%0,%3
 		stvewx		7,%0,%4
@@ -2859,104 +2822,71 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 	/* Load constants, input data, and prescale factors.  Do prescaling. */
 	asm("
 		vspltish        31,0
-		vspltish	16,4
-
 		lvx		24,0,%1
-		vsplth		25,24,0
-		vsplth		26,24,1
-		vsplth		27,24,2
-		vsplth		28,24,3
-		vsplth		29,24,4
-		vsplth		30,24,5
-
-		vsplth		24,24,6
+		vspltish	23,4
 
 		addi		5,0,0
-		addi		6,0,16
+		vsplth		29,24,4
 		lvx		0,%0,5
-		lvx		1,%0,6
-		vsl		0,0,16
-		vsl		1,1,16
+		addi		6,0,16
+		vsplth		28,24,3
+		lvx		0+16,%2,5
 		addi		7,0,32
+		vsplth		27,24,2
+		lvx		1,%0,6
 		addi		8,0,48
+		vsplth		26,24,1
+		lvx		1+16,%2,6
+		addi		5,0,64
+		vsplth		25,24,0
 		lvx		2,%0,7
+		addi		6,0,80
+		vslh		0,0,23
+		lvx		2+16,%2,7
+		addi		7,0,96
+		vslh		1,1,23
 		lvx		3,%0,8
-		vsl		2,2,16
-		vsl		3,3,16
-		addi		9,0,64
-		addi		10,0,80
-		lvx		4,%0,9
-		lvx		5,%0,10
-		vsl		4,4,16
-		vsl		5,5,16
-		addi		11,0,96
-		addi		12,0,112
-		lvx		6,%0,11
-		lvx		7,%0,12
-		vsl		6,6,16
-		vsl		7,7,16
-
-		lvx		0+8,%2,5
-		lvx		1+8,%2,6
-		vmhraddshs	0,0,0+8,31
-		vmhraddshs	1,1,1+8,31
-		lvx		2+8,%2,7
-		lvx		3+8,%2,8
-		vmhraddshs	2,2,2+8,31
-		vmhraddshs	3,3,3+8,31
-		vmhraddshs	4,4,0+8,31
-		vmhraddshs	5,5,3+8,31
-		vmhraddshs	6,6,2+8,31
-		vmhraddshs	7,7,1+8,31
+		vslh		2,2,23
+		lvx		3+16,%2,8
+		addi		8,0,112
+		vslh		3,3,23
+		lvx		4,%0,5
+		vsplth		30,24,5
+		lvx		5,%0,6
+		vsplth		24,24,6
+		lvx		6,%0,7
+		vslh		4,4,23
+		lvx		7,%0,8
+		vslh		5,5,23
+		vmhraddshs	0,0,0+16,31
+		vslh		6,6,23
+		vmhraddshs	4,4,0+16,31
+		vslh		7,7,23
 	" : : "b" (input), "b" (SpecialConstants), "b" (PreScale)
-	  : "cc", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "memory");
+	  : "cc", "r5", "r6", "r7", "r8", "memory");
 
-	/* Transpose the matrix. */
 	asm("
-		vmrghh	0+8,0,4
-		vmrglh	1+8,0,4
-		vmrghh	2+8,1,5
-		vmrglh	3+8,1,5
-		vmrghh	4+8,2,6
-		vmrglh	5+8,2,6
-		vmrghh	6+8,3,7
-		vmrglh	7+8,3,7
+		vmhraddshs	1,1,1+16,31
+		vmhraddshs	5,5,3+16,31
+		vmhraddshs	2,2,2+16,31
+		vmhraddshs	6,6,2+16,31
+		vmhraddshs	3,3,3+16,31
+		vmhraddshs	7,7,1+16,31
 
-		vmrghh	0+16,0+8,4+8
-		vmrglh	1+16,0+8,4+8
-		vmrghh	2+16,1+8,5+8
-		vmrglh	3+16,1+8,5+8
-		vmrghh	4+16,2+8,6+8
-		vmrglh	5+16,2+8,6+8
-		vmrghh	6+16,3+8,7+8
-		vmrglh	7+16,3+8,7+8
-
-		vmrghh	0,0+16,4+16
-		vmrglh	1,0+16,4+16
-		vmrghh	2,1+16,5+16
-		vmrglh	3,1+16,5+16
-		vmrghh	4,2+16,6+16
-		vmrglh	5,2+16,6+16
-		vmrghh	6,3+16,7+16
-		vmrglh	7,3+16,7+16
-	");
-
-	/* First stage. */
-	asm("
-		vmhraddshs      19,27,1,31
-		vsubshs		18,19,7
 		vmhraddshs      11,27,7,1
-		vmhraddshs      17,28,5,3
+		vmhraddshs      19,27,1,31
+		vmhraddshs      12,26,6,2
 		vmhraddshs      13,30,3,5
+		vmhraddshs      17,28,5,3
+		vsubshs		18,19,7
 	");
 
 	/* Second stage. */
 	asm("
+		vmhraddshs      19,26,2,31
 		vaddshs		15,0,4
 		vsubshs		10,0,4
-		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
-		vmhraddshs      12,26,6,2
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
@@ -2975,21 +2905,21 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 
 	/* Fourth stage. */
 	asm("
-		vaddshs		0,17,11
-		vmhraddshs      1,25,13,15
 		vmhraddshs      2,25,14,10
-		vaddshs		3,12,16
 		vsubshs		4,12,16
+		vmhraddshs      1,25,13,15
+		vaddshs		0,17,11
 		vmhraddshs      5,29,14,10
+		vmrghh  0+8,0,4
+		vaddshs		3,12,16
+		vmrglh  1+8,0,4
 		vmhraddshs      6,29,13,15
+		vmrghh  2+8,1,5
 		vsubshs		7,17,11
 	");
 
 	/* Transpose the matrix again. */
 	asm("
-		vmrghh  0+8,0,4
-		vmrglh  1+8,0,4
-		vmrghh  2+8,1,5
 		vmrglh  3+8,1,5
 		vmrghh  4+8,2,6
 		vmrglh  5+8,2,6
@@ -3005,14 +2935,20 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vmrghh  6+16,3+8,7+8
 		vmrglh  7+16,3+8,7+8
 
-		vmrghh  0,0+16,4+16
 		vmrglh  1,0+16,4+16
-		vmrghh  2,1+16,5+16
-		vmrglh  3,1+16,5+16
-		vmrghh  4,2+16,6+16
-		vmrglh  5,2+16,6+16
-		vmrghh  6,3+16,7+16
 		vmrglh  7,3+16,7+16
+		vmrglh  3,1+16,5+16
+		vmrghh  2,1+16,5+16
+		vmhraddshs      11,27,7,1
+		vmrghh  6,3+16,7+16
+		vmhraddshs      19,27,1,31
+		vmrglh  5,2+16,6+16
+		vmhraddshs      12,26,6,2
+		vmrghh  0,0+16,4+16
+		vmhraddshs      13,30,3,5
+		vmrghh  4,2+16,6+16
+		vmhraddshs      17,28,5,3
+		vsubshs		18,19,7
 	");
 
 	/* Add a rounding bias for the final shift.  v0 is added into every
@@ -3021,22 +2957,12 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 		vaddshs	0,0,24
 	");
 
-	/* First stage. */
-	asm("
-		vmhraddshs      19,27,1,31
-		vsubshs		18,19,7
-		vmhraddshs      11,27,7,1
-		vmhraddshs      17,28,5,3
-		vmhraddshs      13,30,3,5
-	");
-
 	/* Second stage. */
 	asm("
+		vmhraddshs      19,26,2,31
 		vaddshs		15,0,4
 		vsubshs		10,0,4
-		vmhraddshs      19,26,2,31
 		vsubshs		14,19,6
-		vmhraddshs      12,26,6,2
 		vaddshs		16,18,13
 		vsubshs		13,18,13
 		vsubshs		18,11,17
@@ -3055,69 +2981,65 @@ void mlib_VideoIDCT8x8_U8_S16(uint8_t *output, int16_t *input, int32_t stride)
 
 	/* Fourth stage. */
 	asm("
-		vaddshs		0,17,11
-		vmhraddshs	1,25,13,15
 		vmhraddshs	2,25,14,10
-		vaddshs		3,12,16
 		vsubshs		4,12,16
+		vmhraddshs	1,25,13,15
+		vaddshs		0,17,11
 		vmhraddshs	5,29,14,10
+		vaddshs		3,12,16
+		vspltish	23,6
 		vmhraddshs	6,29,13,15
 		vsubshs		7,17,11
 	");
 
-	/* Load final scale factor. */
-	asm("
-		vspltish	16,6
-	");
-
 	/* Copy out each 8 values. */
 	asm("
-		vsrah		0,0,16
-		vsrah		1,1,16
 		vmaxsh		0,0,31
 		vmaxsh		1,1,31
+		vsrah		0,0,23
+		vsrah		1,1,23
 		vpkuhus		0,0,0
-		vpkuhus		1,1,1
+		vmaxsh		2,2,31
 		stvewx		0,%0,%1
+		vpkuhus		1,1,1
+		vmaxsh		3,3,31
 		stvewx		0,%0,%2
 		stvewx		1,%0,%3
 		stvewx		1,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
-		vsrah		2,2,16
-		vsrah		3,3,16
-		vmaxsh		2,2,31
-		vmaxsh		3,3,31
+		vsrah		2,2,23
+		vsrah		3,3,23
 		vpkuhus		2,2,2
-		vpkuhus		3,3,3
+		vmaxsh		4,4,31
 		stvewx		2,%0,%1
+		vpkuhus		3,3,3
+		vmaxsh		5,5,31
 		stvewx		2,%0,%2
 		stvewx		3,%0,%3
 		stvewx		3,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
-		vsrah		4,4,16
-		vsrah		5,5,16
-		vmaxsh		4,4,31
-		vmaxsh		5,5,31
+		vsrah		4,4,23
+		vsrah		5,5,23
 		vpkuhus		4,4,4
-		vpkuhus		5,5,5
+		vmaxsh		6,6,31
 		stvewx		4,%0,%1
+		vpkuhus		5,5,5
+		vmaxsh		7,7,31
 		stvewx		4,%0,%2
 		stvewx		5,%0,%3
 		stvewx		5,%0,%4
 	" : : "b" (output), "b" (0), "b" (4), "b" (0+stride), "b" (4+stride));
 	output += stride<<1;
 	asm("
-		vsrah		6,6,16
-		vsrah		7,7,16
-		vmaxsh		6,6,31
-		vmaxsh		7,7,31
+		vsrah		6,6,23
+		vsrah		7,7,23
 		vpkuhus		6,6,6
-		vpkuhus		7,7,7
 		stvewx		6,%0,%1
+		vpkuhus		7,7,7
 		stvewx		6,%0,%2
 		stvewx		7,%0,%3
 		stvewx		7,%0,%4
