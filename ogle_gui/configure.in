@@ -19,7 +19,7 @@ fi
 AC_MSG_CHECKING(for ogle helper dir)
 if test ! -x ${ogle_pkglibdir}/ogle_ctrl; then
   AC_MSG_RESULT(no)
-  AC_MSG_ERROR(You must install ogle and ogle_gui in the same prefix)
+  AC_MSG_ERROR([* You must install ogle and ogle_gui in the same prefix])
 fi
 AC_MSG_RESULT(yes)
 
@@ -65,7 +65,7 @@ dvd_path=""
 AC_ARG_WITH(dvdcontrol, 
   [  --with-dvdcontrol=DIR   Specify the install prefix to libdvdcontrol ], 
   if test x$withval = xno; then
-    AC_MSG_ERROR([You must have/use libdvdcontrol])
+    AC_MSG_ERROR([* You must use libdvdcontrol, it's a part of Ogle])
   fi
   if test x$withval != xyes; then
     dvd_path=$withval
@@ -83,7 +83,10 @@ AC_CHECK_LIB(dvdcontrol, DVDRequestInput,
   [ DVDLIBS="-L$dvd_path/lib/ogle -rpath $dvd_path/lib/ogle -ldvdcontrol" 
     DVD_INCLUDEDIR=-I$dvd_path/include
   ],
-  [ AC_MSG_ERROR([Need libdvdcontrol, install it and/or specify it's location])
+  [ AC_MSG_ERROR([
+* Need "libdvdcontrol.so", it's part of Ogle(-devel).
+* Install it and/or specify the location for it using --with-dvdcontrol=DIR.
+* For example ... --with-dvdcontrol=/usr/local ] )
   ],
   -L$dvd_path/lib/ogle -lmsgevents)
 
@@ -93,7 +96,11 @@ AC_ARG_WITH(dvd-includes,
 saved_CPPFLAGS=$CPPFLAGS
 CPPFLAGS="$CPPFLAGS $DVD_INCLUDEDIR"
 AC_CHECK_HEADER(ogle/dvd.h, ,
-  AC_MSG_ERROR([Need ogle/dvd.h, install Ogle(-dev) or specify it's location])
+  [ AC_MSG_ERROR([
+* Need "ogle/dvd.h", it's part of Ogle(-devel).
+* Install it and/or specify the location for it using --with-dvd-includes=DIR. 
+* For example ... --with-dvd-includes=/usr/local/include ] )
+  ]
 )
 CPPFLAGS=$saved_CPPFLAGS
 
@@ -111,7 +118,6 @@ case "$host_os" in
 		AC_DEFINE(LINUX, 1, [This is a Linux system])
 		;;
 	*)
-		epa
 		;;
 esac
 
