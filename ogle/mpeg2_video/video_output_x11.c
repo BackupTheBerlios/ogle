@@ -105,7 +105,6 @@ static int fb_fd;
 
 extern int XShmGetEventBase(Display *dpy);
 static int CompletionType;
-static int xshmeventbase;
 
 typedef struct {
   int x0;
@@ -167,8 +166,11 @@ static int scalemode = MLIB_BILINEAR;
 static int use_xshm = 1;
 static int use_xv = 1;
 
-
+#ifdef SOCKIPC
+#warning "todo"
+#else
 extern int msgqid;
+#endif
 extern yuv_image_t *image_bufs;
 
 extern void display_process_exit(void);
@@ -301,7 +303,7 @@ static void display_init_xv(int picture_buffer_shmid,
 #ifdef HAVE_XV
   int i, j;
   int result;
-
+  int n;
   xv_port = 0; /* We have no port yet. */
   
   /* Check for the Xvideo extension */
@@ -351,7 +353,10 @@ static void display_init_xv(int picture_buffer_shmid,
       
     NOTE("Xv adaptor \"%s\" port %li image format %i\n",
 	 xv_adaptor_info[i].name, xv_port, xv_id);
-      
+
+    DNOTE("Xv createimage %dx%d\n", padded_width, padded_height);
+
+    DNOTE("XvShmCreateImage: %ld\n", NextRequest(mydisplay));
     /* Allocate XvImages */
     xv_image = XvShmCreateImage(mydisplay, xv_port, xv_id, NULL,
 				padded_width,
@@ -362,7 +367,7 @@ static void display_init_xv(int picture_buffer_shmid,
     if(xv_image == NULL)
       continue;
     
-    /* Test and see if we really got padded_width x padded_height */
+  /* Test and see if we really got padded_width x padded_height */
     if(xv_image->width != padded_width ||
        xv_image->height != padded_height) {
       FATAL("XvShmCreateImage got size: %d x %d\n",
@@ -372,7 +377,7 @@ static void display_init_xv(int picture_buffer_shmid,
     
     shm_info.shmid = picture_buffer_shmid;
     shm_info.shmaddr = picture_buffer_addr;
-    
+
     /* Set the data pointer to the decoders picture segment. */  
     //    xv_image->data = picture_data->y;
     shm_info.readOnly = True;
@@ -387,7 +392,9 @@ static void display_init_xv(int picture_buffer_shmid,
     req_serial = NextRequest(mydisplay);
     
     /* try to attach */
-    XShmAttach(mydisplay, &shm_info);
+    if(!XShmAttach(mydisplay, &shm_info)) {
+      ERROR("xshmattach failed\n");
+    }
     
     /* make sure xshmattach has been processed and any errors
        have been returned to us */
@@ -426,6 +433,14 @@ static void display_init_xv(int picture_buffer_shmid,
 static void display_init_xshm()
 {
   
+  if(!XShmQueryExtension(mydisplay)) {    
+    if(use_xshm) {
+      WARNING("XShm extension not available on %s\n",
+	      DisplayString(mydisplay));
+    }
+    use_xshm = 0;
+  }
+
   /* Create shared memory image */
   window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				  ZPixmap, NULL, &shm_info,
@@ -475,25 +490,27 @@ static void display_init_xshm()
   /* make sure we don't have any unhandled errors */
   XSync(mydisplay, False);
 
-  
-  /* set error handler so we can check if xshmattach failed */
-  prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
-  
-  /* get the serial of the xshmattach request */
-  req_serial = NextRequest(mydisplay);
+  if(use_xshm) {
+    
+    /* set error handler so we can check if xshmattach failed */
+    prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+    
+    /* get the serial of the xshmattach request */
+    req_serial = NextRequest(mydisplay);
+    
+    /* try to attach */
+    XShmAttach(mydisplay, &shm_info);
+    
+    /* make sure xshmattach has been processed and any errors
+       have been returned to us */
+    XSync(mydisplay, False);
+    
+    /* revert to the previous xerrorhandler */
+    XSetErrorHandler(prev_xerrhandler);
+    
+    CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
+  }
 
-  /* try to attach */
-  XShmAttach(mydisplay, &shm_info);
-
-  /* make sure xshmattach has been processed and any errors
-     have been returned to us */
-  XSync(mydisplay, False);
-  
-  /* revert to the previous xerrorhandler */
-  XSetErrorHandler(prev_xerrhandler);
-  
-  CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
-  
   pixel_stride = window.ximage->bits_per_pixel;
 
   // If we have blue in the lowest bit then obviously RGB 
@@ -917,12 +934,6 @@ void display_init(int padded_width, int padded_height,
     /* Create the colormaps. (needed in the PutImage calls) */   
     mygc = XCreateGC(mydisplay, window.win, 0L, &xgcv);
     
-    
-    
-    
-    xshmeventbase = XShmGetEventBase(mydisplay);  
-    //DNOTE("xshmeventbase: %d\n", xshmeventbase);
-    
   }
   
   /* Try to use XFree86 Xv (X video) extension for display.
@@ -1002,7 +1013,6 @@ static void display_change_size(yuv_image_t *img, int new_width,
   
   
   if(!use_xv) {
-    
     XSync(mydisplay,True);
     
     /* Destroy old display */
@@ -1914,10 +1924,18 @@ static void draw_win_x11(window_info *dwin)
 	
     
 #ifdef SPU
+#ifdef SOCKIPC
+#warning "todo"
+#else
     if(msgqid != -1) {
+#endif
       mix_subpicture_rgb((char *)&rgb_fb[fb_area.y*2048+fb_area.x],
 			 2048, fb_area.height); 
+#ifdef SOCKIPC
+#warning "todo"
+#else
     }
+#endif
 #endif
     }
     return;
@@ -1935,11 +1953,19 @@ static void draw_win_x11(window_info *dwin)
 	  dwin->image->info->picture.padded_width/2);
   
 #ifdef SPU
+#ifdef SOCKIPC
+#warning "todo"
+#else
   if(msgqid != -1) {
+#endif
     mix_subpicture_rgb(address,
 		       dwin->image->info->picture.padded_width,
 		       dwin->image->info->picture.padded_height); 
+#ifdef SOCKIPC
+#warning "todo"
+#else
   }
+#endif
 #endif
   
   if(screenshot_spu) {
@@ -2101,16 +2127,23 @@ static void draw_win_xv(window_info *dwin)
   }
 
 #ifdef SPU
+#ifdef SOCKIPC
+#warning "todo"
+#else
   if(msgqid != -1) {
+#endif
     //ugly hack
     if(mix_subpicture_yuv(draw_image, cur_data_q->reserv_image)) {
       draw_image = cur_data_q->reserv_image;
     }
+#ifdef SOCKIPC
+#warning "todo"
+#else
   }
+#endif
 #endif
 
   xv_image->data = draw_image->y;
-
   if(screenshot_spu) {
     screenshot_spu = 0;
     
