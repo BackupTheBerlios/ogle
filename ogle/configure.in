@@ -15,6 +15,7 @@ AM_PROG_LIBTOOL
 dnl Checks for libraries.
 
 dnl Checks for header files.
+dnl (!! Do remove this !!)
 GLIB_CFLAGS=`glib-config --cflags`
 AC_SUBST(GLIB_CFLAGS)
 
@@ -57,33 +58,60 @@ AC_CHECK_LIB(jpeg, main,
              $X_LIBS -lX11 $X_EXTRA_LIBS)
 AC_SUBST(XEXT_LIB)
 
-AC_CHECK_LIB(rt, nanosleep,, AC_MSG_ERROR(You need nanosleep))
+dnl nanosleep is in librt on Solaris
+AC_CHECK_FUNC(nanosleep, , 
+  AC_CHECK_LIB(rt, nanosleep, , 
+    AC_MSG_ERROR(You need nanosleep)
+  )
+)
 
-dnl clock_gettime is in librt on Solaris so this need to be after that test
-AC_CHECK_FUNCS(clock_gettime madvise)
+dnl clock_gettime is in librt on Solaris
+AC_CHECK_FUNC(clock_gettime, , 
+  AC_CHECK_LIB(rt, clock_gettime, , 
+    AC_MSG_ERROR(You need clock_gettime)
+  )
+)
+
+dnl Should this also have some fallback library
+AC_CHECK_FUNCS(madvise)
 
 
-AC_ARG_WITH(libdvdread, 
-  [  --with-libdvdread=path  specify where libdvdread is installed],
+
+dvd_path=""
+AC_ARG_WITH(dvdread, 
+  [  --with-dvdread=path     specify the install prefix to libdvdread ], 
   if test x$withval = xno; then
     AC_MSG_ERROR([You must have/use libdvdread])
   fi
   if test x$withval != xyes; then
-    AC_CHECK_LIB(dvdread, DVDOpen, 
-		 [ DVDREAD_LIBS="-L$withval/lib -rpath $withval/lib -ldvdread"
-                   DVDREAD_CFLAGS=-I$withval/include
-                 ],, -L$withval/lib)
+    dvd_path=$withval
   fi)
-if test -z "$DVDREAD_LIBS" ; then
-  AC_CHECK_LIB(dvdread, DVDOpen, DVDREAD_LIBS=-ldvdread)
+if test -z "$dvd_path"; then
+  dnl We have nothing better to go on, guess that it's installed in prefix
+  if test "x$prefix" != xNONE; then
+    dvd_path=$prefix
+  else
+    dvd_path=$ac_default_prefix
+  fi  
 fi
-if test -z "$DVDREAD_LIBS" ; then
- AC_MSG_ERROR([You need libdvdread])
+AC_CHECK_LIB(dvdread, DVDOpen, 
+  [ DVDREAD_LIBS="-L$dvd_path/lib -rpath $dvd_path/lib -ldvdread" 
+    DVDREAD_CFLAGS=-I$dvd_path/include
+  ],, -L$dvd_path/lib)
+if test -z "$DVDREAD_LIBS"; then
+  AC_MSG_ERROR([Need libdvdread, install it and/or specify it's location])
 fi
+
+AC_ARG_WITH(dvdread-includes, 
+  [  --with-dvdread-includes=path specify location of libdvdread headers ], 
+  DVDREAD_CFLAGS=-I$with_dvd_includes)
+
 dnl Linux needs this to prototype lseek64 and others
 DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
 AC_SUBST(DVDREAD_CFLAGS)
 AC_SUBST(DVDREAD_LIBS)
+
+
 
 dnl Sun MediaLib
 have_mlib=no
@@ -107,7 +135,9 @@ if test x$have_mlib = xyes; then
   AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
 fi
 
-CFLAGS="$CFLAGS -Wall"
+if test x"$GCC" = x"yes"; then
+  CFLAGS="$CFLAGS -Wall"
+fi
 
 dnl Architecture specific stuff
 USE_MMX=
@@ -119,7 +149,9 @@ i?86)
 	i686)
 		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
 		USE_MMX=yes
-		CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops -malign-double"
+		if test x"$GCC" = x"yes"; then
+		  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops -malign-double"
+		fi
 		;;
 	*)
 		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
@@ -129,11 +161,14 @@ i?86)
 	CFLAGS="$CFLAGS -march=$host_cpu"
 	;;
 sparc)
-	CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
+	if test x"$GCC" = x"yes"; then
+	  CFLAGS="$CFLAGS -mcpu=ultrasparc -mvis"
+	fi
 esac
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
+dnl Yes this is ugly, but since I'm a developer I can do this... 
 INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include -I/usr/pd/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
