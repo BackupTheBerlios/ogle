@@ -22,6 +22,7 @@
 #include <inttypes.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #include <ogle/msgevents.h>
 #include <ogle/dvdevents.h>

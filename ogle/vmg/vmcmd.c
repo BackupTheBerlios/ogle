@@ -22,6 +22,18 @@
 
 #include "vmcmd.h"
 
+
+// freebsd compatibility
+#ifndef PRIu8
+#define PRIu8 "d"
+#endif
+
+// freebsd compatibility
+#ifndef PRIu16
+#define PRIu16 "d"
+#endif
+
+
 typedef struct
 {
   uint8_t bits[8];
