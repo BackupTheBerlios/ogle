@@ -1013,12 +1013,14 @@ static link_t process_command(link_t link_values)
       link_values = play_PGC();
       break;
     case JumpSS_VTSM:
-      if(link_values.data1 !=0) {
-	assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
+      if(link_values.data1 != 0 && link_values.data1 != state.vtsN) {
+	assert(state.domain == VMGM_DOMAIN || 
+	       state.domain == FP_DOMAIN); //??
 	state.domain = VTSM_DOMAIN;
 	ifoOpenNewVTSI(dvd, link_values.data1);  // Also sets state.vtsN
       } else {
-	// This happens on 'The Fifth Element' region 2.
+	// 'The Fifth Element' region 2 has data1 == 0.
+	// "Captain Scarlet & the Mysterons" has data1 == state.vtsN
 	assert(state.domain == VTSM_DOMAIN);
       }
       // I don't know what title is supposed to be used for.
