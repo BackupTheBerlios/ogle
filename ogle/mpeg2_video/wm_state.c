@@ -222,7 +222,6 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   XWindowChanges win_changes;
   int x, y;
   XSizeHints *sizehints;
-  
   // We don't want to have to replace the window manually when remapping it
   sizehints = XAllocSizeHints();
   sizehints->flags = USPosition;
@@ -259,13 +258,18 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   
 
-  // Try to resize, place the window at 0,0 and on top
-  win_changes.x = 0;
-  win_changes.y = 0;
+  // Try to resize, place the window at correct place and on top
+
+  DpyInfoGetScreenOffset(dpy, XScreenNumberOfScreen(attrs.screen),
+			 &win_changes.x, &win_changes.y);
+
   XGetWindowAttributes(dpy, win, &attrs);
+
   DpyInfoGetResolution(dpy, XScreenNumberOfScreen(attrs.screen),
 		       &win_changes.width, &win_changes.height);
+
   win_changes.stack_mode = Above;
+
   XReconfigureWMWindow(dpy, win, 0, CWX | CWY |
 		       CWWidth | CWHeight |
 		       CWStackMode,
@@ -350,16 +354,17 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 
   
   // ugly hack, but what can you do when the wm's not removing decorations
-  //  if we don't end up at 0,0 try to compensate and move one more time
- 
-  if(x != 0 || y != 0) {
-    DNOTE("window is not at 0,0 trying to fix that\n");
+  //  if we don't end up at (win_changes.x, win_changes.y)
+  //  try to compensate and move one more time
+  if(x != win_changes.x || y != win_changes.x) {
+    XWindowChanges win_compensate;
+    DNOTE("window is not at screen start trying to fix that\n");
     
-    win_changes.x = 0-x;
-    win_changes.y = 0-y;
+    win_compensate.x = win_changes.x-x;
+    win_compensate.y = win_changes.y-y;
     
     XReconfigureWMWindow(dpy, win, 0, CWX | CWY,
-			 &win_changes);
+			 &win_compensate);
     
     do {
       XNextEvent(dpy, &ev);
@@ -374,10 +379,10 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
       calc_coords(dpy, win, &x, &y, &ev);
     }
     
-    if(x != 0 || y != 0) {
-      DNOTE("Couldn't place window at 0,0\n");
+    if(x != win_changes.x || y != win_changes.y) {
+      DNOTE("Couldn't place window at %d,%d\n", win_changes.x, win_changes.y);
     } else {
-      //DNOTE("Fixed, window is now at 0,0\n");
+      //DNOTE("Fixed, window is now at %d,%d\n", win_changes.x, win_changes.y);
     }
 
   }

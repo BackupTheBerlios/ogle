@@ -4,6 +4,11 @@
 #include <X11/extensions/xf86vmode.h>
 #endif
 
+#ifdef HAVE_XINERAMA
+#include <X11/extensions/Xinerama.h>
+#endif
+
+
 #include "display.h"
 
 
@@ -22,7 +27,13 @@ typedef struct {
   resolution_t disp_res;
 } fullscreen_resolution_t;
 
+typedef struct {
+  int x;
+  int y;
+} position_t;
+
 typedef struct _dpy_info_t{
+  position_t screen_offset;
   resolution_t resolution;
   geometry_t geometry;
   resolution_t user_resolution;
@@ -38,6 +49,16 @@ typedef struct _dpy_info_t{
 } dpy_info_t;
 
 dpy_info_t dpyinfo;
+
+
+int DpyInfoGetScreenOffset(Display *dpy, int screen_nr,
+			   int *x, int *y)
+{
+  *x = dpyinfo.screen_offset.x;
+  *y = dpyinfo.screen_offset.y;
+
+  return 1;
+}
 
 
 int DpyInfoGetResolution(Display *dpy, int screen_nr,
@@ -166,7 +187,58 @@ static int update_resolution_xf86vidmode(dpy_info_t *info, Display *dpy,
 #endif
 
 
-int DpyInfoUpdateResolution(Display *dpy, int screen_nr)
+#ifdef HAVE_XINERAMA
+    
+static int update_resolution_xinerama(dpy_info_t *info, Display *dpy,
+				      int x, int y)
+{
+  XineramaScreenInfo *xinerama_screens;
+  XineramaScreenInfo *s;
+  int nr_xinerama_screens;
+  
+  xinerama_screens = XineramaQueryScreens(dpy, &nr_xinerama_screens);
+  
+  if(nr_xinerama_screens > 0) {
+    int n;
+    for(n = 0; n < nr_xinerama_screens; n++) {
+      s = &xinerama_screens[n];
+      if((s->x_org <= x) && (x < (s->xorg + s->width)) &&
+	 (s->y_org <= y) && (y < (s->yorg + s->height))) {
+	// we have found our screen
+	
+	info->screen_offset.x = s->x_org;
+	info->screen_offset.y = s->y_org;
+
+	info->resolution.horizontal_pixels = s->width;
+	info->resolution.vertical_pixels = s->height;
+    
+	update_sar(info);
+	XFree(xinerama_screens);
+	return 1;
+      }
+    }
+    // the window isn't positioned on a screen, use the first
+    // TODO maybe this should be fixed to use the closest instead?
+    s = &xinerama_screens[0];
+
+    info->screen_offset.x = s->x_org;
+    info->screen_offset.y = s->y_org;
+
+    info->resolution.horizontal_pixels = s->width;
+    info->resolution.vertical_pixels = s->height;
+    
+    update_sar(info);
+    XFree(xinerama_screens);
+    return 1;
+  } 
+  
+  return 0;
+}
+
+#endif
+
+
+int DpyInfoUpdateResolution(Display *dpy, int screen_nr, int x, int y)
 {
   int ret;
   
@@ -182,6 +254,11 @@ int DpyInfoUpdateResolution(Display *dpy, int screen_nr)
   case DpyInfoOriginUser:
     ret = update_resolution_user(&dpyinfo, dpy, screen_nr);
     break;
+#ifdef HAVE_XINERAMA
+  case DpyInfoOriginXinerama:
+    ret = update_resolution_xinerama(&dpyinfo, dpy, x, y);
+    break;
+#endif
   default:
     return 0;
     break;
@@ -242,7 +319,8 @@ int DpyInfoUpdateGeometry(Display *dpy, int screen_nr)
 
 int DpyInfoInit(Display *dpy, int screen_nr)
 {
-  
+  dpyinfo.screen_offset.x = 0;
+  dpyinfo.screen_offset.y = 0;
   dpyinfo.resolution.horizontal_pixels = 0;
   dpyinfo.resolution.vertical_pixels = 0;
   dpyinfo.geometry.width = 0;
@@ -286,12 +364,24 @@ DpyInfoOrigin_t DpyInfoSetUpdateGeometry(Display *dpy, int screen_nr,
 DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 					     DpyInfoOrigin_t origin)
 {
+  int event_base, error_base;
+  
   switch(origin) {
   case DpyInfoOriginUser:
     if(update_resolution_user(&dpyinfo, dpy, screen_nr)) {
       dpyinfo.resolution_origin = DpyInfoOriginUser;
       return dpyinfo.resolution_origin;
     }
+#ifdef HAVE_XINERAMA
+  case DpyInfoOriginXinerama:
+    if(XineramaQueryExtension(dpy, &event_base, &error_base) &&
+       XineramaIsActive(dpy)) {
+      if(update_resolution_xinerama(&dpyinfo, dpy, 0, 0)) {
+	dpyinfo.resolution_origin = DpyInfoOriginXinerama;
+	return dpyinfo.resolution_origin;
+      }
+    }
+#endif
 #ifdef HAVE_XF86VIDMODE
   case DpyInfoOriginXF86VidMode:
     if(update_resolution_xf86vidmode(&dpyinfo, dpy, screen_nr)) {

@@ -602,7 +602,7 @@ void init_config(Display *dpy)
   }
   
   DpyInfoUpdateGeometry(dpy, screen_nr);
-  DpyInfoUpdateResolution(dpy, screen_nr);
+  DpyInfoUpdateResolution(dpy, screen_nr, 0, 0);
   
   /* Query and calculate the displays aspect rate. */
   {
@@ -1063,8 +1063,18 @@ static void display_adjust_size(yuv_image_t *current_image,
 
 
 static void display_toggle_fullscreen(yuv_image_t *current_image) {
-
-  DpyInfoUpdateResolution(mydisplay, screen_nr);
+  int root_x, root_y;
+  Window dummy_win;
+  
+  XTranslateCoordinates(mydisplay, window.win,
+			DefaultRootWindow(mydisplay), 
+			0,
+			0,
+			&root_x,
+			&root_y,
+			&dummy_win);
+  
+  DpyInfoUpdateResolution(mydisplay, screen_nr, root_x, root_y);
   
   if(window.win_state != WINDOW_STATE_FULLSCREEN) {
     ChangeWindowState(mydisplay, window.win, WINDOW_STATE_FULLSCREEN);
@@ -1270,6 +1280,10 @@ void check_x_events(yuv_image_t *current_image)
 			      &window.window_area.y,
 			      &dummy_win);
 	
+	DpyInfoUpdateResolution(mydisplay, screen_nr,
+				window.window_area.x,
+				window.window_area.y);
+
 	// top border
 	if(window.video_area.y > 0) {
 	  XClearArea(mydisplay, window.win,

@@ -4,7 +4,8 @@
 typedef enum {
   DpyInfoOriginX11 = 1,
   DpyInfoOriginXF86VidMode,
-  DpyInfoOriginUser
+  DpyInfoOriginUser,
+  DpyInfoOriginXinerama
 } DpyInfoOrigin_t;
 
 
@@ -28,10 +29,12 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 					     DpyInfoOrigin_t origin);
 
 
-int DpyInfoUpdateResolution(Display *dpy, int screen_nr);
+int DpyInfoUpdateResolution(Display *dpy, int screen_nr, int x, int y);
 
 int DpyInfoUpdateGeometry(Display *dpy, int screen_nr);
 
+
+int DpyInfoGetScreenOffset(Display *dpy, int screen_nr, int *x, int *y);
 
 int DpyInfoGetResolution(Display *dpy, int screen_nr,
 			 int *horizontal_pixels,
