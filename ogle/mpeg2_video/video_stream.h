@@ -78,7 +78,7 @@ vlc_table_t table_b12[] = {
 	{    6,  0x03E,     7 },
 	{    7,  0x07E,     8 },
 	{    8,  0x0FE,     9 },
-	{    9,  0x0FE,    10 },
+	{    9,  0x1FE,    10 },
 	{    9,  0x1FF,    11 },
 	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
 

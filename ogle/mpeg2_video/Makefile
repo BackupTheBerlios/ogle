@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-Wall -O6 -I/opt/SUNWmlib/include
+CFLAGS=-g -Wall -O6 -I/opt/SUNWmlib/include
 LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl
 video_stream:
 clean:
