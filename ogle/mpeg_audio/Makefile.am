@@ -17,4 +17,4 @@
 
 bin_PROGRAMS = mpg123_wrap
 mpg123_wrap_SOURCES = mpg123_wrap.c
-mpg123_wrap_LDADD = $(top_builddir)/common/libcommon.a
+mpg123_wrap_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a 

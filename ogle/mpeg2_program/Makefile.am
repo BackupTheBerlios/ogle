@@ -19,4 +19,4 @@ INCLUDES = @GLIB_CFLAGS@
 
 bin_PROGRAMS = programstream
 programstream_SOURCES = programstream.c programstream.h
-programstream_LDADD = $(top_builddir)/common/libcommon.a
+programstream_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a

@@ -17,7 +17,8 @@
 
 bin_PROGRAMS = vmg dump ifo_dump vm vmg_dump
 
-vmg_LDADD = $(top_builddir)/common/libcommon.a
+vmg_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/common/libdvdcontrol.a 
 vmg_SOURCES = vmg.c com.c
 
 dump_SOURCES = \
@@ -31,7 +32,8 @@ ifo_dump_SOURCES = ifo_dump.c \
 	ifo_print.c ifo_print.h \
 	vmcmd.c ifo.h
 
-vm_LDADD = $(top_builddir)/common/libcommon.a
+vm_LDADD = $(top_builddir)/common/libcommon.a \
+	$(top_builddir)/common/libdvdcontrol.a 
 vm_SOURCES = \
 	vm.c vm.h \
 	ifo_read.c ifo_read.h \
@@ -48,4 +50,5 @@ vmg_dump_SOURCES = vmg_dump.c \
 	nav_print.c nav_print.h \
 	nav.h \
 	vmcmd.c vmcmd.h
-vmg_dump_LDADD = $(top_builddir)/common/libcommon.a
+vmg_dump_LDADD = $(top_builddir)/common/libcommon.a \
+		$(top_builddir)/common/libdvdcontrol.a 

@@ -17,4 +17,4 @@
 
 bin_PROGRAMS = spu_wrap
 spu_wrap_SOURCES = spu_wrap.c
-spu_wrap_LDADD = $(top_builddir)/common/libcommon.a
+spu_wrap_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a 
