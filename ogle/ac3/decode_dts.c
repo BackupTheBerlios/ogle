@@ -163,7 +163,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
 	tmpstr = (amode <= 48) ? "User defined" : "Invalid";
 	break;
       }
-      fprintf(stderr, "%s\n", tmpstr);
+      DNOTEC("%s\n", tmpstr);
       
       DNOTE("%s", "DTS: sample rate: ");
       switch(sfreq) {
@@ -216,7 +216,7 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
 	tmpstr = "Invalid";
 	break;
       }
-      fprintf(stderr, "%s kHz\n", tmpstr);
+      DNOTEC("%s kHz\n", tmpstr);
 
       DNOTE("%s", "DTS: bit rate: ");
       switch(rate) {
@@ -318,9 +318,9 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
 	break; 
       }
       if(rate < 30) {
-	fprintf(stderr, "%s kbps\n", tmpstr);
+	DNOTEC("%s kbps\n", tmpstr);
       } else {
-	fprintf(stderr, "%s\n", tmpstr);
+	DNOTEC("%s\n", tmpstr);
       }
       
       {
