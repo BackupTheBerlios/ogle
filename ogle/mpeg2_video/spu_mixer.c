@@ -10,7 +10,6 @@
 #include <unistd.h>
 #include <sys/msg.h>
 #include <errno.h>
-#include <assert.h>
 #include <string.h>
 
 #include "common.h"
@@ -111,14 +110,9 @@ static spu_t spu_info = { 0 };
 static int initialized = 0;
 
 static uint32_t palette_yuv[16];
-static uint32_t palette_rgb[16] = {
-  0x0000ff, 0x00ff00, 0xff0000, 0x00ffff,
-  0xff00ff, 0xffff00, 0xffffff, 0x000000,
-  0x000080, 0x008000, 0x800000, 0x008080,
-  0x800080, 0x808000, 0x808080, 0x000000
-};
+static uint32_t palette_rgb[16];
 
-static highlight_t highlight  = { {0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450 };
+static highlight_t highlight = {{0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450};
 
 extern int video_scr_nr;
 extern int msgqid;
@@ -188,9 +182,7 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
     stream_shmid = shmid;
     stream_shmaddr = shmaddr;
-    
   }    
-
 
   q_head = (q_head_t *)stream_shmaddr;
   shmid = q_head->data_buf_shmid;
@@ -203,7 +195,6 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     
     data_buf_shmid = shmid;
     data_buf_shmaddr = shmaddr;
-    
   }    
   
   initialized = 1;
@@ -214,7 +205,6 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
 
 static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
-  
   switch(ev->type) {
   case MsgEventQNotify:
     if((stream_shmaddr != NULL) &&
@@ -298,7 +288,6 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   elem = q_head->read_nr;
   
   if(!read_offset) {    
-    
     if(!q_elems[elem].in_use) {
       q_head->reader_requests_notification = 1;
       
@@ -306,7 +295,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
 	return 0;
       }
     }
-    fprintf(stderr, "spu_mixer: get element\n");
+    //fprintf(stderr, "spu_mixer: get element\n");
   }
   data_head = (data_buf_head_t *)data_buf_shmaddr;
   data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
@@ -314,10 +303,8 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
 
-
   off = data_elem->off;
   len = data_elem->len;
-  
     
   PTS_DTS_flags = data_elem->PTS_DTS_flags;
   if(PTS_DTS_flags & 0x2) {
@@ -331,30 +318,23 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
     DTS = data_elem->DTS;
   }
   
-  
-  
-  /*
-  fwrite(mmap_base+off, len, 1, outfile);
-  fflush(outfile);
-  */
   //fprintf(stderr, "spu_mixer: len: %d\n", len);
   //fprintf(stderr, "spu_mixer: readlen: %d\n", readlen);
   //fprintf(stderr, "spu_mixer: read_offset: %d\n", read_offset);
 
-  if((readlen+read_offset) > len) {
+  if((readlen + read_offset) > len) {
     cpy_len = len-read_offset;
     //fprintf(stderr, "spu_mixer: bigger than available\n");
   } else {
     cpy_len = readlen;
   }
   //fprintf(stderr, "spu_mixer: cpy_len: %d\n", cpy_len);
-  //memcpy(dst, mmap_base+off+read_offset, cpy_len);
-  memcpy(dst, data_buffer+off+read_offset, cpy_len);
+  memcpy(dst, data_buffer + off + read_offset, cpy_len);
   
-  if(cpy_len+read_offset == len) {
+  if(cpy_len + read_offset == len) {
     read_offset = 0;
   } else {
-    read_offset+=cpy_len;
+    read_offset += cpy_len;
   }
   
   if(read_offset) {
@@ -362,8 +342,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   }
   
   // release elem
-  fprintf(stderr, "spu_mixer: release element\n");
-  
+  //fprintf(stderr, "spu_mixer: release element\n");
   
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;
@@ -379,14 +358,12 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time,
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
-
   return cpy_len;
 }
 
 
 int init_spu(void)
 {
-  
   fprintf(stderr, "spu_mixer: init\n");
   spu_info.buffer = malloc(MAX_BUF_SIZE);
   spu_info.next_buffer = malloc(MAX_BUF_SIZE);
@@ -416,7 +393,7 @@ int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime, int *scr_nr)
   */
 
   if(bytes_to_read == 0) {
-  // get first 2 bytes of spu (size of spu)
+    // get first 2 bytes of spu (size of spu)
     bytes_to_read = 2;
   }
   if(state == 0) {
@@ -469,8 +446,8 @@ int get_data(uint8_t *databuf, int bufsize, clocktime_t *dtime, int *scr_nr)
   }
   bytes_to_read = 0;
   state = 0;
-  return spu_size;
   
+  return spu_size;
 }
 
 
@@ -493,7 +470,8 @@ static inline uint32_t getbytes(unsigned int num)
 #endif
   uint32_t result = 0;
 
-  assert(num <= 4);
+  if(num > 4)
+    fprintf(stderr, "spu_mixer: getbytes used with more than 4 bytes\n");
 
   while(num > 0) {
     result <<= 8;
@@ -546,8 +524,6 @@ void decode_dcsqt(spu_t *spu_info) {
   set_byte(spu_info->buffer+spu_info->DCSQT_offset);
   
   spu_info->next_DCSQ_offset = spu_info->DCSQT_offset;
-  
-  return;
 }
 
 
@@ -573,7 +549,7 @@ void decode_dcsq(spu_t *spu_info) {
     DPRINTF(3, "\t\t\tDisplay Control Command: 0x%02x\n", command);
       
     switch (command) {
-    case 0x00: /* Menu */
+    case 0x00: /* Menu (forced display start) */
       DPRINTF(3, "\t\t\t\tMenu...\n");
       spu_info->menu = 1;
       break;
@@ -670,7 +646,6 @@ void decode_dcsq(spu_t *spu_info) {
 	contrast_left[3] = (dummy >> 12) & 0xf;
 	  
 	if(type == 2) {
-	    
 	  x_pos = GETBYTES(2, "wipe x_pos");
 	    
 	  dummy = GETBYTES(2, "wipe color_right");
@@ -684,14 +659,11 @@ void decode_dcsq(spu_t *spu_info) {
 	  contrast_right[1] = (dummy >> 4) & 0xf;
 	  contrast_right[2] = (dummy >> 8) & 0xf;
 	  contrast_right[3] = (dummy >> 12) & 0xf;
-	    
 	} 
 	
 	if(type == 1 || type == 2) {
-	    
 	  u2 = GETBYTES(2, "wipe x_end 1?");
 	  u3 = GETBYTES(2, "wipe x_end 2?");
-	    
 	} else {
 	  fprintf(stderr, "unknown cmd 07 type\n");
 	  exit(-1);
@@ -701,7 +673,6 @@ void decode_dcsq(spu_t *spu_info) {
 	  fprintf(stderr, "unknown bits in cmd 7 used\n");
 	  exit(-1);
 	}
-	  
       }
       break;
     default:
@@ -725,11 +696,6 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 			 int picformat) {
   unsigned int x;
   unsigned int y;
-  int nr_vlc;
-  uint32_t color;
-  uint32_t contrast;
-  uint32_t invcontrast;
-  uint32_t *pixel;
 
   fieldoffset[0] = spu_info->fieldoffset[0];
   fieldoffset[1] = spu_info->fieldoffset[1];
@@ -737,27 +703,20 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
   aligned = 1;
   set_byte(&spu_info->buffer[fieldoffset[field]]);
   
-  //    fprintf(stderr, "\nReading picture data\n");
+  //fprintf(stderr, "\nReading picture data\n");
   
-  //    initialize(spu_info->width, spu_info->height);
+  //initialize(spu_info->width, spu_info->height);
   x = 0;
   y = 0;
-  nr_vlc = 0;
 
-  /*  
-  {
-    int i;
-    for(i = 0; i < 16; i++) {
-      fprintf(stderr, "[%d] %08x %08x\n", i, palette_yuv[i], palette_rgb[i]);
-    }
-  }
-  */
   DPRINTF(5, "vlc decoding\n");
   while((fieldoffset[1] < spu_info->DCSQT_offset) && (y < spu_info->height)) {
     unsigned int vlc;
     unsigned int length;
-    static unsigned int colorid;
+    unsigned int colorid;
     unsigned char pixel_data;
+    uint32_t color;
+    uint32_t contrast, invcontrast;
     
     /*
     DPRINTF(6, "fieldoffset[0]: %d, fieldoffset[1]: %d, DCSQT_offset: %d\n",
@@ -766,27 +725,20 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
     
     /*
       llcc
-      
       01cc - 11cc
       len: 1 - 3
       
       00ll llcc
-      
       0001 00cc - 0011 11cc
       len: 4 - 15
       
-	
       0000 llll llcc
-      
       0000 0100 00cc - 0000 1111 11cc
       len: 16 - 63
       
-      
       0000 00ll llll llcc
-      
       0000 0001 0000 00cc - 0000 0011 1111 11cc
-      len: 64 - 255, 0
-
+      len: 64 - 255, 0 (to end of this line)
     */
     
     vlc = get_nibble();
@@ -800,14 +752,11 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       }
     }
     
-    nr_vlc++;
     DPRINTF(4, "send_rle: %08x\n", vlc);
     /* last two bits are colorid, the rest are run length */
     length = vlc >> 2;
     
-    if(length == 0) { // new line
-      //   if (y >= height)
-      // return;
+    if(length == 0) {
       /* Fill current line with background color */
       length = spu_info->width-x;
     }
@@ -815,6 +764,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       fprintf(stderr, "tried to write past line-end\n");
       length = spu_info->width-x;
     }
+    
     colorid = vlc & 3;
     pixel_data = ((spu_info->contrast[colorid] << 4) 
 		  | (spu_info->color[colorid] & 0x0f));
@@ -846,7 +796,7 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	contrast = spu_info->contrast[colorid]<<4;
       }
     }
-    invcontrast = 256-contrast;
+    invcontrast = 256 - contrast;
     
     /* mix spu and picture data */
     
@@ -855,7 +805,8 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       
       /* if total transparency do nothing */
       if(contrast != 0) {
-	uint32_t r,g,b;
+	uint32_t *pixel;
+	uint32_t r, g, b;
 	r = color&0xff;
 	g = (color>>8) & 0xff;
 	b = (color>>16) & 0xff;
@@ -889,17 +840,14 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
       /* if total transparency do nothing */
       if(contrast != 0) {
 	uint8_t yl,u,v;
-	uint8_t *y_pixel;
-	uint8_t *u_pixel;
-	uint8_t *v_pixel;
+	uint8_t *y_pixel, *u_pixel, *v_pixel;
 
-	yl = (color>>16)&0xff;
+	yl = (color>>16) & 0xff;
 	u = (color>>8) & 0xff;
 	v = (color) & 0xff;
 	
 	y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
 				     +(x+spu_info->x_start)]);
-	
 	u_pixel = &(((uint8_t *)data)[width*height+
 				     (y+spu_info->y_start)*width/4
 				     +(x+spu_info->x_start)/2]);
@@ -909,13 +857,12 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	
 	for(n = 0; n < length; n++, y_pixel++) {
 	  
-	  
 	  /* if no transparancy just overwrite */
 	  if(contrast == (0xf<<4)) {
 	    *y_pixel = yl;
 	    
 	    /* only write uv on even columns and rows */
-	    if(!((x+spu_info->x_start+n) & 1) &&
+	    if(!((x+spu_info->x_start + n) & 1) &&
 	       !((y+spu_info->y_start)&1)) {
 	      *u_pixel = u;
 	      *v_pixel = v;
@@ -924,42 +871,37 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height,
 	  } else {
 	    uint32_t py,pu,pv;
 	    py = *y_pixel;
-	    py = (py*(invcontrast)+yl*contrast)>>8;
+	    py = (py*(invcontrast) + yl*contrast)>>8;
 	    *y_pixel = (py & 0xff);
 	    
 	    /* only write uv on even columns and rows */
-	    if(!((x+spu_info->x_start+n) & 1) &&
+	    if(!((x+spu_info->x_start + n) & 1) &&
 	       !((y+spu_info->y_start) & 1)) {
 	      pu = *u_pixel;
-	      pu = (pu*(invcontrast)+u*contrast)>>8;
+	      pu = (pu*(invcontrast) + u*contrast)>>8;
 	      *u_pixel = pu;
 	      pv = *v_pixel;
-	      pv = (pv*(invcontrast)+v*contrast)>>8;
+	      pv = (pv*(invcontrast) + v*contrast)>>8;
 	      *v_pixel = pv;
 	    }
-	    
 	  }
 	  
-	  
-	  if((x+spu_info->x_start+n) & 1) {
+	  if((x+spu_info->x_start + n) & 1) {
 	    u_pixel++;
 	    v_pixel++;
 	  }
-	  
 	}
-	
       }
     }
     
-    x = x+length;
+    x = x + length;
     
     if(x >= spu_info->width) {
-      x=0;
+      x = 0;
       y++;
-      field = 1-field;
+      field = 1 - field;
       set_byte(&spu_info->buffer[fieldoffset[field]]);
     }
-
   }
 }  
 
@@ -1110,6 +1052,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
       return 0;
     }
   }
+  return 0;
 }
 
 
