@@ -119,6 +119,61 @@ static void calc_coords(Display *dpy, Window win, int *x, int *y, XEvent *ev)
 }
 
 
+
+
+static void save_normal_geometry(Display *dpy, Window win)
+{
+
+  // Ugly hack so we can reposition ourself when going from fullscreen
+  
+  Window root_return;
+  int x,y;
+  unsigned int bwidth, depth;
+  int dest_x_ret, dest_y_ret;
+  Window dest_win;
+  
+  XGetGeometry(dpy, win, &root_return, &x, &y,
+	       &normal_state_geometry.width,
+	       &normal_state_geometry.height,
+	       &bwidth, &depth);
+  
+  XTranslateCoordinates(dpy, win, DefaultRootWindow(dpy), 
+			0,
+			0,
+			&dest_x_ret,
+			&dest_y_ret,
+			&dest_win);
+  
+  normal_state_geometry.x = dest_x_ret - x;
+  normal_state_geometry.y = dest_y_ret - y;
+  
+  fprintf(stderr, "x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
+	  x, y,
+	  normal_state_geometry.width,
+	  normal_state_geometry.height,
+	  bwidth, depth);
+  
+}
+
+
+static void restore_normal_geometry(Display *dpy, Window win)
+{
+  XWindowChanges win_changes;
+  
+  
+  // Try to resize
+  win_changes.x = normal_state_geometry.x;
+  win_changes.y = normal_state_geometry.y;
+  win_changes.width = normal_state_geometry.width;
+  win_changes.height = normal_state_geometry.height;
+  //win_changes.stack_mode = Above;
+  XReconfigureWMWindow(dpy, win, 0,
+		       CWX | CWY |
+		       CWWidth | CWHeight,
+		       &win_changes);
+  
+}
+
 static void switch_to_fullscreen_state(Display *dpy, Window win)
 {
   XEvent ev;
@@ -132,37 +187,8 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   sizehints->x = 0; // obsolete but should be set in case
   sizehints->y = 0; // there is an old wm used
   
-
-  // Ugly hack so we can reposition ourself when going from fullscreen
-  {
-    Window root_return;
-    int x,y;
-    unsigned int bwidth, depth;
-    int dest_x_ret, dest_y_ret;
-    Window dest_win;
-    
-    XGetGeometry(dpy, win, &root_return, &x, &y,
-		 &normal_state_geometry.width,
-		 &normal_state_geometry.height,
-		 &bwidth, &depth);
-    
-    XTranslateCoordinates(dpy, win, DefaultRootWindow(dpy), 
-			  0,
-			  0,
-			  &dest_x_ret,
-			  &dest_y_ret,
-			  &dest_win);
-
-    normal_state_geometry.x = dest_x_ret - x;
-    normal_state_geometry.y = dest_y_ret - y;
-    
-    fprintf(stderr, "x: %d, y: %d, w: %d, h: %d, bw: %d, d: %d\n",
-	    x, y,
-	    normal_state_geometry.width,
-	    normal_state_geometry.height,
-	    bwidth, depth);
-    
-  }
+  save_normal_geometry(dpy, win);
+  
   // We have to be unmapped to change motif decoration hints 
   XUnmapWindow(dpy, win);
   
@@ -229,7 +255,8 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   fprintf(stderr, "no more configure notify\n");
 
-  /* ugly hack, but what can you do when the wm's not removing decorations */
+  // ugly hack, but what can you do when the wm's not removing decorations
+  //  if we don't end up at 0,0 try to compensate and move one more time
   
   if(x != 0 || y != 0) {
     
@@ -267,7 +294,6 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 static void switch_to_normal_state(Display *dpy, Window win)
 {
   XEvent ev;
-  XWindowChanges win_changes;
   XSizeHints *sizehints;
   
   // We don't want to have to replace the window manually when remapping it
@@ -303,17 +329,8 @@ static void switch_to_normal_state(Display *dpy, Window win)
   
   
   
-  // Try to resize
-  win_changes.x = normal_state_geometry.x;
-  win_changes.y = normal_state_geometry.y;
-  win_changes.width = normal_state_geometry.width;
-  win_changes.height = normal_state_geometry.height;
-  //win_changes.stack_mode = Above;
-  XReconfigureWMWindow(dpy, win, 0,
-		       CWX | CWY |
-		       CWWidth | CWHeight,
-		       &win_changes);
-
+  // get us back to the position and size we had before fullscreen
+  restore_normal_geometry(dpy, win);
 
   // If we have a gnome compliant wm that supports layers, put
   // us in the normal layer
@@ -728,78 +745,6 @@ static int check_for_gnome_wm_layers(Display *dpy)
   return 0;
 }
 
-#if 0
-void event_loop(Display *dpy, Window win)
-{
-  XEvent ev;
-  int is_fullscreen_state = 0;
-  int x, y;
-  int width, height;
-  
-  while(1) {
-    XNextEvent(dpy, &ev);
-    
-    switch(ev.type) {
-    case ConfigureNotify:
-      fprintf(stderr, "ConfigureNotify: \n");
-      fprintf(stderr, "\tsend_event: %s\n",
-	      ev.xconfigure.send_event ? "True" : "False");
-      fprintf(stderr, "\tx: %d\n", ev.xconfigure.x);
-      fprintf(stderr, "\ty: %d\n", ev.xconfigure.y);
-      fprintf(stderr, "\twidth %d\n", ev.xconfigure.width);
-      fprintf(stderr, "\theight %d\n", ev.xconfigure.height);
-      fprintf(stderr, "\tborder_width %d\n", ev.xconfigure.border_width);
-      if(ev.xconfigure.send_event == False) {
-	int dest_x_ret;
-	int dest_y_ret;
-	Window dest_win;
-	XTranslateCoordinates(dpy, win, DefaultRootWindow(dpy), 
-			      0,
-			      0,
-			      &dest_x_ret,
-			      &dest_y_ret,
-			      &dest_win);
-	fprintf(stderr, "Root coordinates: %d, %d\n",
-		dest_x_ret, dest_y_ret);
-      }
-      break;
-    case KeyPress:
-      {
-	char key_buf[16];
-	KeySym keysym;
-	XComposeStatus compose_status;
-	
-	XLookupString(&(ev.xkey), key_buf, 16, &keysym, &compose_status);
-	fprintf(stderr, "KeyPress: \n");
-	fprintf(stderr, "\t%s\n", key_buf);
-	switch(keysym) {
-	case XK_p:
-	case XK_P:
-	  try_position_at_origin(dpy, win);
-	  break;
-	case XK_s:
-	case XK_S:
-	  full_size(dpy, win);
-	  break;
-	case XK_f:
-	case XK_F:
-	  if(!is_fullscreen_state) {
-	    fullscreen_state(dpy, win, &x, &y, &width, &height);
-	  } else {
-	    normal_state(dpy, win, x, y, width, height);
-	  }
-	  is_fullscreen_state = !is_fullscreen_state;
-	  break;
-	}
-      }
-      break;
-    default:
-      fprintf(stderr, "Unhandled event: %d\n", ev.type);
-      break;
-    }
-  }
-}
-#endif
 
 int ChangeWindowState(Display *dpy, Window win,
 		      WindowState_t state,
