@@ -114,6 +114,10 @@ char *shmaddr;
 int shmsize;
 unsigned int bytes_read = 0;
 
+static int ctrl_data_shmid;
+static ctrl_data_t *ctrl_data;
+static ctrl_time_t *ctrl_time;
+
 char *data_buf_addr;
 
 
@@ -358,8 +362,8 @@ void get_next_demux_q(void)
 {
   MsgEvent_t ev;
   int new_demux_range = 0;
-  if(demux_cmd == 1) {
-    put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, 1);
+  if(demux_cmd & FlowCtrlCompleteVideoUnit) {
+    put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd);
   }
   while(!new_demux_range) {
     while(!demux_q_len) {
@@ -389,7 +393,7 @@ void get_next_demux_q(void)
     case MsgEventQPlayCtrl:
       off_from = demux_q[demux_q_start].cmd.ctrl.from;
       off_to = demux_q[demux_q_start].cmd.ctrl.to;
-      demux_cmd = demux_q[demux_q_start].cmd.ctrl.extra_cmd;
+      demux_cmd = demux_q[demux_q_start].cmd.ctrl.flowcmd;
       new_demux_range = 1;
       break;
     case MsgEventQChangeFile:
@@ -1372,6 +1376,24 @@ char *stream_opts[] = {
 };
 
 
+int attach_ctrl_shm(int shmid)
+{
+  char *shmaddr;
+  
+  if(shmid >= 0) {
+    if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
+      perror("demux: attach_ctrl_data(), shmat()");
+      return -1;
+    }
+    
+    ctrl_data_shmid = shmid;
+    ctrl_data = (ctrl_data_t*)shmaddr;
+    ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
+  }    
+  
+  return 0;
+}
+
 int main(int argc, char **argv)
 {
   int c, rv; 
@@ -1565,6 +1587,9 @@ int main(int argc, char **argv)
       case MsgEventQChangeFile:
 	loadinputfile(regev.changefile.filename);
 	fileopen = 1;
+	break;
+      case MsgEventQCtrlData:
+	attach_ctrl_shm(regev.ctrldata.shmid);
 	break;
       default:
 	fprintf(stderr, "demux: msg not wanted %d, from %d\n",
@@ -1936,7 +1961,37 @@ int send_msg(mq_msg_t *msg, int mtext_size)
 
 
 
+void flush_all_streams(int scr_nr)
+{
+  MsgEvent_t ev;
+  int n;
+  q_head_t *q_head = NULL;
+  
+  // send flush msg
+  ev.type = MsgEventQFlushData;
+  ev.flushdata.to_scrnr = scr_nr;
+  
+  for(n = 0; n < 256; n++) {
+    if((n != MPEG2_PRIVATE_STREAM_1) && (id_reg[n].state == STREAM_DECODE)) {
+      q_head = (q_head_t *)id_reg[n].shmaddr;
+      //fprintf(stderr, "demux: flushing stream %02x\n", n);
+      if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+	fprintf(stderr, "demux: couldn't send flush\n");
+      }
+    }
+  }
 
+  for(n = 0; n < 256; n++) {
+    if(id_reg_ps1[n].state == STREAM_DECODE) {
+      q_head = (q_head_t *)id_reg_ps1[n].shmaddr;
+      //fprintf(stderr, "demux: flushing substream %02x\n", n);
+      if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+	fprintf(stderr, "demux: couldn't send flush\n");
+      }
+    }
+  }
+  
+}
 
 int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 	     uint64_t PTS, uint64_t DTS, int is_new_file, int extra_cmd)
@@ -2044,12 +2099,19 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     data_elems[data_elem_nr].filename[0] = '\0';
   }
 
-  data_elems[data_elem_nr].cmd = extra_cmd;
+  data_elems[data_elem_nr].flowcmd = extra_cmd;
 
-  if(scr_discontinuity) {
+  if(scr_discontinuity || (demux_cmd & FlowCtrlFlush)) {
     scr_discontinuity = 0;
     scr_nr = (scr_nr+1)%16;
+    ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
+    ctrl_time[scr_nr].sync_master = SYNC_NONE;
     fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);
+  }
+  
+  if(demux_cmd & FlowCtrlFlush) {
+    flush_all_streams(scr_nr);
+    demux_cmd &= ~FlowCtrlFlush;
   }
 
   data_elems[data_elem_nr].scr_nr = scr_nr;
