@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="iso-8859-1"?>
+<?xml version="1.0"?>
 <GTK-Interface>
 
 <project>
@@ -1191,14 +1191,8 @@
 
       <widget>
 	<class>GtkLabel</class>
-	<name>aboutlabel</name>
-	<label>Authors:
-
-Björn Englund
-Håkan Hjort
-Vilhelm Bergman
-Martin Norbäck
-Björn Augustsson</label>
+	<name>authors</name>
+	<label>Placeholder</label>
 	<justify>GTK_JUSTIFY_CENTER</justify>
 	<wrap>False</wrap>
 	<xalign>0.5</xalign>

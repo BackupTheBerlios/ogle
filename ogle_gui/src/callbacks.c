@@ -21,6 +21,7 @@
 #endif
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <gtk/gtk.h>
 #include <ogle/dvdcontrol.h>
 
@@ -211,12 +212,27 @@ on_about_activate                     (GtkMenuItem     *menuitem,
 {
   GtkWidget *widget;
   GtkWidget *version_label;
+  GtkWidget *authors_label;
   gchar* version_text;
+  const gchar authors_text[] =
+    /* Translators:
+       See the Swedish translation for the correct iso-8859-1
+       representations of these, and use them if possible */
+    N_("Authors:\n"
+       "\n"
+       "Bjorn Englund\n"
+       "Hakan Hjort\n"
+       "Vilhelm Bergman\n"
+       "Martin Norback\n"
+       "Bjorn Augustsson");
 
   version_label = get_glade_widget("version");
   version_text = g_strdup_printf(_("Ogle GUI version %s"), VERSION);
   gtk_label_set_text(GTK_LABEL(version_label), version_text);
   g_free(version_text);
+
+  authors_label = get_glade_widget("authors");
+  gtk_label_set_text(GTK_LABEL(authors_label), _(authors_text));
 
   widget = get_glade_widget("about");
   gtk_widget_show(widget);
