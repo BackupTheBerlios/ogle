@@ -1150,13 +1150,17 @@ void mpeg2_slice(void)
     */
     //    fprintf(stderr, "inc2: %d\n", macroblock_address_increment);
     
-    /* a slice never span rows. */
-    seq.mb_column += macroblock_address_increment;
 
     if(seq.mb_column == -1) {
+      /* a slice never span rows. */
+      seq.mb_column += macroblock_address_increment;
+
       /* The first macroblock is coded. I.e. no skipped blocks, they must have
 	 been in another slice with the same startcode (vertical position). */ 
       macroblock_address_increment = 1;
+    } else {
+      /* a slice never span rows. */
+      seq.mb_column += macroblock_address_increment;
     }
 
     /* Subtract one to get the number of skipped blocks instead. */
