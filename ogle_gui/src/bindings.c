@@ -62,7 +62,7 @@ void do_keysym_action(KeySym keysym)
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
       if(ks_maps[n].fun != NULL) {
-	ks_maps[n].fun(NULL);
+	ks_maps[n].fun(ks_maps[n].arg);
       }
       return;
     }
@@ -79,18 +79,20 @@ void remove_keysym_binding(KeySym keysym)
     if(ks_maps[n].keysym == keysym) {
       ks_maps[n].keysym = NoSymbol;
       ks_maps[n].fun = NULL;
+      ks_maps[n].arg = NULL;
       return;
     }
   }
 }
 
-void add_keysym_binding(KeySym keysym, void(*fun)(void *))
+void add_keysym_binding(KeySym keysym, void(*fun)(void *), void *arg)
 {
   int n;
   
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
       ks_maps[n].fun = fun;
+      ks_maps[n].arg = arg;
       return;
     }
   }
@@ -102,6 +104,7 @@ void add_keysym_binding(KeySym keysym, void(*fun)(void *))
   
   ks_maps[ks_maps_index].keysym = keysym;
   ks_maps[ks_maps_index].fun = fun;
+  ks_maps[ks_maps_index].arg = arg;
   
   ks_maps_index++;
   
@@ -118,7 +121,7 @@ void add_keybinding(char *key, char *action)
   
   if(keysym == NoSymbol) {
     fprintf(stderr,
-	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
+	    "WARNING[dvd_gui]: add_keybinding(): '%s' not a valid keysym\n",
 	    key);
     return;
   }
@@ -131,14 +134,14 @@ void add_keybinding(char *key, char *action)
   for(n = 0; actions[n].str != NULL; n++) {
     if(!strcmp(actions[n].str, action)) {
       if(actions[n].fun != NULL) {
-	add_keysym_binding(keysym, actions[n].fun);
+	add_keysym_binding(keysym, actions[n].fun, actions[n].ptr);
       }
       return;
     }
   }
   
   fprintf(stderr,
-	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
+	  "WARNING[dvd_gui]: add_keybinding(): No such action: '%s'\n",
 	  action);
   
   return;
@@ -154,7 +157,7 @@ void add_pointerbinding(char *, char *action)
   
   if(keysym == NoSymbol) {
     fprintf(stderr,
-	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
+	    "WARNING[dvd_gui]: add_keybinding(): '%s' not a valid keysym\n",
 	    key);
     return;
   }
@@ -174,7 +177,7 @@ void add_pointerbinding(char *, char *action)
   }
   
   fprintf(stderr,
-	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
+	  "WARNING[dvd_gui]: add_keybinding(): No such action: '%s'\n",
 	  action);
   
   return;

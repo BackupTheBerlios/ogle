@@ -6,6 +6,7 @@
 typedef struct {
   char *str;
   void (*fun)(void *);
+  void *ptr;
 } action_mapping_t;
 
 
