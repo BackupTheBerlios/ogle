@@ -62,6 +62,7 @@ struct poptOption options[] = {
   }
 };
 
+ZoomMode_t zoom_mode = ZoomModeResizeAllowed;
 
 int
 main (int argc, char *argv[])

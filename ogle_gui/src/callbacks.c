@@ -34,6 +34,9 @@
 
 #include "xsniffer.h" //hack
 
+
+extern ZoomMode_t zoom_mode;
+
 extern DVDNav_t *nav;
 
 void
@@ -391,13 +394,12 @@ void
 on_full_screen_activate                (GtkButton       *button,
 					gpointer        user_data)
 {
-  static ZoomMode_t mode = ZoomModeResizeAllowed;
   DVDResult_t res;
   
-  mode = (mode == ZoomModeResizeAllowed) 
+  zoom_mode = (zoom_mode == ZoomModeResizeAllowed) 
     ? ZoomModeFullScreen : ZoomModeResizeAllowed;
   
-  res = DVDSetZoomMode(nav, mode);
+  res = DVDSetZoomMode(nav, zoom_mode);
   if(res != DVD_E_Ok) {
     DVDPerror("callbacks.on_full_screen_activate: DVDSetZoomMode()",
 	      res);

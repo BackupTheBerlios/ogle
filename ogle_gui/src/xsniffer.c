@@ -31,6 +31,9 @@
 #include "xsniffer.h"
 
 extern int msgqid;
+
+extern ZoomMode_t zoom_mode;
+
 static DVDNav_t *nav2;
 pthread_t at;
 
@@ -160,13 +163,11 @@ void* xsniff_mouse(void* args) {
 	case XK_f:
 	  // fullscreen
 	  {
-	    static int fs = 0;
-	    fs = !fs;
-	    if(fs) {
-	      DVDSetZoomMode(nav2, ZoomModeFullScreen);
-	    } else {
-	      DVDSetZoomMode(nav2, ZoomModeResizeAllowed);
-	    }
+	    zoom_mode = (zoom_mode == ZoomModeResizeAllowed) 
+	      ? ZoomModeFullScreen : ZoomModeResizeAllowed;
+	    
+	    DVDSetZoomMode(nav2, zoom_mode);
+	      
 	  }
 	  break;
 	  
