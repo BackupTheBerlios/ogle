@@ -431,7 +431,7 @@ dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
 	DEFAULT_AUDIO_DRIVER="oss"
 	DEFAULT_AUDIO_DEVICE="/dev/dsp"
     ;;
-    *-sun-solaris*)
+    *-sun-solaris*|*-hpux*)
         AC_CHECK_LIB([OSSlib],[OSS_init],
             [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lOSSlib"
              AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
@@ -652,6 +652,9 @@ openbsd*)
 	;;
 bsdi*)
 	DEFAULT_DVD_DEVICE="/dev/sr0c"
+	;;
+hpux*)
+	DEFAULT_DVD_DEVICE="/dev/dvd"
 	;;
 *)
 	DEFAULT_DVD_DEVICE=""
