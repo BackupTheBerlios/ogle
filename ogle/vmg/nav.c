@@ -505,7 +505,7 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
   /* Paranoia.. */
   if((pci->hli.hl_gi.hli_ss & 0x03) != 0
      && button_nr > pci->hli.hl_gi.btn_ns) {
-    button_nr = 1;
+    button_nr = pci->hli.hl_gi.btn_ns;
   }
 
   /* FIXME TODO XXX $$$ */
