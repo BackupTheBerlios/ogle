@@ -263,6 +263,9 @@ If a number is entered and the time until the associated action key is pressed i
     <default_skiptime>60</default_skiptime>
 The default time used for the SkipForward/Backward actions
 
+    <prevpg_timeout>1</prevpg_timeout>
+When PrevPG(previous chapter) is pressed the first jump is to the beginning of the current chapter and if PrevPG is pressed again within the timeout the next jump will be to the beginning of the previous chapter. If prevpg_timeout is set to 0 the jump will be directly to the previous chapter. The timeout is in seconds.
+
     <bindings>
       <!-- Each binding contains an action and one or more keys.
            The keys are given as X11 keysyms -->

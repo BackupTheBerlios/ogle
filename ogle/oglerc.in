@@ -92,6 +92,7 @@
     <digit_timeout>2</digit_timeout>
     <number_timeout>5</number_timeout>
     <default_skiptime>15</default_skiptime>
+    <prevpg_timeout>1</prevpg_timeout>
     <bindings>
       <!-- Each binding contains an action and one or more keys.
            The keys are given as X11 keysyms -->
