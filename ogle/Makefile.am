@@ -1,4 +1,4 @@
-data_DATA = oglerc ogle_conf.dtd
+pkgdata_DATA = oglerc ogle_conf.dtd
 
 SUBDIRS= ogle \
 	include \
