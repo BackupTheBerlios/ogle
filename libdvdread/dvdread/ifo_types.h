@@ -138,7 +138,7 @@ typedef struct {
   uint8_t  code_extension;
   uint8_t unknown3;
   union {
-    struct ATTRIBUTE_PACKED {
+    struct {
 #ifdef WORDS_BIGENDIAN
       unsigned int unknown4           : 1;
       unsigned int channel_assignment : 3;
@@ -152,8 +152,8 @@ typedef struct {
       unsigned int channel_assignment : 3;
       unsigned int unknown4           : 1;
 #endif
-    } karaoke;
-    struct ATTRIBUTE_PACKED {
+    } ATTRIBUTE_PACKED karaoke;
+    struct {
 #ifdef WORDS_BIGENDIAN
       unsigned int unknown5           : 4;
       unsigned int dolby_encoded      : 1; /* suitable for surround decoding */
@@ -163,7 +163,7 @@ typedef struct {
       unsigned int dolby_encoded      : 1;
       unsigned int unknown5           : 4;
 #endif
-    } surround;
+    } ATTRIBUTE_PACKED surround;
   } app_info;
 } ATTRIBUTE_PACKED audio_attr_t;
 
