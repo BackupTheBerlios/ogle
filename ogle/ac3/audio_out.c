@@ -449,13 +449,13 @@ int get_q()
 	  WARNING("couldn't send notification\n");
 	}
       }
-      fprintf(stderr, "flushed, packet droped on scr\n");
+      //DNOTE("flushed, packet droped on scr\n");
       return 0;
     } else {
       //TODO flush audio now that we have flushed all packets
-      fprintf(stderr, "flushing audio driver\n");
+      DNOTE("flushing audio driver\n");
       flush_audio();
-      fprintf(stderr, "flushed audio\n");
+      DNOTE("flushed audio\n");
       flush_to_scrid = -1;
     }
   }

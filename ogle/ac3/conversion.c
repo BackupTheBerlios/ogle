@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 
+#include "debug_print.h"
 #include "conversion.h"
 #include "decode_private.h" // Fixme
 
@@ -58,16 +59,17 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   // nr samples, the max number of samples that will be converted
   // between each play
   int size = h->config->format.nr_channels * h->config->format.sample_resolution;
-  fprintf(stderr, "size: %u\n", size);
+  //fprintf(stderr, "size: %u\n", size);
   if(h->output_buf_size < nr_samples * size) {
     h->output_buf_size = nr_samples * size;
     h->output_buf = realloc(h->output_buf, h->output_buf_size);
     if(h->output_buf == NULL) {
-      fprintf(stderr, "realloc failed\n");
+      FATAL("init_sample_conversion, realloc failed\n");
+      exit(1); // ?
     }
   }
-  fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
-  fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
+  //fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
+  //fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
   h->output_buf_ptr = h->output_buf;
   
   // setup the conversion functions
@@ -93,8 +95,8 @@ static inline int16_t convert (int32_t i)
 }
 
 
-static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
-			     int nr_channels, int *channels)
+static int convert_float_to_s16(float * _f, int16_t *s16, int nr_samples,
+				int nr_channels, int *channels)
 {
   int i;
   int32_t *f = (int32_t *)_f;
@@ -119,8 +121,8 @@ int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
   fprintf(stderr, "samples: %d, output_buf_ptr: %d\n",
 	  samples, h->output_buf_ptr);
   */
-  convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
-			   nr_samples, 2, NULL);
+  convert_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
+		       nr_samples, 2, NULL);
   h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
   return 0;
 }

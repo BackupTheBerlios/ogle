@@ -85,7 +85,6 @@ int audio_config(audio_config_t *aconf,
     ao_driver_t *drivers;
     
     drivers = ao_drivers();
-    fprintf(stderr, "ao_drivers passed\n");
     if(!aconf->adev_handle) {
       int n;
       int driver_n = 0;
@@ -107,18 +106,18 @@ int audio_config(audio_config_t *aconf,
 	     
       if(drivers[driver_n].open != NULL) {
 	char *dev_string = get_audio_device();
-	fprintf(stderr, "trying audio driver %s\n", drivers[driver_n].name);
 	aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
 	if(!aconf->adev_handle) {
-	  fprintf(stderr, "failed opening the %s audio driver at %s\n",
-		  drivers[driver_n].name, dev_string);
+	  FATAL("failed opening the %s audio driver at %s\n",
+		drivers[driver_n].name, dev_string);
 	  exit(1);
 	}
       } else {
-	fprintf(stderr, "ogle_ao_open not taken, no audio ouput driver!\n");
+	FATAL("ogle_ao_open not taken, no audio ouput driver!\n");
+	exit(1);
       }
     }
-    fprintf(stderr, "ogle_ao_open passed\n");
+    // DNOTE("ogle_ao_open passed\n");
   }
   if(!aconf->ainfo) {
     aconf->ainfo = malloc(sizeof(ogle_ao_audio_info_t));
@@ -132,7 +131,7 @@ int audio_config(audio_config_t *aconf,
   
   // check return value
   ogle_ao_init(aconf->adev_handle, aconf->ainfo);
-  fprintf(stderr, "ogle_ao_init passed\n");
+  // DNOTE("ogle_ao_init passed\n");
 
   aconf->sync.delay_resolution = aconf->ainfo->sample_rate / 10;
   aconf->sync.delay_resolution_set = 0;

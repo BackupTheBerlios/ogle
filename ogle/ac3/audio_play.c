@@ -65,18 +65,18 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	    s->delay_resolution = h->config->ainfo->sample_rate/200;
 	    s->max_sync_diff = 2 * s->delay_resolution *
 	      (CT_FRACTION / h->config->ainfo->sample_rate);
-	    fprintf(stderr, "delay resolution better than: 0.%09d, %d samples, rate: %d\n",
-		    s->max_sync_diff/2, s->delay_resolution,
-		    h->config->ainfo->sample_rate);
+	    NOTE("delay resolution better: 0.%09d, %d samples, rate: %d\n",
+		 s->max_sync_diff/2, s->delay_resolution,
+		 h->config->ainfo->sample_rate);
 	    s->delay_resolution_set = 1;
 	  } else {
 	    s->delay_resolution = delay_step;
 	    s->max_sync_diff = 2 * s->delay_resolution *
 	      (CT_FRACTION / h->config->ainfo->sample_rate);
 	    
-	    fprintf(stderr, "delay resolution: 0.%09d, %d samples, rate: %d\n",
-		    s->max_sync_diff/2, s->delay_resolution,
-		    h->config->ainfo->sample_rate);
+	    NOTE("delay resolution: 0.%09d, %d samples, rate: %d\n",
+		 s->max_sync_diff/2, s->delay_resolution,
+		 h->config->ainfo->sample_rate);
 	  }
 	}
       }
@@ -175,9 +175,7 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	      (((double)(TIME_S(delta_sync_time)) +
 		(double)(TIME_SS(delta_sync_time)) / CT_FRACTION) *
 	       srate);
-	    fprintf(stderr, "<%ld.%+010ld>",
-		    TIME_S(delta_sync_time),
-		    TIME_SS(delta_sync_time));
+	    // fprintf(stderr, "<%ld.%+010ld>", TIME_S(delta_sync_time), TIME_SS(delta_sync_time));
 	    fprintf(stderr, "[%.6f]", drift_factor);
 	    
 	    diff = drift_factor/prev_df;
@@ -215,12 +213,10 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	      } else {
 		avg_drift = 0.0;
 		avg_cnt = 0;
-	      }
-	      
+	      }  
 	    }
 	    
 	    prev_df = drift_factor;
-	    
 	    
 	  }
 	}
