@@ -1,0 +1,169 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR Free Software Foundation, Inc.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PACKAGE VERSION\n"
+"POT-Creation-Date: 2001-05-09 23:16+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: ENCODING\n"
+
+#: src/main.c:31
+msgid "Windows-id of player"
+msgstr ""
+
+#: src/main.c:32
+msgid "winid"
+msgstr ""
+
+#: src/main.c:40
+msgid "message queue id of player"
+msgstr ""
+
+#: src/main.c:41
+msgid "msgqid"
+msgstr ""
+
+#: src/interface.c:19
+msgid "_PTT"
+msgstr ""
+
+#: src/interface.c:20
+msgid "Part of title"
+msgstr ""
+
+#: src/interface.c:26
+msgid "A_ngle"
+msgstr ""
+
+#: src/interface.c:33
+msgid "_Audio"
+msgstr ""
+
+#: src/interface.c:40
+msgid "_Subpicture"
+msgstr ""
+
+#: src/interface.c:47
+msgid "_Root"
+msgstr ""
+
+#: src/interface.c:54
+msgid "_Title"
+msgstr ""
+
+#: src/interface.c:61
+msgid "Resume"
+msgstr ""
+
+#: src/interface.c:129
+msgid "_New File"
+msgstr ""
+
+#: src/interface.c:238
+msgid "Ogle"
+msgstr ""
+
+#: src/interface.c:407
+msgid "Stop"
+msgstr ""
+
+#: src/interface.c:426
+msgid "Pause"
+msgstr ""
+
+#: src/interface.c:445
+msgid "Rewind"
+msgstr ""
+
+#: src/interface.c:464
+msgid "Skip backwards"
+msgstr ""
+
+#: src/interface.c:483
+msgid "Reverse"
+msgstr ""
+
+#: src/interface.c:502
+msgid "Step reverse"
+msgstr ""
+
+#: src/interface.c:521
+msgid "Play"
+msgstr ""
+
+#: src/interface.c:540
+msgid "Step forwards"
+msgstr ""
+
+#: src/interface.c:559
+msgid "Fast forward"
+msgstr ""
+
+#: src/interface.c:578
+msgid "Skip forwards"
+msgstr ""
+
+#: src/interface.c:605
+msgid "Play fast"
+msgstr ""
+
+#: src/interface.c:624
+msgid "Play slow"
+msgstr ""
+
+#: src/interface.c:651
+msgid "Move cursor up"
+msgstr ""
+
+#: src/interface.c:670
+msgid "Move cursor left"
+msgstr ""
+
+#: src/interface.c:689
+msgid "Move cursor right"
+msgstr ""
+
+#: src/interface.c:708
+msgid "Go up"
+msgstr ""
+
+#: src/interface.c:727
+msgid "Move cursor down"
+msgstr ""
+
+#: src/interface.c:746
+msgid "Enter"
+msgstr ""
+
+#: src/interface.c:773
+msgid "Select menu..."
+msgstr ""
+
+#: src/interface.c:792
+msgid "Audio select"
+msgstr ""
+
+#: src/interface.c:811
+msgid "Subpicture select"
+msgstr ""
+
+#: src/interface.c:830
+msgid "Angle select"
+msgstr ""
+
+#: src/support.c:100 src/support.c:138
+#, c-format
+msgid "Couldn't find pixmap file: %s"
+msgstr ""
+
+#: src/support.c:116
+#, c-format
+msgid "Couldn't create pixmap from file: %s"
+msgstr ""
