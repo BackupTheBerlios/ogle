@@ -70,6 +70,11 @@ static int xv_id;
 
 
 
+//ugly hack
+#ifdef HAVE_XV
+extern yuv_image_t *reserv_image;
+#endif
+
 int CompletionType;
 
 typedef struct {
@@ -196,18 +201,18 @@ void display_init(yuv_image_t *picture_data,
   dpy_sar_frac_d =
     (int64_t)dpy_size.width * (int64_t)dpy_size.vertical_pixels;
   
-  xscale_factor_frac_n = dpy_sar_frac_n * picture_data->info->sar_frac_d; 
+  xscale_factor_frac_n = dpy_sar_frac_n * picture_data->info->picture.sar_frac_d; 
   
-  xscale_factor_frac_d = dpy_sar_frac_d * picture_data->info->sar_frac_n;
+  xscale_factor_frac_d = dpy_sar_frac_d * picture_data->info->picture.sar_frac_n;
 
   /*  
   xscale_factor = dpy_size.height * 
     dpy_size.horizontal_pixels *
-    picture_data->info->sar_frac_d /
+    picture_data->info->picture.sar_frac_d /
     (dpy_size.width * dpy_size.vertical_pixels *
-     picture_data->info->sar_frac_n);
+     picture_data->info->picture.sar_frac_n);
   
-  xscale_factor = dpy_sar/picture_data->info->sar;
+  xscale_factor = dpy_sar/picture_data->info->picture.sar;
   */
 
   fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
@@ -216,8 +221,8 @@ void display_init(yuv_image_t *picture_data,
 	  DisplayHeight(mydisplay, screen),
 	  DisplayWidth(mydisplay, screen));
   fprintf(stderr, "*** src_sar: %d/%d, dst_sar: %d/%d, xscale: %lld/%lld\n",
-	  picture_data->info->sar_frac_n,
-	  picture_data->info->sar_frac_d,
+	  picture_data->info->picture.sar_frac_n,
+	  picture_data->info->picture.sar_frac_d,
 	  dpy_sar_frac_n,
 	  dpy_sar_frac_d,
 	  xscale_factor_frac_n,
@@ -229,32 +234,32 @@ void display_init(yuv_image_t *picture_data,
 
   if(xscale_factor_frac_n > xscale_factor_frac_d) {
     
-    scaled_image_width = (picture_data->info->horizontal_size *
+    scaled_image_width = (picture_data->info->picture.horizontal_size *
 			  xscale_factor_frac_n) / xscale_factor_frac_d;
     
-    scaled_image_height = picture_data->info->vertical_size;
+    scaled_image_height = picture_data->info->picture.vertical_size;
     
   } else {
 
-    scaled_image_width = picture_data->info->horizontal_size;
+    scaled_image_width = picture_data->info->picture.horizontal_size;
 
-    scaled_image_height = (picture_data->info->vertical_size *
+    scaled_image_height = (picture_data->info->picture.vertical_size *
 			   xscale_factor_frac_d) / xscale_factor_frac_n;
 
   }
   
   /*
   if(xscale_factor > 1) {
-    scaled_image_width = (int)(((double)picture_data->info->horizontal_size)*
+    scaled_image_width = (int)(((double)picture_data->info->picture.horizontal_size)*
 			       xscale_factor);
-    scaled_image_height = picture_data->info->vertical_size;
-    if(scaled_image_width != picture_data->info->horizontal_size)
+    scaled_image_height = picture_data->info->picture.vertical_size;
+    if(scaled_image_width != picture_data->info->picture.horizontal_size)
        scaled_image_width &= ~1;
   } else {
-    scaled_image_width = picture_data->info->horizontal_size;
-    scaled_image_height = (int)(((double)picture_data->info->vertical_size)/
+    scaled_image_width = picture_data->info->picture.horizontal_size;
+    scaled_image_height = (int)(((double)picture_data->info->picture.vertical_size)/
 				xscale_factor);
-    if(scaled_image_height != picture_data->info->vertical_size)
+    if(scaled_image_height != picture_data->info->picture.vertical_size)
       scaled_image_height &= ~1;
   }
   */
@@ -386,8 +391,8 @@ void display_init(yuv_image_t *picture_data,
               fprintf (stderr, "Using Xvideo port %li for hw scaling\n", xv_port);
               /* allocate XvImages */
               xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
-					   picture_data->info->padded_width,
-					   picture_data->info->padded_height, 
+					   picture_data->info->picture.padded_width,
+					   picture_data->info->picture.padded_height, 
 					   &shm_info);
               shm_info.shmid = picture_data_head->shmid;
 
@@ -438,11 +443,11 @@ void display_init(yuv_image_t *picture_data,
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   /* Create shared memory image */
   if(scaled_image_width * scaled_image_height < 
-     picture_data->info->padded_width * picture_data->info->padded_height) {
+     picture_data->info->picture.padded_width * picture_data->info->picture.padded_height) {
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
-					picture_data->info->padded_width,
-					picture_data->info->padded_height);
+					picture_data->info->picture.padded_width,
+					picture_data->info->picture.padded_height);
   } else {
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 					ZPixmap, NULL, &shm_info,
@@ -531,8 +536,8 @@ void display_init(yuv_image_t *picture_data,
 /* TODO display_change_size needs to be fixed */
 
 void display_change_size(yuv_image_t *img, int new_width, int new_height) {
-  int padded_width = img->info->padded_width;
-  int padded_height = img->info->padded_height;
+  int padded_width = img->info->picture.padded_width;
+  int padded_height = img->info->picture.padded_height;
   
   fprintf(stderr, "vo padded: %d, %d\n",
 	  padded_width, padded_height);
@@ -654,13 +659,13 @@ void display(yuv_image_t *current_image)
   static int sar_frac_n, sar_frac_d; 
   int64_t scale_frac_n, scale_frac_d;
   
-  if(current_image->info->sar_frac_n != sar_frac_n ||
-     current_image->info->sar_frac_d != sar_frac_d) {
+  if(current_image->info->picture.sar_frac_n != sar_frac_n ||
+     current_image->info->picture.sar_frac_d != sar_frac_d) {
     
     int new_width, new_height;
 
-    sar_frac_n = current_image->info->sar_frac_n;
-    sar_frac_d = current_image->info->sar_frac_d;
+    sar_frac_n = current_image->info->picture.sar_frac_n;
+    sar_frac_d = current_image->info->picture.sar_frac_d;
 
     // TODO replace image->sar.. with image->dar
     scale_frac_n = (int64_t)dpy_sar_frac_n * (int64_t)sar_frac_d; 
@@ -675,16 +680,16 @@ void display(yuv_image_t *current_image)
     
     if(scale_frac_n > scale_frac_d) {
       
-      new_width = (current_image->info->horizontal_size *
+      new_width = (current_image->info->picture.horizontal_size *
 		   scale_frac_n) / scale_frac_d;
       
-      new_height = current_image->info->vertical_size;
+      new_height = current_image->info->picture.vertical_size;
       
     } else {
       
-      new_width = current_image->info->horizontal_size;
+      new_width = current_image->info->picture.horizontal_size;
       
-      new_height = (current_image->info->vertical_size *
+      new_height = (current_image->info->picture.vertical_size *
 		    scale_frac_d) / scale_frac_n;
       
     }
@@ -809,8 +814,8 @@ void display(yuv_image_t *current_image)
 	  else { /* Scale size */
 #if defined(HAVE_MLIB) || defined(HAVE_XV)
 	    int x = atoi(&buff[0]);
-	    display_change_size(window.image->info->horizontal_size * x, 
-				window.image->info->vertical_size * x);
+	    display_change_size(window.image->info->picture.horizontal_size * x, 
+				window.image->info->picture.vertical_size * x);
 #endif
 	  }
 	  break;
@@ -835,10 +840,10 @@ void display(yuv_image_t *current_image)
 void draw_win_x11(window_info *dwin)
 { 
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
-          dwin->image->info->padded_width,
-          dwin->image->info->padded_height,
-          dwin->image->info->padded_width*(pixel_stride/8),
-          dwin->image->info->padded_width, dwin->image->info->padded_width/2 );
+          dwin->image->info->picture.padded_width,
+          dwin->image->info->picture.padded_height,
+          dwin->image->info->picture.padded_width*(pixel_stride/8),
+          dwin->image->info->picture.padded_width, dwin->image->info->picture.padded_width/2 );
             
   if(screenshot) {
     screenshot = 0;
@@ -848,12 +853,12 @@ void draw_win_x11(window_info *dwin)
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
 		 0, 0, 0, 0, 
-		 dwin->image->info->horizontal_size, dwin->image->info->vertical_size, 1);
+		 dwin->image->info->picture.horizontal_size, dwin->image->info->picture.vertical_size, 1);
     
   } else {
     XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0,
-	      dwin->image->info->horizontal_size,
-	      dwin->image->info->vertical_size);
+	      dwin->image->info->picture.horizontal_size,
+	      dwin->image->info->picture.vertical_size);
   }
 
   // XSync(mydisplay, False); or
@@ -872,7 +877,7 @@ void draw_win(window_info *dwin)
   char *address = dwin->data;
   
   int dest_size = dwin->ximage->bytes_per_line * dwin->ximage->height;
-  int sorce_size = dwin->image->info->padded_width*(pixel_stride/8) * dwin->image->info->padded_height;
+  int sorce_size = dwin->image->info->picture.padded_width*(pixel_stride/8) * dwin->image->info->picture.padded_height;
   
   int offs = dest_size - sorce_size - 4096;
   if( offs > 0 )
@@ -886,22 +891,22 @@ void draw_win(window_info *dwin)
      Rigth now it's done by the XSync call at the bottom... */
   
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
-	  dwin->image->info->padded_width, 
-	  dwin->image->info->padded_height, 
-	  dwin->image->info->padded_width*(pixel_stride/8),
-	  dwin->image->info->padded_width,
-	  dwin->image->info->padded_width/2 );
+	  dwin->image->info->picture.padded_width, 
+	  dwin->image->info->picture.padded_height, 
+	  dwin->image->info->picture.padded_width*(pixel_stride/8),
+	  dwin->image->info->picture.padded_width,
+	  dwin->image->info->picture.padded_width/2 );
 
 #ifdef SPU
   if(msgqid != -1) {
     mix_subpicture(address,
-		   dwin->image->info->padded_width,
-		   dwin->image->info->padded_height, 0);
+		   dwin->image->info->picture.padded_width,
+		   dwin->image->info->picture.padded_height, 0);
   }
 #endif
 
-  if( (scaled_image_width != dwin->image->info->horizontal_size) ||
-      (scaled_image_height != dwin->image->info->vertical_size )) {
+  if( (scaled_image_width != dwin->image->info->picture.horizontal_size) ||
+      (scaled_image_height != dwin->image->info->picture.vertical_size )) {
     /* Destination image */
     mimage_d = mlib_ImageCreateStruct(MLIB_BYTE, 4,
 				      scaled_image_width, 
@@ -910,19 +915,19 @@ void draw_win(window_info *dwin)
 				      dwin->data);
     /* Source image */
     mimage_s = mlib_ImageCreateStruct(MLIB_BYTE, 4, 
-				      dwin->image->info->horizontal_size, 
-				      dwin->image->info->vertical_size,
-				      dwin->image->info->padded_width*4, address);
+				      dwin->image->info->picture.horizontal_size, 
+				      dwin->image->info->picture.vertical_size,
+				      dwin->image->info->picture.padded_width*4, address);
     /* Extra fast 2x Zoom */
-    if((scaled_image_width == 2 * dwin->image->info->horizontal_size) &&
-       (scaled_image_height == 2 * dwin->image->info->vertical_size)) {
+    if((scaled_image_width == 2 * dwin->image->info->picture.horizontal_size) &&
+       (scaled_image_height == 2 * dwin->image->info->picture.vertical_size)) {
       mlib_ImageZoomIn2X(mimage_d, mimage_s, 
 			 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     } else {
       mlib_ImageZoom 
 	(mimage_d, mimage_s,
-	 (double)scaled_image_width/(double)dwin->image->info->horizontal_size, 
-	 (double)scaled_image_height/(double)dwin->image->info->vertical_size,
+	 (double)scaled_image_width/(double)dwin->image->info->picture.horizontal_size, 
+	 (double)scaled_image_height/(double)dwin->image->info->picture.vertical_size,
 	 scalemode, MLIB_EDGE_DST_FILL_ZERO);
     }
     mlib_ImageDelete(mimage_s);
@@ -973,16 +978,21 @@ void draw_win(window_info *dwin)
     
 #ifdef SPU
     if(msgqid != -1) {
-      mix_subpicture(xv_image->data,
-		     dwin->image->info->padded_width,
-		     dwin->image->info->padded_height, 1);
+
+      //ugly hack
+      if(mix_subpicture(dwin->image,
+			reserv_image,
+			dwin->image->info->picture.padded_width,
+			dwin->image->info->picture.padded_height, 1)) {
+	xv_image->data = reserv_image->y;
+      }
     }
 #endif
 
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
-                  dwin->image->info->horizontal_size, 
-		  dwin->image->info->vertical_size,
+                  dwin->image->info->picture.horizontal_size, 
+		  dwin->image->info->picture.vertical_size,
                   0, 0, 
                   scaled_image_width, scaled_image_height,
                   True);

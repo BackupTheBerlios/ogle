@@ -769,10 +769,20 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   /* Mlib reads ?8? bytes beyond the last pel (in the v-picture), 
      if that pel just before a page boundary then *boom*!! */
   
+
+
+  // TODO this is an ugly hack for not mixing in ref.frames
+#ifdef HAVE_XV
+  picture_bufs_size = (nr_of_bufs+1) * picture_size + pagesize;//Hack
+  picture_ctrl_size = sizeof(data_buf_head_t) +
+    sizeof(picture_data_elem_t)*(nr_of_bufs+1);
+#else
   picture_bufs_size = nr_of_bufs * picture_size + pagesize;//Hack
-  
   picture_ctrl_size = sizeof(data_buf_head_t) +
     sizeof(picture_data_elem_t)*nr_of_bufs;
+#endif
+
+
   picture_ctrl_size = INC_8b_ALIGNMENT(picture_ctrl_size);
 
   buf_size = picture_ctrl_size + picture_bufs_size;
@@ -822,8 +832,13 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     picture_ctrl_data = data_elems;
 
     picture_data_offset = picture_ctrl_size;
-    
+
+  // TODO this is an ugly hack for not mixing in ref.frames
+#ifdef HAVE_XV
+    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
+#else
     for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+#endif
       data_elems[n].displayed = 1;
       data_elems[n].is_reference = 0;
       data_elems[n].picture.y_offset = picture_data_offset;

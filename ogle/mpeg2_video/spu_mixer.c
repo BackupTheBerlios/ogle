@@ -1091,8 +1091,13 @@ int next_spu_cmd_pending(spu_t *spu_info) {
   return 0;
 }
 
-
-void mix_subpicture(char *data, int width, int height, int picformat)
+//ugly hack
+#ifdef HAVE_XV
+int mix_subpicture(yuv_image_t *img, yuv_image_t *reserv, int width,
+		    int height, int picformat)
+#else
+     void mix_subpicture(char *data, int width, int height, int picformat)
+#endif
 {
   /*
    * Check for, and process, messages. Exit if not 
@@ -1104,7 +1109,13 @@ void mix_subpicture(char *data, int width, int height, int picformat)
   
 
   if(!initialized) {
+
+    //ugly hack
+#ifdef HAVE_XV
+    return 0;
+#else
     return;
+#endif
   }
 
   
@@ -1132,8 +1143,24 @@ void mix_subpicture(char *data, int width, int height, int picformat)
 
   if(spu_info.display_start || spu_info.menu) {
     //fprintf(stderr, "decoding data\n");
+    //ugly hack
+#ifdef HAVE_XV
+    if(img->info->is_reference) {
+      int size;
+      size = img->info->picture.padded_width*img->info->picture.padded_height;
+      memcpy(reserv->y, img->y, size);
+      memcpy(reserv->u, img->u, size/4);
+      memcpy(reserv->v, img->v, size/4);
+      decode_display_data(&spu_info, reserv->y, width, height, picformat);
+      return 1;
+    } else {
+      decode_display_data(&spu_info, img->y, width, height, picformat);
+      return 0;
+    }
+#else
     decode_display_data(&spu_info, data, width, height, picformat);
-  }
+#endif
+    }
   
 }
 

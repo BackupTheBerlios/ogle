@@ -76,7 +76,10 @@ static data_buf_head_t *picture_ctrl_head;
 
 yuv_image_t *image_bufs;
 
-
+//ugly hack
+#ifdef HAVE_XV
+yuv_image_t *reserv_image = NULL;
+#endif
 
 
 typedef struct _event_handler_t {
@@ -179,17 +182,27 @@ static int attach_picture_buffer(int shmid)
 
     picture_ctrl_data = data_elems;
 
+    
+    //TODO ugly hack
+#ifdef HAVE_XV
+    image_bufs = 
+      malloc((picture_ctrl_head->nr_of_dataelems+1) * sizeof(yuv_image_t));
+    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+#else
     image_bufs = 
       malloc(picture_ctrl_head->nr_of_dataelems * sizeof(yuv_image_t));
-    
-
-    
-    for(n = 0; n < picture_ctrl_head->nr_of_dataelems; n++) {
+    for(n = 0; n < (picture_ctrl_head->nr_of_dataelems+1); n++) {
+#endif
       image_bufs[n].y = picture_buf_base + data_elems[n].picture.y_offset;
       image_bufs[n].u = picture_buf_base + data_elems[n].picture.u_offset;
       image_bufs[n].v = picture_buf_base + data_elems[n].picture.v_offset;
-      image_bufs[n].info = &data_elems[n].picture;
+      image_bufs[n].info = &data_elems[n];
     }
+
+    //TODO ugly hack
+#ifdef HAVE_XV
+    reserv_image = &image_bufs[n-1];
+#endif
     
   }    
 
