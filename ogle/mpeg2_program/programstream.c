@@ -415,7 +415,7 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
       if(size < nblocks) {
 	/* the nr of contigously available blocks is too small, 
 	 * wait for more free blocks */
-	fprintf(stderr, "need more free space, not implemented\n");
+	fprintf(stderr, "*demux: SEND A BUG REPORT: need more free space, not implemented\n");
       } else {
 	/* we have enough free blocks */
 	break;
