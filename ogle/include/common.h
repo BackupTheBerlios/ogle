@@ -39,6 +39,9 @@ typedef struct {
   yuv_image_t picture;
   int in_use;
   int displayed;
+  struct timespec pts_time;
+  struct timespec realtime_offset;
+  uint64_t PTS;
 } picture_info_t;
 
 typedef struct {
@@ -49,3 +52,25 @@ typedef struct {
   int *dpy_q;
   long int frame_interval;
 } buf_ctrl_head_t;
+
+
+typedef enum {
+  MODE_STOP,
+  MODE_PLAY,
+  MODE_PAUSE
+} playmode_t;
+
+typedef enum {
+  OFFSET_NOT_VALID,
+  OFFSET_VALID
+} offset_valid_t;
+
+typedef struct {
+  struct timespec realtime_offset;
+  offset_valid_t offset_valid;
+} ctrl_time_t;
+
+typedef struct {
+  playmode_t mode;
+} ctrl_data_t;
+
