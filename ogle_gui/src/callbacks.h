@@ -199,6 +199,17 @@ on_full_screen_activate                (GtkButton       *button,
 					gpointer        user_data);
 
 void
+on_keypad_activate                     (GtkButton       *button,
+					gpointer        user_data);
+
+void
+on_keypadbutton_clicked                (GtkButton       *button,
+					gpointer        user_data);
+
+void on_keypad_nof_digits_clicked      (GtkButton       *button,
+					gpointer        user_data);
+
+void
 on_jump_to_ptt_activate                (GtkWidget       *widget,
                                         gpointer        pos);
 

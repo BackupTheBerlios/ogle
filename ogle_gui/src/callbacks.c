@@ -46,6 +46,14 @@ extern char *dvd_path;
 int isPaused = 0;
 double speed = 1.0;
 
+
+// keypad
+int keypad_memory = 0;
+int wanted_digits = 1;
+int received_digits = 0;
+
+GtkWidget *keypad = NULL;
+
 void
 on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
@@ -481,6 +489,63 @@ on_full_screen_activate                (GtkButton       *button,
   }
 }
 
+
+void
+on_keypad_activate                     (GtkButton       *button,
+					gpointer        user_data)
+{
+  if(keypad==NULL) {
+    keypad = get_glade_widget("keypad");
+    gtk_widget_show(keypad);
+  }
+
+  if(GTK_CHECK_MENU_ITEM (button)->active) {
+    gtk_widget_show(keypad);
+  } else {
+    gtk_widget_hide(keypad);
+  }  
+}
+
+void
+on_keypadbutton_clicked                (GtkButton       *button,
+					gpointer       user_data)
+{
+
+  GtkWidget *keypadlabel = get_glade_widget("keypadlabel");
+  int nr = atoi(user_data);
+  static char ugly_string[3] = "nn\0";
+
+  received_digits++;
+  
+  keypad_memory = 10*keypad_memory + nr;
+  
+  if(wanted_digits == received_digits) {
+    DVDButtonSelectAndActivate(nav, keypad_memory);
+    snprintf(ugly_string, 3, "%d", keypad_memory);
+    keypad_memory   = 0;
+    received_digits = 0;
+  } else {
+    snprintf(ugly_string, 3, "%dn", keypad_memory);
+  }
+  gtk_label_set_text(GTK_LABEL(keypadlabel), ugly_string);
+}
+
+
+void on_keypad_nof_digits_clicked      (GtkButton       *button,
+					gpointer       user_data)
+{
+  GtkWidget *keypadlabel = get_glade_widget("keypadlabel");
+  keypad_memory=0;
+  received_digits = 0;
+  wanted_digits = (wanted_digits==1) ? 2: 1;
+  
+  gtk_label_set_text(GTK_LABEL(keypadlabel),
+		     (wanted_digits==1) ? "n": "nn");
+  
+}
+
+     
+     
 /* hack, pos = title*256+ptt */
 void
 on_jump_to_ptt_activate                (GtkWidget       *widget,

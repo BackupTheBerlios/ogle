@@ -54,7 +54,7 @@
 
 	<widget>
 	  <class>GtkMenu</class>
-	  <name>file_menu</name>
+	  <name>file1_menu</name>
 
 	  <widget>
 	    <class>GtkMenuItem</class>
@@ -108,7 +108,7 @@
 
 	<widget>
 	  <class>GtkMenu</class>
-	  <name>edit_menu</name>
+	  <name>edit1_menu</name>
 
 	  <widget>
 	    <class>GtkMenuItem</class>
@@ -132,7 +132,7 @@
 
 	<widget>
 	  <class>GtkMenu</class>
-	  <name>view_menu</name>
+	  <name>view1_menu</name>
 
 	  <widget>
 	    <class>GtkCheckMenuItem</class>
@@ -151,6 +151,24 @@
 	    <active>False</active>
 	    <always_show_toggle>True</always_show_toggle>
 	  </widget>
+
+	  <widget>
+	    <class>GtkCheckMenuItem</class>
+	    <name>keypad</name>
+	    <accelerator>
+	      <modifiers>GDK_CONTROL_MASK</modifiers>
+	      <key>GDK_K</key>
+	      <signal>activate</signal>
+	    </accelerator>
+	    <signal>
+	      <name>activate</name>
+	      <handler>on_keypad_activate</handler>
+	      <last_modification_time>Thu, 12 Sep 2002 09:23:18 GMT</last_modification_time>
+	    </signal>
+	    <label>Keypad</label>
+	    <active>False</active>
+	    <always_show_toggle>True</always_show_toggle>
+	  </widget>
 	</widget>
       </widget>
 
@@ -162,7 +180,7 @@
 
 	<widget>
 	  <class>GtkMenu</class>
-	  <name>help_menu</name>
+	  <name>help1_menu</name>
 
 	  <widget>
 	    <class>GtkMenuItem</class>
@@ -235,7 +253,6 @@
 	    <handler>on_rewind_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:12 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -273,7 +290,6 @@
 	    <handler>on_reverse_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:44 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -311,7 +327,6 @@
 	    <handler>on_stop_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:03:59 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -349,7 +364,6 @@
 	    <handler>on_play_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:07 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>3</left_attach>
 	    <right_attach>4</right_attach>
@@ -387,7 +401,6 @@
 	    <handler>on_fastforward_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:19 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>4</left_attach>
 	    <right_attach>5</right_attach>
@@ -425,7 +438,6 @@
 	    <handler>on_skip_backwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:40 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -463,7 +475,6 @@
 	    <handler>on_step_reverse_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:49 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -501,7 +512,6 @@
 	    <handler>on_pause_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:59 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -539,7 +549,6 @@
 	    <handler>on_step_forwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:14 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>3</left_attach>
 	    <right_attach>4</right_attach>
@@ -577,7 +586,6 @@
 	    <handler>on_skip_forwards_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:25 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>4</left_attach>
 	    <right_attach>5</right_attach>
@@ -630,7 +638,6 @@
 	    <handler>on_fast_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:37 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -668,7 +675,6 @@
 	    <handler>on_slow_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:42 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -721,7 +727,6 @@
 	    <handler>on_cursor_go_up_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:47 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -759,7 +764,6 @@
 	    <handler>on_cursor_left_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:06:54 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -797,7 +801,6 @@
 	    <handler>on_cursor_up_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:04:57 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -835,7 +838,6 @@
 	    <handler>on_cursor_down_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:08 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -873,7 +875,6 @@
 	    <handler>on_cursor_right_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:19 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -911,7 +912,6 @@
 	    <handler>on_cursor_enter_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:07 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -964,7 +964,6 @@
 	    <handler>on_menus_button_clicked</handler>
 	    <last_modification_time>Sun, 25 Nov 2001 01:03:39 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -1002,7 +1001,6 @@
 	    <handler>on_audio_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:05:30 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -1040,7 +1038,6 @@
 	    <handler>on_subpicture_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:31 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>0</left_attach>
 	    <right_attach>1</right_attach>
@@ -1078,7 +1075,6 @@
 	    <handler>on_angle_button_clicked</handler>
 	    <last_modification_time>Fri, 23 Nov 2001 22:07:41 GMT</last_modification_time>
 	  </signal>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>1</left_attach>
 	    <right_attach>2</right_attach>
@@ -1116,7 +1112,6 @@
 	    <last_modification_time>Sun, 16 Jun 2002 20:26:43 GMT</last_modification_time>
 	  </signal>
 	  <label>Chapters</label>
-	  <relief>GTK_RELIEF_NORMAL</relief>
 	  <child>
 	    <left_attach>2</left_attach>
 	    <right_attach>3</right_attach>
@@ -1250,12 +1245,360 @@
 	<last_modification_time>Wed, 28 Nov 2001 20:55:56 GMT</last_modification_time>
       </signal>
       <label>OK</label>
-      <relief>GTK_RELIEF_NORMAL</relief>
       <child>
 	<padding>0</padding>
 	<expand>False</expand>
 	<fill>False</fill>
       </child>
+    </widget>
+  </widget>
+</widget>
+
+<widget>
+  <class>GtkWindow</class>
+  <name>keypad</name>
+  <visible>False</visible>
+  <title>Keypad</title>
+  <type>GTK_WINDOW_TOPLEVEL</type>
+  <position>GTK_WIN_POS_NONE</position>
+  <modal>False</modal>
+  <allow_shrink>False</allow_shrink>
+  <allow_grow>True</allow_grow>
+  <auto_shrink>False</auto_shrink>
+
+  <widget>
+    <class>GtkVBox</class>
+    <name>vbox5</name>
+    <homogeneous>False</homogeneous>
+    <spacing>0</spacing>
+
+    <widget>
+      <class>GtkLabel</class>
+      <name>keypadlabel</name>
+      <label>n</label>
+      <justify>GTK_JUSTIFY_CENTER</justify>
+      <wrap>False</wrap>
+      <xalign>0.5</xalign>
+      <yalign>0.5</yalign>
+      <xpad>20</xpad>
+      <ypad>18</ypad>
+      <child>
+	<padding>0</padding>
+	<expand>False</expand>
+	<fill>False</fill>
+      </child>
+    </widget>
+
+    <widget>
+      <class>GtkTable</class>
+      <name>table5</name>
+      <rows>4</rows>
+      <columns>3</columns>
+      <homogeneous>True</homogeneous>
+      <row_spacing>0</row_spacing>
+      <column_spacing>0</column_spacing>
+      <child>
+	<padding>0</padding>
+	<expand>True</expand>
+	<fill>True</fill>
+      </child>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton2</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>2</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:15 GMT</last_modification_time>
+	</signal>
+	<label>2</label>
+	<child>
+	  <left_attach>1</left_attach>
+	  <right_attach>2</right_attach>
+	  <top_attach>0</top_attach>
+	  <bottom_attach>1</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton3</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>3</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:22 GMT</last_modification_time>
+	</signal>
+	<label>3</label>
+	<child>
+	  <left_attach>2</left_attach>
+	  <right_attach>3</right_attach>
+	  <top_attach>0</top_attach>
+	  <bottom_attach>1</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton1</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>1</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:17:21 GMT</last_modification_time>
+	</signal>
+	<label>1</label>
+	<child>
+	  <left_attach>0</left_attach>
+	  <right_attach>1</right_attach>
+	  <top_attach>0</top_attach>
+	  <bottom_attach>1</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton4</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>4</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:29 GMT</last_modification_time>
+	</signal>
+	<label>4</label>
+	<child>
+	  <left_attach>0</left_attach>
+	  <right_attach>1</right_attach>
+	  <top_attach>1</top_attach>
+	  <bottom_attach>2</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton5</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>5</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:36 GMT</last_modification_time>
+	</signal>
+	<label>5</label>
+	<child>
+	  <left_attach>1</left_attach>
+	  <right_attach>2</right_attach>
+	  <top_attach>1</top_attach>
+	  <bottom_attach>2</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton6</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>6</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:43 GMT</last_modification_time>
+	</signal>
+	<label>6</label>
+	<child>
+	  <left_attach>2</left_attach>
+	  <right_attach>3</right_attach>
+	  <top_attach>1</top_attach>
+	  <bottom_attach>2</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton7</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>7</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:50 GMT</last_modification_time>
+	</signal>
+	<label>7</label>
+	<child>
+	  <left_attach>0</left_attach>
+	  <right_attach>1</right_attach>
+	  <top_attach>2</top_attach>
+	  <bottom_attach>3</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton8</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>8</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:19:56 GMT</last_modification_time>
+	</signal>
+	<label>8</label>
+	<child>
+	  <left_attach>1</left_attach>
+	  <right_attach>2</right_attach>
+	  <top_attach>2</top_attach>
+	  <bottom_attach>3</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton9</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>9</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:20:03 GMT</last_modification_time>
+	</signal>
+	<label>9</label>
+	<child>
+	  <left_attach>2</left_attach>
+	  <right_attach>3</right_attach>
+	  <top_attach>2</top_attach>
+	  <bottom_attach>3</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton0</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypadbutton_clicked</handler>
+	  <data>0</data>
+	  <last_modification_time>Thu, 12 Sep 2002 09:20:11 GMT</last_modification_time>
+	</signal>
+	<label>0</label>
+	<child>
+	  <left_attach>1</left_attach>
+	  <right_attach>2</right_attach>
+	  <top_attach>3</top_attach>
+	  <bottom_attach>4</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>keypadbutton</name>
+	<can_focus>True</can_focus>
+	<signal>
+	  <name>clicked</name>
+	  <handler>on_keypad_nof_digits_clicked</handler>
+	  <data>99</data>
+	  <last_modification_time>Thu, 12 Sep 2002 14:21:15 GMT</last_modification_time>
+	</signal>
+	<label>n/nn</label>
+	<child>
+	  <left_attach>2</left_attach>
+	  <right_attach>3</right_attach>
+	  <top_attach>3</top_attach>
+	  <bottom_attach>4</bottom_attach>
+	  <xpad>0</xpad>
+	  <ypad>0</ypad>
+	  <xexpand>True</xexpand>
+	  <yexpand>True</yexpand>
+	  <xshrink>False</xshrink>
+	  <yshrink>False</yshrink>
+	  <xfill>True</xfill>
+	  <yfill>True</yfill>
+	</child>
+      </widget>
     </widget>
   </widget>
 </widget>
