@@ -218,7 +218,7 @@ int main( int argc, char **argv )
             /**
              * Read NAV packet.
              */
-            len = DVDReadBlocks( title, cur_pack, 1, data );
+            len = DVDReadBlocks( title, (int) cur_pack, 1, data );
             if( len != 1 ) {
                 fprintf( stderr, "Read failed for block %d\n", cur_pack );
                 ifoClose( vts_file );
@@ -269,7 +269,7 @@ int main( int argc, char **argv )
             /**
              * Read in and output cursize packs.
              */
-            len = DVDReadBlocks( title, cur_pack, cur_output_size, data );
+            len = DVDReadBlocks( title, (int)cur_pack, cur_output_size, data );
             if( len != (int) cur_output_size ) {
                 fprintf( stderr, "Read failed for %d blocks at %d\n",
                          cur_output_size, cur_pack );

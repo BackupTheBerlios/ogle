@@ -1,5 +1,8 @@
 Version 0.9.0
+  API breakage, new types to not be influenced by differing off_t types 
+  and DVDReadBlocks now returns blocks read not bytes read.
   Changed to use libdvdcss (from VideoLAN).
+  Add support for finding the raw devices of a DVD on Solaris.
   FreeBSD fixes from Marc van Woerkom and OpenBSD fixes from Björn Sandell.
   Configure fixes to work better on *BSD and other systems.
 

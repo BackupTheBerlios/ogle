@@ -102,13 +102,13 @@ dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum,
 void DVDCloseFile( dvd_file_t *dvd_file );
 
 /**
- * Reads the requested number of blocks from the file at the given offset.
+ * Reads block_count number of blocks from the file at the given block offset.
  * Returns number of blocks read on success, -1 on error.  This call is only
  * for reading VOB data, and should not be used when reading the IFO files.  
  * When reading from an encrypted drive, blocks are decrypted using libdvdcss 
  * where required.
  */
-ssize_t DVDReadBlocks( dvd_file_t *dvd_file, uint32_t offset,
+ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset,
 		       size_t block_count, unsigned char *data );
 
 /**
@@ -117,7 +117,7 @@ ssize_t DVDReadBlocks( dvd_file_t *dvd_file, uint32_t offset,
  * byte reads from the file, the block read call always reads from the given
  * offset.
  */
-int32_t DVDFileSeek( dvd_file_t *dvd_file, int32_t offset );
+int DVDFileSeek( dvd_file_t *dvd_file, int offset );
 
 /**
  * Reads the given number of bytes from the file.  This call can only be used

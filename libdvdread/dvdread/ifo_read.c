@@ -83,8 +83,8 @@ static void ifoFree_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl);
 static void ifoFree_PGCIT_internal(pgcit_t *pgcit);
 
 
-static int32_t DVDFileSeek_( dvd_file_t *dvd_file, uint32_t offset ) {
-  return DVDFileSeek(dvd_file, (int32_t)offset) == (int32_t)offset;
+static int DVDFileSeek_( dvd_file_t *dvd_file, uint32_t offset ) {
+  return (DVDFileSeek(dvd_file, (int)offset) == (int)offset);
 }
 
 
@@ -809,7 +809,7 @@ int ifoRead_TT_SRPT(ifo_handle_t *ifofile) {
   CHECK_ZERO(tt_srpt->zero_1);
   assert(tt_srpt->nr_of_srpts != 0);
   assert(tt_srpt->nr_of_srpts < 100); // ??
-  assert(tt_srpt->nr_of_srpts * sizeof(title_info_t) <= info_length);
+  assert((int)tt_srpt->nr_of_srpts * sizeof(title_info_t) <= info_length);
   
   for(i = 0; i < tt_srpt->nr_of_srpts; i++) {
     assert(tt_srpt->title[i].pb_ty.zero_1 == 0);
@@ -984,7 +984,8 @@ void ifoFree_VTS_PTT_SRPT(ifo_handle_t *ifofile) {
 
 int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
   ptl_mait_t *ptl_mait;
-  int i, info_length;
+  int info_length;
+  unsigned int i;
 
   if(!ifofile)
     return 0;
@@ -1047,7 +1048,7 @@ int ifoRead_PTL_MAIT(ifo_handle_t *ifofile) {
     CHECK_ZERO(ptl_mait->countries[i].zero_1);
     CHECK_ZERO(ptl_mait->countries[i].zero_2);    
     assert(ptl_mait->countries[i].pf_ptl_mai_start_byte + 
-           8 * (ptl_mait->nr_of_vtss+1) * 2 <= ptl_mait->last_byte + 1);
+           8 * (ptl_mait->nr_of_vtss + 1) * 2 <= ptl_mait->last_byte + 1);
   }
 
   return 1;
@@ -1465,7 +1466,7 @@ int ifoRead_PGCI_UT(ifo_handle_t *ifofile) {
   CHECK_ZERO(pgci_ut->zero_1);
   assert(pgci_ut->nr_of_lus != 0);
   assert(pgci_ut->nr_of_lus < 100); // ?? 3-4 ?
-  assert(pgci_ut->nr_of_lus * PGCI_LU_SIZE < pgci_ut->last_byte);
+  assert((uint32_t)pgci_ut->nr_of_lus * PGCI_LU_SIZE < pgci_ut->last_byte);
 
   info_length = pgci_ut->nr_of_lus * PGCI_LU_SIZE;
   data = malloc(info_length);
@@ -1650,7 +1651,7 @@ int ifoRead_VTS_ATRT(ifo_handle_t *ifofile) {
   CHECK_ZERO(vts_atrt->zero_1);
   assert(vts_atrt->nr_of_vtss != 0);
   assert(vts_atrt->nr_of_vtss < 100); //??
-  assert(vts_atrt->nr_of_vtss * (4 + VTS_ATTRIBUTES_MIN_SIZE) + 
+  assert((uint32_t)vts_atrt->nr_of_vtss * (4 + VTS_ATTRIBUTES_MIN_SIZE) + 
          VTS_ATRT_SIZE < vts_atrt->last_byte + 1);
 
   info_length = vts_atrt->nr_of_vtss * sizeof(uint32_t);
