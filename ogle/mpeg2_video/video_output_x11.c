@@ -971,62 +971,7 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
-#if 1
 	//TODO this is just for testing, should be done from vm/ui
-	if(keysym >= XK_1 && keysym <= XK_9) {
-	  m_ev.type = MsgEventQSpeed;
-	  switch(keysym) {
-	  case XK_1:
-	    m_ev.speed.speed = 0.125;
-	    break;
-	  case XK_2:
-	    m_ev.speed.speed = 0.25;
-	    break;
-	  case XK_3:
-	    m_ev.speed.speed = 0.5;
-	    break;
-	  case XK_4:
-	    m_ev.speed.speed = 0.75;
-	    break;
-	  case XK_5:
-	    m_ev.speed.speed = 1.0;
-	    break;
-	  case XK_6:
-	    m_ev.speed.speed = 1.5;
-	    break;
-	  case XK_7:
-	    m_ev.speed.speed = 2.0;
-	    break;
-	  case XK_8:
-	    m_ev.speed.speed = 4.0;
-	    break;
-	  case XK_9:
-	    m_ev.speed.speed = 8.0;
-	    break;
-	  default:
-	    break;
-	  }	    
-	  
-	  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &m_ev, IPC_NOWAIT) == -1) {
-	    switch(errno) {
-	    case EAGAIN:
-	      // msgq full, drop message
-	      break;
-	    case EIDRM:
-	    case EINVAL:
-	      fprintf(stderr, "vo: speed: no msgq\n");
-	      display_exit(); //TODO clean up and exit
-	      break;
-	    default:
-	      fprintf(stderr, "vo: speed: couldn't send notification\n");
-	      display_exit(); //TODO clean up and exit
-	      break;
-	    }
-	  }
-	
-	
-	}
-#endif
 	// hack
 	if(keysym == XK_i) {
 	  screenshot = 1;

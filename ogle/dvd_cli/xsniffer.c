@@ -42,7 +42,7 @@ void xsniff_init() {
 
 void* xsniff_mouse(void* args) {
   MsgEvent_t mev;
-  
+  int isPaused = 0;
   while(1) {
     
 
@@ -132,6 +132,29 @@ void* xsniff_mouse(void* args) {
 	case XK_c:
 	  DVDResume(nav);
 	  break;
+	case XK_space:
+	  if(isPaused) {
+	    DVDPauseOff(nav);
+	    isPaused = 0;
+	  } else {
+	    DVDPauseOn(nav);
+	    isPaused = 1;
+	  }
+	  break;
+	case XK_S:
+	  {
+	    DVDResult_t res;
+	    int spu_nr;
+	    DVDStream_t spu_this;
+	    DVDBool_t spu_shown;
+	    res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_shown);
+	    if(res != DVD_E_Ok) break;
+	    if(spu_shown == DVDTrue)
+	      DVDSetSubpictureState(nav, DVDFalse);
+	    else
+	      DVDSetSubpictureState(nav, DVDTrue);
+	  }
+	  break;
 	case XK_greater:
 	  // next;
 	  DVDNextPGSearch(nav);
@@ -164,6 +187,41 @@ void* xsniff_mouse(void* args) {
 	  break;
 	  
 	default:
+	  if(keysym >= XK_1 && keysym <= XK_9) {
+	    double speed;
+	    switch(keysym) {
+	    case XK_1:
+	      speed = 0.125;
+	      break;
+	    case XK_2:
+	      speed = 0.25;
+	      break;
+	    case XK_3:
+	      speed = 0.5;
+	      break;
+	    case XK_4:
+	      speed = 0.75;
+	      break;
+	    case XK_5:
+	      speed = 1.0;
+	      break;
+	    case XK_6:
+	      speed = 1.5;
+	      break;
+	    case XK_7:
+	      speed = 2.0;
+	      break;
+	    case XK_8:
+	      speed = 4.0;
+	      break;
+	    case XK_9:
+	      speed = 8.0;
+	      break;
+	    default:
+	      break;
+	    }
+	    DVDForwardScan(nav, speed);
+	  }
 	  break;
 	}
       default:
