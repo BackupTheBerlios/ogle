@@ -803,7 +803,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     fprintf(stderr, "**video_decoder: couldn't send buffer request\n");
   }
   
-  while(ev.type != MsgEventQGntBuf) {
+  while(1) {
     MsgNextEvent(msgq, &ev);
     if(ev.type == MsgEventQGntBuf) {
       DPRINTF(1, "video_decoder: got buffer id %d, size %d\n",
@@ -817,7 +817,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   }
   
 
-  if(ev.gntbuf.shmid >= 0) {
+  if(bufshmid >= 0) {
     if((shmaddr = shmat(bufshmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
       perror("**video_decode: attach_buffer(), shmat()");
       return -1;
@@ -882,10 +882,11 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     
     /* wait for answer */
     
-    while(ev.type != MsgEventQGntPicBuf) {
+    while(1) {
       MsgNextEvent(msgq, &ev);
       if(ev.type == MsgEventQGntPicBuf) {
 	qshmid = ev.gntpicbuf.q_shmid;
+	break;
       } else {
 	handle_events(msgq, &ev);
       }

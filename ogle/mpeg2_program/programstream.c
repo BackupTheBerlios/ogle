@@ -2135,6 +2135,7 @@ uint8_t type_registered(uint8_t id, uint8_t subtype)
       break;
     default:
       fprintf(stderr, "demux: type_registered(), type not handled\n");
+      return 0;
       break;
     }
     
@@ -2161,6 +2162,7 @@ uint8_t type_registered(uint8_t id, uint8_t subtype)
       break;
     default:
       fprintf(stderr, "demux: type_registered(), subtype not handled\n");
+      return 0;
       break;
     }
     
@@ -2328,8 +2330,7 @@ int attach_buffer(int shmid, int size)
     
     disk_buf = data_buf_addr + data_buf_head->buffer_start_offset;
     
-    fprintf(stderr, "demux: setup disk_buf: %u\n",
-	    disk_buf);
+    fprintf(stderr, "demux: setup disk_buf: %lu\n", (unsigned long)disk_buf);
     data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
     for(n = 0; n < data_buf_head->nr_of_dataelems; n++) {
       data_elems[n].in_use = 0;
