@@ -56,16 +56,6 @@ struct poptOption options[] = {
 };
 
 
-void usage()
-{
-  fprintf(stderr, "Usage: [-m <msgid>] [-w <window_id>]\n");          
-}
-
-
-
-
-
-
 int
 main (int argc, char *argv[])
 {
