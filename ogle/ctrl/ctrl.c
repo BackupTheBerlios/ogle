@@ -1535,6 +1535,10 @@ void int_handler(int sig)
 #endif
 #ifndef WCONTINUED 
 #define WCONTINUED 0
+#endif
+/* WCONTINUED was defined in /usr/include/sys/wait.h during a period
+ * but not WIFCONTINUED, reported and fixed in glibc as bug libc/409 */
+#ifndef WIFCONTINUED
 #define WIFCONTINUED(x) 0
 #endif
 
