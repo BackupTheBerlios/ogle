@@ -10,6 +10,7 @@
 #include <limits.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "../include/msgtypes.h"
 #include "../include/queue.h"
@@ -25,6 +26,11 @@ int get_buffer(int size, shm_bufinfo_t *bufinfo);
 int create_q(int nr_of_elems, int buf_shmid);
 int wait_for_msg(cmdtype_t cmdtype);
 int create_ctrl_data();
+
+void int_handler();
+void remove_q_shm();
+void add_q_shmid(int shmid);
+void destroy_msgq();
 
 int msgqid;
 
@@ -54,11 +60,18 @@ int subpicture_stream = 0;
 
 int main(int argc, char *argv[])
 {
+  struct sigaction sig;
   pid_t demux_pid = -1;
   pid_t decode_pid = -1;
   pid_t display_pid = -1;
   int c;
 
+  sig.sa_handler = int_handler;
+
+  if(sigaction(SIGINT, &sig, NULL) == -1) {
+    perror("sigaction");
+  }
+  
   
   program_name = argv[0];
   
@@ -557,6 +570,16 @@ int create_msgq()
 }  
 
 
+void destroy_msgq()
+{
+  if(msgctl(msgqid, IPC_RMID, NULL) == -1) {
+    perror("msgctl ipc_rmid");
+  }
+  msgqid = -1;
+
+}
+
+
 
 int eval_msg(cmd_t *cmd)
 {
@@ -878,12 +901,18 @@ int create_q(int nr_of_elems, int buf_shmid)
     return -1;
   }
   
- fprintf(stderr, "shmat\n");
-  if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+  
+  fprintf(stderr, "shmat\n");
+  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
     perror("create_q(), shmat()");
+    
+    if(shmctl(shmid, IPC_RMID, NULL) == -1) {
+      perror("ipc_rmid");
+    }
     return -1;
-    // TODO remove shm segment (shmid) if failed?
   }
+
+  add_q_shmid(shmid);
   
   q_head = (q_head_t *)shmaddr;
   
@@ -933,11 +962,17 @@ int create_ctrl_data()
     return -1;
   }
   
-  if((shmaddr = shmat(shmid, NULL, 0)) == (void *)-1) {
+  if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
     perror("create_ctrl_data(), shmat()");
+
+    if(shmctl(shmid, IPC_RMID, NULL) == -1) {
+      perror("ipc_rmid");
+    }
+
     return -1;
-    // TODO remove shm segment (shmid) if failed?
   }
+
+  add_q_shmid(shmid);
   
   ctrl = (ctrl_data_t *)shmaddr;
   ctrl->mode = MODE_STOP;
@@ -948,5 +983,59 @@ int create_ctrl_data()
   }
 
   return shmid;
+
+}
+
+
+int *shmids = NULL;
+int nr_shmids = 0;
+
+void add_q_shmid(int shmid)
+{
+  nr_shmids++;
+  
+  if((shmids = (int *)realloc(shmids, sizeof(int)*nr_shmids)) == NULL) {
+    perror("realloc");
+    nr_shmids--;
+    return;
+  }
+
+  shmids[nr_shmids-1] = shmid;
+  
+}
+
+
+void remove_q_shm()
+{
+  int n;
+
+  for(n = 0; n < nr_shmids; n++) {
+    fprintf(stderr, "removing shmid: %d\n", shmids[n]);
+    if(shmctl(shmids[n], IPC_RMID, NULL) == -1) {
+      perror("ipc_rmid");
+    }
+  }
+  nr_shmids = 0;
+  free(shmids);
+  shmids = NULL;
+  
+}
+
+void int_handler()
+{
+  /* send quit msg to demuxer and decoders
+   * (and wait for ack? (timeout))
+   * 
+   * remove all shared memory segments
+   *
+   * remove all msqqueues
+   *
+   * exit
+   */
+  
+  
+  remove_q_shm();
+  destroy_msgq();
+  exit(0);
 
 }
