@@ -1,0 +1,17 @@
+
+
+1. Check out a clean source tree from CVS
+
+2. ./autogen.sh
+   ./configure ...
+   Do 'make dist' and
+   make sure the resulting tar.gz compiles and runs (on all platforms).
+
+3. Update libtool versioning info in ogle/Makefile.am if changes
+   have been made to libdvdcontrol / libmsgevents.
+   Commit changes,
+
+4. Update ogle version in configure.in
+   Commit changes
+
+5. 
