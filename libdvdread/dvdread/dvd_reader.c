@@ -46,6 +46,7 @@
 #include "dvd_udf.h"
 #include "dvd_input.h"
 #include "dvd_reader.h"
+#include "md5.h"
 
 struct dvd_reader_s {
     /* Basic information. */
@@ -917,4 +918,35 @@ ssize_t DVDFileSize( dvd_file_t *dvd_file )
       return -1;
     
     return dvd_file->filesize;
+}
+
+int DVDDiscID( dvd_reader_t *dvd, char *discid )
+{
+  struct md5_ctx ctx;
+  int title;
+
+  md5_init_ctx( &ctx );
+  /* Go through all ifo:s in order and md5sum them
+   * Can there be "gaps" in the title numbers? */
+  for( title = 0; title < 100; title++ ) {
+    dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
+    if( dvd_file != NULL ) {
+      ssize_t read;
+      char *buffer = malloc( dvd_file->filesize );
+
+      read = DVDReadBytes( dvd_file, buffer, dvd_file->filesize );
+      if( read != dvd_file->filesize ) {
+        fprintf( stderr, "DVDReadBytes returned %d bytes, wanted %d\n",
+                 read, dvd_file->filesize );
+        return -1;
+      }
+
+      md5_process_bytes( buffer, dvd_file->filesize, &ctx );
+
+      free( buffer );
+    }
+  }
+  md5_finish_ctx( &ctx, discid );
+
+  return 0;
 }

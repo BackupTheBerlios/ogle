@@ -179,6 +179,18 @@ ssize_t DVDReadBytes( dvd_file_t *, void *, size_t );
  */
 ssize_t DVDFileSize( dvd_file_t * );
 
+/**
+ * Get a unique 128 bit disc ID. This is the MD5 sum of all the ifo
+ * files in title order.
+ *
+ * @param dvd A read handle to get the disc ID from
+ * @param discid The buffer to put the disc ID into. The buffer must
+ *               have room for 128 bits (16 chars).
+ * @return 0 on success, -1 on error.
+ */
+
+int DVDDiscID( dvd_reader_t *, char * );
+
 #ifdef __cplusplus
 };
 #endif
