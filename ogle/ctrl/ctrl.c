@@ -42,13 +42,11 @@
 #endif
 
 int create_msgq();
-int init_demux(char *msqqid_str);
 int init_decoder(char *msgqid_str, char *decoderstr);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
 int create_q(int nr_of_elems, int buf_shmid, 
 	     MsgEventClient_t writer, MsgEventClient_t reader);
 int create_ctrl_data();
-int init_ui(char *msgqid_str);
 int register_stream(uint8_t stream_id, uint8_t subtype);
 
 static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
@@ -296,14 +294,10 @@ int request_capability(MsgEventQ_t *q, int cap,
   fprintf(stderr, "ctrl: _MsgEventQReqCapability\n");
 
   
-  if(!search_capabilities(cap,
-			  capclient,
-			  retcaps,
-			  &state)) {
+  if(!search_capabilities(cap, capclient, retcaps, &state)) {
     int fullcap;
     
-    decodername = capability_to_decoderstr(cap,
-					   &fullcap);
+    decodername = capability_to_decoderstr(cap, &fullcap);
 	
     if(decodername != NULL) {
       register_capabilities(0,
@@ -318,10 +312,7 @@ int request_capability(MsgEventQ_t *q, int cap,
     
   }
   
-  while(search_capabilities(cap,
-			    capclient,
-			    retcaps,
-			    &state) &&
+  while(search_capabilities(cap, capclient, retcaps, &state) &&
 	(state != CAP_running)) {
     if(child_killed) {
       cleanup();
@@ -793,127 +784,6 @@ int main(int argc, char *argv[])
 }
 
 
-int init_ui(char *msgqid_str)
-{
-  pid_t pid;
-  int n;
-  char *eargv[16];
-  char *ui_name;
-  char *ui_path = getenv("DVDP_UI");
-
-  //TODO clean up filename handling
-  
-  if(ui_path == NULL) {
-    fprintf(stderr, "DVDP_UI not set\n");
-    return(-1);
-  }
-
-  if((ui_name = strrchr(ui_path, '/')+1) == NULL) {
-    ui_name = ui_path;
-  }
-  if(ui_name > &ui_path[strlen(ui_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init ui\n");
-
-  /* fork/exec ctrl */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    
-    n = 0;
-    eargv[n++] = ui_name;
-    eargv[n++] = "-m";
-    eargv[n++] = msgqid_str;
-
-    eargv[n++] = NULL;
-    
-    if(execv(ui_path, eargv) == -1) {
-      perror("execv ui");
-      fprintf(stderr, "path: %s\n", ui_path);
-    }
-
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    break;
-  default:
-    /* parent process */
-    break;
-  }
-  return pid;
-}
-
-int init_demux(char *msgqid_str)
-{
-  pid_t pid;
-  int n;
-  char *eargv[16];
-  char *demux_name;
-  char *demux_path = getenv("DVDP_DEMUX");
-
-  if(demux_path == NULL) {
-    fprintf(stderr, "DVDP_DEMUX not set\n");
-    return(-1);
-  }
-
-  if((demux_name = strrchr(demux_path, '/')+1) == NULL) {
-    demux_name = demux_path;
-  }
-  if(demux_name > &demux_path[strlen(demux_path)]) {
-    fprintf(stderr, "illegal file name?\n");
-    return -1;
-  }
-
-  fprintf(stderr, "init demux\n");
-
-  /* fork/exec demuxer */
-
-  switch(pid = fork()) {
-  case 0:
-    /* child process */
-    
-    n = 0;
-    eargv[n++] = demux_name;
-    eargv[n++] = "-m";
-    eargv[n++] = msgqid_str;
-
-    if(file_offset != NULL) {
-      eargv[n++] = "-o";
-      eargv[n++] = file_offset;
-    }
-    
-    if(demux_debug != NULL) {
-      eargv[n++] = "-d";
-      eargv[n++] = demux_debug;
-    }
-    
-    eargv[n++] = NULL;
-    
-    if(execv(demux_path, eargv) == -1) {
-      perror("execv demux");
-      fprintf(stderr, "path: %s\n", demux_path);
-    }
-
-    exit(-1);
-    break;
-  case -1:
-    /* fork failed */
-    perror("fork");
-    break;
-  default:
-    /* parent process */
-    break;
-  }
-  return pid;
-}
-
-
 int init_decoder(char *msgqid_str, char *decoderstr)
 {
   pid_t pid;
@@ -964,6 +834,11 @@ int init_decoder(char *msgqid_str, char *decoderstr)
       eargv[n++] = videodecode_debug;
     }
     */
+    // FIXME Very high Hack value
+    if(!strcmp(decoderstr, getenv("DVDP_CLI_UI"))) {
+      eargv[n++] = input_file;
+    }     
+    
     eargv[n++] = NULL;
     
     if(execv(decode_path, eargv) == -1) {
