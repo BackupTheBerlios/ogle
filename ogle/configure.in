@@ -99,15 +99,16 @@ AC_ARG_WITH(libjpeg-includes,
   [  --with-libjpeg-includes=path  specify location of libjpeg headers ], 
   JPEG_CFLAGS=-I$with_libjpeg_includes)
 
-if test x"$JPEG_CFLAGS" = x"-I/usr/local/include"; then
-  JPEG_CFLAGS=""
-fi
+dnl if test x"$JPEG_CFLAGS" = x"-I/usr/local/include"; then
+dnl  JPEG_CFLAGS=""
+dnl fi
 if test x"$JPEG_CFLAGS" = x"-I/usr/include"; then
   JPEG_CFLAGS=""
 fi
 
 saved_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $JPEG_CFLAGS"
+dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+CPPFLAGS="-w $CPPFLAGS $JPEG_CFLAGS"
 AC_CHECK_HEADER(jpeglib.h,, 
   [ AC_MSG_WARN([Can not find jpeglib.h, need the libjpeg headers])
     AC_MSG_ERROR([Install the headers and/or specify their location]) 
@@ -178,9 +179,9 @@ AC_ARG_WITH(dvdread-includes,
   [  --with-dvdread-includes=path  specify location of libdvdread headers ], 
   DVDREAD_CFLAGS=-I$with_dvdread_includes)
 
-if test x"$DVDREAD_CFLAGS" = x"-I/usr/local/include"; then
-  DVDREAD_CFLAGS=""
-fi
+dnl if test x"$DVDREAD_CFLAGS" = x"-I/usr/local/include"; then
+dnl  DVDREAD_CFLAGS=""
+dnl fi
 if test x"$DVDREAD_CFLAGS" = x"-I/usr/include"; then
   DVDREAD_CFLAGS=""
 fi
@@ -190,7 +191,8 @@ dnl Should really be taken from getconf...
 DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
 
 saved_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $DVDREAD_CFLAGS"
+dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+CPPFLAGS="-w $CPPFLAGS $DVDREAD_CFLAGS"
 AC_CHECK_HEADER(dvdread/dvd_reader.h,, 
   [ AC_MSG_WARN([Can not find dvd_reader.h, need the libdvdread headers])
     AC_MSG_ERROR([Install the headers and/or specify their location]) 
@@ -227,15 +229,16 @@ if test "x$mlib_path" != xno; then
   CFLAGS=$saved_CPPFLAGS
 fi
 if test "x$have_mlib" = xyes; then
-  if test x"$MLIB_CFLAGS" = x"-I/usr/local/include"; then
-    MLIB_CFLAGS=""
-  fi
+  dnl if test x"$MLIB_CFLAGS" = x"-I/usr/local/include"; then
+  dnl   MLIB_CFLAGS=""
+  dnl fi
   if test x"$MLIB_CFLAGS" = x"-I/usr/include"; then
     MLIB_CFLAGS=""
   fi
 
   saved_CPPFLAGS=$CPPFLAGS
-  CPPFLAGS="$CPPFLAGS $MLIB_CFLAGS"
+  dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+  CPPFLAGS="-w $CPPFLAGS $MLIB_CFLAGS"
   AC_CHECK_HEADER(mlib_types.h,, 
     [ AC_MSG_WARN([Can not find mlib_types.h, need the mediaLib headers])
       AC_MSG_ERROR([Install the headers and/or specify their location]) 
@@ -305,15 +308,16 @@ AC_ARG_WITH(liba52-includes,
 
 dnl update to test for 0.7.2 / 0.7.3 MM_ACCEL_DJBFFT ?
 
-if test x"$A52_CFLAGS" = x"-I/usr/local/include"; then
-  A52_CFLAGS=""
-fi
+dnl if test x"$A52_CFLAGS" = x"-I/usr/local/include"; then
+dnl  A52_CFLAGS=""
+dnl fi
 if test x"$A52_CFLAGS" = x"-I/usr/include"; then
   A52_CFLAGS=""
 fi
 
 saved_CPPFLAGS=$CPPFLAGS
-CPPFLAGS="$CPPFLAGS $A52_CFLAGS"
+dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
+CPPFLAGS="-w $CPPFLAGS $A52_CFLAGS"
 AC_CHECK_HEADER(a52dec/a52.h,, 
     [ AC_MSG_WARN([Can not find a52dec/a52.h, need the liba52 headers])
       AC_MSG_ERROR([Install a52dec(-dev) and/or specify it's location]) 
