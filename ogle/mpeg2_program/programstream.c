@@ -255,6 +255,101 @@ static inline void drop_bytes(int len)
   return;
 }
 
+
+#if 0
+static dvd_reader_t *dvdroot;
+static dvd_file_t *dvdfile;
+
+int open_dvd_root(char *path)
+{
+  
+  dvdroot = DVDOpen(path);
+  
+  return 0;
+} 
+
+int dvd_close_root(void) {
+
+  DVDClose(dvdroot);
+  
+  return 0;
+}
+
+int dvd_open_file(int titlenum, dvd_domain_t domain)
+{
+  if(dvdfile != NULL && dvdroot != NULL) {
+    fprintf(stderr, "demux: warning: closed open file when opening new\n");
+    DVDCloseFile(dvdfile);
+  }
+  dvdfile = DVDOpenFile(dvdroot, titlenumn domain);
+}
+
+void dvd_close_file(void)
+{
+  DVDCloseFile(dvdfile);
+}
+
+
+int dvd_read_block(char *buf, int boffset, int nblocks)
+{
+  
+  DVDReadBlocksFromFile(dvd_file, boffset, nblocks, buf);
+
+  return 0;
+}
+
+int fill_buffer(int nblocks)
+{
+  int free_blocks;
+  char *free_blocks_start;
+  char *last_free_byte;
+  int next_write_pos;
+  int free_block_offs;
+  data_buf_head_t *data_buf_head;
+  data_elem_t *data_elems;
+  int data_elem_nr;
+
+  get_demux_range(&vts, &domain, &boffset, &blocks);
+  
+  data_buf_head = (data_buf_head_t *)data_buf_addr;
+  if(data_buf_head == NULL) {
+    fprintf(stderr, "demux: fill_buffer, no buffer\n");
+    return -1;
+  }
+  data_elems = (data_elem_t *)(data_buf_addr+sizeof(data_buf_head_t));
+  data_elem_nr = data_buf_head->write_nr;
+
+  while(1) {
+    if(data_elems[data_elem_nr].in_use) {
+      off = data_elem[data_elem_nr].off/2048;
+      if(off < free_block_offs) {
+	size = blocks_in_buf-free_block_offs;
+	next_write_pos = free_block_offs;
+	if(size < nblocks) {
+	  size = off;
+	  next_write_pos = 0;
+	}
+      } else {
+	size = off - free_block_offs;
+	next_write_pos = free_block_offs;
+      }
+      
+      if(size < nblocks) {
+	/* wait for more free blocks */
+
+      } else {
+	dvd_open
+	dvd_read_block(&buf[next_write_pos*2048], int boffset, int nblocks)
+
+	data_elems[data_elem_nr].off = off;
+      data_elems[data_elem_nr].len = len;
+  
+  
+}
+
+#endif
+
+
 unsigned int nextbits(unsigned int nr_of_bits)
 {
   uint32_t result = (cur_word << (64-bits_left)) >> 32;
@@ -1113,6 +1208,75 @@ void packet()
 }
 
 
+void pack_2(int end_offs)
+{
+  uint32_t start_code;
+  uint8_t stream_id;
+  uint8_t is_PES = 0;
+  int mpeg_version;
+  
+  SCR_flags = 0;
+
+  mpeg_version = pack_header();
+  switch(mpeg_version) {
+  case MPEG1:
+    next_start_code(); // ??
+    while(nextbits(32) >= 0x000001BC) {
+      packet();
+      next_start_code(); // ??
+    }
+    break;
+  case MPEG2:
+    while(end_offs < offs && (((start_code = nextbits(32))>>8) & 0x00ffffff)
+	  == MPEG2_PES_PACKET_START_CODE_PREFIX) {
+      stream_id = start_code & 0xff;
+      
+      is_PES = 0;
+      if((stream_id >= 0xc0) && (stream_id < 0xe0)) {
+	/* ISO/IEC 11172-3/13818-3 audio stream */
+	is_PES = 1;
+	
+      } else if((stream_id >= 0xe0) && (stream_id < 0xf0)) {
+	/* ISO/IEC 11172-3/13818-3 video stream */
+	is_PES = 1;
+
+      } else {
+	switch(stream_id) {
+	case 0xBC:
+	  /* program stream map */
+	  fprintf(stderr, "Program Stream map\n");
+	case 0xBD:
+	  /* private stream 1 */
+	case 0xBE:
+	  /* padding stream */
+	case 0xBF:
+	  /* private stream 2 */
+	  is_PES = 1;
+	  break;
+	case 0xBA:
+				//fprintf(stderr, "Pack Start Code\n");
+	  is_PES = 0;
+	  break;
+	default:
+	  is_PES = 0;
+	  fprintf(stderr, "unknown stream_id: 0x%02x\n", stream_id);
+	  break;
+	}
+      }
+      if(!is_PES) {
+	break;
+      }
+      
+      PES_packet();
+      SCR_flags = 0;
+
+    }
+    break;
+  }
+
+  packnr++;
+}
+
 
 void pack()
 {
@@ -1279,6 +1443,52 @@ void pack()
 
 }
 
+void DVD_program_stream()
+{
+  MsgEvent_t ev;
+  
+  while(1) {
+    
+    /* TODO clean up */
+    if(msgqid != -1) {
+      if(off_to != -1) {
+	if(off_to <= offs-(bits_left/8)) {
+	  //fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
+	  off_to = -1;
+	  get_next_demux_q();
+	  //wait_for_msg(CMD_CTRL_CMD);
+	}
+      }
+      if(off_from != -1) {
+	//fprintf(stderr, "demux: off_from mpeg2\n");
+	offs = off_from;
+	bits_left = 64;
+	off_from = -1;
+	GETBITS(32, "skip1");
+	GETBITS(32, "skip2");
+      }
+      while(MsgCheckEvent(msgq, &ev) != -1) {
+	handle_events(&ev);
+      }
+    }
+    
+    /* while(!enough_space) {
+         request_another data_elem;
+         if(data_elem.offs - last_read < 0) {
+	   wrap around of buffer
+	 }
+	 enough_space =   data_elem.offs - last_read > requierd_space;
+       }
+    */
+       
+    do {
+      if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
+	pack_2(offs + 2048);
+      }
+    } while(offs < off_to);
+  }
+  
+}
 
 void MPEG2_program_stream()
 {
@@ -2131,6 +2341,7 @@ int attach_buffer(int shmid, int size)
     
   return 0;
 }
+
 
 
 int get_buffer(int size)
