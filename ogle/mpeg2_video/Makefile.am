@@ -32,9 +32,7 @@ endif
 
 EXTRA_DIST = \
 	yuv2rgb_mlib.c yuv2rgb_mlib.h \
-	yuv2rgb_mmx.c yuv2rgb_mmx.h \
-	mmx_idct.S \
-	mmx_mlib.c mmx.h \
+	yuv2rgb_mmx.c yuv2rgb_mmx.h mmx_idct.S mmx_mlib.c mmx.h \
 	c_mlib.c c_mlib.h \
 	ffb_asm.s ffb_asm.h
 
@@ -49,6 +47,10 @@ video_stream_SOURCES = \
 	video_tables.c video_tables.h \
 	video_types.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
+video_stream_LDADD = \
+	@MLIB_LIBS@ \
+	$(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la
 
 video_output_SOURCES = \
 	video_output_x11.c video_output.c \
@@ -57,7 +59,8 @@ video_output_SOURCES = \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
 	$(MLIBSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
-
-video_stream_LDADD = @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
-
-video_output_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ @JPEG_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+video_output_LDADD = \
+	@MLIB_LIBS@ @JPEG_LIBS@ \
+	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
+	$(top_builddir)/common/libcommon.a \
+	$(top_builddir)/ogle/libmsgevents.la
