@@ -530,6 +530,10 @@ int init_mpeg_private_stream_2_decoder(char *msgqid_str)
     return(-1);
   }
   
+  if(strcmp(decode_path, "RUNNING") == 0) {
+    return 0;
+  }
+
   if((decode_name = strrchr(decode_path, '/')+1) == NULL) {
     decode_name = decode_path;
   }
