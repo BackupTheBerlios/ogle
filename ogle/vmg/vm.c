@@ -46,6 +46,7 @@ dvd_state_t state;
 /* Local prototypes */
 
 static void saveRSMinfo(int cellN, int blockN);
+static int set_PGN(void);
 static link_t play_PGC(void);
 static link_t play_PG(void);
 static link_t play_Cell(void);
@@ -212,7 +213,7 @@ int vm_prev_pg(void)
   if(state.pgN == 0) {
     // Check for previous PGCN ? 
     state.pgN = 1;
-    return 0;
+    //return 0;
   }
   return vm_top_pg();
 }
@@ -307,9 +308,14 @@ int vm_resume(void)
     assert(link_values.command == PlayThis);
     state.blockN = link_values.data1;
   } else { 
-    //state.pgN = ?? does this gets the righ value in play_Cell
     state.cellN = state.rsm_cellN;
     state.blockN = state.rsm_blockN;
+    //state.pgN = ?? does this gets the righ value in play_Cell, no!
+    if(set_PGN()) {
+      ; /* Were at or past the end of the PGC, should not happen for a RSM */
+      assert(0);
+      play_PGC_post();
+    }
   }
   
   return 1; // Jump
@@ -671,7 +677,7 @@ static link_t play_Cell(void)
   /* Updates state.pgN and PTTN_REG */
   if(set_PGN()) {
     /* Should not happen */
-    link_t tmp = {LinkTailPGC, /* Block in Cell */ 0, 0, 0};
+    link_t tmp = {LinkTailPGC, /* No Button */ 0, 0, 0};
     assert(0);
     return tmp;
   }
@@ -902,6 +908,12 @@ static link_t process_command(link_t link_values)
 	  state.cellN = state.rsm_cellN;
 	  link_values.command = PlayThis;
 	  link_values.data1 = state.rsm_blockN;
+	  if(set_PGN()) {
+	    /* Were at the end of the PGC, should not happen for a RSM */
+	    assert(0);
+	    link_values.command = LinkTailPGC;
+	    link_values.data1 = 0;  /* No button */
+	  }
 	}
       }
       break;
