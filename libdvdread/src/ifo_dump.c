@@ -33,7 +33,6 @@ void usage(void)
 
 int main(int argc, char *argv[])
 {
-  int c;
   dvd_reader_t *dvd;
   program_name = argv[0];
   
