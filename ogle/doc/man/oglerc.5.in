@@ -326,6 +326,10 @@ SkipForward	Next(PageDown)	Skip x seconds forward (nr)
 	KP_Right
 SkipBackward	Prior(PageUp)	Skip x seconds backward (nr)
 	KP_Left
+SaveScreenshot	i	Saves a screenshot (.jpg)
+SaveScreenshotWithSPU	I	Saves a screenshot including the subtitle/overlay graphics.
+AudioStreamChange	z	Changes to the next audio stream (nr)
+SubtitleStreamChange	x	Changes to the next subtitle stream (nr)
 .TE
 
 </ogle_conf>
@@ -345,12 +349,9 @@ Bookmarks will be saved in files in the directory $HOME/.ogle/bookmarks/
 The SkipForward and SkipBackward actions use the number argument as the number
 of seconds to skip. The default value is 10 seconds. Entering '30' and then pressing Next(PageDown) will skip 30 seconds forwards. The Skip actions will use the last value entered for any following skips even if no number is entered.
 To get back to the default value, enter 0 and the skip.
-
-
-Non configurable keys:
-  'i', saves a screen shoot (as screenshoot.jpg in pwd)
-  'I', saves a screen shoot with the subpicture overlay intact
-
+.br
+The Audio- and SubtitleStreamChange actions use the number argument to switch directly to that stream, instead of cycling through the available streams.
+.br
 
 In addition to the above the arrow buttons and mouse can be used to move around in the DVD menues. Return, the keypad enter and left mouse button may be used to activate a DVD button.
 
