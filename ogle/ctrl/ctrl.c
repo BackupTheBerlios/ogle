@@ -685,11 +685,12 @@ int main(int argc, char *argv[])
 
   ev.type = MsgEventQDemuxDefault;
   
-  if((ac3_audio_stream | mpeg_audio_stream | pcm_audio_stream |
-      mpeg_video_stream | subpicture_stream | nav_stream) != -1) {
-    ev.demuxdefault.state = 0;
-  } else {
+  /* If any stream has specified on the commadline, dexmux only those */
+  if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
+      mpeg_video_stream & subpicture_stream & nav_stream) == -1) {
     ev.demuxdefault.state = 1;
+  } else {
+    ev.demuxdefault.state = 0;
   }
   
   MsgSendEvent(&q, rcpt, &ev);
@@ -1189,11 +1190,19 @@ int init_mpeg_audio_decoder(char *msgqid)
  */
 int register_stream(uint8_t stream_id, uint8_t subtype)
 {
+  int state;
+  
+  /* If any stream has specified on the commadline, dexmux only those */
+  if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
+      mpeg_video_stream & subpicture_stream & nav_stream) == -1)
+    state = 0;
+  else
+    state = 1;
   
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     
-    if(ac3_audio_stream != -1) {
+    if(state) {
 
       if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
 	 (ac3_audio_stream >= 0)) {
@@ -1209,7 +1218,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
       
     }
 
-    if(subpicture_stream != -1) {
+    if(state) {
 
       if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
 	 (subpicture_stream >= 0)) {
@@ -1227,7 +1236,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 
   }
   
-  if(mpeg_audio_stream != -1) {
+  if(state) {
 
     if((stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) &&
        (mpeg_audio_stream >= 0)) { 
@@ -1243,7 +1252,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
     
   }
 
-  if(mpeg_video_stream != -1) {
+  if(state) {
 
     if((stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) &&
        (mpeg_video_stream >= 0)) {
@@ -1259,7 +1268,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
     
   }
 
-  if(nav_stream != -1) {
+  if(state) {
 
     if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav
       return 1;
@@ -1274,7 +1283,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
     
   }
 
-  return 0;  
+  return 0;
   
 }
 
