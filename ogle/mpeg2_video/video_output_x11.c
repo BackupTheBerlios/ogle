@@ -333,7 +333,7 @@ void display_init(int padded_width, int padded_height,
     }
   }
 #endif /* HAVE_XV */
-  
+  CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   /* Create shared memory image */
   if(scaled_image_width * scaled_image_height < padded_width * padded_height) {
     windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
@@ -607,16 +607,14 @@ void display(yuv_image_t *current_image)
 
     if(run) {
       nextframe = 1;
-      if(XCheckMaskEvent(mydisplay, 0xFFFFFFFF, &ev) == False) {
-	if(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) == True) {
-	  fprintf(stderr, "**Snarfed xevent type: %ld\n", ev.type);
-	}
+      /* Can't use XCheckMaskEvent because of extensions... */
+      if(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) == False) {
 	continue;
       }
     } else {
       XNextEvent(mydisplay, &ev);
     }
-
+    
     switch(ev.type) {
     case Expose:
       if(windows[0].win == ev.xexpose.window)
