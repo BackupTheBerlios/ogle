@@ -292,8 +292,8 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQSetSrcAspect:
     size = sizeof(MsgQSetSrcAspectEvent_t);
     break;
-  case MsgEventQSetZoom:
-    size = sizeof(MsgQSetZoomEvent_t);
+  case MsgEventQSetZoomMode:
+    size = sizeof(MsgQSetZoomModeEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

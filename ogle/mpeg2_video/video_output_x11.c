@@ -126,6 +126,7 @@ extern yuv_image_t *image_bufs;
 
 extern void display_process_exit(void);
 
+extern ZoomMode_t zoom_mode;
 
 static void draw_win_xv(window_info *dwin);
 static void draw_win_x11(window_info *dwin);
@@ -878,12 +879,6 @@ void display(yuv_image_t *current_image)
   XEvent ev;
   static int sar_frac_n, sar_frac_d; 
   
-#if 0   
-  //hack
-  static clocktime_t last;
-  clocktime_t now;
-#endif  
-  
   /* New source aspect ratio? */
   if(current_image->info->picture.sar_frac_n != sar_frac_n ||
      current_image->info->picture.sar_frac_d != sar_frac_d) {
@@ -894,18 +889,10 @@ void display(yuv_image_t *current_image)
     display_adjust_size(current_image, -1, -1);
   }
   
-#if 0   
-  //Hack, togle fullscreen every 20 seconds
-  clocktime_get(&now);
-  timesub(&now, &last, &now);
-  if(TIME_S(now) < 0 || TIME_SS(now) < 0) {
-    clocktime_get(&last);
-    TIME_S(now) = 20; TIME_SS(now) = 0;
-    timeadd(&last, &last, &now);
-    
+  if((scale.fullscreen && (zoom_mode == ZoomModeResizeAllowed)) ||
+     ((!scale.fullscreen) && (zoom_mode == ZoomModeFullScreen))) { 
     display_toggle_fullscreen(current_image);
   }
-#endif
   
   window.image = current_image;
     

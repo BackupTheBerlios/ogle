@@ -65,6 +65,7 @@ AspectModeSrc_t aspect_sender;
 uint16_t aspect_new_frac_n;
 uint16_t aspect_new_frac_d;
 
+ZoomMode_t zoom_mode;
 
 static char *program_name;
 
@@ -253,6 +254,9 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     aspect_sender = ev->setsrcaspect.mode_src;
     aspect_new_frac_n = ev->setsrcaspect.aspect_frac_n;
     aspect_new_frac_d = ev->setsrcaspect.aspect_frac_d;
+    break;
+  case MsgEventQSetZoomMode:
+    zoom_mode = ev->setzoommode.mode;
     break;
   default:
     //fprintf(stderr, "vo: unrecognized event type: %d\n", ev->type);

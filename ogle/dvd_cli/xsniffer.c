@@ -192,9 +192,9 @@ void* xsniff_mouse(void* args) {
 	    static int fs = 0;
 	    fs = !fs;
 	    if(fs) {
-	      DVDSetAspectModeSrc(nav, AspectModeSrcFillWindow);
+	      DVDSetZoomMode(nav, ZoomModeFullScreen);
 	    } else {
-	      DVDSetAspectModeSrc(nav, AspectModeSrcMPEG);
+	      DVDSetZoomMode(nav, ZoomModeResizeAllowed);
 	    }
 	  }
 	  break;

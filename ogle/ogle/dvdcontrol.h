@@ -82,6 +82,9 @@ DVDResult_t DVDSetAspectModeSrc(DVDNav_t *nav, AspectModeSrc_t mode_src);
 DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
 			    uint16_t aspect_frac_n, uint16_t aspect_frac_d);
 
+DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode);
+
+
 
 DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path);
 

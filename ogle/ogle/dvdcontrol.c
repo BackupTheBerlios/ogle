@@ -754,6 +754,33 @@ DVDResult_t DVDSetSrcAspect(DVDNav_t *nav, AspectModeSrc_t mode_sender,
   return DVD_E_Ok;
 }
 
+DVDResult_t DVDSetZoomMode(DVDNav_t *nav, ZoomMode_t zoom_mode)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQSetZoomMode;
+  ev.setzoommode.mode = zoom_mode;
+  
+  if((nav->voclient == CLIENT_NONE) ||
+     (nav->voclient == -1)) {
+    nav->voclient = get_vo_client(nav->msgq);
+  }
+  switch(nav->voclient) {
+  case -1:
+  case CLIENT_NONE:
+    fprintf(stderr, "dvdctrl: voclient error\n");
+    return DVD_E_Unspecified;
+    break;
+  default:
+    break;
+  }
+  
+  if(MsgSendEvent(nav->msgq, nav->voclient, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+}
+
 
 /** 
  * Selects the directory where the dvd files are *.VOB *.IFO.

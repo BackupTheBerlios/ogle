@@ -91,7 +91,7 @@ typedef enum {
   MsgEventQXWindowID,
   MsgEventQSetAspectModeSrc,
   MsgEventQSetSrcAspect,
-  MsgEventQSetZoom
+  MsgEventQSetZoomMode
 } MsgEventType_t;
 
 
@@ -103,7 +103,7 @@ typedef struct {
   ZoomMode_t mode;
   uint16_t zoom_frac_n;
   uint16_t zoom_frac_d;  
-} MsgQSetZoomEvent_t;
+} MsgQSetZoomModeEvent_t;
 
 typedef struct {
   MsgEventType_t type;
@@ -410,7 +410,7 @@ typedef union {
   MsgQXWindowIDEvent_t xwindowid;
   MsgQSetAspectModeSrcEvent_t setaspectmodesrc;
   MsgQSetSrcAspectEvent_t setsrcaspect;
-  MsgQSetZoomEvent_t zoom;
+  MsgQSetZoomModeEvent_t setzoommode;
 } MsgEvent_t;
 
 typedef struct {
