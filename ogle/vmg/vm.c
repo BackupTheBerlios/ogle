@@ -351,7 +351,9 @@ int main(int argc, char *argv[])
     get_VTSM(link_values.data1, link_values.data2, link_values.data3);
     goto play_PGC;
   case JumpSS_VMGM_PGC:
-    assert(state.domain == VTSM_DOMAIN || state.domain == FP_DOMAIN); //??    
+    assert(state.domain == VMGM_DOMAIN || 
+	   state.domain == VTSM_DOMAIN || 
+	   state.domain == FP_DOMAIN); //??    
     state.domain = VMGM_DOMAIN;
     get_VMGM_PGC(link_values.data1);
     goto play_PGC;
