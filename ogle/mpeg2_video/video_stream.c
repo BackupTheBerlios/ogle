@@ -154,7 +154,7 @@ void statistics_init()
 if(debug > level) \
 { \
     fprintf(stderr, ## text); \
-}
+				}
 #else
 #define DPRINTF(level, text...)
 #endif
@@ -162,11 +162,11 @@ if(debug > level) \
 #ifdef DEBUG
 #define DPRINTBITS(level, bits, value) \
 { \
-  int n; \
-  for(n = 0; n < bits; n++) { \
-    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
-  } \
-}
+    int n; \
+	     for(n = 0; n < bits; n++) { \
+					   DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+											      } \
+												  }
 #else
 #define DPRINTBITS(level, bits, value)
 #endif
@@ -231,7 +231,11 @@ void picture_spatial_scalable_extension();
 void picture_temporal_scalable_extension();
 void sequence_scalable_extension();
 
+#ifndef GETBITSMMAP
 uint32_t buf[BUF_SIZE_MAX] __attribute__ ((aligned (8)));
+#else
+uint32_t buf[];
+#endif
 unsigned int buf_len = 0;
 unsigned int buf_start = 0;
 unsigned int buf_fill = 0;
@@ -239,7 +243,7 @@ unsigned int bytes_read = 0;
 unsigned int bit_start = 0;
 
 
-
+struct off_len_packet packet;
 
 
 FILE *infile;
@@ -254,6 +258,8 @@ uint32_t cur_word = 0;
 #else
 unsigned int bits_left = 64;
 uint64_t cur_word = 0;
+struct off_len_packet packet;
+
 #endif
 //uint8_t bytealign = 1;
 
@@ -395,8 +401,8 @@ int bytealigned(void)
 #ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
 #else
-//static inline   
-uint32_t getbits(unsigned int nr)
+     //static inline   
+     uint32_t getbits(unsigned int nr)
 #endif
 #ifndef GETBITS32
 #ifdef GETBITSMMAP
@@ -409,13 +415,14 @@ uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = buf[offs++];
-    if(offs >= READ_SIZE/4)
+    if(offs >= buf_size)
       read_buf();
-    cur_word = (cur_word << 32) | new_word;
-    bits_left = bits_left+32;
+    else {
+      uint32_t new_word = buf[offs++];
+      cur_word = (cur_word << 32) | new_word;
+      bits_left += 32;
+    }
   }
-  
   return result;
 }
 #else
@@ -480,6 +487,20 @@ uint32_t getbits(unsigned int nr)
 //static inline   
 void dropbits(unsigned int nr)
 #ifndef GETBITS32
+#ifdef GETBITSMMAP
+{
+  bits_left -= nr;
+  if(bits_left <= 32) {
+    if(offs >= buf_size)
+      read_buf();
+    else {
+      uint32_t new_word = buf[offs++];
+      cur_word = (cur_word << 32) | new_word;
+      bits_left += 32;
+    }
+  }
+}
+#else
 {
   bits_left -= nr;
   if(bits_left <= 32) {
@@ -490,6 +511,7 @@ void dropbits(unsigned int nr)
     bits_left += 32;
   }
 }
+#endif
 #else
 {
   bits_left -= nr;
@@ -514,6 +536,90 @@ void back_word(void)
   cur_word = buf[buf_pos];
 }
 #else
+
+void setup_mmap(char *filename) {
+  
+}
+
+void get_next_package()
+{
+  uint32_t package_type;
+  uint32_t comand_buf[ ?? ]; // ??? 
+  
+  fread(&package_type, 4, 1, infile);
+  
+  if(package_type == 
+  
+  while() {
+    // fread(...)
+    
+    if( comand_buf[0] = PACK_TYPE_OFF_LEN ) {
+      struct off_len_packet *new_packet = (struct off_len_packet *)comand_buf;
+      packet.offset = new_packet->offset;
+      packet.length = new_packet->length;
+      return;
+    } 
+    else if( comand_buf[0] = PACK_TYPE_LOAD_FILE ) {
+      struct load_file_packet *new_packet 
+        = (struct load_file_packet *)comand_buf;
+      setup_mmap( new_packet->filename );
+    }
+  }  
+}  
+
+
+  
+#ifdef GETBITSMMAP
+void read_buf()
+{
+  char packet_base[] = &mmap_base[packet.offset];
+  // How many bytes are there left? (0, 1, 2 or 3).
+  int end_bytes = &packet_base[packet.length] - &buf[buf_size];
+  // Read them, as we have at least 32 bits free they will fit.
+  while( end_bytes-- > 0 ) {
+    cur_word 
+      = (cur_word << 8) | packet_base[packet.length - end_bytes];
+    bits_left += 8;
+  }
+   
+  if( bits_left > 40 ) {
+    // The trick!! 
+    // We have enough data to return. Infact it's so much data that we 
+    // can't be certain that we can read enough of the next packet to 
+    // align the buff[ ] pointer to a 4 byte boundary.
+    // Fake it so that we still are at the end of the package but make
+    // sure that we don't read the last bytes again.
+    packet.length -= end_bytes;
+    return;
+  } else {
+    int start_bytes;
+    int i = 0;
+    get_next_package(); // Get new packet struct
+    packet_base = &mmap_base[packet.offset];
+    // How many bytes to the next 4 byte boundary? (0, 1, 2 or 3).
+    start_bytes = (4 - (&packet_base[0] & 0x3)) & 0x3; 
+    // Read them, as we have at least 25 bits free they will fit.
+    while( i <= start_bytes ) {
+      cur_word 
+        = (cur_word << 8) | packet_base[i++];
+      bits_left += 8;
+    }
+     
+    buf = (uint32_t *)&packet_base[start_bytes];
+    buf_size = (package.length - start_bytes) / 4;  // number of 32 bit words
+    offs = 0;
+     
+    if(bits_left <= 32) {
+      uint32_t new_word = buf[offs++];
+      cur_word = (cur_word << 32) | new_word;
+      bits_left += 32;
+
+    }
+  }
+}
+
+
+#else
 void read_buf()
 {
   if(!fread(&buf[0], READ_SIZE, 1 , infile)) {
@@ -527,6 +633,8 @@ void read_buf()
   }
   offs = 0;
 }
+
+#endif
 #endif
 
 #ifdef GETBITS32
@@ -635,7 +743,7 @@ void program_init()
 #ifdef STATS
   statistics_init();
 #endif
-return;
+  return;
 }
 int main(int argc, char **argv)
 {
@@ -644,19 +752,19 @@ int main(int argc, char **argv)
   /* Parse command line options */
   while ((c = getopt(argc, argv, "d:hs")) != EOF) {
     switch (c) {
-      case 'd':
-        debug = atoi(optarg);
-        break;
-      case 's':
-        shmem_flag = 0;
-        break;
-      case 'h':
-      case '?':
-        printf ("Usage: %s [-d <level] [-s]\n\n"
-                "  -d <level> set debug level (default 0)\n"
-                "  -s         disable shared memory\n", 
-                argv[0]);
-        return 1;
+    case 'd':
+      debug = atoi(optarg);
+      break;
+    case 's':
+      shmem_flag = 0;
+      break;
+    case 'h':
+    case '?':
+      printf ("Usage: %s [-d <level] [-s]\n\n"
+	      "  -d <level> set debug level (default 0)\n"
+	      "  -s         disable shared memory\n", 
+	      argv[0]);
+      return 1;
     }
   }
   if(optind < argc) {
@@ -970,49 +1078,49 @@ void sequence_extension(void) {
   DPRINTF(2, "profile_and_level_indication: ");
   if(seq.ext.profile_and_level_indication & 0x80) {
     DPRINTF(2, "(reserved)\n");
-    } else {
-      DPRINTF(2, "Profile: ");
-      switch((seq.ext.profile_and_level_indication & 0x70)>>4) {
-      case 0x5:
-	DPRINTF(2, "Simple");
-	break;
-      case 0x4:
-	DPRINTF(2, "Main");
-	break;
-      case 0x3:
-	DPRINTF(2, "SNR Scalable");
+  } else {
+    DPRINTF(2, "Profile: ");
+    switch((seq.ext.profile_and_level_indication & 0x70)>>4) {
+    case 0x5:
+      DPRINTF(2, "Simple");
       break;
-      case 0x2:
-	DPRINTF(2, "Spatially Scalable");
-	break;
-      case 0x1:
-	DPRINTF(2, "High");
-	break;
-      default:
-	DPRINTF(2, "(reserved)");
-	break;
-      }
-
-      DPRINTF(2, ", Level: ");
-      switch(seq.ext.profile_and_level_indication & 0x0f) {
-      case 0xA:
-	DPRINTF(2, "Low");
-	break;
-      case 0x8:
-	DPRINTF(2, "Main");
-	break;
-      case 0x6:
-	DPRINTF(2, "High 1440");
+    case 0x4:
+      DPRINTF(2, "Main");
       break;
-      case 0x4:
-	DPRINTF(2, "High");
-	break;
-      default:
-	DPRINTF(2, "(reserved)");
-	break;
-      }
-      DPRINTF(2, "\n");
+    case 0x3:
+      DPRINTF(2, "SNR Scalable");
+      break;
+    case 0x2:
+      DPRINTF(2, "Spatially Scalable");
+      break;
+    case 0x1:
+      DPRINTF(2, "High");
+      break;
+    default:
+      DPRINTF(2, "(reserved)");
+      break;
     }
+
+    DPRINTF(2, ", Level: ");
+    switch(seq.ext.profile_and_level_indication & 0x0f) {
+    case 0xA:
+      DPRINTF(2, "Low");
+      break;
+    case 0x8:
+      DPRINTF(2, "Main");
+      break;
+    case 0x6:
+      DPRINTF(2, "High 1440");
+      break;
+    case 0x4:
+      DPRINTF(2, "High");
+      break;
+    default:
+      DPRINTF(2, "(reserved)");
+      break;
+    }
+    DPRINTF(2, "\n");
+  }
  
 #endif
       
@@ -1059,14 +1167,14 @@ void sequence_extension(void) {
                                    seq.vertical_size);
 
         ximage_ref1 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
-                                   ZPixmap, NULL, &shm_info_ref1,
-                                   seq.horizontal_size,
-                                   seq.vertical_size);
+				      ZPixmap, NULL, &shm_info_ref1,
+				      seq.horizontal_size,
+				      seq.vertical_size);
 
         ximage_ref2 = XShmCreateImage(mydisplay, vinfo.visual, bpp,
-                                   ZPixmap, NULL, &shm_info_ref2,
-                                   seq.horizontal_size,
-                                   seq.vertical_size);
+				      ZPixmap, NULL, &shm_info_ref2,
+				      seq.horizontal_size,
+				      seq.vertical_size);
         if (myximage == NULL) {
           fprintf(stderr, 
                   "Shared memory: couldn't create Shm image\n");
@@ -1079,12 +1187,12 @@ void sequence_extension(void) {
                                 IPC_CREAT | 0777);
 
         shm_info_ref1.shmid = shmget(IPC_PRIVATE,
-                                myximage->bytes_per_line * myximage->height, 
-                                IPC_CREAT | 0777);
+				     myximage->bytes_per_line * myximage->height, 
+				     IPC_CREAT | 0777);
 
         shm_info_ref2.shmid = shmget(IPC_PRIVATE,
-                                myximage->bytes_per_line * myximage->height, 
-                                IPC_CREAT | 0777);
+				     myximage->bytes_per_line * myximage->height, 
+				     IPC_CREAT | 0777);
         if (shm_info.shmid < 0) {
           XDestroyImage(myximage);
           fprintf(stderr, "Shared memory: Couldn't get segment\n");
@@ -1112,7 +1220,7 @@ void sequence_extension(void) {
         XShmAttach(mydisplay, &shm_info_ref2);
         XSync(mydisplay, 0);
       } else {
-shmemerror:
+      shmemerror:
         shmem_flag = 0;
         myximage = XGetImage(mydisplay, mywindow, 0, 0,
                              seq.horizontal_size,
@@ -1981,8 +2089,8 @@ void macroblock(void)
 
   if(pic.header.picture_coding_type == 0x02) {
 
-  /* In a P-picture when a non-intra macroblock is decoded
-     in which macroblock_motion_forward is zero */
+    /* In a P-picture when a non-intra macroblock is decoded
+       in which macroblock_motion_forward is zero */
 
     if(mb.modes.macroblock_intra == 0) {
       if(mb.modes.macroblock_motion_forward == 0) {
@@ -2011,7 +2119,7 @@ void macroblock(void)
   if(mb.modes.macroblock_pattern) {
     coded_block_pattern();
   } else {
-   mb.cbp = 0;
+    mb.cbp = 0;
   }
 
   {
@@ -2084,7 +2192,7 @@ void macroblock(void)
 
     /* never happens */
     /*
-    if(mb.macroblock_address_increment > 1) {
+      if(mb.macroblock_address_increment > 1) {
       
       fprintf(stderr, "prediction mode shall be Frame-based\n");
       fprintf(stderr, "motion vector predictors shall be reset to zero\n");
@@ -2094,7 +2202,7 @@ void macroblock(void)
       //mb.vector[0][0][0] = 0;
       //mb.vector[0][0][1] = 0;
 
-    }
+      }
     */
     
   }
@@ -2104,7 +2212,7 @@ void macroblock(void)
   case 0x2:
     if(show_stat) {
       memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
-      }
+    }
     break;
   case 0x3:
     if(show_stat) {
@@ -2774,90 +2882,90 @@ void block_intra(unsigned int i)
       eob_not_read = 1;
 #ifdef DCT_INTRA_SPLIT
       if(pic.coding_ext.intra_vlc_format) {
-      while( 1 ) {
-	//fprintf(stderr, "Subsequent dct_dc\n");
-	//Subsequent DCT coefficients
-	get_dct_intra_vlcformat_1(&runlevel, 
-				  "dct_dc_subsequent");
+	while( 1 ) {
+	  //fprintf(stderr, "Subsequent dct_dc\n");
+	  //Subsequent DCT coefficients
+	  get_dct_intra_vlcformat_1(&runlevel, 
+				    "dct_dc_subsequent");
 	
 #ifdef DEBUG
-	if(runlevel.run != VLC_END_OF_BLOCK) {
-	  DPRINTF(4, "coeff run: %d, level: %d\n",
-		  runlevel.run, runlevel.level);
-	}
-#endif
-    
-	if(runlevel.run == VLC_END_OF_BLOCK) {
-	  break;
-	} else {
-	  n += runlevel.run;
-	  
-	  /* inverse quantisation */
-	  {
-	    uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	    int f = (runlevel.level 
-		     * seq.header.intra_inverse_quantiser_matrix[i]
-		     * mb.quantiser_scale)/16;
-
-
-#ifdef STATS
-	    stats_f_intra_compute_subseq_nr++;
-#endif
-
-	    if(f > 2047)
-	      f = 2047;
-	    else if(f < -2048)
-	      f = -2048;
-
-	    mb.QFS[i] = f;
-	    inverse_quantisation_sum += f;
+	  if(runlevel.run != VLC_END_OF_BLOCK) {
+	    DPRINTF(4, "coeff run: %d, level: %d\n",
+		    runlevel.run, runlevel.level);
 	  }
-	  
-	  n++;      
-	}
-      }
-      } else {
-      while( 1 ) {
-	//fprintf(stderr, "Subsequent dct_dc\n");
-	//Subsequent DCT coefficients
-	get_dct_intra_vlcformat_0(&runlevel, 
-		      "dct_dc_subsequent");
-	
-#ifdef DEBUG
-	if(runlevel.run != VLC_END_OF_BLOCK) {
-	  DPRINTF(4, "coeff run: %d, level: %d\n",
-		  runlevel.run, runlevel.level);
-	}
 #endif
     
-	if(runlevel.run == VLC_END_OF_BLOCK) {
-	  break;
-	} else {
-	  n += runlevel.run;
+	  if(runlevel.run == VLC_END_OF_BLOCK) {
+	    break;
+	  } else {
+	    n += runlevel.run;
 	  
-	  /* inverse quantisation */
-	  {
-	    uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
-	    int f = (runlevel.level 
-		     * seq.header.intra_inverse_quantiser_matrix[i]
-		     * mb.quantiser_scale)/16;
+	    /* inverse quantisation */
+	    {
+	      uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
+	      int f = (runlevel.level 
+		       * seq.header.intra_inverse_quantiser_matrix[i]
+		       * mb.quantiser_scale)/16;
+
 
 #ifdef STATS
-	    stats_f_intra_compute_subseq_nr++;
+	      stats_f_intra_compute_subseq_nr++;
+#endif
+
+	      if(f > 2047)
+		f = 2047;
+	      else if(f < -2048)
+		f = -2048;
+
+	      mb.QFS[i] = f;
+	      inverse_quantisation_sum += f;
+	    }
+	  
+	    n++;      
+	  }
+	}
+      } else {
+	while( 1 ) {
+	  //fprintf(stderr, "Subsequent dct_dc\n");
+	  //Subsequent DCT coefficients
+	  get_dct_intra_vlcformat_0(&runlevel, 
+				    "dct_dc_subsequent");
+	
+#ifdef DEBUG
+	  if(runlevel.run != VLC_END_OF_BLOCK) {
+	    DPRINTF(4, "coeff run: %d, level: %d\n",
+		    runlevel.run, runlevel.level);
+	  }
+#endif
+    
+	  if(runlevel.run == VLC_END_OF_BLOCK) {
+	    break;
+	  } else {
+	    n += runlevel.run;
+	  
+	    /* inverse quantisation */
+	    {
+	      uint8_t i = inverse_scan[pic.coding_ext.alternate_scan][n];
+	      int f = (runlevel.level 
+		       * seq.header.intra_inverse_quantiser_matrix[i]
+		       * mb.quantiser_scale)/16;
+
+#ifdef STATS
+	      stats_f_intra_compute_subseq_nr++;
 #endif
 	    
-	    if(f > 2047)
-	      f = 2047;
-	    else if(f < -2048)
-	      f = -2048;
+	      if(f > 2047)
+		f = 2047;
+	      else if(f < -2048)
+		f = -2048;
 
-	    mb.QFS[i] = f;
-	    inverse_quantisation_sum += f;
-	  }
+	      mb.QFS[i] = f;
+	      inverse_quantisation_sum += f;
+	    }
 	  
-	  n++;      
+	    n++;      
+	  }
 	}
-      }
       }
 #else
       while( 1 ) {
@@ -3087,7 +3195,7 @@ void block_non_intra(unsigned int b)
 	  f = 2047;
 	}
 	if( sgn )
-	    f = -f;
+	  f = -f;
 	
 	mb.QFS[i] = f;
 	inverse_quantisation_sum += f;
@@ -3145,10 +3253,10 @@ void motion_vectors(unsigned int s)
     }
     if(mb.modes.macroblock_intra &&
        pic.coding_ext.concealment_motion_vectors) {
-	mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FRAME;
-	mb.dmv = 0;
+      mb.prediction_type = PRED_TYPE_FRAME_BASED;
+      mb.motion_vector_count = 1;
+      mb.mv_format = MV_FORMAT_FRAME;
+      mb.dmv = 0;
     }
       
     if(pic.coding_ext.frame_pred_frame_dct == 1) {
@@ -3162,32 +3270,32 @@ void motion_vectors(unsigned int s)
     /* Table 6-18 Meaning of field_motion_type */
     switch(mb.modes.field_motion_type) {
     case 0x0:
-	fprintf(stderr, "*** reserved field prediction type\n");
-	exit(-1);
-	break;
-      case 0x1:
-	mb.prediction_type = PRED_TYPE_FIELD_BASED;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FIELD;
-	mb.dmv = 0;
-	break;
-      case 0x2:
-	mb.prediction_type = PRED_TYPE_16x8_MC;
-	mb.motion_vector_count = 2;
-	mb.mv_format = MV_FORMAT_FIELD;
-	mb.dmv = 0;
-	break;
-      case 0x3:
-	mb.prediction_type = PRED_TYPE_DUAL_PRIME;
-	mb.motion_vector_count = 1;
-	mb.mv_format = MV_FORMAT_FIELD;
-	mb.dmv = 1;
-	break;
-      default:
-	fprintf(stderr, "*** impossible prediction type\n");
-	exit(-1);
-	break;
-      }
+      fprintf(stderr, "*** reserved field prediction type\n");
+      exit(-1);
+      break;
+    case 0x1:
+      mb.prediction_type = PRED_TYPE_FIELD_BASED;
+      mb.motion_vector_count = 1;
+      mb.mv_format = MV_FORMAT_FIELD;
+      mb.dmv = 0;
+      break;
+    case 0x2:
+      mb.prediction_type = PRED_TYPE_16x8_MC;
+      mb.motion_vector_count = 2;
+      mb.mv_format = MV_FORMAT_FIELD;
+      mb.dmv = 0;
+      break;
+    case 0x3:
+      mb.prediction_type = PRED_TYPE_DUAL_PRIME;
+      mb.motion_vector_count = 1;
+      mb.mv_format = MV_FORMAT_FIELD;
+      mb.dmv = 1;
+      break;
+    default:
+      fprintf(stderr, "*** impossible prediction type\n");
+      exit(-1);
+      break;
+    }
   }
 
 
@@ -3400,141 +3508,141 @@ int sign(int16_t num)
 
 void display_init()
 {
-   int screen;
-   unsigned int fg, bg;
-   char *hello = "I hate X11";
-   XSizeHints hint;
-   XEvent xev;
+  int screen;
+  unsigned int fg, bg;
+  char *hello = "I hate X11";
+  XSizeHints hint;
+  XEvent xev;
 
-   XGCValues xgcv;
-   Colormap theCmap;
-   XSetWindowAttributes xswa;
-   unsigned long xswamask;
+  XGCValues xgcv;
+  Colormap theCmap;
+  XSetWindowAttributes xswa;
+  unsigned long xswamask;
 
-   int image_height = 480;
-   int image_width = 720;
-
-
-   mydisplay = XOpenDisplay(NULL);
-
-   if (mydisplay == NULL)
-      fprintf(stderr,"Can not open display\n");
-
-   if (shmem_flag) {
-     /* Check for availability of shared memory */
-     if (!XShmQueryExtension(mydisplay)) {
-       shmem_flag = 0;
-       fprintf(stderr, "No shared memory available!\n");
-     }
-   }
-
-   screen = DefaultScreen(mydisplay);
-
-   hint.x = 0;
-   hint.y = 0;
-   hint.width = image_width;
-   hint.height = image_height;
-   hint.flags = PPosition | PSize;
-
-   /* Get some colors */
-
-   bg = WhitePixel(mydisplay, screen);
-   fg = BlackPixel(mydisplay, screen);
-
-   /* Make the window */
-
-   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
-   bpp = attribs.depth;
-   if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
-      fprintf(stderr,"Only 15,16,24, and 32bpp supported. Trying 24bpp!\n");
-      bpp = 24;
-   }
-   //BEGIN HACK
-   //mywindow = XCreateSimpleWindow(mydisplay, DefaultRootWindow(mydisplay),
-   //hint.x, hint.y, hint.width, hint.height, 4, fg, bg);
-   //
-   XMatchVisualInfo(mydisplay,screen,bpp,TrueColor,&vinfo);
-   printf("visual id is  %lx\n",vinfo.visualid);
-
-   theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
-                               vinfo.visual, AllocNone);
-
-   xswa.background_pixel = 0;
-   xswa.border_pixel     = 1;
-   xswa.colormap         = theCmap;
-   xswamask = CWBackPixel | CWBorderPixel | CWColormap;
-
-   mywindow = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
-                            hint.x, hint.y, hint.width, hint.height, 0, bpp,
-                            CopyFromParent, vinfo.visual, xswamask, &xswa);
-
-   window_ref1 = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
-                            hint.x, hint.y, hint.width, hint.height, 0, bpp,
-                            CopyFromParent, vinfo.visual, xswamask, &xswa);
-
-   window_ref2 = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
-                            hint.x, hint.y, hint.width, hint.height, 0, bpp,
-                            CopyFromParent, vinfo.visual, xswamask, &xswa);
+  int image_height = 480;
+  int image_width = 720;
 
 
-   window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
-                            hint.x, hint.y, 200, 200, 0,
-                            0);
+  mydisplay = XOpenDisplay(NULL);
 
-   XSelectInput(mydisplay, mywindow, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
-   XSelectInput(mydisplay, window_ref1, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
-   XSelectInput(mydisplay, window_ref2, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
-   XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
+  if (mydisplay == NULL)
+    fprintf(stderr,"Can not open display\n");
 
-   /* Tell other applications about this window */
+  if (shmem_flag) {
+    /* Check for availability of shared memory */
+    if (!XShmQueryExtension(mydisplay)) {
+      shmem_flag = 0;
+      fprintf(stderr, "No shared memory available!\n");
+    }
+  }
 
-   XSetStandardProperties(mydisplay, mywindow, hello, hello, None, NULL, 0, &hint);
-   XSetStandardProperties(mydisplay, window_ref1, "ref1", "ref1", None, NULL, 0, &hint);
-   XSetStandardProperties(mydisplay, window_ref2, "ref2", "ref2", None, NULL, 0, &hint);
-   XSetStandardProperties(mydisplay, window_stat, "stat", "stat", None, NULL, 0, &hint);
+  screen = DefaultScreen(mydisplay);
 
-   /* Map window. */
+  hint.x = 0;
+  hint.y = 0;
+  hint.width = image_width;
+  hint.height = image_height;
+  hint.flags = PPosition | PSize;
 
-   XMapWindow(mydisplay, mywindow);
-   XMapWindow(mydisplay, window_ref1);
-   XMapWindow(mydisplay, window_ref2);
-   XMapWindow(mydisplay, window_stat);
+  /* Get some colors */
 
-   /* Wait for map. */
-   do {
-      XNextEvent(mydisplay, &xev);
-   }
-   while (xev.type != MapNotify || xev.xmap.event != mywindow);
+  bg = WhitePixel(mydisplay, screen);
+  fg = BlackPixel(mydisplay, screen);
+
+  /* Make the window */
+
+  XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
+  bpp = attribs.depth;
+  if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
+    fprintf(stderr,"Only 15,16,24, and 32bpp supported. Trying 24bpp!\n");
+    bpp = 24;
+  }
+  //BEGIN HACK
+  //mywindow = XCreateSimpleWindow(mydisplay, DefaultRootWindow(mydisplay),
+  //hint.x, hint.y, hint.width, hint.height, 4, fg, bg);
+  //
+  XMatchVisualInfo(mydisplay,screen,bpp,TrueColor,&vinfo);
+  printf("visual id is  %lx\n",vinfo.visualid);
+
+  theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
+			      vinfo.visual, AllocNone);
+
+  xswa.background_pixel = 0;
+  xswa.border_pixel     = 1;
+  xswa.colormap         = theCmap;
+  xswamask = CWBackPixel | CWBorderPixel | CWColormap;
+
+  mywindow = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+			   hint.x, hint.y, hint.width, hint.height, 0, bpp,
+			   CopyFromParent, vinfo.visual, xswamask, &xswa);
+
+  window_ref1 = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+			      hint.x, hint.y, hint.width, hint.height, 0, bpp,
+			      CopyFromParent, vinfo.visual, xswamask, &xswa);
+
+  window_ref2 = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+			      hint.x, hint.y, hint.width, hint.height, 0, bpp,
+			      CopyFromParent, vinfo.visual, xswamask, &xswa);
+
+
+  window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
+				    hint.x, hint.y, 200, 200, 0,
+				    0);
+
+  XSelectInput(mydisplay, mywindow, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
+  XSelectInput(mydisplay, window_ref1, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
+  XSelectInput(mydisplay, window_ref2, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
+  XSelectInput(mydisplay, window_stat, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
+
+  /* Tell other applications about this window */
+
+  XSetStandardProperties(mydisplay, mywindow, hello, hello, None, NULL, 0, &hint);
+  XSetStandardProperties(mydisplay, window_ref1, "ref1", "ref1", None, NULL, 0, &hint);
+  XSetStandardProperties(mydisplay, window_ref2, "ref2", "ref2", None, NULL, 0, &hint);
+  XSetStandardProperties(mydisplay, window_stat, "stat", "stat", None, NULL, 0, &hint);
+
+  /* Map window. */
+
+  XMapWindow(mydisplay, mywindow);
+  XMapWindow(mydisplay, window_ref1);
+  XMapWindow(mydisplay, window_ref2);
+  XMapWindow(mydisplay, window_stat);
+
+  /* Wait for map. */
+  do {
+    XNextEvent(mydisplay, &xev);
+  }
+  while (xev.type != MapNotify || xev.xmap.event != mywindow);
    
-   //   XSelectInput(mydisplay, mywindow, NoEventMask);
+  //   XSelectInput(mydisplay, mywindow, NoEventMask);
 
-   XFlush(mydisplay);
-   XSync(mydisplay, False);
-   
-   
-   mygc = XCreateGC(mydisplay, mywindow, 0L, &xgcv);
-   statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
+  XFlush(mydisplay);
+  XSync(mydisplay, False);
    
    
-   /*   
-   myximage = XGetImage(mydisplay, mywindow, 0, 0,
-			image_width, image_height, AllPlanes, ZPixmap);
-   ImageData = myximage->data;
+  mygc = XCreateGC(mydisplay, mywindow, 0L, &xgcv);
+  statgc = XCreateGC(mydisplay, window_stat, 0L, &xgcv);
    
-   */
-   //   bpp = myximage->bits_per_pixel;
-   // If we have blue in the lowest bit then obviously RGB 
-   //mode = ((myximage->blue_mask & 0x01) != 0) ? 1 : 2;
+   
+  /*   
+       myximage = XGetImage(mydisplay, mywindow, 0, 0,
+       image_width, image_height, AllPlanes, ZPixmap);
+       ImageData = myximage->data;
+   
+  */
+  //   bpp = myximage->bits_per_pixel;
+  // If we have blue in the lowest bit then obviously RGB 
+  //mode = ((myximage->blue_mask & 0x01) != 0) ? 1 : 2;
 #ifdef WORDS_BIGENDIAN 
-   // if (myximage->byte_order != MSBFirst)
+  // if (myximage->byte_order != MSBFirst)
 #else
-   //  if (myximage->byte_order != LSBFirst) 
+  //  if (myximage->byte_order != LSBFirst) 
 #endif
-   //   {
-   //	 fprintf( stderr, "No support for non-native XImage byte order!\n" );
-   //	 exit(1);
-   //   }
-   //   yuv2rgb_init(bpp, mode);
+  //   {
+  //	 fprintf( stderr, "No support for non-native XImage byte order!\n" );
+  //	 exit(1);
+  //   }
+  //   yuv2rgb_init(bpp, mode);
    
 }
 
@@ -3623,123 +3731,123 @@ void motion_comp()
       
       field = mb.motion_vertical_field_select[i][0];
       
-    DPRINTF(2, "forward_motion_comp\n");
+      DPRINTF(2, "forward_motion_comp\n");
 
-    half_flag_y[0] = (mb.vector[i][0][0] & 1);
-    half_flag_y[1] = (mb.vector[i][0][1] & 1);
-    half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
-    half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
-    int_vec_y[0] = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
-    int_vec_y[1] = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
-    int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + x * 8;
-    int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + y * 8;
-    //int_vec_uv[0] = int_vec_y[0] / 2 ;
-    //  int_vec_uv[1] = int_vec_y[1] / 2 ;
+      half_flag_y[0] = (mb.vector[i][0][0] & 1);
+      half_flag_y[1] = (mb.vector[i][0][1] & 1);
+      half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
+      half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
+      int_vec_y[0] = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
+      int_vec_y[1] = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
+      int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + x * 8;
+      int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + y * 8;
+      //int_vec_uv[0] = int_vec_y[0] / 2 ;
+      //  int_vec_uv[1] = int_vec_y[1] / 2 ;
     
     
 
 
 
-    DPRINTF(3, "start: 0, end: %d\n",
+      DPRINTF(3, "start: 0, end: %d\n",
 	      seq.horizontal_size * seq.vertical_size);
       
-    DPRINTF(3, "p_vec x: %d, y: %d\n",
+      DPRINTF(3, "p_vec x: %d, y: %d\n",
 	      (mb.vector[i][0][0] >> 1),
 	      (mb.vector[i][0][1] >> 1));
     
-    pred_y  =
-      &ref_image1->y[int_vec_y[0] + int_vec_y[1] * width];
+      pred_y  =
+	&ref_image1->y[int_vec_y[0] + int_vec_y[1] * width];
     
-    DPRINTF(3, "ypos: %d\n",
-	    int_vec_y[0] + int_vec_y[1] * width);
+      DPRINTF(3, "ypos: %d\n",
+	      int_vec_y[0] + int_vec_y[1] * width);
     
-    DPRINTF(3, "start: 0, end: %d\n",
-	    seq.horizontal_size * seq.vertical_size/4);
+      DPRINTF(3, "start: 0, end: %d\n",
+	      seq.horizontal_size * seq.vertical_size/4);
     
-    pred_u =
-      &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
+      pred_u =
+	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
     
     
-    DPRINTF(3, "uvpos: %d\n",
-	    int_vec_uv[0] + int_vec_uv[1] * width/2);
+      DPRINTF(3, "uvpos: %d\n",
+	      int_vec_uv[0] + int_vec_uv[1] * width/2);
     
-    pred_v =
-      &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
+      pred_v =
+	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
     
-    DPRINTF(3, "x: %d, y: %d\n", x, y);
+      DPRINTF(3, "x: %d, y: %d\n", x, y);
     
 	
-    if (half_flag_y[0] && half_flag_y[1]) {
-      if(apa == 2) {
-	mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				      width*2, width*2);
+      if (half_flag_y[0] && half_flag_y[1]) {
+	if(apa == 2) {
+	  mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
+					width*2, width*2);
+	} else {
+	  mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	}
+      } else if (half_flag_y[0]) {
+	if(apa == 2) {
+	  mlib_VideoInterpX_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
+				       width*2, width*2);
+	} else {
+	  mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	}
+      } else if (half_flag_y[1]) {
+	if(apa == 2) {
+	  mlib_VideoInterpY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
+				       width*2, width*2);
+	} else {
+	  mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	}
       } else {
-	mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+	if(apa == 2) {
+	  mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
+				       width*2);
+	} else {
+	  mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
+	}
       }
-    } else if (half_flag_y[0]) {
-      if(apa == 2) {
-	mlib_VideoInterpX_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				      width*2, width*2);
-      } else {
-      mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
-      }
-    } else if (half_flag_y[1]) {
-      if(apa == 2) {
-	mlib_VideoInterpY_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				      width*2, width*2);
-      } else {
-      mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
-      }
-    } else {
-      if(apa == 2) {
-	mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*width, pred_y+field*width,
-				      width*2);
-      } else {
-      mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
-      }
-    }
 
-    if (half_flag_uv[0] && half_flag_uv[1]) {
-      if(apa == 2) {
-	mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
+      if (half_flag_uv[0] && half_flag_uv[1]) {
+	if(apa == 2) {
+	  mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
+				       width*2/2, width*2/2);
+	  mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
+				       width*2/2, width*2/2);
+	} else {
+	  mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	  mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	}
+      } else if (half_flag_uv[0]) {
+	if(apa == 2) {
+	  mlib_VideoInterpX_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
 				      width*2/2, width*2/2);
-	mlib_VideoInterpXY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
+	  mlib_VideoInterpX_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
 				      width*2/2, width*2/2);
+	} else {
+	  mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	  mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	}
+      } else if (half_flag_uv[1]) {
+	if(apa == 2) {
+	  mlib_VideoInterpY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
+				      width*2/2, width*2/2);
+	  mlib_VideoInterpY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
+				      width*2/2, width*2/2);
+	} else {
+	  mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	  mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	}
       } else {
-      mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-      mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+	if(apa == 2) {
+	  mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
+				      width*2/2);
+	  mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
+				      width*2/2);
+	} else {
+	  mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
+	  mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
+	}
       }
-    } else if (half_flag_uv[0]) {
-      if(apa == 2) {
-	mlib_VideoInterpX_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				      width*2/2, width*2/2);
-	mlib_VideoInterpX_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				      width*2/2, width*2/2);
-      } else {
-      mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-      mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
-      }
-    } else if (half_flag_uv[1]) {
-      if(apa == 2) {
-	mlib_VideoInterpY_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				      width*2/2, width*2/2);
-	mlib_VideoInterpY_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				      width*2/2, width*2/2);
-      } else {
-      mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
-      mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
-      }
-    } else {
-      if(apa == 2) {
-	mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*width/2, pred_u+field*width/2,
-				    width*2/2);
-	mlib_VideoCopyRef_U8_U8_8x4(dst_v + i*width/2, pred_v+field*width/2,
-				    width*2/2);
-      } else {
-      mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
-      mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
-      }
-    }
     }
   }   
   if(mb.modes.macroblock_motion_backward) {
@@ -4215,15 +4323,15 @@ debug_win windows[3];
 
 void compute_frame(yuv_image_t *image, unsigned char *data)
 {
-    mlib_VideoColorYUV2ABGR420(data,
-			       image->y,
-			       image->u,
-			       image->v,
-			       seq.horizontal_size,
-			       seq.vertical_size,
-			       seq.horizontal_size*4, //TODO
-			       seq.horizontal_size,
-			       seq.horizontal_size/2);
+  mlib_VideoColorYUV2ABGR420(data,
+			     image->y,
+			     image->u,
+			     image->v,
+			     seq.horizontal_size,
+			     seq.vertical_size,
+			     seq.horizontal_size*4, //TODO
+			     seq.horizontal_size,
+			     seq.horizontal_size/2);
 }
  
 void add_grid(unsigned char *data)
@@ -4373,197 +4481,197 @@ void frame_done()
       XNextEvent(mydisplay, &ev);
     }
       
-      switch(ev.type) {
-      case Expose:
+    switch(ev.type) {
+    case Expose:
+      {
+	int n;
+	for(n = 0; n < 3; n++) {
+	  if(windows[n].win == ev.xexpose.window) {
+	    if(show_window[n]) {
+	      draw_win(&(windows[n]));
+	    }
+	    break;
+	  }
+	}
+      }
+      break;
+    case ButtonPress:
+      switch(ev.xbutton.button) {
+      case 0x1:
 	{
+	  char text[64];
 	  int n;
 	  for(n = 0; n < 3; n++) {
-	    if(windows[n].win == ev.xexpose.window) {
+	    if(windows[n].win == ev.xbutton.window) {
+	      break;
+	    }
+	  }
+
+
+	  snprintf(text, 16, "%4d, %4d", ev.xbutton.x, ev.xbutton.y);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 0*13, text, strlen(text));
+	  snprintf(text, 16, "block: %4d", ev.xbutton.x/16+ev.xbutton.y/16*45);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 1*13, text, strlen(text));
+	  snprintf(text, 16, "intra: %3s", (windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].modes.macroblock_intra ? "yes" : "no"));
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 2*13, text, strlen(text));
+
+	  snprintf(text, 32, "vector[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][0][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 3*13, text, strlen(text));
+
+	  snprintf(text, 32, "vector[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][0][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 4*13, text, strlen(text));
+
+
+	  snprintf(text, 32, "vector[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][0][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 5*13, text, strlen(text));
+
+	  snprintf(text, 32, "vector[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][0][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 6*13, text, strlen(text));
+
+
+	  snprintf(text, 32, "vector[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][1][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 7*13, text, strlen(text));
+
+	  snprintf(text, 32, "vector[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][1][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 8*13, text, strlen(text));
+
+
+	  snprintf(text, 32, "vector[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][1][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 9*13, text, strlen(text));
+
+	  snprintf(text, 32, "vector[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][1][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 10*13, text, strlen(text));
+
+
+
+	  snprintf(text, 32, "field_select[0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[0][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 11*13, text, strlen(text));
+
+	  snprintf(text, 32, "field_select[0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[0][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 12*13, text, strlen(text));
+
+	  snprintf(text, 32, "field_select[1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[1][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 13*13, text, strlen(text));
+
+	  snprintf(text, 32, "field_select[1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[1][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 14*13, text, strlen(text));
+
+	  snprintf(text, 32, "motion_vector_count: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vector_count);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 15*13, text, strlen(text));
+
+
+	  snprintf(text, 32, "delta[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 16*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 17*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 18*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 19*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 20*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 21*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][0]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 22*13, text, strlen(text));
+
+	  snprintf(text, 32, "delta[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][1]);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 23*13, text, strlen(text));
+
+	  snprintf(text, 32, "skipped: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].skipped);
+	  XDrawImageString(mydisplay, window_stat, statgc, 10, 24*13, text, strlen(text));
+
+
+	}
+	break;
+      case 0x2:
+	break;
+      case 0x3:
+	break;
+      }
+      break;
+    case KeyPress:
+      {
+	int n;
+	char buff[2];
+	static int debug_change = 0;
+	static int window_change = 0;
+
+	XLookupString(&(ev.xkey), buff, 2, NULL, NULL);
+	buff[1] = '\0';
+	switch(buff[0]) {
+	case 'n':
+	  nextframe = 1;
+	  break;
+	case 'g':
+	  for(n = 0; n < 3; n++) {
+	    if(ev.xkey.window == windows[n].win) {
+	      windows[n].grid = !windows[n].grid;
 	      if(show_window[n]) {
 		draw_win(&(windows[n]));
 	      }
 	      break;
 	    }
 	  }
-	}
-	break;
-      case ButtonPress:
-	switch(ev.xbutton.button) {
-	case 0x1:
-	  {
-	    char text[64];
-	    int n;
-	    for(n = 0; n < 3; n++) {
-	      if(windows[n].win == ev.xbutton.window) {
-		break;
+	  break;
+	case 'c':
+	  for(n = 0; n < 3; n++) {
+	    if(ev.xkey.window == windows[n].win) {
+	      windows[n].color_grid = !windows[n].color_grid;
+	      if(show_window[n]) {
+		draw_win(&(windows[n]));
 	      }
+	      break;
 	    }
-
-
-	    snprintf(text, 16, "%4d, %4d", ev.xbutton.x, ev.xbutton.y);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 0*13, text, strlen(text));
-	    snprintf(text, 16, "block: %4d", ev.xbutton.x/16+ev.xbutton.y/16*45);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 1*13, text, strlen(text));
-	    snprintf(text, 16, "intra: %3s", (windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].modes.macroblock_intra ? "yes" : "no"));
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 2*13, text, strlen(text));
-
-	    snprintf(text, 32, "vector[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][0][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 3*13, text, strlen(text));
-
-	    snprintf(text, 32, "vector[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][0][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 4*13, text, strlen(text));
-
-
-	    snprintf(text, 32, "vector[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][0][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 5*13, text, strlen(text));
-
-	    snprintf(text, 32, "vector[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][0][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 6*13, text, strlen(text));
-
-
-	    snprintf(text, 32, "vector[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][1][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 7*13, text, strlen(text));
-
-	    snprintf(text, 32, "vector[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[0][1][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 8*13, text, strlen(text));
-
-
-	    snprintf(text, 32, "vector[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][1][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 9*13, text, strlen(text));
-
-	    snprintf(text, 32, "vector[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].vector[1][1][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 10*13, text, strlen(text));
-
-
-
-	    snprintf(text, 32, "field_select[0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[0][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 11*13, text, strlen(text));
-
-	    snprintf(text, 32, "field_select[0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[0][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 12*13, text, strlen(text));
-
-	    snprintf(text, 32, "field_select[1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[1][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 13*13, text, strlen(text));
-
-	    snprintf(text, 32, "field_select[1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vertical_field_select[1][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 14*13, text, strlen(text));
-
-	    snprintf(text, 32, "motion_vector_count: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].motion_vector_count);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 15*13, text, strlen(text));
-
-
-	    snprintf(text, 32, "delta[0][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 16*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[0][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][0][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 17*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[1][0][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 18*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[1][0][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][0][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 19*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[0][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 20*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[0][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[0][1][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 21*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[1][1][0]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][0]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 22*13, text, strlen(text));
-
-	    snprintf(text, 32, "delta[1][1][1]: %4d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].delta[1][1][1]);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 23*13, text, strlen(text));
-
-	    snprintf(text, 32, "skipped: %2d", windows[n].mbs[ev.xbutton.x/16+ev.xbutton.y/16*45].skipped);
-	    XDrawImageString(mydisplay, window_stat, statgc, 10, 24*13, text, strlen(text));
-
-
 	  }
 	  break;
-	case 0x2:
+	case 'd':
+	  debug_change = 2;
 	  break;
-	case 0x3:
+	case 'w':
+	  window_change = 2;
 	  break;
-	}
-	break;
-      case KeyPress:
-	{
-	  int n;
-	  char buff[2];
-	  static int debug_change = 0;
-	  static int window_change = 0;
-
-	  XLookupString(&(ev.xkey), buff, 2, NULL, NULL);
-	  buff[1] = '\0';
-	  switch(buff[0]) {
-	  case 'n':
-	    nextframe = 1;
-	    break;
-	  case 'g':
-	    for(n = 0; n < 3; n++) {
-	      if(ev.xkey.window == windows[n].win) {
-		windows[n].grid = !windows[n].grid;
-		if(show_window[n]) {
-		  draw_win(&(windows[n]));
-		}
-		break;
-	      }
+	case 's':
+	  show_stat = !show_stat;
+	  break;
+	case 'r':
+	  run = !run;
+	  nextframe = 1;
+	  break;
+	case 'q':
+	  exit_program();
+	  break;
+	default:
+	  if(debug_change) {
+	    debug = atoi(&buff[0]);
+	  }
+	  if(window_change) {
+	    int w;
+	    w = atoi(&buff[0]);
+	    if((w >= 0) && (w < 3)) {
+	      show_window[w] = !show_window[w];
 	    }
-	    break;
-	  case 'c':
-	    for(n = 0; n < 3; n++) {
-	      if(ev.xkey.window == windows[n].win) {
-		windows[n].color_grid = !windows[n].color_grid;
-		if(show_window[n]) {
-		  draw_win(&(windows[n]));
-		}
-		break;
-	      }
-	    }
-	    break;
-	  case 'd':
-	    debug_change = 2;
-	    break;
-	  case 'w':
-	    window_change = 2;
-	    break;
-	  case 's':
-	    show_stat = !show_stat;
-	    break;
-	  case 'r':
-	    run = !run;
-	    nextframe = 1;
-	    break;
-	  case 'q':
-	    exit_program();
-	    break;
-	  default:
-	    if(debug_change) {
-	      debug = atoi(&buff[0]);
-	    }
-	    if(window_change) {
-	      int w;
-	      w = atoi(&buff[0]);
-	      if((w >= 0) && (w < 3)) {
-		show_window[w] = !show_window[w];
-	      }
-	    }
-	    break;
+	  }
+	  break;
 	    
-	  }
-	  if(debug_change > 0) {
-	    debug_change--;
-	  }
-	  if(window_change > 0) {
-	    window_change--;
-	  }
 	}
-	break;
-      default:
-	break;
+	if(debug_change > 0) {
+	  debug_change--;
+	}
+	if(window_change > 0) {
+	  window_change--;
+	}
       }
+      break;
+    default:
+      break;
+    }
       
 
   }
@@ -4607,12 +4715,12 @@ void exit_program()
   {
     int n;
     /*
-    double percent = 0.0;
+      double percent = 0.0;
     
-    for(n = 0; n < 128; n++) {
+      for(n = 0; n < 128; n++) {
       fprintf(stderr, "[%d] : %d : %f\n", n, dctstat[n],
-	      percent+=(double)dctstat[n]/(double)total_calls);
-    }
+      percent+=(double)dctstat[n]/(double)total_calls);
+      }
 
     */
     for(n=0; n<4; n++) {
