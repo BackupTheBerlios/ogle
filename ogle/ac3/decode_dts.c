@@ -189,10 +189,10 @@ int decode_dts(adec_dts_handle_t *handle, uint8_t *start, int len,
 	tmpstr = "22.05";
 	break;
       case 8:
-	tmpstr = "44.01";
+	tmpstr = "44.1";
 	break;
       case 9:
-	tmpstr = "88.02";
+	tmpstr = "88.2";
 	break;
       case 10:
 	tmpstr = "176.4";
