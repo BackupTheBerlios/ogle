@@ -450,6 +450,10 @@ Window display_init(yuv_image_t *picture_data,
   /* revert to the previous xerrorhandler */
   XSetErrorHandler(prev_xerrhandler);
   
+  snprintf(&title[0], 99, "Ogle v%s %s%s", VERSION, 
+	   use_xv ? "Xv " : "", use_xshm ? "XShm " : "");
+  XStoreName(mydisplay, window.win, &title[0]);
+  
   window.data = window.ximage->data;
   
   pixel_stride = window.ximage->bits_per_pixel;
@@ -709,15 +713,15 @@ static void draw_win_x11(window_info *dwin)
 	  dwin->image->info->picture.padded_height, 
 	  dwin->image->info->picture.padded_width*(pixel_stride/8),
 	  dwin->image->info->picture.padded_width,
-	  dwin->image->info->picture.padded_width/2 );
-
+	  dwin->image->info->picture.padded_width/2);
+  
 #ifdef SPU
   if(msgqid != -1) {
     mix_subpicture_rgb(address, dwin->image->info->picture.padded_width,
 		       dwin->image->info->picture.padded_height);
   }
 #endif
-
+  
   if((scaled_image_width != dwin->image->info->picture.horizontal_size) ||
      (scaled_image_height != dwin->image->info->picture.vertical_size)) {
     /* Destination image */
@@ -772,9 +776,9 @@ static void draw_win_x11(window_info *dwin)
   yuv2rgb(dwin->data, dwin->image->y, dwin->image->u, dwin->image->v,
           dwin->image->info->picture.padded_width,
           dwin->image->info->picture.padded_height,
-          dwin->image->info->picture.padded_width * (pixel_stride/8),
+          dwin->image->info->picture.padded_width*(pixel_stride/8),
           dwin->image->info->picture.padded_width, 
-	  dwin->image->info->picture.padded_width/2 );
+	  dwin->image->info->picture.padded_width/2);
 
 #ifdef SPU
   if(msgqid != -1) {
