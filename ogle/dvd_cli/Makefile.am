@@ -17,9 +17,10 @@
 
 pkglib_PROGRAMS = ogle_cli
 
-INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@
+INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @XML_CFLAGS@
 
-ogle_cli_SOURCES = main.c xsniffer.c xsniffer.h
+ogle_cli_SOURCES = main.c xsniffer.c xsniffer.h bindings.c bindings.h
 
 ogle_cli_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ \
+	@XML_LIBS@ \
 	$(top_builddir)/ogle/libdvdcontrol.la

@@ -28,6 +28,7 @@
 #include <ogle/msgevents.h>
 
 #include "xsniffer.h"
+#include "bindings.h"
 
 extern DVDNav_t *nav;
 
@@ -42,7 +43,7 @@ void xsniff_init() {
 
 void* xsniff_mouse(void* args) {
   MsgEvent_t mev;
-  int isPaused = 0;
+
   while(1) {
     
 
@@ -93,141 +94,24 @@ void* xsniff_mouse(void* args) {
       {
 	KeySym keysym;
 	keysym = mev.input.input;
-
-	switch(keysym) {
-	case XK_Up:
-	  DVDUpperButtonSelect(nav);	  
-	  break;
-	case XK_Down:
-	  DVDLowerButtonSelect(nav);
-	  break;
-	case XK_Left:
-	  DVDLeftButtonSelect(nav);
-	  break;
-	case XK_Right:
-	  DVDRightButtonSelect(nav);
-	  break;
-	case XK_Return:
-	case XK_KP_Enter:
-	  DVDButtonActivate(nav);
-	  break;
-	case XK_t:
-	  DVDMenuCall(nav, DVD_MENU_Title);
-	  break;
-	case XK_r:
-	  DVDMenuCall(nav, DVD_MENU_Root);
-	  break;
-	case XK_s:
-	  DVDMenuCall(nav, DVD_MENU_Subpicture);
-	  break;
-	case XK_a:
-	  DVDMenuCall(nav, DVD_MENU_Audio);
-	  break;
-	case XK_g:
-	  DVDMenuCall(nav, DVD_MENU_Angle);
-	  break;
-	case XK_p:
-	  DVDMenuCall(nav, DVD_MENU_Part);
-	  break;
-	case XK_c:
-	  DVDResume(nav);
-	  break;
-	case XK_space:
-	  if(isPaused) {
-	    DVDPauseOff(nav);
-	    isPaused = 0;
-	  } else {
-	    DVDPauseOn(nav);
-	    isPaused = 1;
-	  }
-	  break;
-	case XK_S:
-	  {
-	    DVDResult_t res;
-	    int spu_nr;
-	    DVDStream_t spu_this;
-	    DVDBool_t spu_shown;
-	    res = DVDGetCurrentSubpicture(nav, &spu_nr, &spu_this, &spu_shown);
-	    if(res != DVD_E_Ok) break;
-	    if(spu_shown == DVDTrue)
-	      DVDSetSubpictureState(nav, DVDFalse);
-	    else
-	      DVDSetSubpictureState(nav, DVDTrue);
-	  }
-	  break;
-	case XK_greater:
-	  // next;
-	  DVDNextPGSearch(nav);
-	  break;
-	case XK_less:
-	  // prev;
-	  DVDPrevPGSearch(nav);
-	  break;
-	case XK_q:
-	  {
-	    DVDResult_t res;
-	    res = DVDCloseNav(nav);
-	    if(res != DVD_E_Ok ) {
-	      DVDPerror("DVDCloseNav", res);
-	    }
-	    exit(0);
-	  }
-	  break;
-	case XK_f:
-	  // fullscreen
-	  {
-	    static int fs = 0;
-	    fs = !fs;
-	    if(fs) {
-	      DVDSetZoomMode(nav, ZoomModeFullScreen);
-	    } else {
-	      DVDSetZoomMode(nav, ZoomModeResizeAllowed);
-	    }
-	  }
-	  break;
-	  
-	default:
-	  if(keysym >= XK_1 && keysym <= XK_9) {
-	    double speed;
-	    switch(keysym) {
-	    case XK_1:
-	      speed = 0.125;
-	      break;
-	    case XK_2:
-	      speed = 0.25;
-	      break;
-	    case XK_3:
-	      speed = 0.5;
-	      break;
-	    case XK_4:
-	      speed = 0.75;
-	      break;
-	    case XK_5:
-	      speed = 1.0;
-	      break;
-	    case XK_6:
-	      speed = 1.5;
-	      break;
-	    case XK_7:
-	      speed = 2.0;
-	      break;
-	    case XK_8:
-	      speed = 4.0;
-	      break;
-	    case XK_9:
-	      speed = 8.0;
-	      break;
-	    default:
-	      break;
-	    }
-	    DVDForwardScan(nav, speed);
-	  }
-	  break;
-	}
-      default:
-	break;
+	
+	do_keysym_action(keysym);
       }
+      break;
+    default:
+      break;
     }
   }
 }
   
+
+
+
+
+
+ 
+
+
+
+
+
