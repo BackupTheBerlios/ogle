@@ -932,17 +932,19 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
     dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
     if( dvd_file != NULL ) {
       ssize_t read;
-      char *buffer = malloc( dvd_file->filesize );
+      char *buffer = malloc( dvd_file->filesize * DVD_VIDEO_LB_LEN );
 
-      read = DVDReadBytes( dvd_file, buffer, dvd_file->filesize );
+      read = DVDReadBlocks( dvd_file, 0, dvd_file->filesize, buffer );
       if( read != dvd_file->filesize ) {
-        fprintf( stderr, "DVDReadBytes returned %d bytes, wanted %d\n",
+        fprintf( stderr, "DVDDiscId: read returned %d blocks, wanted %d\n",
                  read, dvd_file->filesize );
+        DVDCloseFile( dvd_file );
         return -1;
       }
 
-      md5_process_bytes( buffer, dvd_file->filesize, &ctx );
+      md5_process_bytes( buffer, dvd_file->filesize * DVD_VIDEO_LB_LEN, &ctx );
 
+      DVDCloseFile( dvd_file );
       free( buffer );
     }
   }
