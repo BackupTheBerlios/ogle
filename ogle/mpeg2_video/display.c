@@ -404,7 +404,7 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 	return dpyinfo.resolution_origin;
       }
     } else {
-      NOTE("Xinerama extension not found/active\n");
+      NOTE("%s", "Xinerama extension not found/active\n");
     }
 #endif
 #ifdef HAVE_XF86VIDMODE
@@ -415,7 +415,7 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
 	return dpyinfo.resolution_origin;
       }
     } else {
-      NOTE("XF86VidMode extension not found\n");
+      NOTE("%s", "XF86VidMode extension not found\n");
     }
 #endif
   case DpyInfoOriginX11:

@@ -308,7 +308,7 @@ static void display_init_xv(int picture_buffer_shmid,
 			    &xv_request_base, &xv_event_base, 
 			    &xv_error_base);
   if(result != Success) {
-    WARNING("Xvideo extension not found\n");
+    WARNING("%s", "Xvideo extension not found\n");
     return;
   }
   
@@ -319,7 +319,7 @@ static void display_init_xv(int picture_buffer_shmid,
   result = XvQueryAdaptors(mydisplay, DefaultRootWindow (mydisplay), 
 			   &xv_num_adaptors, &xv_adaptor_info);
   if(result != Success) {
-    WARNING("No Xv adaptors found\n");
+    WARNING("%s", "No Xv adaptors found\n");
     return;
   }
       
