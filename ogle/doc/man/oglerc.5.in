@@ -279,37 +279,57 @@ Resume	c	Resumes playback
 SubtitleToggle	s	Toggles the subtitles on/off
 FullScreenToggle	f, F	Toggles fullscreen mode on/off
 Quit	q, Q	Quits Ogle
+DigitZero	0,KP_0	0 (used to enter numbers)
+DigitOne	1,KP_1	1
+DigitTwo	2,KP_2	2
+DigitThree	3,KP_3	3
+DigitFour	4,KP_4	4
+DigitFive	5,KP_5	5
+DigitSix	6,KP_6	6
+DigitSeven	7,KP_7	7
+DigitEight	8,KP_8	8
+DigitNine	9,KP_9	9
+BookmarkAdd	Insert	Adds a bookmark
+BookmarkRemove	Del	Removes a bookmark (nr)
+BookmarkRestore	b	Restores the dvd state from the bookmark (nr)
+SkipForward	Next(PageDown),KP_Right	Skip x seconds forward (nr)
+SkipBackward	Prior(PageUp),KP_Left	Skip x seconds backward (nr)
 .TE
 
 </ogle_conf>
 
+The actions above that has (nr) in the description can take an optional number as argument.
+The number is entered with the digit keys and then the key for the action is pressed.
+Example:
+.br
+To jump to the 3rd bookmark for the current dvd press '3' and then 'b'
+When you don't give any number to the bookmark actions they will use
+the entry at the end of the bookmark list by default or when an invalid
+number is entered.
+.br
+Bookmarks will be saved in files in the directory $HOME/.ogle/bookmarks/
+.br
+.br
+The SkipForward and SkipBackward actions use the number argument as the number
+of seconds to skip. The default value is 10 seconds. Entering '30' and then pressing Next(PageDown) will skip 30 seconds forwards. The Skip actions will use the last value entered for any following skips even if no number is entered.
+To get back to the default value, enter 0 and the skip.
 
 
-Some of the default key bindings include the following:
-.br
-  ',', slower, in slow-motion sound will be muted
-  'p', play, normal playback speed
-  '.', faster, in fast-forward sound will be muted
-  ' ' (space), pause / unpause
-  '>', skips to the next chapter
-  '<', skips to the previous chapter
-  'c', resume (if you have jumped to a menu from the movie)
-  'f' 'F', toggle between fullscreen and window mode
-  'q' 'Q', exit the player
-  't', jumps to the Title menu
-  'r', jumps to the Root menu
-  'a', jumps to the Audio menu
-  'A', jumps to the Angle menu
-  'P', jumps to the PTT (Chapter) menu
-  'S', jumps to the Subpicture menu
-.br
 Non configurable keys:
   'i', saves a screen shoot (as screenshoot.jpg in pwd)
   'I', saves a screen shoot with the subpicture overlay intact
 
+
 In addition to the above the arrow buttons and mouse can be used to move around in the DVD menues. Return, the keypad enter and left mouse button may be used to activate a DVD button.
+
+Cropping the picture can be done by pressing the middle mouse button
+at the upper left corner of the crop area and dragging it to the lower right corner and then release the button.
+To uncrop press and release the middle mouse button without dragging it around.
+
 .SH FILES
 $HOME/.oglerc
+.br
+$HOME/.ogle/bookmarks/
 .br
 @CONFIG_FILE@
 .br
