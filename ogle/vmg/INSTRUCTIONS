@@ -40,6 +40,7 @@
 
 0011_0000 *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
 
+0011_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Exit
 0011_0000 ****_0010 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpTT          (jump to title in vts title domain [from FP,VMGM])
 0011_0000 ****_0011 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpVTS_TT      (jump to title in same vts title domain [from VTSM,TT])
 0011_0000 ****_0101 ****_**PP PPPP_PPPP ****_**** *TTT_TTTT ****_**** ****_**** -- JumpVTS_PTT     (jump to ptt in the same vts)
