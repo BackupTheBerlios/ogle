@@ -160,6 +160,32 @@ dnl Should this also have some fallback library?
 AC_CHECK_FUNCS(madvise)
 
 
+
+dnl ---------------------------------------------------------
+dnl posix shm
+dnl ---------------------------------------------------------
+
+dnl shm_open is in librt on Solaris, Linux
+AC_CHECK_FUNC(shm_open, [ AC_DEFINE([HAVE_POSIX_SHM], 1, [ ]) ], 
+  AC_CHECK_LIB(rt, shm_open, 
+    [ AC_DEFINE([HAVE_POSIX_SHM], 1, [ ])
+      LIBS="$LIBS -lrt"
+    ]
+  )
+)
+dnl define to 1 for default use of posix shm or 
+dnl define to 0 for default not use posix shm
+dnl This should be autoselected based on platform
+dnl if there are any performance or other problems with
+dnl posix shm.
+dnl This can be overridden at runtime with the env var OGLE_USE_POSIX_SHM
+AC_DEFINE([USE_POSIX_SHM], 1, [ ])
+
+dnl ---------------------------------------------------------
+dnl end posix shm
+dnl ---------------------------------------------------------
+
+
 dnl ---------------------------------------------------------
 dnl dvdread
 dnl ---------------------------------------------------------
@@ -558,6 +584,11 @@ AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
   [ AC_MSG_WARN([Install libxml2(-dev) and/or specify it's location])
   MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libxml2 and/or headers, " ])
 
+if test "x$XML_CPPFLAGS" = x; then
+   XML_CPPFLAGS=$XML_CFLAGS
+   AC_SUBST(XML_CPPFLAGS)
+fi
+
 dnl ---------------------------------------------------------
 dnl end libxml
 dnl ---------------------------------------------------------
@@ -625,6 +656,10 @@ AC_SUBST(XINERAMA_LIBS)
 dnl ---------------------------------------------------------
 dnl end Xinerama
 dnl ---------------------------------------------------------
+
+AC_CHECK_LIB(nsl, socket)
+AC_CHECK_LIB(socket, socket)
+
 
 
 dnl ---------------------------------------------------------
@@ -722,6 +757,7 @@ dnl ---------------------------------------------------------
 
 USE_MMX=
 USE_ALTIVEC=
+USE_ALTIVEC_DARWIN=
 USE_SPARCASM=
 case "$host_cpu" in
 i?86)
@@ -752,10 +788,25 @@ sparc)
 powerpc|ppc)
 	if test "x$GCC" = xyes; then
 	  O_CFLAGS="$O_CFLAGS -fomit-frame-pointer -funroll-loops"
+
+dnl On MacOS X with Apple's gcc3.3, -mcpu=7400 and -faltivec is used.
+dnl We assume that no other version of gcc is used in darwin
+
 dnl is the right? needed? use just -m7400 ? need new gcc for that..
 dnl is there a -mcpu -march flag that we should use?
 dnl should be a try compile on this line.. 
-	  XCFLAGS="-Wa,-m7400"
+
+dnl What are correct options for altivec on other platforms/os/gcc versions?
+	  case "$host_os" in
+	  darwin*)
+	  	XCFLAGS="-mcpu=7400 -faltivec -O3"
+dnl Apples gcc3.3 only understands 'old' motorola-style altivec asm.
+		USE_ALTIVEC_DARWIN=yes
+		;;
+	  *)
+	  	XCFLAGS="-Wa,-m7400"
+		;;
+	  esac
 dnl that sets USE_ALTIVEC depending on the success
 	  USE_ALTIVEC=yes
 	fi
@@ -805,8 +856,11 @@ AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, [test "x$USE_MMX" = xyes])
 AC_SUBST(USE_ALTIVEC)
 AM_CONDITIONAL(USE_ALTIVEC, [test "x$USE_ALTIVEC" = xyes])
+AC_SUBST(USE_ALTIVEC_DARWIN)
+AM_CONDITIONAL(USE_ALTIVEC_DARWIN, [test "x$USE_ALTIVEC" = xyes])
 AC_SUBST(USE_SPARCASM)
 AM_CONDITIONAL(USE_SPARCASM, [test "x$USE_SPARCASM" = xyes])
+
 
 dnl ---------------------------------------------------------
 dnl end Architecture specific stuff
