@@ -1713,15 +1713,21 @@ static int get_cellN_for_vobu(uint32_t vobu_addr)
   for(i = 0; i < entries; i++) {
     if(c_adt->cell_adr_table[i].start_sector <= vobu_addr && 
        vobu_addr <= c_adt->cell_adr_table[i].last_sector) {
+      fprintf(stderr, "start_sector: 0x%x\n",
+	      c_adt->cell_adr_table[i].start_sector);
+      fprintf(stderr, "last_sector: 0x%x\n",
+	      c_adt->cell_adr_table[i].last_sector);
+
       uint16_t vob_id = c_adt->cell_adr_table[i].vob_id;
       uint8_t cell_id = c_adt->cell_adr_table[i].cell_id;
       fprintf(stderr, "VOBID: %d CELLID: %d\n", vob_id, cell_id);
       for(j = 0; j < state.pgc->nr_of_cells; j++) {
 	if(state.pgc->cell_position[j].vob_id_nr == vob_id &&
-	   state.pgc->cell_position[j].cell_nr == cell_id)
+	   state.pgc->cell_position[j].cell_nr == cell_id) {
 	  fprintf(stderr, "VOBID: %d CELLID: %d, CellN: %d\n",
 		  vob_id, cell_id, j + 1);
 	  return j + 1; // cellN is 1 based
+	}
       }
       // Something crazy has happened!!
       // The VOB / CELL id wasn't part of this PGC!
