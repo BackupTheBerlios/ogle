@@ -458,6 +458,11 @@ void do_init_cell(int flush) {
   
   block = state.blockN;
   assert(cell->first_sector + block <= cell->last_vobu_start_sector);
+
+  // FIXME XXX $$$ Only send when needed, and do send even if not playing
+  // from start? (should we do pre_commands when jumping to say part 3?)
+  /* Send the palette to the spu. */
+  set_spu_palette(state.pgc->palette);
   
   /* Get the pci/dsi data */
   if(flush)

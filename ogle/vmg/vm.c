@@ -32,8 +32,6 @@
 #include "vmcmd.h"
 #include "vm.h"
 
-extern void set_spu_palette(uint32_t palette[16]); // nav.c
-
 
 
 dvd_reader_t *dvd;
@@ -154,7 +152,7 @@ int vm_eval_cmd(vm_cmd_t *cmd)
 {
   link_t link_values;
   
-  vmPrint_CMD(0, cmd);
+  //vmPrint_CMD(0, cmd);
   
   if(eval(cmd, 1, &state.registers, &link_values)) {
     if(link_values.command != PlayThis) {
@@ -302,8 +300,6 @@ int vm_resume(void)
   state.domain = VTS_DOMAIN;
   ifoOpenNewVTSI(dvd, state.rsm_vtsN);
   get_PGC(state.rsm_pgcN);
-  
-  set_spu_palette(state.pgc->palette); // Erhum...
   
   /* These should never be set in SystemSpace and/or MenuSpace */ 
   // state.TTN_REG = state.rsm_tt;
@@ -539,14 +535,14 @@ static link_t play_PGC(void)
 {    
   link_t link_values;
   
-  printf("play_PGC:\n"); // state.pgcN (%i)\n", state.pgcN);
+  fprintf(stderr, "play_PGC:\n"); // state.pgcN (%i)\n", state.pgcN);
 
   // This must be set before the pre-commands are executed because they
   // might contain a CallSS that will save resume state
   state.pgN = 1;
   state.cellN = 0;
 
-  { //DEBUG
+  if(0) { //DEBUG
     int i;
     for(i = 0; state.pgc->pgc_command_tbl &&
 	  i < state.pgc->pgc_command_tbl->nr_of_pre;i++)
@@ -554,10 +550,6 @@ static link_t play_PGC(void)
   }
 
   
-  // FIXME XXX $$$ Only send when needed, and do send even if not playing
-  // from start? (should we do pre_commands when jumping to say part 3?)
-  /* Send the palette to the spu. */
-  set_spu_palette(state.pgc->palette);
   
 
   /* eval -> updates the state and returns either 
@@ -565,24 +557,28 @@ static link_t play_PGC(void)
      - just play video i.e first PG1 (also a kind of jump/link)
        (This is what happens if you fall of the end of the pre_commands)
      - or a error (are there more cases?) */
-  if(state.pgc->pgc_command_tbl 
-     && eval(state.pgc->pgc_command_tbl->pre_commands, 
-	     state.pgc->pgc_command_tbl->nr_of_pre, 
-	     &state.registers, &link_values)) {
-    // link_values contains the 'jump' return value
-    return link_values;
+  if(state.pgc->pgc_command_tbl && state.pgc->pgc_command_tbl->nr_of_pre) {
+    if(eval(state.pgc->pgc_command_tbl->pre_commands, 
+	    state.pgc->pgc_command_tbl->nr_of_pre, 
+	    &state.registers, &link_values)) {
+      // link_values contains the 'jump' return value
+      return link_values;
+    } else {
+      fprintf(stderr, "PGC pre commands didn't do a Jump, Link or Call\n");
+    }
   }
-  
   return play_PG();
 }  
 
 
 static link_t play_PG(void)
 {
-  printf("play_PG: state.pgN (%i)\n", state.pgN);
+  fprintf(stderr, "play_PG: state.pgN (%i)\n", state.pgN);
   
   assert(state.pgN > 0);
   if(state.pgN > state.pgc->nr_of_programs) {
+    fprintf(stderr, "state.pgN (%i) == pgc->nr_of_programs + 1 (%i)\n", 
+	    state.pgN, state.pgc->nr_of_programs + 1);
     assert(state.pgN == state.pgc->nr_of_programs + 1);
     return play_PGC_post();
   }
@@ -595,12 +591,12 @@ static link_t play_PG(void)
 
 static link_t play_Cell(void)
 {
-  printf("play_Cell: state.cellN (%i)\n", state.cellN);
+  fprintf(stderr, "play_Cell: state.cellN (%i)\n", state.cellN);
   
   assert(state.cellN > 0);
   if(state.cellN > state.pgc->nr_of_cells) {
-    printf("state.cellN (%i) == pgc->nr_of_cells + 1 (%i)\n", 
-	   state.cellN, state.pgc->nr_of_cells + 1);
+    fprintf(stderr, "state.cellN (%i) == pgc->nr_of_cells + 1 (%i)\n", 
+	    state.cellN, state.pgc->nr_of_cells + 1);
     assert(state.cellN == state.pgc->nr_of_cells + 1); 
     return play_PGC_post();
   }
@@ -656,7 +652,7 @@ static link_t play_Cell_post(void)
 {
   cell_playback_t *cell;
   
-  printf("play_Cell_post: state.cellN (%i)\n", state.cellN);
+  fprintf(stderr, "play_Cell_post: state.cellN (%i)\n", state.cellN);
   
   cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
   
@@ -664,15 +660,18 @@ static link_t play_Cell_post(void)
   
   /* Deal with a Cell command, if any */
   if(cell->cell_cmd_nr != 0) {
+    pgc_command_tbl_t *cmd_tbl = state.pgc->pgc_command_tbl; 
     link_t link_values;
     
-    assert(state.pgc->pgc_command_tbl != NULL);
-    assert(state.pgc->pgc_command_tbl->nr_of_cell >= cell->cell_cmd_nr);
-    vmPrint_CMD(0, &state.pgc->pgc_command_tbl->cell_commands[cell->cell_cmd_nr - 1]);
-    if(eval(&state.pgc->pgc_command_tbl->cell_commands[cell->cell_cmd_nr - 1],
-	    1, &state.registers, &link_values)) {
+    assert(cmd_tbl != NULL);
+    assert(cmd_tbl->nr_of_cell >= cell->cell_cmd_nr);
+    fprintf(stderr, "Cell command pressent, executing\n");
+    //vmPrint_CMD(0, &cmd_tbl->cell_commands[cell->cell_cmd_nr - 1]);
+    if(eval(&cmd_tbl->cell_commands[cell->cell_cmd_nr - 1], 1,
+	    &state.registers, &link_values)) {
       return link_values;
     } else {
+       fprintf(stderr, "Cell command didn't do a Jump, Link or Call\n");
       // Error ?? goto tail? goto next PG? or what? just continue?
     }
   }
@@ -712,8 +711,10 @@ static link_t play_Cell_post(void)
   
   
   /* Figure out the correct pgN for the new cell */ 
-  if(set_PGN())
-    play_PGC_post();
+  if(set_PGN()) {
+    fprintf(stderr, "last cell in this PGC\n");
+    return play_PGC_post();
+  }
 
   return play_Cell();
 }
@@ -722,10 +723,12 @@ static link_t play_Cell_post(void)
 static link_t play_PGC_post(void)
 {
   link_t link_values;
+
+  fprintf(stderr, "play_PGC_post:\n");
   
   assert(state.pgc->still_time == 0); // FIXME $$$
 
-  { //DEBUG
+  if(0) { //DEBUG
     int i;
     for(i = 0; state.pgc->pgc_command_tbl &&
 	  i < state.pgc->pgc_command_tbl->nr_of_post; i++)
@@ -746,7 +749,7 @@ static link_t play_PGC_post(void)
   // Or perhaps handle it here?
   {
     link_t link_next_pgc = {LinkNextPGC, 0, 0, 0};
-    printf("** fell of the end of the pgc\n");
+    fprintf(stderr, "** fell of the end of the pgc\n");
     assert(state.pgc->next_pgc_nr != 0);
     return link_next_pgc;
   }
@@ -758,8 +761,8 @@ static link_t process_command(link_t link_values)
   /* FIXME $$$ Move this to a separate function? */
   while(link_values.command != PlayThis) {
     
-    printf("%i %i %i %i\n", link_values.command, link_values.data1, 
-	   link_values.data2, link_values.data3);
+    fprintf(stderr, "%i %i %i %i\n", link_values.command, link_values.data1, 
+	    link_values.data2, link_values.data3);
     
     switch(link_values.command) {
     case LinkNoLink:
@@ -837,8 +840,6 @@ static link_t process_command(link_t link_values)
 	state.domain = VTS_DOMAIN;
 	ifoOpenNewVTSI(dvd, state.rsm_vtsN);
 	get_PGC(state.rsm_pgcN);
-	
-	set_spu_palette(state.pgc->palette); // Erhum...
 	
 	/* These should never be set in SystemSpace and/or MenuSpace */ 
 	/* state.TTN_REG = rsm_tt; ?? */
@@ -927,11 +928,12 @@ static link_t process_command(link_t link_values)
       break;
     case JumpSS_VTSM:
       assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
-      // I don't know what title is supposed to be used for.
-      // To set state.TTN_REG ? or ? alien or aliens had this != 1, I think.
-      assert(link_values.data2 == 1);
       state.domain = VTSM_DOMAIN;
       ifoOpenNewVTSI(dvd, link_values.data1); //state.vtsN = link_values.data1;
+      // I don't know what title is supposed to be used for.
+      // To set state.TTN_REG ? or ? alien or aliens had this != 1, I think.
+      //assert(link_values.data2 == 1);
+      state.VTS_TTN_REG = link_values.data2;
       get_MENU(link_values.data3);
       link_values = play_PGC();
       break;
@@ -1105,7 +1107,7 @@ static int get_ID(int id)
       return pgcN;
     }
   }
-  printf("** No such menu\n");
+  fprintf(stderr, "** No such menu\n");
   return -1; // error
 }
 
@@ -1208,7 +1210,7 @@ static pgcit_t* get_VTSM_PGCIT(uint16_t lang)
 	&& vtsi->vtsm_pgci_ut->menu_lu[i].lang_code != lang)
     i++;
   if(i == vtsi->vtsm_pgci_ut->nr_of_lang_units) {
-    printf("** Wrong language **\n");
+    fprintf(stderr, "** Wrong language **\n");
     i = 0; // error?
   }
   
@@ -1230,7 +1232,7 @@ static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
 	&& vmgi->vmgm_pgci_ut->menu_lu[i].lang_code != lang)
     i++;
   if(i == vmgi->vmgm_pgci_ut->nr_of_lang_units) {
-    printf("** Wrong language **\n");
+    fprintf(stderr, "** Wrong language **\n");
     i = 0; // error?
   }
   

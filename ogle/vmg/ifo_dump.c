@@ -92,7 +92,10 @@ static void print_ifo(char *path, int title) {
       
     printf("\nMenu PGCI Unit table\n");
     printf(  "--------------------\n");
-    ifoPrint_MENU_PGCI_UT(h->vmgm_pgci_ut);
+    if(h->vmgi_mat->vmgm_pgci_ut != 0) {
+      ifoPrint_MENU_PGCI_UT(h->vmgm_pgci_ut);
+    } else 
+      printf("No Menu PGCI Unit table present\n");
       
     printf("\nParental Manegment Information table\n");
     printf(  "------------------------------------\n");
