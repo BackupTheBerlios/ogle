@@ -568,95 +568,54 @@ void push_stream_data(uint8_t stream_id, int len,
   
   if(id_stat(stream_id, subtype) == STREAM_DECODE) {
     //  if(stream_id == MPEG2_PRIVATE_STREAM_1) { 
-    if((stream_id == 0xe0) || (stream_id == 0xc0) ||
-       ((stream_id == MPEG2_PRIVATE_STREAM_1) &&
-	(subtype == 0x80)) ||
-       (stream_id == MPEG2_PRIVATE_STREAM_2)) {
-      //fprintf(stderr, "demux: put_in_q stream_id: %x %x\n",
-      //      stream_id, subtype);
-      if(subtype == 0x80) {
+    /*
+      if((stream_id == 0xe0) || (stream_id == 0xc0) ||
+      ((stream_id == MPEG2_PRIVATE_STREAM_1) &&
+      (subtype == 0x80)) ||
+      (stream_id == MPEG2_PRIVATE_STREAM_2)) {
+    */
+    //fprintf(stderr, "demux: put_in_q stream_id: %x %x\n",
+    //      stream_id, subtype);
+
+    if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+      
+      if((subtype >= 0x80) && (subtype < 0x90)) {
 	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+4, len-4,
+		 PTS_DTS_flags, PTS, DTS);
+      } else if((subtype >= 0x20) && (subtype < 0x40)) {
+	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8)+1, len-1,
 		 PTS_DTS_flags, PTS, DTS);
       } else {
 	put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
 		 PTS_DTS_flags, PTS, DTS);
       }
-    }
-      //}
-    if(stream_id == 0xe0) {
-
-#if 0      
-      if(video) {
-	fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
-	
-#ifdef STATS
-	stat_video_n_packets++;
-	if(ol_pack.body.offset%4 != 0)
-	  stat_video_unaligned_packet_offset++;
-	if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
-	  stat_video_unaligned_packet_end++;
-#endif //STATS
-	
-      }
-      DPRINTF(4, "Video packet: %u bytes\n", len);    
-#endif
-    } else   if(stream_id == 0xc0) {
-      if(audio) {
-	
-#ifdef STATS
-	stat_video_n_packets++;
-	if(ol_pack.body.offset%4 != 0)
-	  stat_video_unaligned_packet_offset++;
-	if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
-	  stat_video_unaligned_packet_end++;
-#endif //STATS
-
-    }
-    DPRINTF(4, "Audio packet: %u bytes\n", len);    
-  } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-    DPRINTF(4, "Private_stream_1 packet: %u bytes\n", len);
-    if(audio) {
-      DPRINTF(1, "private stream first byte: 0x%02x\n", *data);
-      if(*data == 0x80) {
-	fwrite(&ol_pack, sizeof(ol_pack), 1, audio_file);
-
-#ifdef STATS
-	  stat_audio_n_packets++;
-#endif //STATS
-	  
-	}
-      }
-
-    }
-    if(subtitle) {
-      DPRINTF(4, "(subpicture)\n");
-
-      if(*data >= 0x20 && *data <= 0x3f) {
-      DPRINTF(1, "subtitle 0x%02x exists\n", *data);
-      }
-            if(*data == subtitle_id ){ 
-      	DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-	fwrite(&ol_pack, sizeof(ol_pack), 1, subtitle_file);
-	
-	if(*data >= 0x20 && *data <= 0x3f) {
-	  DPRINTF(1, "subtitle 0x%02x exists\n", *data);
-	}
-	if(*data == subtitle_id ){ 
-	  DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
-	  fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
-	  
-#ifdef STATS
-	  stat_subpicture_n_packets++;
-#endif //STATS
-	  
-	}
-      }
     } else {
-      DPRINTF(4, "Uknown packet (0x%02x): %u bytes\n", stream_id, len);
+      put_in_q(id_qaddr(stream_id, subtype), offs-(bits_left/8), len,
+	       PTS_DTS_flags, PTS, DTS);
     }
   }
+  /*
+    if(*data >= 0x20 && *data <= 0x3f) {
+    DPRINTF(1, "subtitle 0x%02x exists\n", *data);
+    }
+    if(*data == subtitle_id ){ 
+    DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
+    fwrite(&ol_pack, sizeof(ol_pack), 1, subtitle_file);
+    
+    if(*data >= 0x20 && *data <= 0x3f) {
+    DPRINTF(1, "subtitle 0x%02x exists\n", *data);
+    }
+    if(*data == subtitle_id ){ 
+    DPRINTF(1, "subtitle %02x %02x\n", *data, *(data+1));
+    fwrite(&ol_pack, sizeof(ol_pack), 1, video_file);
+    
+    #ifdef STATS
+    stat_subpicture_n_packets++;
+    #endif //STATS
+  */
+  
   drop_bytes(len);
-
+  
 }
 
 
