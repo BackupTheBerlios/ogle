@@ -901,6 +901,8 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
 
 /**
  * Get the DVDDiscID
+ * This is a unique id used to identify a specific DVD.
+ * Works on discs as well as discimages and files.
  *
  * @param nav Specifies the connection to the DVD navigator.
  * @param dvdid should point to a 16 bytes array where the discid will be
@@ -941,6 +943,62 @@ DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
       } else {
 	return DVD_E_Unspecified;
       }
+    }
+  } 
+}
+
+/**
+ * Get the UDF or ISO VolumeIdentifier and VolumeSetIdentifier if available.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param type 0 - gets the UDF ids if available else the ISO ids else fails.
+ * 1 - gets the UDF ids if available else fails.
+ * 2 - gets the ISO ids if available else fails.
+ * @param return_type Is set to 0 if no ids could be returned,
+ * 1 if the UDF ids were returned and 2 if the ISO ids were retured.
+ * @param volid Pointer to a 33 bytes array, where the volume identifier
+ * is returned as a null terminated string.
+ * If NULL the volid is not returned.
+ * @param volsetid Pointer to a 128 bytes array, or NULL if not wanted,
+ * where the volume set identifier is returned (not null terminated).
+ * 
+ * @return If successful DVD_E_Ok is returned and the char pointer pointed
+ * to by state will be updated. Otherwise an error code  is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified Failure. 
+ */
+DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
+				    int type, int *return_type,
+				    char *volid,
+				    unsigned char *volsetid)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetVolIds;
+  ev.dvdctrl.cmd.volids.voltype = type;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrlLong) &&
+       (ev.dvdctrllong.cmd.type == DVDCtrlLongVolIds)) {
+      if((*return_type = ev.dvdctrllong.cmd.volids.voltype) != 0) {
+	if(volid != NULL) {
+	  memcpy(volid, ev.dvdctrllong.cmd.volids.volid,
+		 sizeof(ev.dvdctrllong.cmd.volids.volid));
+	}
+	if(volsetid != NULL) {
+	  memcpy(volsetid, ev.dvdctrllong.cmd.volids.volsetid,
+		 sizeof(ev.dvdctrllong.cmd.volids.volsetid));
+	}
+      }
+      return DVD_E_Ok;
     }
   } 
 }

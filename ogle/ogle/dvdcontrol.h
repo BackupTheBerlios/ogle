@@ -87,6 +87,11 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 DVDResult_t DVDGetState(DVDNav_t *nav, char **state);
 
 DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid);
+
+DVDResult_t DVDGetVolumeIdentifiers(DVDNav_t *nav,
+				    int type, int *return_type,
+				    char *volid,
+				    unsigned char *volsetid);
 /* end info commands */
 
 /* hack */

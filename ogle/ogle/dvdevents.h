@@ -124,14 +124,17 @@ typedef enum {
   DVDCtrlGetState,
 
   DVDCtrlGetDiscID,
-  DVDCtrlDiscID
+  DVDCtrlDiscID,
   
+  DVDCtrlGetVolIds
+
 } DVDCtrlEventType_t;
 
 typedef enum {
   DVDCtrlLongSetDVDRoot,
   DVDCtrlLongState,
-  DVDCtrlLongSetState
+  DVDCtrlLongSetState,
+  DVDCtrlLongVolIds
 } DVDCtrlLongEventType_t;
 
 typedef struct {
@@ -143,6 +146,13 @@ typedef struct {
   DVDCtrlLongEventType_t type;
   char xmlstr[1024];
 } DVDCtrlLongStateEvent_t;
+
+typedef struct {
+  DVDCtrlLongEventType_t type;
+  int voltype;
+  char volid[33];
+  unsigned char volsetid[128];
+} DVDCtrlLongVolIdsEvent_t;
 
 typedef struct {
   DVDCtrlLongEventType_t type;
@@ -408,6 +418,11 @@ typedef struct {
 } DVDCtrlDiscIDEvent_t;
 
 typedef struct {
+  DVDCtrlLongEventType_t type;
+  int voltype;
+} DVDCtrlGetVolIdsEvent_t;
+
+typedef struct {
   DVDCtrlEventType_t type;
 } DVDCtrlAnyEvent_t;
 
@@ -503,6 +518,8 @@ typedef union {
   DVDCtrlCurrentLocationEvent_t location;
 
   DVDCtrlDiscIDEvent_t discid;
+
+  DVDCtrlGetVolIdsEvent_t volids;
   /* end infocmd */
 
 } DVDCtrlEvent_t;
@@ -512,6 +529,7 @@ typedef union {
   DVDCtrlLongAnyEvent_t any;
   DVDCtrlLongDVDRootEvent_t dvdroot;
   DVDCtrlLongStateEvent_t state;
+  DVDCtrlLongVolIdsEvent_t volids;
 } DVDCtrlLongEvent_t;
 
 
