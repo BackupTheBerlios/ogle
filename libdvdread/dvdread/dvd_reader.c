@@ -41,6 +41,11 @@
 #define MNT_FILE "/dev/zero"
 #endif
 
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
+typedef off_t off64_t;
+#define lseek64 lseek
+#endif
+
 #include "dvdcss.h"
 #include "dvd_udf.h"
 #include "dvd_reader.h"
@@ -84,10 +89,10 @@ struct dvd_file_s {
 
     /* Information required for an image file. */
     unsigned long int lb_start;
-    off64_t seek_pos;
+    uint32_t seek_pos;
 
     /* Information required for a directory path drive. */
-    int title_sizes[ 9 ];
+    size_t title_sizes[ 9 ];
     int title_fds[ 9 ];
 };
 
@@ -201,7 +206,6 @@ dvd_reader_t *DVDOpen( const char *path )
 
     if( !path ) return 0;
     
-    /* First check if this is a block device */
     ret = stat( path, &fileinfo );
     if( ret < 0 ) {
         /* If we can't stat the file, give up */
@@ -209,6 +213,7 @@ dvd_reader_t *DVDOpen( const char *path )
         return 0;
     }
 
+    /* First check if this is a block/char device or a file*/
     if( S_ISBLK( fileinfo.st_mode ) || 
 	S_ISCHR( fileinfo.st_mode ) || 
 	S_ISREG( fileinfo.st_mode ) ) {
@@ -266,8 +271,9 @@ dvd_reader_t *DVDOpen( const char *path )
             while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
                 if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
                     fprintf( stderr, "libdvdread: Attempting to use block "
-                             "device %s for CSS authentication.\n",
-                             mp.mnt_special );
+                             "device %s on %s for CSS authentication.\n",
+                             mp.mnt_special,
+			     mp.mnt_mountp );
                     auth_drive = DVDOpenImageFile( mp.mnt_special );
                     break;
                 }
@@ -278,8 +284,9 @@ dvd_reader_t *DVDOpen( const char *path )
             while( ( me = getmntent( mntfile ) ) ) {
                 if( !strcmp( me->mnt_dir, path_copy ) ) {
                     fprintf( stderr, "libdvdread: Attempting to use block "
-                             "device %s for CSS authentication.\n",
-                             me->mnt_fsname );
+                             "device %s on %s for CSS authentication.\n",
+                             me->mnt_fsname,
+			     me->mnt_dir );
                     auth_drive = DVDOpenImageFile( me->mnt_fsname );
                     break;
                 }
@@ -411,7 +418,7 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     struct stat fileinfo;
     int fd;
 
-    /* Get the full path of the file */
+    /* Get the full path of the file. */
     if( !findDVDFile( dvd, filename, full_path ) ) return 0;
 
     fd = open( full_path, O_RDONLY );
@@ -435,10 +442,11 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
 }
 
 static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd, 
-				  unsigned int title, int menu )
+				  int title, int menu )
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
-    unsigned long int start, len;
+    long int start;
+    unsigned long int len;
     dvd_file_t *dvd_file;
 
     if( title == 0 ) {
@@ -467,7 +475,7 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd,
 }
 
 static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd, 
-				   unsigned int title, int menu )
+				   int title, int menu )
 {
     char filename[ MAX_UDF_FILE_NAME_LEN ];
     char full_path[ PATH_MAX + 1 ];
@@ -601,9 +609,9 @@ void DVDCloseFile( dvd_file_t *dvd_file )
     dvd_file = 0;
 }
 
-int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
-                  unsigned int block_count, unsigned char *data, 
-		  int encrypted )
+int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
+		      size_t block_count, unsigned char *data, 
+		      int encrypted )
 {
     if( dvdcss_library ) {
         int ret;
@@ -613,15 +621,15 @@ int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
             return 0;
         }
 
-        ret = dvdcss_seek( device->dev, lb_number );
-        if( ret != lb_number ) {
-	    fprintf( stderr, "libdvdread: Can't seek to block %lu\n", 
+        ret = dvdcss_seek( device->dev, (int) lb_number );
+        if( ret != (int) lb_number ) {
+	    fprintf( stderr, "libdvdread: Can't seek to block %u\n", 
 		     lb_number );
             return 0;
         }
 
-        return ( dvdcss_read( device->dev, data, block_count, encrypted )
-                 * DVD_VIDEO_LB_LEN );
+        return ( dvdcss_read( device->dev, (char *) data, (int) block_count, 
+			      encrypted ) * (uint64_t)DVD_VIDEO_LB_LEN );
     } else {
         off64_t off;
 
@@ -630,10 +638,10 @@ int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
             return 0;
         }
 
-        off = lseek64( device->fd, (int64_t) lb_number
-                                   * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
-        if( off != ( (int64_t) lb_number * (int64_t) DVD_VIDEO_LB_LEN ) ) {
-	    fprintf( stderr, "libdvdread: Can't seek to block %lu\n", 
+        off = lseek64( device->fd, lb_number * (int64_t) DVD_VIDEO_LB_LEN, 
+		       SEEK_SET );
+        if( off != ( lb_number * (int64_t) DVD_VIDEO_LB_LEN ) ) {
+	    fprintf( stderr, "libdvdread: Can't seek to block %u\n", 
 		     lb_number );
             return 0;
         }
@@ -641,26 +649,34 @@ int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
     }
 }
 
-static int DVDReadBlocksUDF( dvd_file_t *dvd_file, size_t offset,
-                             size_t block_count, unsigned char *data )
+static int64_t DVDReadBlocksUDF( dvd_file_t *dvd_file, uint32_t offset,
+				 size_t block_count, unsigned char *data )
 {
     return DVDReadLBUDF( dvd_file->dvd, dvd_file->lb_start + offset,
                          block_count, data, 1 );
 }
 
-static int DVDReadBlocksPath( dvd_file_t *dvd_file, size_t offset,
-                              size_t block_count, unsigned char *data )
+static int64_t DVDReadBlocksPath( dvd_file_t *dvd_file, uint32_t offset,
+				  size_t block_count, unsigned char *data )
 {
-    int i, ret;
+    int i;
+    ssize_t ret, ret2;
+    off64_t off;
 
     ret = 0;
+    ret2 = 0;
     for( i = 0; i < 9; ++i ) {
         if( !dvd_file->title_sizes[ i ] ) return 0;
 
         if( offset < dvd_file->title_sizes[ i ] ) {
             if( ( offset + block_count ) <= dvd_file->title_sizes[ i ] ) {
-                lseek64( dvd_file->title_fds[ i ], offset
-                         * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
+	        off = lseek64( dvd_file->title_fds[ i ], 
+			       offset * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
+		if( off != ( offset * (int64_t) DVD_VIDEO_LB_LEN ) ) {
+		    fprintf( stderr, "libdvdread: Can't seek to block %u\n", 
+			     offset );
+		    return 0;
+		}
                 ret = read( dvd_file->title_fds[ i ], data,
                             block_count * DVD_VIDEO_LB_LEN );
                 break;
@@ -671,55 +687,70 @@ static int DVDReadBlocksPath( dvd_file_t *dvd_file, size_t offset,
 		   (This is only true if you try and read >1GB at a time) */
 		
                 /* Read part 1 */
-                lseek64( dvd_file->title_fds[ i ], offset
-                         * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
+                off = lseek64( dvd_file->title_fds[ i ], 
+			       offset * (int64_t) DVD_VIDEO_LB_LEN, SEEK_SET );
+		if( off != ( offset * (int64_t) DVD_VIDEO_LB_LEN ) ) {
+		    fprintf( stderr, "libdvdread: Can't seek to block %u\n", 
+			     offset );
+		    return 0;
+		}
                 ret = read( dvd_file->title_fds[ i ], data, part1_size );
+		if( ret < 0 ) return ret;
+		/* FIXME: This is wrong if i is the last file in the set. 
+		          also error from this read will not show in ret. */
 		
-		/* FIXME: This is wrong if i is the last file in the set. */
-
                 /* Read part 2 */
-                lseek64( dvd_file->title_fds[ i + 1 ], 0, SEEK_SET );
-                ret += read( dvd_file->title_fds[ i + 1 ], data + part1_size,
+                lseek64( dvd_file->title_fds[ i + 1 ], (off64_t)0, SEEK_SET );
+                ret2 = read( dvd_file->title_fds[ i + 1 ], data + part1_size,
                              block_count * DVD_VIDEO_LB_LEN - part1_size );
-                break;
+                if( ret2 < 0 ) return ret2;
+		break;
             }
         } else {
             offset -= dvd_file->title_sizes[ i ];
         }
     }
 
-    return ret;
+    return ( (int64_t) ret + (int64_t) ret2 );
 }
 
-int DVDReadBlocks( dvd_file_t *dvd_file, size_t offset, size_t block_count,
-                   unsigned char *data )
+/* These are broken for some cases reading more than 2Gb at a time. */
+ssize_t DVDReadBlocks( dvd_file_t *dvd_file, uint32_t offset, 
+		       size_t block_count, unsigned char *data )
 {
+    int64_t ret;
+  
     if( dvd_file->dvd->isImageFile ) {
-        return DVDReadBlocksUDF( dvd_file, offset, block_count, data );
+        ret = DVDReadBlocksUDF( dvd_file, offset, block_count, data );
     } else {
-        return DVDReadBlocksPath( dvd_file, offset, block_count, data );
+        ret = DVDReadBlocksPath( dvd_file, offset, block_count, data );
     }
+    if( ret < 0 ) {
+        return (ssize_t) ret;
+    }
+    return (ssize_t) (ret / DVD_VIDEO_LB_LEN );
 }
 
-off64_t DVDFileSeek( dvd_file_t *dvd_file, off64_t offset )
+int32_t DVDFileSeek( dvd_file_t *dvd_file, int32_t offset )
 {
     if( dvd_file->dvd->isImageFile ) {
-        dvd_file->seek_pos = offset;
+        dvd_file->seek_pos = (uint32_t) offset;
         return offset;
     } else {
-        return lseek64( dvd_file->title_fds[ 0 ], offset, SEEK_SET );
+        return (int32_t) ( lseek( dvd_file->title_fds[ 0 ], 
+				  (off_t) offset, SEEK_SET ) );
     }
 }
 
-static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data, 
-			    size_t byte_size )
+static ssize_t DVDReadBytesUDF( dvd_file_t *dvd_file, void *data, 
+				size_t byte_size )
 {
     unsigned char *secbuf;
-    int numsec, len;
-    int seek_sector, seek_byte;
-
-    seek_sector = (int) ( dvd_file->seek_pos / (int64_t) DVD_VIDEO_LB_LEN );
-    seek_byte   = (int) ( dvd_file->seek_pos % (int64_t) DVD_VIDEO_LB_LEN );
+    unsigned int numsec, seek_sector, seek_byte;
+    int64_t len;
+    
+    seek_sector = dvd_file->seek_pos / DVD_VIDEO_LB_LEN;
+    seek_byte   = dvd_file->seek_pos % DVD_VIDEO_LB_LEN;
 
     numsec = ( ( seek_byte + byte_size ) / DVD_VIDEO_LB_LEN ) + 1;
     secbuf = (unsigned char *) malloc( numsec * DVD_VIDEO_LB_LEN );
@@ -731,7 +762,7 @@ static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data,
 
     len = DVDReadLBUDF( dvd_file->dvd, dvd_file->lb_start + seek_sector,
                         numsec, secbuf, 0 );
-    if( len != numsec * DVD_VIDEO_LB_LEN ) {
+    if( len != numsec * (int64_t) DVD_VIDEO_LB_LEN ) {
         free( secbuf );
         return 0;
     }
@@ -744,13 +775,13 @@ static int DVDReadBytesUDF( dvd_file_t *dvd_file, void *data,
     return byte_size;
 }
 
-static int DVDReadBytesPath( dvd_file_t *dvd_file, void *data, 
-			     size_t byte_size )
+static ssize_t DVDReadBytesPath( dvd_file_t *dvd_file, void *data, 
+				 size_t byte_size )
 {
     return read( dvd_file->title_fds[ 0 ], data, byte_size );
 }
 
-int DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
+ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
 {
     if( dvd_file->dvd->isImageFile ) {
         return DVDReadBytesUDF( dvd_file, data, byte_size );

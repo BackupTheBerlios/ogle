@@ -31,19 +31,19 @@
 #include "ifo_print.h"
 
 /* Put this in some other file / package?  It's used in nav_print too. */
-static void ifoPrint_time(int level, dvd_time_t *time) {
-  char *rate;
-  assert((time->hour>>4) < 0xa && (time->hour&0xf) < 0xa);
-  assert((time->minute>>4) < 0x7 && (time->minute&0xf) < 0xa);
-  assert((time->second>>4) < 0x7 && (time->second&0xf) < 0xa);
-  assert((time->frame_u&0xf) < 0xa);
+static void ifoPrint_time(int level, dvd_time_t *dtime) {
+  const char *rate;
+  assert((dtime->hour>>4) < 0xa && (dtime->hour&0xf) < 0xa);
+  assert((dtime->minute>>4) < 0x7 && (dtime->minute&0xf) < 0xa);
+  assert((dtime->second>>4) < 0x7 && (dtime->second&0xf) < 0xa);
+  assert((dtime->frame_u&0xf) < 0xa);
   
   printf("%02x:%02x:%02x.%02x", 
-	 time->hour,
-	 time->minute,
-	 time->second,
-	 time->frame_u & 0x3f);
-  switch((time->frame_u & 0xc0) >> 6) {
+	 dtime->hour,
+	 dtime->minute,
+	 dtime->second,
+	 dtime->frame_u & 0x3f);
+  switch((dtime->frame_u & 0xc0) >> 6) {
   case 1:
     rate = "25.00";
     break;
@@ -51,8 +51,8 @@ static void ifoPrint_time(int level, dvd_time_t *time) {
     rate = "29.97";
     break;
   default:
-    if(time->hour == 0 && time->minute == 0 
-       && time->second == 0 && time->frame_u == 0)
+    if(dtime->hour == 0 && dtime->minute == 0 
+       && dtime->second == 0 && dtime->frame_u == 0)
       rate = "no";
     else
       rate = "(please send a bug report)";
@@ -475,7 +475,8 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   printf("Disc side %i\n", vmgi_mat->disc_side);
   printf("VMG Number of Title Sets %i\n", vmgi_mat->vmg_nr_of_title_sets);
   printf("Provider ID: %.32s\n", vmgi_mat->provider_identifier);
-  printf("VMG POS Code: %032llx\n", vmgi_mat->vmg_pos_code);
+  printf("VMG POS Code: %08x", (uint32_t)(vmgi_mat->vmg_pos_code >> 32));
+  printf("%08x\n", (uint32_t)vmgi_mat->vmg_pos_code);
   printf("End byte of VMGI_MAT: %08x\n", vmgi_mat->vmgi_last_byte);
   printf("Start byte of First Play PGC FP PGC: %08x\n", 
 	 vmgi_mat->first_play_pgc);
@@ -626,7 +627,7 @@ static void ifoPrint_CELL_PLAYBACK(cell_playback_t *cell_playback, int nr) {
     printf("\t");
 
     if(cell_playback[i].block_mode || cell_playback[i].block_type) {
-      char *s;
+      const char *s;
       switch(cell_playback[i].block_mode) {
       case 0:
 	s = "not a"; break;

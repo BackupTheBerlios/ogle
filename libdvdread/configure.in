@@ -45,13 +45,6 @@ fi
 dnl Checks for libtool - this must be done after we set cflags (abi issues)
 AM_PROG_LIBTOOL
 
-AC_SUBST(LIBTOOL_DEPS)
-if ${CONFIG_SHELL} ./libtool --features | grep "enable static" >/dev/null; then
-  STATIC="-static"
-else
-  STATIC=
-fi
-AC_SUBST(STATIC)
 
 dnl We use dlopen for libdvdcss access
 AC_CHECK_FUNC(dlopen, 
@@ -79,6 +72,16 @@ AC_ARG_ENABLE([warnings],
 if test x"$enable_warnings" != xno; then
     if test x"$GCC" = xyes; then
 	OPT_CFLAGS="-Wall -Werror $CFLAGS"
+	AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
+    fi
+fi
+
+dnl It's good to be paranoid ;-)
+AC_ARG_ENABLE([pedantic],
+    [  --enable-pedantic	       enable various extra warnings for gcc])
+if test x"$enable_pedantic" = xyes; then
+    if test x"$GCC" = xyes; then
+	OPT_CFLAGS="-Wall -Wundef -Wshadow -pedantic -Wbad-function-cast -Wmissing-noreturn -Wchar-subscripts -Wcomments -Wconversion -Wformat -Wimplicit-function-dec -Wimplicit-int -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wsign-compare -Wstrict-prototypes -Wwrite-strings $CFLAGS"
 	AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
     fi
 fi

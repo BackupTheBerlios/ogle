@@ -1,0 +1,7 @@
+Version 0.9.0
+  Changed to use libdvdcss (from VideoLAN).
+  FreeBSD fixes from Marc van Woerkom and OpenBSD fixes from Björn Sandell.
+  Configure fixes to work better on *BSD and other systems.
+
+Version 0.8.0
+  Initial public release.

@@ -20,12 +20,8 @@
 #ifndef DVD_READER_H_INCLUDED
 #define DVD_READER_H_INCLUDED
 
-#if defined(__FreeBSD__) || defined(__OpenBSD__)
-#include <unistd.h>
-typedef off_t off64_t;
-#define lseek64 lseek
-#endif
 #include <sys/types.h>
+#include <inttypes.h>
 
 /**
  * The length of one Logical Block of a DVD Video.
@@ -107,13 +103,13 @@ void DVDCloseFile( dvd_file_t *dvd_file );
 
 /**
  * Reads the requested number of blocks from the file at the given offset.
- * Returns number of bytes read on success, -1 on error.  This call is only
+ * Returns number of blocks read on success, -1 on error.  This call is only
  * for reading VOB data, and should not be used when reading the IFO files.  
  * When reading from an encrypted drive, blocks are decrypted using libdvdcss 
  * where required.
  */
-int DVDReadBlocks( dvd_file_t *dvd_file, size_t offset,
-                   size_t block_count, unsigned char *data );
+ssize_t DVDReadBlocks( dvd_file_t *dvd_file, uint32_t offset,
+		       size_t block_count, unsigned char *data );
 
 /**
  * Seek to the given position in the file.  Returns the resulting position in
@@ -121,14 +117,14 @@ int DVDReadBlocks( dvd_file_t *dvd_file, size_t offset,
  * byte reads from the file, the block read call always reads from the given
  * offset.
  */
-off64_t DVDFileSeek( dvd_file_t *dvd_file, off64_t offset );
+int32_t DVDFileSeek( dvd_file_t *dvd_file, int32_t offset );
 
 /**
  * Reads the given number of bytes from the file.  This call can only be used
  * on the information files, and may not be used for reading from a VOB.  This
  * reads from and increments the currrent seek position for the file.
  */
-int DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size );
+ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size );
 
 #ifdef __cplusplus
 };

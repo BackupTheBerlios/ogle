@@ -26,14 +26,11 @@
 #include "nav_types.h"
 #include "nav_read.h"
 
-void navRead_PCI(pci_t *pci, unsigned char *buffer, int len) {
+void navRead_PCI(pci_t *pci, unsigned char *buffer) {
   int i, j, k;
 
   assert(sizeof(pci_t) == PCI_BYTES - 1); // -1 for substream id
   
-  if(len < sizeof(pci_t))
-    return; // XXX: error
-
   memcpy(pci, buffer, sizeof(pci_t));
 
   /* Endian conversions  */
@@ -132,14 +129,11 @@ void navRead_PCI(pci_t *pci, unsigned char *buffer, int len) {
   }
 }
 
-void navRead_DSI(dsi_t *dsi, unsigned char *buffer, int len) {
+void navRead_DSI(dsi_t *dsi, unsigned char *buffer) {
   int i;
 
   assert(sizeof(dsi_t) == DSI_BYTES - 1); // -1 for substream id
   
-  if(len < sizeof(dsi_t))
-    return; // XXX: error
-
   memcpy(dsi, buffer, sizeof(dsi_t));
 
   /* Endian conversions */

@@ -43,7 +43,8 @@ int is_nav_pack( unsigned char *buffer )
 
 int main( int argc, char **argv )
 {
-    int titleid, chapid, pgc_id, len, start_cell, cur_cell, cur_pack;
+    int titleid, chapid, pgc_id, len, start_cell, cur_cell;
+    unsigned int cur_pack;
     int angle, ttn, pgn, next_cell;
     unsigned char data[ 1024 * DVD_VIDEO_LB_LEN ];
     dvd_reader_t *dvd;
@@ -232,7 +233,7 @@ int main( int argc, char **argv )
             /**
              * Parse the contained dsi packet.
              */
-            navRead_DSI( &dsi_pack, &(data[ DSI_START_BYTE ]), sizeof(dsi_t) );
+            navRead_DSI( &dsi_pack, &(data[ DSI_START_BYTE ]) );
             assert( cur_pack == dsi_pack.dsi_gi.nv_pck_lbn );
 
 
@@ -269,7 +270,7 @@ int main( int argc, char **argv )
              * Read in and output cursize packs.
              */
             len = DVDReadBlocks( title, cur_pack, cur_output_size, data );
-            if( len != cur_output_size * DVD_VIDEO_LB_LEN ) {
+            if( len != (int) cur_output_size * DVD_VIDEO_LB_LEN ) {
                 fprintf( stderr, "Read failed for %d blocks at %d\n",
                          cur_output_size, cur_pack );
                 ifoClose( vts_file );

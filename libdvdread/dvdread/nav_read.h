@@ -28,12 +28,12 @@ extern "C" {
 /**
  * Reads the PCI packet which begins at buffer into pci.
  */
-void navRead_PCI(pci_t *pci, unsigned char *buffer, int len);
+void navRead_PCI(pci_t *pci, unsigned char *buffer);
 
 /**
  * Reads the DSI packet which begins at buffer into dsi.
  */
-void navRead_DSI(dsi_t *dsi, unsigned char *buffer, int len);
+void navRead_DSI(dsi_t *dsi, unsigned char *buffer);
 
 #ifdef __cplusplus
 };

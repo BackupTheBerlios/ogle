@@ -32,19 +32,19 @@
 #include "nav_print.h"
 
 
-static void print_time(dvd_time_t *time) {
-  char *rate;
-  assert((time->hour>>4) < 0xa && (time->hour&0xf) < 0xa);
-  assert((time->minute>>4) < 0x7 && (time->minute&0xf) < 0xa);
-  assert((time->second>>4) < 0x7 && (time->second&0xf) < 0xa);
-  assert((time->frame_u&0xf) < 0xa);
+static void print_time(dvd_time_t *dtime) {
+  const char *rate;
+  assert((dtime->hour>>4) < 0xa && (dtime->hour&0xf) < 0xa);
+  assert((dtime->minute>>4) < 0x7 && (dtime->minute&0xf) < 0xa);
+  assert((dtime->second>>4) < 0x7 && (dtime->second&0xf) < 0xa);
+  assert((dtime->frame_u&0xf) < 0xa);
   
   printf("%02x:%02x:%02x.%02x", 
-	 time->hour,
-	 time->minute,
-	 time->second,
-	 time->frame_u & 0x3f);
-  switch((time->frame_u & 0xc0) >> 6) {
+	 dtime->hour,
+	 dtime->minute,
+	 dtime->second,
+	 dtime->frame_u & 0x3f);
+  switch((dtime->frame_u & 0xc0) >> 6) {
   case 1:
     rate = "25.00";
     break;
@@ -59,7 +59,7 @@ static void print_time(dvd_time_t *time) {
 }
 
 
-void navPrint_PCI_GI(pci_gi_t *pci_gi) {
+static void navPrint_PCI_GI(pci_gi_t *pci_gi) {
   int i;
 
   printf("pci_gi:\n");
@@ -84,7 +84,7 @@ void navPrint_PCI_GI(pci_gi_t *pci_gi) {
   printf("\"\n");
 }
 
-void navPrint_NSML_AGLI(nsml_agli_t *nsml_agli) {
+static void navPrint_NSML_AGLI(nsml_agli_t *nsml_agli) {
   int i, j = 0;
   
   for(i = 0; i < 9; i++)
@@ -99,7 +99,7 @@ void navPrint_NSML_AGLI(nsml_agli_t *nsml_agli) {
 	     nsml_agli->nsml_agl_dsta[i]);
 }
 
-void navPrint_HL_GI(hl_gi_t *hl_gi, int *btngr_ns, int *btn_ns) {
+static void navPrint_HL_GI(hl_gi_t *hl_gi, int *btngr_ns, int *btn_ns) {
   
   if((hl_gi->hli_ss & 0x03) == 0)
     return;
@@ -124,7 +124,7 @@ void navPrint_HL_GI(hl_gi_t *hl_gi, int *btngr_ns, int *btn_ns) {
   printf("foac_btnn     %d\n", hl_gi->foac_btnn);
 }
 
-void navPrint_BTN_COLIT(btn_colit_t *btn_colit) {
+static void navPrint_BTN_COLIT(btn_colit_t *btn_colit) {
   int i, j;
   
   j = 0;
@@ -141,7 +141,7 @@ void navPrint_BTN_COLIT(btn_colit_t *btn_colit) {
 	     btn_colit->btn_coli[i][j]);
 }
 
-void navPrint_BTNIT(btni_t *btni_table, int btngr_ns, int btn_ns) {
+static void navPrint_BTNIT(btni_t *btni_table, int btngr_ns, int btn_ns) {
   int i, j;
   
   printf("btnit:\n");
@@ -174,7 +174,7 @@ void navPrint_BTNIT(btni_t *btni_table, int btngr_ns, int btn_ns) {
   }
 }
 
-void navPrint_HLI(hli_t *hli) {
+static void navPrint_HLI(hli_t *hli) {
   int btngr_ns = 0, btn_ns = 0;
   
   printf("hli:\n");
@@ -190,7 +190,7 @@ void navPrint_PCI(pci_t *pci) {
   navPrint_HLI(&pci->hli);
 }
 
-void navPrint_DSI_GI(dsi_gi_t *dsi_gi) {
+static void navPrint_DSI_GI(dsi_gi_t *dsi_gi) {
   printf("dsi_gi:\n");
   printf("nv_pck_scr     0x%08x\n", dsi_gi->nv_pck_scr);
   printf("nv_pck_lbn     0x%08x\n", dsi_gi->nv_pck_lbn );
@@ -205,7 +205,7 @@ void navPrint_DSI_GI(dsi_gi_t *dsi_gi) {
   printf("\n");
 }
 
-void navPrint_SML_PBI(sml_pbi_t *sml_pbi) {
+static void navPrint_SML_PBI(sml_pbi_t *sml_pbi) {
   printf("sml_pbi:\n");
   printf("category 0x%04x\n", sml_pbi->category);
   if(sml_pbi->category & 0x8000)
@@ -227,7 +227,7 @@ void navPrint_SML_PBI(sml_pbi_t *sml_pbi) {
   /* $$$ more code needed here */
 }
 
-void navPrint_SML_AGLI(sml_agli_t *sml_agli) {
+static void navPrint_SML_AGLI(sml_agli_t *sml_agli) {
   int i;
   printf("sml_agli:\n");
   for(i = 0; i < 9; i++) {
@@ -236,27 +236,27 @@ void navPrint_SML_AGLI(sml_agli_t *sml_agli) {
   }
 }
 
-void navPrint_VOBU_SRI(vobu_sri_t *vobu_sri) {
+static void navPrint_VOBU_SRI(vobu_sri_t *vobu_sri) {
   int i;
-  int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
-		   10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
+  int stime[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+		     10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
   printf("vobu_sri:\n");
   printf("Next VOBU with Video %08x\n", vobu_sri->next_video);
   for(i = 0; i < 19; i++) {
-    printf("%3.1f %08x ", time[i]/2.0, vobu_sri->fwda[i]);
+    printf("%3.1f %08x ", stime[i]/2.0, vobu_sri->fwda[i]);
   }
   printf("\n");
   printf("Next VOBU %08x\n", vobu_sri->next_vobu);
   printf("--\n");
   printf("Prev VOBU %08x\n", vobu_sri->prev_vobu);
   for(i = 0; i < 19; i++) {
-    printf("%3.1f %08x ", time[18 - i]/2.0, vobu_sri->bwda[i]);
+    printf("%3.1f %08x ", stime[18 - i]/2.0, vobu_sri->bwda[i]);
   }
   printf("\n");
   printf("Prev VOBU with Video %08x\n", vobu_sri->prev_video);
 }
 
-void navPrint_SYNCI(synci_t *synci) {
+static void navPrint_SYNCI(synci_t *synci) {
   int i;
   
   printf("synci:\n");

@@ -39,9 +39,9 @@
 
 #include "dvd_udf.h"
 
-extern int DVDReadLBUDF( dvd_reader_t *device, unsigned long int lb_number,
-                         unsigned int block_count, unsigned char *data,
-                         int encrypted );
+extern int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
+			     size_t block_count, unsigned char *data, 
+			     int encrypted );
 
 #ifndef NULL
 #define NULL ((void *)0)
@@ -176,7 +176,7 @@ static int UDFFileEntry( uint8_t *data, uint8_t *FileType, struct AD *ad )
     uint8_t filetype;
     uint16_t flags;
     uint32_t L_EA, L_AD;
-    int p;
+    unsigned int p;
 
     UDFICB( &data[ 16 ], &filetype, &flags );
     *FileType = filetype;
@@ -264,7 +264,7 @@ static int UDFScanDir( dvd_reader_t *device, struct AD Dir, char *FileName,
     uint32_t lbnum;
     uint16_t TagID;
     uint8_t filechar;
-    int p;
+    unsigned int p;
 
     /* Scan dir for ICB of file */
     lbnum = partition.Start + Dir.Location;
