@@ -24,6 +24,14 @@
 #include <X11/Xlib.h>
 #include "common.h"
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+
+static char *new_file(void);
+
 JSAMPLE * jpg_buffer;	/* Points to large array of R,G,B-order data */
 int image_height;	/* Number of rows in image */
 int image_width;	/* Number of columns in image */
@@ -128,6 +136,7 @@ void screenshot_rgb_jpg(unsigned char *data,
 
 void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
   int x,y;
+  char *file = new_file(); //support for progressive screenshots
   
   uint8_t* py = yuv_data->y;
   uint8_t* pu = yuv_data->u; 
@@ -169,5 +178,26 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg) {
       jpg_buffer[(y+1) * image_width * 3 + (x+1)*3 +2 ] = (*pv++);
     }
   }
-  write_JPEG_file ("screenshot.jpg", JCS_YCbCr, 100);
+  write_JPEG_file ( file, JCS_YCbCr, 100);
+}
+
+static char *new_file(void) {
+    char *pre = "shot";
+    int i = 0;
+    int fd;
+    static char full_name[20];
+
+    while(i < 10000) {
+        i++;
+        snprintf(full_name, sizeof(full_name), "%s%04i.jpg", pre, i);
+        fd = open(full_name, O_EXCL | O_CREAT, 0644);
+        if(fd != -1) { 
+	  close(fd); 
+	  return full_name; 
+	}
+	if(errno != EEXIST) { 
+	  return "screenshot.jpg"; 
+	} 
+    }
+    return full_name;
 }
