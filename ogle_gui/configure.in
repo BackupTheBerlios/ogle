@@ -5,6 +5,24 @@ AM_INIT_AUTOMAKE(ogle_gui, 0.7.5)
 AM_CONFIG_HEADER(config.h)
 
 
+dnl Check that ogle is installed in the prefix, this is needed
+if test "x${exec_prefix}" = "xNONE"; then
+  if test "x${prefix}@" = "xNONE"; then
+    ogle_pkglibdir=${ac_default_prefix}/lib/ogle
+  else
+    ogle_pkglibdir=${prefix}/lib/ogle
+  fi
+else
+  ogle_pkglibdir=${exec_prefix}/lib/ogle
+fi
+
+AC_MSG_CHECKING(for ogle helper dir)
+if test ! -x ${ogle_pkglibdir}/ctrl; then
+  AC_MSG_RESULT(no)
+  AC_MSG_ERROR(You must install ogle and ogle_gui in the same prefix)
+fi
+AC_MSG_RESULT(yes)
+
 dnl Pick up the Gnome macros.
 AM_ACLOCAL_INCLUDE(macros)
 
