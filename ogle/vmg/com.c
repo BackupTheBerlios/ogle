@@ -238,6 +238,8 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
     while(!q_elems[elem].in_use) {
       //DPRINTF(1, "vmg: waiting for notification\n");
       MsgNextEvent(msgq, ev);
+      if(ev->type == MsgEventQNotify) // Is this OK?
+	continue;
       return 0;
     }
   }

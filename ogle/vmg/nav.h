@@ -236,7 +236,7 @@ typedef struct { /* VOBUnit Search Information */
 
 typedef struct { /* Synchronous Information */ 
   uint16_t unknown_offset;      //  Highbit == signbit
-  uint8_t unknown1[14];
+  uint16_t unknown1[7];
   uint32_t start_of_cell_offset1; //?? 7f ff ff ff == at start
   uint32_t start_of_cell_offset2; //??  
   uint8_t unknown2[120];

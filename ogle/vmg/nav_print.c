@@ -282,9 +282,9 @@ void print_synci(FILE *out, synci_t *synci) {
   fprintf(out, "synci:\n");
   /* $$$ more code needed here */
 #if 1
-  fprintf(out, "unknown_offset %04x\n", synci->unknown_offset);
-  for(i = 0; i < sizeof(synci->unknown1); i++)
-    fprintf(out, "%02x ", synci->unknown1[i]);
+  fprintf(out, "unknown_offset %04x, ", synci->unknown_offset);
+  for(i = 0; i < 7; i++)
+    fprintf(out, "%04x ", synci->unknown1[i]);
   fprintf(out,"\n");
   fprintf(out, "start_of_cell_offset1 %08x\n", synci->start_of_cell_offset1);
   fprintf(out, "start_of_cell_offset2 %08x\n", synci->start_of_cell_offset2);

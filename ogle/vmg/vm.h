@@ -24,7 +24,8 @@ typedef struct {
   int pgcN; // either this or *pgc is enough. Which to use?
   int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN;
-
+  int blockN;
+  
   /* Resume info */
   int rsm_vtsN;
   int rsm_blockN; /* of nav_packet */

@@ -20,10 +20,9 @@
 #include "vm.h"
 
 extern void do_run(void); // nav.c 
-extern vm_cmd_t eval_cell(char *vob_name, cell_playback_t *cell, 
-			  int block, dvd_state_t *state); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
 extern void wait_for_init(MsgEventQ_t *msgq); // com.c
+extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
 
 static int msgqid = -1;
 
@@ -169,6 +168,35 @@ int main(int argc, char *argv[])
     
     wait_for_init(msgq);
     
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xe0; // Mpeg2 Video 
+    ev.demuxstream.subtype = 0;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbd; // AC3 1
+    ev.demuxstream.subtype = 0x80;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbd; // SPU 1
+    ev.demuxstream.subtype = 0x20;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+    
+    ev.type = MsgEventQDemuxStream;
+    ev.demuxstream.stream_id = 0xbf; // NAV
+    ev.demuxstream.subtype = 0;    
+    if(send_demux(msgq, &ev) == -1) {
+      fprintf(stderr, "vm: didn't set demuxstream\n");
+    }
+    
+    
   } else {
     fprintf(stderr, "what?\n");
   }
@@ -176,10 +204,6 @@ int main(int argc, char *argv[])
   /*  Call start here */
   reset_vm();
 
-#if 0 
-  run_vm(); // Old
-#endif
- 
   do_run();
   
   return -1;
@@ -218,63 +242,6 @@ int reset_vm()
 
 
 
-int run_vm()
-{
-  link_t link_values;
-
-  // Set pgc to FP pgc
-  get_FP_PGC();
-  link_values = play_PGC(); 
-  
-  if(link_values.command != PlayThis) {
-    /* At the end of this PGC or we encountered a command. */
-    // Terminates first when it gets a PlayThis (or error).
-    link_values = process_command(link_values);
-    assert(link_values.command == PlayThis);
-  }
-
-  /* For now we emulate to old system to be able to test */
-  while(1) {
-    vm_cmd_t cmd;
-    char name[16];
-    cell_playback_t *cell;
-    cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
-    
-    //DEBUG
-    {
-      ifoPrint_time(5, &cell->playback_time); printf("\n");
-      
-      // Make file name
-      if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-	snprintf(name, 14, "VIDEO_TS.VOB");
-      } else {
-	char part = '0'; 
-	if(state.domain != VTSM_DOMAIN) // This is wrong
-	  part += cell->first_sector/(1024  * 1024 * 1024 / 2048) + 1;
-	snprintf(name, 14, "VTS_%02i_%c.VOB", state.vtsN, part);
-      }
-      printf("%s\t", name);
-      printf("VOB ID: %3i, Cell ID: %3i at sector: 0x%08x - 0x%08x\n",
-	     state.pgc->cell_position_tbl[state.cellN - 1].vob_id_nr,
-	     state.pgc->cell_position_tbl[state.cellN - 1].cell_nr,
-	     cell->first_sector, cell->last_sector);
-    }
-    
-    cmd = eval_cell(name, cell, link_values.data1, &state);
-
-    if(eval(&cmd, 1, &state.registers, &link_values)) {
-      link_values = process_command(link_values);
-    } else {
-      link_values = play_Cell_post();
-      link_values = process_command(link_values);
-    }
-    assert(link_values.command == PlayThis);
-  }
-  /* end of emulation code */
-
-  return 0;
-}  
-
 
 // FIXME TODO XXX $$$ Handle error condition too...
 int start_vm()
@@ -291,7 +258,9 @@ int start_vm()
     link_values = process_command(link_values);
     assert(link_values.command == PlayThis);
   }
-  return 0;
+  state.blockN = link_values.data1;
+
+  return 0; //??
 }
 
 
@@ -306,6 +275,7 @@ int eval_cmd(vm_cmd_t *cmd)
       link_values = process_command(link_values);
       assert(link_values.command == PlayThis);
     }
+    state.blockN = link_values.data1;
     return 1; // Something changed
   } else {
     return 0; // It updated some state thats all...
@@ -326,14 +296,134 @@ int get_next_cell()
     link_values = process_command(link_values);
     assert(link_values.command == PlayThis);
   }
+  state.blockN = link_values.data1;
+  
+  return 0; // ??
+}
+
+
+// Must be called before domain is changed 
+void saveRMSinfo(int cellN, int blockN)
+{
+  if(cellN != 0) {
+    state.rsm_cellN = cellN;
+    state.rsm_blockN = 0;
+  } else {
+    state.rsm_cellN = state.cellN;
+    state.rsm_blockN = blockN;
+  }
+  state.rsm_vtsN = state.vtsN;
+  state.rsm_pgcN = get_PGCN();
+}
+
+domain_t menuid2domain(DVDMenuID_t menuid)
+{
+  domain_t result;
+  
+  switch(menuid) {
+  case DVD_MENU_Title:
+    result = VMGM_DOMAIN;
+    break;
+  case DVD_MENU_Root:
+  case DVD_MENU_Subpicture:
+  case DVD_MENU_Audio:
+  case DVD_MENU_Angle:
+  case DVD_MENU_Part:
+    result = VTSM_DOMAIN;
+    break;
+  default:
+    /* Handle error ? */
+  }
+  
+  return result;
+}
+
+
+int vm_menuCall(DVDMenuID_t menuid, int block)
+{
+  domain_t old_domain;
+  link_t link_values;
+  
+  /* Should check if we are allowed/can acces this menu */
+  
+  
+  /* FIXME XXX $$$ How much state needs to be restored 
+   * when we fail to find a menu? */
+  
+  old_domain = state.domain;
+  
+  switch(state.domain) {
+  case VTS_DOMAIN:
+    saveRMSinfo(0, block);
+    /* FALL THROUGH */
+  case VTSM_DOMAIN:
+  case VMGM_DOMAIN:
+    state.domain = menuid2domain(menuid);
+    if(get_MENU(menuid) != -1) {
+      link_values = play_PGC();
+      
+      if(link_values.command != PlayThis) {
+	/* At the end of this PGC or we encountered a command. */
+	// Terminates first when it gets a PlayThis (or error).
+	link_values = process_command(link_values);
+	assert(link_values.command == PlayThis);
+      }
+      state.blockN = link_values.data1;
+      return 1;
+    } else {
+      state.domain = old_domain;
+    }
+    break;
+  case FP_DOMAIN: /* FIXME XXX $$$ What should we do here? */
+    break;
+  }
+  
   return 0;
 }
 
 
-
-
-
-
+int vm_resume()
+{
+  link_t link_values;
+  
+  // Check and see if there is any rsm info!!
+  if(state.rsm_vtsN == 0) {
+    return 0;
+  }
+  
+  state.domain = VTS_DOMAIN;
+  ifoOpenVTSI(state.rsm_vtsN);
+  get_PGC(state.rsm_pgcN);
+  
+  set_spu_palette(state.pgc->palette); // Erhum...
+  
+  /* These should never be set in SystemSpace and/or MenuSpace */ 
+  // state.TT_REG = rsm_tt;
+  // state.PGC_REG = state.rsm_pgcN;
+  
+  //state.HL_BTNN_REG = rsm_btnn;
+  
+  if(state.rsm_cellN == 0) {
+    assert(state.cellN); // Checking if this ever happens
+    state.pgN = 1;
+    link_values = play_PG();
+    if(link_values.command != PlayThis) {
+      /* At the end of this PGC or we encountered a command. */
+      // Terminates first when it gets a PlayThis (or error).
+      link_values = process_command(link_values);
+      assert(link_values.command == PlayThis);
+    }
+    state.blockN = link_values.data1;
+  } else { 
+    //state.pgN = ?? this gets the righ value in play_Cell
+    // FIXME $$$ XXX No it doesn't !!!
+    state.cellN = state.rsm_cellN;
+    
+    state.blockN = state.rsm_blockN;
+  }
+  
+  return 1;
+}
 
 
 
@@ -453,7 +543,7 @@ static link_t play_Cell()
   
   
   {
-    link_t tmp = {PlayThis, 0, 0, 0};
+    link_t tmp = {PlayThis, /* Block in Cell */ 0, 0, 0};
     return tmp;
   }
   
@@ -643,9 +733,8 @@ static link_t process_command(link_t link_values)
 	/* play_Cell_at_time */
 	//state.pgN = ?? this gets the righ value in play_Cell
 	state.cellN = state.rsm_cellN;
-	//state.rsm_blockN;
 	link_values.command = PlayThis;
-	link_values.data1 = 0;
+	link_values.data1 = state.rsm_blockN;
       }
       break;
       
@@ -915,6 +1004,7 @@ static int get_ID(int id)
   
   /* Relies on state to get the correct pgcit. */
   pgcit = get_PGCIT();
+  assert(pgcit != NULL);
   
   /* Get menu/title */
   i = 0;
