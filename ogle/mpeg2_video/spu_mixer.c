@@ -114,7 +114,7 @@ extern int msgqid;
 
 extern MsgEventQ_t *msgq;
 
-static int flush_to_scrnr = -1;
+static int flush_to_scrid = -1;
 
 #define MAX_BUF_SIZE 65536
 
@@ -1059,9 +1059,9 @@ static int next_spu_cmd_pending(spu_t *spu_info)
       
       if(!get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
 		   &spu_info->base_time, &spu_info->scr_nr)) {
-	if(flush_to_scrnr != -1) {
+	if(flush_to_scrid != -1) {
 	  // FIXME: assumes order of src_nr
-	  if(flush_to_scrnr > spu_info->scr_nr) {
+	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 	    /* Reset state  */
 	    //fprintf(stderr, "spu: flush/reset 2\n");
 	    spu_info->display_start = 0;
@@ -1105,8 +1105,9 @@ static int next_spu_cmd_pending(spu_t *spu_info)
     return 1;
   }
   
-  if(flush_to_scrnr != -1) {
-    if(flush_to_scrnr > spu_info->scr_nr) { // FIXME: assumes order of src_nr
+  if(flush_to_scrid != -1) {
+    if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
+
       
       /* Reset state  */
       //fprintf(stderr, "spu: flush/reset 3\n");
@@ -1115,7 +1116,7 @@ static int next_spu_cmd_pending(spu_t *spu_info)
       
       return 1;
     } else {
-      flush_to_scrnr = -1;
+      flush_to_scrid = -1;
     }
   }
   
@@ -1219,7 +1220,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
 
 
 
-void flush_subpicture(int scr_nr)
+void flush_subpicture(int scr_id)
 {
   /*
    * Check for, and execute all pending spu command sequences.
@@ -1231,7 +1232,7 @@ void flush_subpicture(int scr_nr)
   }
   
   //fprintf(stderr, "spu: flush_subpicture\n");
-  flush_to_scrnr = scr_nr;
+  flush_to_scrid = scr_id;
 
   while(next_spu_cmd_pending(&spu_info)) {
 

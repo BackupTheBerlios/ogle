@@ -78,7 +78,7 @@ int msgqid = -1;
 MsgEventQ_t *msgq;
 
 
-static int flush_to_scrnr = -1;
+static int flush_to_scrid = -1;
 static int prev_scr_nr = 0;
 
 static picture_data_elem_t *picture_ctrl_data;
@@ -239,12 +239,12 @@ void redraw_done(void)
 static void redraw_screen(void)
 {
 
-  if(flush_to_scrnr != -1) {
-    if(flush_to_scrnr != video_scr_nr) {
+  if(flush_to_scrid != -1) {
+    if(ctrl_time[video_scr_nr].scr_id < flush_to_scrid) {
       redraw_done();
       return;
     } else {
-      flush_to_scrnr = -1;
+      flush_to_scrid = -1;
     }
   }
 
@@ -267,8 +267,8 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQFlushData:
     DPRINTF(1, "vo: got flush\n");
-    flush_to_scrnr = ev->flushdata.to_scrnr;
-    flush_subpicture(flush_to_scrnr);
+    flush_to_scrid = ev->flushdata.to_scrid;
+    flush_subpicture(flush_to_scrid);
     break;
   case MsgEventQAttachQ:
     attach_picture_buffer(ev->attachq.q_shmid);
@@ -626,13 +626,13 @@ static void display_process()
     TIME_S(wait_time) = 0;
     TIME_SS(wait_time) = 0;
 
-    if(flush_to_scrnr != -1) {
-      if(flush_to_scrnr == video_scr_nr) {
-	flush_to_scrnr = -1;
+    if(flush_to_scrid != -1) {
+      if(ctrl_time[video_scr_nr].scr_id >= flush_to_scrid) {
+	flush_to_scrid = -1;
       }
     }
     
-    if(flush_to_scrnr == -1) {
+    if(flush_to_scrid == -1) {
       if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
 	prefered_time = real_time;
       } else if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
@@ -656,65 +656,6 @@ static void display_process()
     fprintf(stderr, "*vo: waittime: %ld.%+010ld\n",
 	    wait_time.tv_sec, wait_time.tv_nsec);
     */
-#if 0
-#ifndef HAVE_CLOCK_GETTIME
-    timesub(&waittmp, &prefered_time, &real_time);
-    wait_time.tv_sec = waittmp.tv_sec;
-    wait_time.tv_nsec = waittmp.tv_usec*1000;
-#else
-    // Fixme!!! wait_time can't be used here..
-    timesub(&wait_time, &prefered_time, &real_time);
-#endif
-    /*
-    fprintf(stderr, "pref: %d.%09ld\n",
-	    TIME_S(prefered_time), TIME_SS(prefered_time));
-
-    fprintf(stderr, "wait: %d.%09ld, ",
-	    TIME_S(wait_time), TIME_SS(wait_time));
-    
-    fprintf(stderr, "*vo: waittime: %ld.%09ld\n",
-	    wait_time.tv_sec, wait_time.tv_nsec);
-    */
-    wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
-
-
-
-    if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
-      if(wait_time.tv_sec > 0) {
-	fprintf(stderr, "*vo: waittime > 1 sec: %ld.%09ld\n",
-		wait_time.tv_sec, wait_time.tv_nsec);
-	
-      }
-      if(flush_to_scrnr != -1) {
-	if(flush_to_scrnr != video_scr_nr) {
-
-	} else {
-	  flush_to_scrnr = -1;
-	  nanosleep(&wait_time, NULL);
-	}
-      } else {
-	nanosleep(&wait_time, NULL);
-      }
-      
-    } else {
-
-      if(flush_to_scrnr != -1) {
-	if(flush_to_scrnr != video_scr_nr) {
-	  
-	} else {
-	  flush_to_scrnr = -1;
-	}
-      }
-
-      if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
-	//TODO fix this time mess
-	if(wait_time.tv_nsec < -300000000 || wait_time.tv_sec < 0) {
-	  drop = 1;
-	}
-      }
-      //fprintf(stderr, "---less than 0.005 s\n");
-    }
-#endif
 
     if(TIME_SS(wait_time) < -300*(CT_FRACTION/1000)) {
       // more than 300 ms late
@@ -753,11 +694,11 @@ static void display_process()
     */
 
     if(!drop) {
-      if(flush_to_scrnr != -1) {
-	if(flush_to_scrnr != video_scr_nr) {
+      if(flush_to_scrid != -1) {
+	if(ctrl_time[video_scr_nr].scr_id < flush_to_scrid) {
 	  redraw_done();
 	} else {
-	  flush_to_scrnr = -1;
+	  flush_to_scrid = -1;
 	  display(&image_bufs[buf_id]);
 	  redraw_done();
 	}
