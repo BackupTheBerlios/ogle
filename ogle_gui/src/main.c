@@ -83,7 +83,7 @@ void autosave_bookmark(void) {
     
     if(DVDGetState(nav, &state) == DVD_E_Ok) {
       
-      if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+      if((bm = DVDBookmarkOpen(id, NULL, 1)) == NULL) {
 	if(errno != ENOENT) {
 	  NOTE("%s", "BookmarkOpen failed: ");
 	  perror("");

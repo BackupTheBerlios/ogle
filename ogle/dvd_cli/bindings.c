@@ -152,9 +152,8 @@ void actionPrevPG(void *data)
   DVDPrevPGSearch(nav);
 }
 
-void actionQuit(void *data)
+void autosave_bookmark(void)
 {
-  DVDResult_t res;
   DVDBookmark_t *bm;
   unsigned char id[16];
   char volid[33];
@@ -175,7 +174,7 @@ void actionQuit(void *data)
     
     if(DVDGetState(nav, &state) == DVD_E_Ok) {
       
-      if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+      if((bm = DVDBookmarkOpen(id, NULL, 1)) == NULL) {
 	if(errno != ENOENT) {
 	  NOTE("%s", "BookmarkOpen failed: ");
 	  perror("");
@@ -236,7 +235,14 @@ void actionQuit(void *data)
       DVDBookmarkClose(bm);
     }
   }
+}
+
+void actionQuit(void *data)
+{
+  DVDResult_t res;
   
+  autosave_bookmark();
+
   res = DVDCloseNav(nav);
   if(res != DVD_E_Ok ) {
     DVDPerror("DVDCloseNav", res);
