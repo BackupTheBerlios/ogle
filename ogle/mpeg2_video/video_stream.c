@@ -60,7 +60,7 @@ XWindowAttributes attribs;
 #define ALLOC_SIZE 2048
 #define BUF_SIZE_MAX 2048*8
 
-//#define DEBUG
+#define DEBUG
 
 
 #ifdef DEBUG
@@ -349,9 +349,9 @@ uint32_t getbits(unsigned int nr)
       bits_left = 32;
     } 
     bytealign = !(bits_left%8);
-    DPRINTF(3, "%s getbits(%u): %x, ", func, nr, result);
-    DPRINTBITS(2, nr, result);
-    DPRINTF(3, "\n");
+    DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+    DPRINTBITS(6, nr, result);
+    DPRINTF(5, "\n");
     return result;
   } else {
     rem = nr-bits_left;
@@ -366,9 +366,9 @@ uint32_t getbits(unsigned int nr)
       bits_left = 32;
     }
     bytealign = !(bits_left%8);
-    DPRINTF(3,"%s getbits(%u): %x ", func, nr, result);
-    DPRINTBITS(2, nr, result);
-    DPRINTF(3, "\n");
+    DPRINTF(5,"%s getbits(%u): %x ", func, nr, result);
+    DPRINTBITS(6, nr, result);
+    DPRINTF(5, "\n");
     return result;
   }
 }
@@ -2424,8 +2424,8 @@ void block(unsigned int i)
 	exit(-1);
       }
     }
-#endif
     DPRINTF(4, "nr of coeffs: %d\n", n);
+#endif
     
     /* 7.3 Inverse scan */
     inverse_scan();
@@ -3387,7 +3387,7 @@ void motion_comp()
 
     if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
       fprintf(stderr, "**** DP remove this and check if working\n");
-      exit(-1);
+      //exit(-1);
     }
 
 
@@ -3751,8 +3751,37 @@ void quant_matrix_extension()
 
 void picture_display_extension()
 {
-  fprintf(stderr, "***ni picture_display_extension()\n");
-  exit(-1);
+  uint8_t extension_start_code_identifier;
+  uint16_t frame_centre_horizontal_offset;
+  uint16_t frame_centre_vertical_offset;
+  uint8_t number_of_frame_centre_offsets;
+  int i;
+  
+  if((seq.ext.progressive_sequence == 1) || 
+     ((pic.coding_ext.picture_structure == 0x1) ||
+      (pic.coding_ext.picture_structure == 0x2))) {
+    number_of_frame_centre_offsets = 1;
+  } else {
+    if(pic.coding_ext.repeat_first_field == 1) {
+      number_of_frame_centre_offsets = 3;
+    } else {
+      number_of_frame_centre_offsets = 2;
+    }
+  }
+  
+  DPRINTF(2, "picture_display_extension()\n");
+  extension_start_code_identifier=GETBITS(4,"extension_start_code_identifier");
+
+  for(i = 0; i < number_of_frame_centre_offsets; i++) {
+    frame_centre_horizontal_offset = GETBITS(16, "frame_centre_horizontal_offset");
+    marker_bit();
+    frame_centre_vertical_offset = GETBITS(16, "frame_centre_vertical_offset");
+    marker_bit();
+    
+  }
+  
+  next_start_code();
+  
 }
 
 void picture_spatial_scalable_extension()
