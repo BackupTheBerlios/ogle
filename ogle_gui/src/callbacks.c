@@ -41,7 +41,7 @@ extern ZoomMode_t zoom_mode;
 extern DVDNav_t *nav;
 
 static int isPaused = 0;
-
+static double speed = 1.0;
 
 void
 on_ptt_activate_pm                     (GtkMenuItem     *menuitem,
@@ -279,7 +279,8 @@ void
 on_play_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDForwardScan(nav, 1.0);
+  speed = 1.0;
+  DVDForwardScan(nav, speed);
   if(isPaused)
     DVDPauseOff(nav);
 }
@@ -297,7 +298,12 @@ void
 on_fastforward_button_clicked          (GtkButton       *button,
                                         gpointer         user_data)
 {
-  DVDForwardScan(nav, 2.0);
+  if((speed >= 1.0) && (speed < 8.0)) {
+    speed +=0.5;
+  } else {
+    speed = 1.5;
+  }
+  DVDForwardScan(nav, speed);
 }
 
 
@@ -313,7 +319,12 @@ void
 on_fast_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+  if((speed >= 1.0) && (speed < 8.0)) {
+    speed += 0.5;
+  } else if(speed < 1.0) {
+    speed *= 2.0;
+  }
+  DVDForwardScan(nav, speed);
 }
 
 
@@ -321,6 +332,12 @@ void
 on_slow_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
+  if(speed > 1.0) {
+    speed -= 0.5;
+  } else if((speed > 0.1) && (speed <= 1.0)) {
+    speed /= 2.0;
+  }
+  DVDForwardScan(nav, speed);
 
 }
 
