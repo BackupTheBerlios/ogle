@@ -15,7 +15,7 @@ AM_PROG_LIBTOOL
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
 AC_C_CONST
-AC_C_INLINE
+AC_C_ALWAYS_INLINE
 
 
 dnl Checks for header files.
