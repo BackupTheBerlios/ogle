@@ -938,7 +938,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
     }
     
     /* Get a shared memory segment */
-    shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0644);
+    shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0666);
 
     if(shm_info.shmid == -1) {
       FATAL("display_change_size");
