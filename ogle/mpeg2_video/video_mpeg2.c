@@ -928,7 +928,7 @@ void macroblock(void)
 		 &fwd_ref_image->v[y*(seq.mb_width*16)/2+x], 
 		 (mb.macroblock_address_increment-1)*8);
 	}
-      } else { // Optimize this case too?  Maybe move all this the video_motion
+      } else { // Optimize this case too?  Maybe move all this to video_motion
 	int old_col = seq.mb_column;
 	/* 7.6.6.1 P field picture*/
 	mb.prediction_type = PRED_TYPE_FIELD_BASED;
@@ -943,8 +943,7 @@ void macroblock(void)
 	  motion_comp();
 	}
 	seq.mb_column = old_col;
-      }	
-      
+      }
       break;
       
     case PIC_CODING_TYPE_B:
