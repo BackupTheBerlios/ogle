@@ -36,23 +36,23 @@ typedef enum {
   CMD_OUTPUT_BUFFER = 13,
   CMD_SPU_SET_PALETTE = 14,
   CMD_SPU_SET_HIGHLIGHT = 15,
-  CMD_NAV_CMD = 16
+  CMD_DVDCTRL_CMD = 16
 } cmdtype_t;
 
 typedef enum {
-  NAV_CMD_UP_BUTTON,
-  NAV_CMD_DOWN_BUTTON,
-  NAV_CMD_LEFT_BUTTON,
-  NAV_CMD_RIGHT_BUTTON,
-  NAV_CMD_ACTIVATE_BUTTON,
-  NAV_CMD_SELECT_BUTTON_NR,
-  NAV_CMD_SELECT_ACTIVATE_BUTTON_NR
-} nav_cmd_t;
+  DVDCTRL_CMD_UP_BUTTON,
+  DVDCTRL_CMD_DOWN_BUTTON,
+  DVDCTRL_CMD_LEFT_BUTTON,
+  DVDCTRL_CMD_RIGHT_BUTTON,
+  DVDCTRL_CMD_ACTIVATE_BUTTON,
+  DVDCTRL_CMD_SELECT_BUTTON_NR,
+  DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR
+} dvdctrl_cmd_t;
 
 typedef struct {
-  nav_cmd_t cmd;
+  dvdctrl_cmd_t cmd;
   int button_nr;
-} cmd_nav_cmd_t;
+} cmd_dvdctrl_cmd_t;
 
 typedef enum {
   CTRLCMD_NONE = 0,
@@ -152,7 +152,7 @@ typedef struct {
     cmd_output_buffer_t output_buffer;
     cmd_spu_palette_t spu_palette;
     cmd_spu_highlight_t spu_highlight;
-    cmd_nav_cmd_t nav_cmd;
+    cmd_dvdctrl_cmd_t dvdctrl_cmd;
   } cmd;
 } cmd_t;
 
