@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: vobdump.c,v 1.1 2000/08/18 00:26:39 d95mback Exp $
+ * $Id: vobdump.c,v 1.2 2000/08/22 09:50:45 d95mback Exp $
  */
 
 #include <stdio.h>
@@ -508,9 +508,11 @@ void dump_command (FILE *out, buffer_t *buffer)
       cmd.examined [i] = 0;
     }
 
+#if 0
   for (i = 0; i < 8; i++)
     fprintf (out, "%02x ", cmd.bits [i]);
   fprintf (out, " ");
+#endif
 
   cmd_id1 = get_command_bits (& cmd, 63, 3);
 
@@ -548,7 +550,7 @@ void dump_command (FILE *out, buffer_t *buffer)
 	fprintf (out, " %02x", cmd.bits [i] & ~ cmd.examined [i]);
     }
 
-  fprintf (out, "\n");
+  //fprintf (out, "\n");
 }
 
 

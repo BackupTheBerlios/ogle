@@ -832,10 +832,10 @@ void ifoPrintVMOP (uint8_t *opcode)
 {
 	op_t *op = (op_t *) opcode;
 
-	_hexdump (opcode, 8);
+	//_hexdump (opcode, 8);
 //	printf ("\n\t");
 
 	cmd_switch [op->type].cmd (opcode);
-	printf (";");
+	//printf (";");
 }
 
