@@ -22,6 +22,7 @@
 extern vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
 			  dvd_state_t *state); // nav.c
 extern void set_spu_palette(uint32_t palette[16]); // nav.c
+extern void wait_for_init(MsgEventQ_t *msgq); // com.c
 
 static int msgqid = -1;
 
@@ -56,6 +57,7 @@ pgcit_t *pgcit;
 void get_TT(int tt);
 void get_VTS_TT(int vts, int tt);
 void get_VTS_PTT(int tt, int part);
+void get_VTS_PGC(int vts, int pgc);
 pgcit_t* get_VMGM_LU(char language[2]);
 void get_VMGM_MENU(int menu);
 void get_VMGM_PGC(int pgcN);
@@ -121,6 +123,8 @@ int main(int argc, char *argv[])
     if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
       fprintf(stderr, "vm: didn't get cap\n");
     }
+    
+    wait_for_init(msgq);
     
   } else {
     fprintf(stderr, "what?\n");
@@ -233,6 +237,7 @@ int main(int argc, char *argv[])
      * or a NOP in case no button was pressed */
     {
       vm_cmd_t cmd = eval_cell(name, &cell, &state);
+      free(name);
       
       if(eval(&cmd, 1, &state.registers, &link_values)) {
 	goto process_jump;
@@ -350,7 +355,17 @@ int main(int argc, char *argv[])
   case LinkRSM:
     if(link_values.data1 != 0)
       state.registers.SPRM[8] = 0x400 * link_values.data1;
-    exit(-1);  
+    /* Restore VTS/Title nr too? */
+    state.pgcN = state.rsm_pgcN;
+    state.pgN = state.rsm_pgN;
+    state.cellN = state.rsm_cellN; // = link_values.data2; ??
+    state.domain = VTS_DOMAIN;
+    /* state.registers.SPRM[4] = vts; */
+    /* state.registers.SPRM[5] = tt; */
+    state.registers.SPRM[6] = state.pgcN;
+    get_VTS_PGC(state.registers.SPRM[4], state.pgcN);
+    /* play_Cell_at_time */
+    goto play_Cell;
   
   case LinkPGCN:
     get_PGC(link_values.data1);
@@ -507,6 +522,20 @@ void get_VTS_PTT(int tt, int part) {
   memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
   //ifoFree_PGCIT(&pgcit);
 }
+
+
+void get_VTS_PGC(int vts, int pgc) {
+  char buffer[16];
+  snprintf(buffer, 15, "VTS_%02i_0.IFO", vts);
+  ifoClose();
+  ifoOpen_VTS(&vtsi_mat, buffer);
+  
+  pgcit = malloc(sizeof(pgcit_t));
+  ifoRead_PGCIT(pgcit, vtsi_mat.vts_pgcit * DVD_BLOCK_LEN);
+  memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc_t));
+  //ifoFree_PGCIT(&pgcit);
+}
+
 
 
 pgcit_t* get_VMGM_LU(char language[2]) {

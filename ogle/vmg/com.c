@@ -26,7 +26,9 @@
 //#include "sync.h"
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
+int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int get_q(MsgEventQ_t *msgq, char *buffer);
+void wait_for_init(MsgEventQ_t *msgq);
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
@@ -46,26 +48,16 @@ static char *stream_shmaddr = NULL;
 static int data_buf_shmid;
 static char *data_buf_shmaddr;
 
-MsgEventClient_t demux_client = 0;
-MsgEventClient_t spu_client = 0;
+static MsgEventClient_t demux_client = 0;
+static MsgEventClient_t spu_client = 0;
 //MsgEventClient_t ui_client;
 
 
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
-  while(!demux_client) {
-    MsgEvent_t t_ev;
-    MsgNextEvent(msgq, &t_ev);
-    handle_events(msgq, &t_ev);
-  } 
   return MsgSendEvent(msgq, demux_client, ev);
 }
 
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
-  while(!spu_client) {
-    MsgEvent_t t_ev;
-    MsgNextEvent(msgq, &t_ev);
-    handle_events(msgq, &t_ev);
-  }
   return MsgSendEvent(msgq, spu_client, ev);
 }
 
@@ -109,6 +101,13 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
   }
 }
 
+void wait_for_init(MsgEventQ_t *msgq) {
+  while(!demux_client || !spu_client) {
+    MsgEvent_t t_ev;
+    MsgNextEvent(msgq, &t_ev);
+    handle_events(msgq, &t_ev);
+  }
+}
 
 static void change_file(char *new_filename)
 {
@@ -219,6 +218,36 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   return 0;
 }
 
+
+int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  int elem;
+  
+  while(stream_shmaddr == NULL) {
+    MsgEvent_t t_ev;
+    MsgNextEvent(msgq, ev);
+    return 0;
+  }
+  
+  q_head = (q_head_t *)stream_shmaddr;
+  q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
+  elem = q_head->read_nr;
+  
+  if(!q_elems[elem].in_use) {
+    q_head->reader_requests_notification = 1;
+    
+    while(!q_elems[elem].in_use) {
+      //DPRINTF(1, "vmg: waiting for notification\n");
+      MsgNextEvent(msgq, ev);
+      return 0;
+    }
+  }
+  
+  return 1;
+}
+
+
 int get_q(MsgEventQ_t *msgq, char *buffer)
 {
   q_head_t *q_head;
@@ -242,20 +271,23 @@ int get_q(MsgEventQ_t *msgq, char *buffer)
   static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
   
+  /* Should never hapen if you call wait_q first */
   while(stream_shmaddr == NULL) {
-    MsgNextEvent(msgq, &ev);
-    handle_events(msgq, &ev);
-  }    
+    MsgEvent_t t_ev;
+    MsgNextEvent(msgq, &t_ev);
+    handle_events(msgq, &t_ev);
+  }
   
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
+  /* Should never hapen if you call wait_q first */
   if(!q_elems[elem].in_use) {
     q_head->reader_requests_notification = 1;
     
     while(!q_elems[elem].in_use) {
-      //DPRINTF(1, "vmg: waiting for notification1\n");
+      //DPRINTF(1, "vmg: waiting for notification\n");
       MsgNextEvent(msgq, &ev);
       handle_events(msgq, &ev);
     }

@@ -40,6 +40,7 @@
 
 extern MsgEventQ_t *msgq;
 
+extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int get_q(MsgEventQ_t *msgq, char *buffer);
 extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -47,9 +48,6 @@ extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
 int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y);
 
-static int get_next_nav_packet(char *buffer) {
-  return get_q(msgq, buffer);
-}
 
 static void send_demux_sectors(int start_sector, int nr_sectors) {
   MsgEvent_t ev;
@@ -111,8 +109,99 @@ void send_highlight(int x_start, int y_start, int x_end, int y_end,
 }
 
 
-static int process_pci(pci_t *pci, uint16_t *btn_nr) {
+int process_button_event(MsgQUserInputEvent_t *ui, 
+			 pci_t *pci, uint16_t *btn_nr) {
   int is_action = 0;
+  
+  
+  /* Check for and read any user input */
+  /* Must not consume events after a 'enter/click' event. (?) */
+  
+#if 0
+  // A button has already been activated, discard this event
+  if(is_action)
+    return is_action;
+#endif
+  
+  /* Do async user input processing. Like angles change, audio change, 
+   * subpicture change and answer attribute querry requests.
+   */
+  /* MORE CODE HERE :) */
+  
+  // No highlight/button pci info to use
+  if((pci->hli.hl_gi.hli_ss & 0x03) == 0)
+    return 0;
+  
+  switch(ui->cmd) {
+  case InputCmdButtonUp:
+    *btn_nr = pci->hli.btnit[*btn_nr-1].up;
+    break;
+  case InputCmdButtonDown:
+    *btn_nr = pci->hli.btnit[*btn_nr-1].down;
+    break;
+  case InputCmdButtonLeft:
+    *btn_nr = pci->hli.btnit[*btn_nr-1].left;
+    break;
+  case InputCmdButtonRight:
+    *btn_nr = pci->hli.btnit[*btn_nr-1].right;
+    break;
+  case InputCmdButtonActivate:
+    is_action = 1;
+    break;
+  case InputCmdButtonActivateNr:
+    is_action = 1;
+    /* Fall through */
+  case InputCmdButtonSelectNr:
+    *btn_nr = ui->button_nr;
+    break;
+  case InputCmdMouseActivate:
+  case InputCmdMouseMove:
+    {
+      int button;
+      unsigned int x = ui->mouse_x;
+      unsigned int y = ui->mouse_y;
+      
+      button = mouse_over_hl(pci, x, y);
+      if(button) {
+	*btn_nr = button;
+	if(ui->cmd == InputCmdMouseActivate)
+	  is_action = 1;
+      }
+    }
+    break;
+  default:
+    fprintf(stderr, "vmg: Unknown ui->cmd\n");
+    break;
+  }
+  
+  /* Must check if the current selected button has auto_action_mode !!! */
+  switch(pci->hli.btnit[*btn_nr - 1].auto_action_mode) {
+  case 0:
+    break;
+  case 1:
+    fprintf(stderr, "!!!auto_action_mode!!!\n");
+    is_action = 1;
+    break;
+  case 2:
+  case 3:
+  default:
+    fprintf(stderr, "Unknown auto_action_mode!!\n");
+    exit(1);
+  }
+ 
+  /* Determine the correct area and send the information to the spu decoder. */
+  /* Possible optimization: don't send if its the same as last time. */
+  {
+    btni_t *button;
+    button = &pci->hli.btnit[*btn_nr - 1];
+    send_highlight(button->x_start, button->y_start, 
+		   button->x_end, button->y_end, 
+		   pci->hli.btn_colit.btn_coli[button->btn_coln-1][is_action]);
+  }
+  return is_action;
+}
+
+static void process_pci(pci_t *pci, uint16_t *btn_nr) {
   
   /* Check if this is alright, i.e. pci->hli.hl_gi.hli_ss == 1 only 
      for the first menu pic packet? What about looping menus */
@@ -130,94 +219,18 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
     *btn_nr = 1;
   }
   
-  /* Check for and read any user input */
-  /* Must not consume events after a 'enter/click' event. (?) */
-  while(!is_action) {
-    MsgEvent_t ev;
-    
-    /* Exit when no more input. */
-    if(MsgCheckEvent(msgq, &ev) == -1)
-      break;
-    
-    switch(ev.type) {
-    case MsgEventQUserInput:
-      fprintf(stderr, "vmg: dvdctrl_cmd.cmd %d\n", ev.userinput.cmd);
-      switch(ev.userinput.cmd) {
-      case InputCmdButtonUp:
-	*btn_nr = pci->hli.btnit[*btn_nr-1].up;
-	break;
-      case InputCmdButtonDown:
-	*btn_nr = pci->hli.btnit[*btn_nr-1].down;
-	break;
-      case InputCmdButtonLeft:
-	*btn_nr = pci->hli.btnit[*btn_nr-1].left;
-	break;
-      case InputCmdButtonRight:
-	*btn_nr = pci->hli.btnit[*btn_nr-1].right;
-	break;
-      case InputCmdButtonActivate:
-	is_action = 1;
-	break;
-      case InputCmdButtonActivateNr:
-	is_action = 1;
-	/* Fall through */
-      case InputCmdButtonSelectNr:
-	*btn_nr = ev.userinput.button_nr;
-	break;
-      case InputCmdMouseActivate:
-      case InputCmdMouseMove:
-	{
-	  int button;
-	  unsigned int x = ev.userinput.mouse_x;
-	  unsigned int y = ev.userinput.mouse_y;
-	  
-	  button = mouse_over_hl(pci, x, y);
-	  if(button) {
-	    *btn_nr = button;
-	    if(ev.userinput.cmd == InputCmdMouseActivate)
-	      is_action = 1;
-	  }
-	}
-	break;
-      default:
-	fprintf(stderr, "vmg: Unknown ev.userinput.cmd\n");
-	break;
-      }
-      break;
-    default:
-      handle_events(msgq, &ev);
-    }
-    
-    /* Must check if the current selected button has auto_action_mode !!! */
-    switch(pci->hli.btnit[*btn_nr - 1].auto_action_mode) {
-    case 0:
-      break;
-    case 1:
-      fprintf(stderr, "!!!auto_action_mode!!!\n");
-      is_action = 1;
-      break;
-    case 2:
-    case 3:
-    default:
-      fprintf(stderr, "Unknown auto_action_mode!!\n");
-      exit(1);
-    }
-  }
+  /* FIXME TODO XXX $$$ */
   
-  
-  /* If there is highlight information, determine the correct area and 
-     send the information to the spu decoder. */
+  /* Determine the correct area and send the information to the spu decoder. */
   /* Possible optimization: don't send if its the same as last time. */
-  if(pci->hli.hl_gi.hli_ss & 0x03) {
+  {
     btni_t *button;
     button = &pci->hli.btnit[*btn_nr - 1];
     send_highlight(button->x_start, button->y_start, 
 		   button->x_end, button->y_end, 
-		   pci->hli.btn_colit.btn_coli[button->btn_coln-1][is_action]);
-    return is_action;
+		   pci->hli.btn_colit.btn_coli[button->btn_coln-1][0]);
   }
   
-  return 0;
 }
 
 /** 
@@ -240,10 +253,13 @@ int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
   return 0;
 }
 
+
+
+
 vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell, 
 		   dvd_state_t *state) {
   char buffer[2048];
-  int len;
+  int len, packets;
   pci_t pci;
   dsi_t dsi;
   vm_cmd_t cmd;
@@ -260,39 +276,67 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
  
   block = 0;
   while(cell->first_sector + block <= cell->last_sector) {
+    
     /* Get the pci/dsi data, always fist in a vobu. */
     send_demux_sectors(cell->first_sector + block, 1); 
     
-    len = get_next_nav_packet(&buffer[0]);
-    assert(buffer[0] == PS2_PCI_SUBSTREAM_ID);
-    read_pci_packet(&pci, &buffer[1], len);
-    
-    len = get_next_nav_packet(&buffer[0]);
-    assert(buffer[0] == PS2_DSI_SUBSTREAM_ID);
-    read_dsi_packet(&dsi, &buffer[1], len);
-    
-    if(pci.hli.hl_gi.hli_ss & 0x03) {
-      fprintf(stdout, "Menu detected\n");
-      print_pci_packet(stdout, &pci);
+    packets = 0;
+    while(packets < 2) {
+      MsgEvent_t ev;
+      while(!wait_q(msgq, &ev)) {
+	switch(ev.type) {
+	case MsgEventQUserInput:
+	  fprintf(stderr, "vmg: userinput.cmd %d\n", ev.userinput.cmd);
+	  /* Check for user input, and send highlight info to spu */
+	  if(res == 0)
+	    res = process_button_event(&ev.userinput, &pci, &sl_button_nr);
+	  break;
+	default:
+	  handle_events(msgq, &ev);
+	}
+      }
+      
+      len = get_q(msgq, &buffer[0]);
+      if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
+	/* XXX inte läsa till pci utan något annat minne */
+	read_pci_packet(&pci, &buffer[1], len);
+	packets++;
+	
+	if(pci.hli.hl_gi.hli_ss & 0x03) {
+	  fprintf(stdout, "Menu detected\n");
+	  print_pci_packet(stdout, &pci);
+	}
+	
+      } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
+	read_dsi_packet(&dsi, &buffer[1], len);
+	packets++;
+      } else {
+	fprintf(stderr, "vmg: Unknown NAV packet type");
+      }
     }
     
-    /* Check for user input, and set highlight */
-    res = process_pci(&pci, &sl_button_nr);
-
-    /* Demux/play the content of this vobu */
-    send_demux_sectors(cell->first_sector + block + 1, dsi.dsi_gi.vobu_ea);
+    if(res != 0) {
+      /* Do whatever */
+      break;
+    }
     
+    /* Handle other userinput */
     /* Decide where the next vobu is.. top two bits are flags */  
     if(0 /*angle && change_angle*/) {
       ;
-    } else {
-      block += dsi.vobu_sri.next_vobu & 0x3fffffff;
+      continue;
     }
-  
-    if(res != 0) { /* Exit if we detected a button activation */
-      break;
-    }
+    
+    /* Evaluate and Instantiate the new pci packets */ 
+    process_pci(&pci, &sl_button_nr);
+    
+    /* Demux/play the content of this vobu */
+    send_demux_sectors(cell->first_sector + block + 1, dsi.dsi_gi.vobu_ea);
+    
+    /* The next vobu is where... top two bits are flags */  
+    block += dsi.vobu_sri.next_vobu & 0x3fffffff;
   }
+  
   
   /* Handle forced activate button here */
   if(res == 0 && (pci.hli.hl_gi.hli_ss & 0x03) != 0) {
@@ -304,32 +348,46 @@ vm_cmd_t eval_cell(char *vob_name, cell_playback_tbl_t *cell,
     }
   }
   
-  
-  /* A co XXX */
-  if(res != 0) {
-    /* Save other state too (i.e maybe RSM info) */
-    state->registers.SPRM[8] = sl_button_nr << 10;
-    memcpy(&cmd, &pci.hli.btnit[sl_button_nr - 1].cmd, sizeof(vm_cmd_t));
-    return cmd;
-  }
-  
+	
+	
+	
   /* Handle cell pause and still time here */
-  if(cell->still_time) {
+  if(res == 0 && cell->still_time) {
     int time = cell->still_time;
     if(time == 0xff) { /* Inf. still time */
       printf("-- Wait for user interaction --\n");
       while(res == 0) {
-	//should be nanosleep
-	sleep(1);
+	MsgEvent_t ev;
 	/* Check for user input, and set highlight */
-	res = process_pci(&pci, &sl_button_nr);
+	MsgNextEvent(msgq, &ev);
+	switch(ev.type) {
+	case MsgEventQUserInput:
+	  fprintf(stderr, "vmg: userinput.cmd %d\n", ev.userinput.cmd);
+	  /* Check for user input, and send highlight info to spu */
+	  res = process_button_event(&ev.userinput, &pci, &sl_button_nr);
+	  break;
+	default:
+	  handle_events(msgq, &ev);
+	}
       }
     } else {
       while(res == 0 && time > 0) {
-	//should be nanosleep
-	sleep(1); --time;
+	MsgEvent_t ev;
+	
+	sleep(1); --time; //should be nanosleep /  timer 
 	/* Check for user input, and set highlight */
-	res = process_pci(&pci, &sl_button_nr);
+	if(MsgCheckEvent(msgq, &ev))
+	  continue;
+	
+	switch(ev.type) {
+	case MsgEventQUserInput:
+	  fprintf(stderr, "vmg: userinput.cmd %d\n", ev.userinput.cmd);
+	  /* Check for user input, and send highlight info to spu */
+	  res = process_button_event(&ev.userinput, &pci, &sl_button_nr);
+	  break;
+	default:
+	  handle_events(msgq, &ev);
+	}
       }
     }
   }
