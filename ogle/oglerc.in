@@ -1,7 +1,6 @@
 <?xml version="1.0"?>
-
 <!DOCTYPE ogle_conf SYSTEM "@CONFIG_FILE_DTD@">
-
+<!-- This is the configuration file for ogle. (man oglerc(5)) -->
 <ogle_conf>
   <dvd>
     <nav>
@@ -14,12 +13,36 @@
 	<PlayerRegion>1</PlayerRegion>
       </defaults>
     </nav>
-    <drive>
+    <device>
       <path>@DEFAULT_DVD_DEVICE@</path>
-    </drive>
+    </device>
   </dvd>
+  <audio>
+    <device>
+      <path>@DEFAULT_AUDIO_DEVICE@</path>
+    </device>
+  </audio>
+  <video>
+    <display>
+	<name></name>
+        <width_mm></width_mm>
+        <height_mm></height_mm>
+        <width_px></width_px>
+        <height_px></height_px>
+    </display>
+    <window>
+      <default_pos_x></default_pos_x>
+      <default_pos_y></default_pos_y>
+      <default_size>1.0</default_size>
+      <allow_scaling>yes</allow_scaling>
+      <keep_aspect>yes</keep_aspect>
+      <default_state>FullScreen</default_state>
+    </window>
+  </video>
   <user_interface>
     <bindings>
+      <!-- Each binding contains an action and one or more keys.
+           The keys are given as X11 keysyms -->
 	<b>	
 	  <action>Play</action>
 	  <key>p</key>

@@ -10,12 +10,24 @@
 
 <!ELEMENT nav (defaults)?>
 <!ELEMENT path (#PCDATA)>
-<!ELEMENT drive (path)?>
-<!ELEMENT dvd (nav|drive)*>
+<!ELEMENT device (path)?>
+<!ELEMENT dvd (nav|device)*>
+
+
+<!ELEMENT audio (device)?>
+
+<!ELEMENT name (#PCDATA)>
+<!ELEMENT width_mm (#PCDATA)>
+<!ELEMENT height_mm (#PCDATA)>
+<!ELEMENT width_px (#PCDATA)>
+<!ELEMENT height_px (#PCDATA)>
+<!ELEMENT display (name, (width_mm | height_mm | width_px | height_px)*)>
+<!ELEMENT video (display)?>
+
 <!ELEMENT action (#PCDATA)>
 <!ELEMENT key (#PCDATA)>
 <!ELEMENT b (action, key*)>
 <!ELEMENT bindings (b)*>
 <!ELEMENT user_interface (bindings)?>
-<!ELEMENT ogle_conf (dvd|user_interface)*>
+<!ELEMENT ogle_conf (dvd|user_interface|audio|video)*>
 
