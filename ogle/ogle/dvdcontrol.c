@@ -1286,7 +1286,14 @@ DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
 				      DVDSubpictureStream_t SubpictureNr,
 				      DVDBool_t display)
 {
-  return DVD_E_NotImplemented;
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlSubpictureStreamChange;
+  ev.dvdctrl.cmd.subpicturestreamchange.streamnr = SubpictureNr;
+  ev.dvdctrl.cmd.subpicturestreamchange.display = display;
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
 }
 
 
