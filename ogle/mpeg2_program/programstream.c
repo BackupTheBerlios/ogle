@@ -351,6 +351,7 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
   int off;
   int blocks_in_buf;
   int size;
+  volatile int *in_use;
 
   //fprintf(stderr, "demux: fill_buffer: title: %d, domain: %d, off: %d, blocks: %d\n", title, domain, boffset, nblocks);
   
@@ -370,8 +371,10 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
   first_data_elem_nr = data_elem_nr;
   //fprintf(stderr, "first_data_elem_nr: %d\n", first_data_elem_nr);
 
+
   while(1) {
-    if(data_elems[data_elem_nr].in_use || buf_empty) {
+    in_use = &(data_elems[data_elem_nr].in_use);
+    if(*in_use || buf_empty) {
       /* this block is in use, check if we have enough free space */
       
       /* offset in buffer of the used block we found */
@@ -552,7 +555,8 @@ typedef struct {
   } cmd;
 } demux_q_t;
 
-static MsgEvent_t demux_q[5];
+#define DEMUX_Q_NUM_ELEM 10
+static MsgEvent_t demux_q[DEMUX_Q_NUM_ELEM];
 static int demux_q_start = 0;
 static int demux_q_len = 0;
 
@@ -562,7 +566,7 @@ void get_next_demux_q(void)
   MsgEvent_t *q_ev;
   
   int new_demux_range = 0;
-  if(id_stat(0xe0, 0) == STREAM_DECODE) {
+  if(id_stat(0xe0, 0) == STREAM_DECODE || id_stat(0xe0, 0) == STREAM_MUTED) {
     if(demux_cmd & FlowCtrlCompleteVideoUnit) {
       put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd, 0, 0);
     }
@@ -611,7 +615,7 @@ void get_next_demux_q(void)
       fprintf(stderr, "demux: that's not possible\n");
       break;
     }
-    demux_q_start = (demux_q_start+1)%5;
+    demux_q_start = (demux_q_start+1)%DEMUX_Q_NUM_ELEM;
     demux_q_len--;
   }
 }
@@ -620,8 +624,8 @@ void add_to_demux_q(MsgEvent_t *ev)
 {
   int pos;
   
-  if(demux_q_len < 5) {
-    pos = (demux_q_start + demux_q_len)%5;
+  if(demux_q_len < DEMUX_Q_NUM_ELEM) {
+    pos = (demux_q_start + demux_q_len)%DEMUX_Q_NUM_ELEM;
     memcpy(&demux_q[pos], ev, sizeof(MsgEvent_t));
     demux_q_len++;
     
@@ -898,8 +902,10 @@ void push_stream_data(uint8_t stream_id, int len,
     register_id(stream_id, subtype);
   }
 
-  //fprintf(stderr, "Packet id: %02x, %02x\n", stream_id, subtype);
-
+#if 0
+  fprintf(stderr, "Packet id: %02x, %02x, state %d\n",
+	  stream_id, subtype, id_stat(stream_id, subtype));
+#endif
   if(id_stat(stream_id, subtype) == STREAM_DECODE) {
     if(!id_has_output(stream_id, subtype)) {
       id_get_output(stream_id, subtype);
@@ -1019,7 +1025,7 @@ void push_stream_data(uint8_t stream_id, int len,
     }
     
   }
-  
+  //DNOTE("drop %d, %02x\n", len, stream_id);
   drop_bytes(len);
   
 }
@@ -2689,6 +2695,29 @@ int get_buffer(int size)
 }
 
 
+void flush_stream(int streamid, int scr_id)
+{
+  MsgEvent_t ev;
+  q_head_t *q_head = NULL;
+  
+  // send flush msg
+  ev.type = MsgEventQFlushData;
+  ev.flushdata.to_scrid = scr_id;
+  
+  if((streamid != MPEG2_PRIVATE_STREAM_1) &&
+     ((id_reg[streamid].state == STREAM_DECODE) ||
+     (id_reg[streamid].state == STREAM_MUTED))) {
+    q_head = (q_head_t *)id_reg[streamid].shmaddr;
+    if(q_head != NULL) {
+      //fprintf(stderr, "demux: flushing stream %02x\n", streamid);
+      if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
+	fprintf(stderr, "demux: couldn't send flush\n");
+      }
+    }
+  }
+}
+
+
 void flush_all_streams(int scr_id)
 {
   MsgEvent_t ev;
@@ -2700,15 +2729,7 @@ void flush_all_streams(int scr_id)
   ev.flushdata.to_scrid = scr_id;
   
   for(n = 0; n < 256; n++) {
-    if((n != MPEG2_PRIVATE_STREAM_1) && (id_reg[n].state == STREAM_DECODE)) {
-      q_head = (q_head_t *)id_reg[n].shmaddr;
-      if(q_head != NULL) {
-	//fprintf(stderr, "demux: flushing stream %02x\n", n);
-	if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
-	  fprintf(stderr, "demux: couldn't send flush\n");
-	}
-      }
-    }
+    flush_stream(n, scr_id);
   }
 
   for(n = 0; n < 256; n++) {
@@ -2738,6 +2759,8 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   MsgEvent_t ev;
   int nr_waits = 0;
   
+  volatile int *in_use;
+  
   static int scr_id = 0;
   static int scr_nr = 0;
   
@@ -2752,9 +2775,10 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
    * We might also do something smarter here but provided that we have a
    * large enough buffer this will not be common.
    */
-
+  
+  in_use = &(data_elems[data_elem_nr].in_use);
   // TODO clean and simplify
-  while(data_elems[data_elem_nr].in_use) {
+  while(*in_use) {
     nr_waits++;
     /* If this element is in use we have to wait untill it is released.
      * We know which consumer q we need to wait on. 
@@ -2777,7 +2801,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     
     q_head->writer_requests_notification = 1;
 
-    while(data_elems[data_elem_nr].in_use) {
+    while(*in_use) {
       DPRINTF(1, "demux: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(&ev);
@@ -2788,7 +2812,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
   }
   /* Now the element should be free. 'paranoia check' */
-  if(data_elems[data_elem_nr].in_use) {
+  if(*in_use) {
     fprintf(stderr, "demux: somethings wrong, elem %d still in use\n",
 	    data_elem_nr);
   }
@@ -2841,7 +2865,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   }
 
   data_elems[data_elem_nr].scr_nr = scr_nr;
-  data_elems[data_elem_nr].in_use = 1;
+  *in_use = 1;
 
   data_buf_head->write_nr = 
     (data_buf_head->write_nr+1) % data_buf_head->nr_of_dataelems;
@@ -2856,10 +2880,11 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
   elem = q_head->write_nr;
   
-  if(q_elem[elem].in_use) {
+  in_use = &(q_elem[elem].in_use);
+  if(*in_use) {
     q_head->writer_requests_notification = 1;
     
-    while(q_elem[elem].in_use) {
+    while(*in_use) {
       DPRINTF(1, "demux: waiting for notification2\n");
       if(MsgNextEvent(msgq, &ev) != -1) {
 	handle_events(&ev);
@@ -2869,7 +2894,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   }
   
   q_elem[elem].data_elem_index = data_elem_nr;
-  q_elem[elem].in_use = 1;
+  *in_use = 1;
   
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
