@@ -94,9 +94,10 @@ extern yuv_image_t *reserv_image;
 #include <sys/mman.h>
 
 static uint32_t *yuyv_fb;
-static uint8_t *rgb_fb;
+static uint32_t *rgb_fb;
 
 static int use_ffb2_yuv2rgb = 0;
+static int use_ffb2_rgb = 0;
 static int fb_fd;
 
 /* end needed for sun ffb2 */
@@ -694,10 +695,28 @@ void display_init(int padded_width, int padded_height,
   scale.image_height = padded_height;
   
   if(!initialized) {
-    
+    char *scalemode_str;
     if(getenv("USE_FFB2_YUV2RGB")) {
       use_ffb2_yuv2rgb = 1;
+      use_ffb2_rgb = 0;
+    } else if(getenv("USE_FFB2_RGB")) {
+      use_ffb2_yuv2rgb = 0;
+      use_ffb2_rgb = 1;
     }
+
+    if((scalemode_str = getenv("OGLE_MLIB_SCALEMODE"))) {
+      if(!strcmp(scalemode_str, "NEAREST")) {
+	scalemode = MLIB_NEAREST;
+      } else if(!strcmp(scalemode_str, "BILINEAR")) {
+	scalemode = MLIB_BILINEAR;
+      } else if(!strcmp(scalemode_str, "BICUBIC")) {
+	scalemode = MLIB_BICUBIC;
+      } else if(!strcmp(scalemode_str, "BICUBIC2")) {
+	scalemode = MLIB_BICUBIC2;
+      }
+    }
+
+
     mydisplay = XOpenDisplay(NULL);
     
     if(mydisplay == NULL) {
@@ -880,17 +899,17 @@ void display_init(int padded_width, int padded_height,
   if(!initialized) {
     /*** sun ffb2+ ***/
     
-    if(use_ffb2_yuv2rgb) {  
+    if(use_ffb2_yuv2rgb || use_ffb2_rgb) {  
       fb_fd = open("/dev/fb", O_RDWR);
-      yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
-				     MAP_SHARED, fb_fd, 0x0701a000);
 
+      yuyv_fb = (unsigned int *)mmap(NULL, 4*1024*1024, PROT_READ | PROT_WRITE,
+				     MAP_SHARED, fb_fd, 0x0701a000);	
       if(yuyv_fb == MAP_FAILED) {
 	perror("mmap");
 	exit(1);
       }
-      
-      rgb_fb = (uint8_t *)mmap(NULL, 4*2048*1024, PROT_READ | PROT_WRITE,
+
+      rgb_fb = (uint32_t *)mmap(NULL, 4*2048*1024, PROT_READ | PROT_WRITE,
 			       MAP_SHARED, fb_fd, 0x05004000);
       if(rgb_fb == MAP_FAILED) {
 	perror("mmap");
@@ -1768,7 +1787,7 @@ static void draw_win_x11(window_info *dwin)
     
 #ifdef SPU
     if(msgqid != -1) {
-      mix_subpicture_rgb(&rgb_fb[fb_area.y*8192+fb_area.x*4], 2048,
+      mix_subpicture_rgb(&rgb_fb[fb_area.y*2048+fb_area.x], 2048,
 			 fb_area.height, 
 			 4); 
       // Should have mode to or use a mix_subpicture_init(pixel_s,mode);
@@ -1873,7 +1892,34 @@ static void draw_win_x11(window_info *dwin)
 	  window.video_area.width,
 	  window.video_area.height);
   */
-  if(use_xshm) {
+  if(use_ffb2_rgb) {
+    int y;
+   
+    for(y = 0; y < dwin->ximage->height; y++) {
+      int x;
+
+#ifdef HAVE_MLIB
+      mlib_memcpy(&rgb_fb[y*2048],
+	     &dwin->ximage->data[y*dwin->ximage->bytes_per_line],
+	     dwin->ximage->width*4);    
+#else
+      memcpy(&rgb_fb[y*2048],
+	     &dwin->ximage->data[y*dwin->ximage->bytes_per_line],
+	     dwin->ximage->width*4);    
+#endif
+      /*
+	for(x = 0; x < dwin->ximage->width; x++) {
+	uint32_t pixel_data;
+	
+	pixel_data = *((uint32_t *)&dwin->ximage->data[y*dwin->ximage->bytes_per_line+x*4]);
+	
+	rgb_fb[y*2048+x] = pixel_data;	
+	}
+      */
+    }
+    
+
+  } else if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 
 		 window.video_area.x,
 		 window.video_area.y, 
