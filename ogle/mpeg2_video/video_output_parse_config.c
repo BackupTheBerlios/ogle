@@ -236,31 +236,25 @@ static int parse_oglerc(char *filename, cfg_video_t *video)
   
   doc = xmlParseFile(filename);
 
-  if(doc != NULL) {
-
-    cur = xmlDocGetRootElement(doc); 
-
-    while(cur != NULL) {
-      
-      if(!xmlIsBlankNode(cur)) {
-	if(!strcmp("ogle_conf", cur->name)) {
-	  parse_ogle_conf(doc, cur, video);
-	}
-      }
-      cur = cur->next;
-    }
-    
-    xmlFreeDoc(doc);
-
-    return 0;
-
-  } else {
-
-    WARNING("Couldn't load config file\n");
-
+  if(doc == NULL) {
     return -1;
-
   }
+  
+  cur = xmlDocGetRootElement(doc); 
+
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("ogle_conf", cur->name)) {
+	parse_ogle_conf(doc, cur, video);
+      }
+    }
+    cur = cur->next;
+  }
+  
+  xmlFreeDoc(doc);
+  
+  return 0;
 }
 
 
