@@ -11,6 +11,7 @@
 #include <sys/msg.h>
 #include <errno.h>
 #include <assert.h>
+#include <string.h>
 
 #include "common.h"
 #include "msgtypes.h"
@@ -69,7 +70,6 @@ static char *stream_shmaddr;
 static int data_buf_shmid;
 static char *data_buf_shmaddr;
 
-static int filefd;
 static char *mmap_base;
 
 static int aligned;
@@ -197,19 +197,59 @@ static int attach_ctrl_shm(int shmid)
   
 }
 
-static int file_open(char *infile)
+
+static void change_file(char *new_filename)
 {
-  struct stat statbuf;
+  int filefd;
+  static struct stat statbuf;
+  int rv;
+  static char *cur_filename = NULL;
   
+  // if same filename do nothing
+  if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
+    return;
+  }
 
-  filefd = open(infile, O_RDONLY);
-  fstat(filefd, &statbuf);
-  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
-			   PROT_READ, MAP_SHARED, filefd,0);
+  if(mmap_base != NULL) {
+    munmap(mmap_base, statbuf.st_size);
+  }
+  if(cur_filename != NULL) {
+    free(cur_filename);
+  }
+  
+  filefd = open(new_filename, O_RDONLY);
+  if(filefd == -1) {
+    perror(new_filename);
+    exit(1);
+  }
 
+
+  cur_filename = strdup(new_filename);
+  rv = fstat(filefd, &statbuf);
+  if(rv == -1) {
+    perror("fstat");
+    exit(1);
+  }
+  mmap_base = (uint8_t *)mmap(NULL, statbuf.st_size, 
+			      PROT_READ, MAP_SHARED, filefd,0);
+  close(filefd);
+  if(mmap_base == MAP_FAILED) {
+    perror("mmap");
+    exit(1);
+  }
   initialized |= 1;
-  return 0;
+
+  
+#ifdef HAVE_MADVISE
+  rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
+  if(rv == -1) {
+    perror("madvise");
+    exit(1);
+  }
+#endif
+
 }
+
 
 static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
 {
@@ -250,6 +290,8 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time)
   data_elems = (data_elem_t *)(data_buf_shmaddr+sizeof(data_buf_head_t));
   
   data_elem = &data_elems[q_elems[elem].data_elem_index];
+
+  change_file(data_elem->filename);
 
   off = data_elem->off;
   len = data_elem->len;
@@ -321,7 +363,7 @@ static int eval_msg(cmd_t *cmd)
   switch(cmd->cmdtype) {
   case CMD_FILE_OPEN:
     fprintf(stderr, "spu_mixer: CMD_FILE_OPEN\n");
-    file_open(cmd->cmd.file_open.file);
+    change_file(cmd->cmd.file_open.file);
     break;
   case CMD_CTRL_DATA:
     fprintf(stderr, "spu_mixer: CMD_CTRL_DATA\n");

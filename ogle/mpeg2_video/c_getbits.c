@@ -27,7 +27,7 @@
 #include <sys/shm.h>
 #include <sys/msg.h>
 #include <errno.h>
-
+#include <string.h>
 
 #include "c_getbits.h"
 #include "common.h"
@@ -100,7 +100,7 @@ uint64_t cur_word = 0;
 #ifdef GETBITSMMAP // Support functions
 
 
-void change_file(char *new_filename)
+static void change_file(char *new_filename)
 {
   int filefd;
   static struct stat statbuf;
