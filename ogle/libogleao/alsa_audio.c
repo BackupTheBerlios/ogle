@@ -23,6 +23,9 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
+
+//this needs to be set before including asoundlib.h
+#define ALSA_PCM_NEW_HW_PARAMS_API 
 #include <alsa/asoundlib.h>
 
 #include "../include/debug_print.h"
@@ -31,18 +34,18 @@
 #include "ogle_ao_private.h"
 
 typedef struct alsa_instance_s {
-	ogle_ao_instance_t ao;
-	int sample_rate;
-	int samples_written;
-	int sample_frame_size;
-	int channels;
-	int initialized;
-	snd_pcm_t *alsa_pcm;
-	snd_pcm_hw_params_t *hwparams;
-	snd_pcm_sw_params_t *swparams;
-	snd_pcm_format_t format;
-	snd_pcm_sframes_t buffer_size;
-	snd_pcm_sframes_t period_size;
+  ogle_ao_instance_t ao;
+  int sample_rate;
+  int samples_written;
+  int sample_frame_size;
+  int channels;
+  int initialized;
+  snd_pcm_t *alsa_pcm;
+  snd_pcm_hw_params_t *hwparams;
+  snd_pcm_sw_params_t *swparams;
+  snd_pcm_format_t format;
+  snd_pcm_uframes_t buffer_size;
+  snd_pcm_uframes_t period_size;
 } alsa_instance_t;
 
 // logging
@@ -58,6 +61,7 @@ static snd_output_t *logs = NULL;
 static int set_hwparams(alsa_instance_t *i)
 {
   int err, dir;
+  unsigned int tmp_uint;
 
   if((err = snd_pcm_hw_params_any(i->alsa_pcm, i->hwparams)) < 0) {
     ERROR("No configurations available: %s\n", snd_strerror(err));
@@ -75,46 +79,83 @@ static int set_hwparams(alsa_instance_t *i)
     ERROR("Sample format not available for playback: %s\n", snd_strerror(err));
     return err;
   }
+  /* get min/max channels available */
+  if((err = snd_pcm_hw_params_get_channels_min(i->hwparams, &tmp_uint)) < 0) {
+    WARNING("Unable to get min channels: %s\n", snd_strerror(err));
+  } else {
+    DNOTE("Min channels: %u\n", tmp_uint);
+  }
+  if((err = snd_pcm_hw_params_get_channels_max(i->hwparams, &tmp_uint)) < 0) {
+    WARNING("Unable to get max channels: %s\n", snd_strerror(err));
+  } else {
+    DNOTE("Max channels: %u\n", tmp_uint);
+  }
+
   /* set the count of channels */
-  if((err = snd_pcm_hw_params_set_channels(i->alsa_pcm, i->hwparams,
-					   i->channels)) > 0) {
-    ERROR("Channels count (%i) not available for playbacks: %s\n",
+  tmp_uint = i->channels;
+  if((err = snd_pcm_hw_params_set_channels_near(i->alsa_pcm, i->hwparams,
+						&tmp_uint)) < 0) {
+    ERROR("Channels count (%u) not available for playbacks: %s\n",
 	  i->channels, snd_strerror(err));
-		return err;
-  }
-  /* set the stream rate */
-  if((err = snd_pcm_hw_params_set_rate_near(i->alsa_pcm, i->hwparams,
-					    i->sample_rate, 0)) < 0) {
-    ERROR("Rate %iHz not available for playback: %s\n",
-	  i->sample_rate, snd_strerror(err));
+    i->channels = -1;
     return err;
+  } else {
+    i->channels = tmp_uint;
+    DNOTE("Channels: %u\n", i->channels);
   }
-  if(err != i->sample_rate) {
-    ERROR("Rate doesn't match (requested %iHz, got %iHz)\n",
-	  i->sample_rate, err);
-    return -EINVAL;
+
+  /* set the stream rate */
+  dir = 0;
+  tmp_uint = i->sample_rate;
+  if((err = snd_pcm_hw_params_set_rate_near(i->alsa_pcm, i->hwparams,
+					    &tmp_uint, &dir)) < 0) {
+    ERROR("Rate %u Hz not available for playback: %s\n",
+	  i->sample_rate, snd_strerror(err));
+    i->sample_rate = -1;
+    return err;
+  } else {
+    i->sample_rate = tmp_uint;
   }
   /* set buffer time */
+  tmp_uint = BUFFER_TIME;
+  dir = 0;
   if((err = snd_pcm_hw_params_set_buffer_time_near(i->alsa_pcm, i->hwparams,
-						   BUFFER_TIME, &dir)) < 0) {
-    ERROR("Unable to set buffer time %i for playback: %s\n",
-	  BUFFER_TIME, snd_strerror(err));
-    return err;
+						   &tmp_uint, &dir)) < 0) {
+    WARNING("Unable to set buffer time %i: %s\n",
+	    BUFFER_TIME, snd_strerror(err));
+  } else {
+    DNOTE("Wanted buffer time %d, got %d\n",
+	  BUFFER_TIME, tmp_uint);
   }
-  i->buffer_size = snd_pcm_hw_params_get_buffer_size(i->hwparams);
+  if((err = snd_pcm_hw_params_get_buffer_size(i->hwparams,
+					      &(i->buffer_size))) < 0) {
+    WARNING("Unable to get buffer size: %s\n", snd_strerror(err));    
+  } else {
+    DNOTE("Buffer size %u frames\n", (unsigned int)i->buffer_size);
+  }
   /* set period time */
+  tmp_uint = PERIOD_TIME;
+  dir = 0;
   if((err = snd_pcm_hw_params_set_period_time_near(i->alsa_pcm, i->hwparams,
-						   PERIOD_TIME, &dir)) < 0) {
-    ERROR("Unable to set period time %i for playback: %s\n",
-	  PERIOD_TIME, snd_strerror(err));
-    return err;
+						   &tmp_uint, &dir)) < 0) {
+    WARNING("Unable to set period time %u for playback: %s\n",
+	    PERIOD_TIME, snd_strerror(err));
+  } else {
+    DNOTE("Period time: %u us\n", tmp_uint);
   }
-  i->period_size = snd_pcm_hw_params_get_period_size(i->hwparams, &dir);
+  dir = 0;
+  if((err = snd_pcm_hw_params_get_period_size(i->hwparams, &(i->period_size),
+					      &dir)) < 0) {
+    WARNING("Unable to get period size: %s\n", snd_strerror(err)); 
+  } else {
+    DNOTE("Period size: %u frames\n", (unsigned int)i->period_size);
+  }
   /* write the parameters to device */
   if((err = snd_pcm_hw_params(i->alsa_pcm, i->hwparams)) < 0) {
     ERROR("Unable to set hw params for playback: %s\n", snd_strerror(err));
     return err;
   }
+
   return 0;
 }
 
@@ -227,10 +268,24 @@ int alsa_init(ogle_ao_instance_t *_instance,
   int err;
 	
   
-  if(!i->initialized) {
-    snd_pcm_hw_params_alloca(&(i->hwparams));
-    snd_pcm_sw_params_alloca(&(i->swparams));
+  if(i->initialized) {
+    DNOTE("%s", "alsa reinit\n");
+   
+    if((err = snd_pcm_drain(i->alsa_pcm)) < 0) {
+      ERROR("drain failed: %s\n", snd_strerror(err));
+    }
+    
+    if((err = snd_pcm_prepare(i->alsa_pcm)) < 0) {
+      ERROR("prepare failed: %s\n",
+	    snd_strerror(err));
+    }    
   }
+
+  // these are allocated with alloca and automatically freed when
+  // we return
+  snd_pcm_hw_params_alloca(&(i->hwparams));
+  snd_pcm_sw_params_alloca(&(i->swparams));
+  
   i->sample_rate = audio_info->sample_rate;
   
   switch(audio_info->encoding) {
@@ -286,29 +341,37 @@ int alsa_init(ogle_ao_instance_t *_instance,
   
   i->channels = audio_info->channels;
   
+  
+  if((err = set_hwparams(i)) < 0) {
+    ERROR("Setting of hwparams failed: %s\n", snd_strerror(err));
+    audio_info->sample_rate = i->sample_rate;
+    audio_info->channels = i->channels;  
+    return -1;
+  }
+  
+  if((err = set_swparams(i)) < 0) {
+    ERROR("Setting of swparams failed: %s\n", snd_strerror(err));
+    return -1;
+  }
+  
+  audio_info->sample_rate = i->sample_rate;
+  audio_info->channels = i->channels;  
+
   /* Stored as 8bit, 16bit, or 32bit */
   single_sample_size = (audio_info->sample_resolution + 7) / 8;
   if(single_sample_size > 2) {
     single_sample_size = 4;
   }
   i->sample_frame_size = single_sample_size*audio_info->channels;
+
   i->initialized = 1;
   
   audio_info->sample_frame_size = i->sample_frame_size;
-  
-  if((err = set_hwparams(i)) < 0) {
-    ERROR("Setting of hwparams failed: %s\n", snd_strerror(err));
-    return -1;
-  }
-  if((err = set_swparams(i)) < 0) {
-    ERROR("Setting of swparams failed: %s\n", snd_strerror(err));
-    return -1;
-  }
-  DNOTE("Stream parameters are %iHz, %s, %i channels, sample size: %d\n", 
+
+  DNOTE("Stream parameters are %u Hz, %s, %u channels, sample size: %d\n", 
 	i->sample_rate, snd_pcm_format_name(i->format), 
 	i->channels, i->sample_frame_size);
-  
-  
+
   return 0;
 }
 
@@ -470,7 +533,7 @@ ogle_ao_instance_t *alsa_open(char *device)
   
   if((err = snd_pcm_open(&(i->alsa_pcm), device, 
 			 SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
-    ERROR("Opening alsa pcm device '%s': %s", device, strerror(errno));
+    ERROR("Opening alsa pcm device '%s': %s\n", device, strerror(errno));
     return NULL;
   }    
   
