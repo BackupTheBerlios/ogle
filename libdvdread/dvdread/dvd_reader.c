@@ -977,7 +977,7 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 
     /* Check arguments. */
     if( dvd == NULL || discid == NULL )
-      return NULL;
+      return 0;
     
     /* Go through the first 10 IFO:s, in order, 
      * and md5sum them, i.e  VIDEO_TS.IFO and VTS_0?_0.IFO */
