@@ -2,7 +2,7 @@ AC_INIT(dvdread/dvd_reader.c)
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(libdvdread, 0.9.3)
+AM_INIT_AUTOMAKE(libdvdread, 0.9.3-cvs)
 AM_CONFIG_HEADER(config.h)
 
 AC_PROG_CC
@@ -50,9 +50,11 @@ AC_CHECK_FUNC(dlopen,
 )
 AC_SUBST(DL_LIBS)
 
+dnl 
+dnl Check for inttype.h, if not present on the system generate one in ".".
 dnl
-dnl AC_CHECK_GENERATE_INTTYPES(include)
-dnl
+AC_CHECK_GENERATE_INTTYPES(.)
+
 
 AC_C_BIGENDIAN
 AC_C_CONST
