@@ -460,21 +460,25 @@ static void display_process()
 #endif
     wait_time.tv_nsec -= 10000000; /* 10ms shortest time we can sleep */
     if(wait_time.tv_nsec > 0 || wait_time.tv_sec > 0) {
-      if(wait_time.tv_nsec < 0) {
-	//TODO fix this time mess
-	//fprintf(stderr, "APA\n");
-	wait_time.tv_nsec = 0;
-      }
       if(wait_time.tv_sec > 0) {
 	fprintf(stderr, "*vo: waittime > 1 sec\n");
       }
       nanosleep(&wait_time, NULL);
     } else {
+      if(wait_time.tv_nsec < 0 || wait_time.tv_sec < 0) {
+	//TODO fix this time mess
+	//fprintf(stderr, "APA\n");
+	if(wait_time.tv_nsec < -300000000 || wait_time.tv_sec < 0) {
+	  drop = 1;
+	}
+      }
       //fprintf(stderr, "---less than 0.005 s\n");
     }
 
-    frame_nr++;
-    avg_nr++;
+    if(!drop) {
+      frame_nr++;
+      avg_nr++;
+    }
     if(avg_nr == 24) {
       avg_nr = 0;
       oavg_time = avg_time;
@@ -523,8 +527,13 @@ static void display_process()
       drop = 0;
     }
 #else
-    display(&image_bufs[buf_id]);
-    redraw_done();
+    if(!drop) {
+      display(&image_bufs[buf_id]);
+      redraw_done();
+    } else {
+      fprintf(stderr, "#");
+      drop = 0;
+    }
 #endif
 
       //timeadd(&prefered_time, &prefered_time, &frame_interval);

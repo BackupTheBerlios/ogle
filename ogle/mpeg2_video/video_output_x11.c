@@ -382,6 +382,20 @@ void display_init(int padded_width, int padded_height,
   }
   
   
+  /* Attach shared memory segment */
+  shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+  
+  
+
+  if (shm_info.shmaddr == ((char *) -1)) {
+    fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+    goto shmemerror;
+  }
+  
+  windows[0].ximage->data = shm_info.shmaddr;
+  shm_info.readOnly = False;
+
+
   /* make sure we don't have any unhandled errors */
   XSync (mydisplay, False);
   
@@ -393,29 +407,15 @@ void display_init(int padded_width, int padded_height,
   
   /* try to attach */
   
-  /* Attach shared memory segment */
-  shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
-  
-  
+  XShmAttach(mydisplay, &shm_info);
+
   /* make sure xshmattach has been processed and any errors
-     returned to us */
+     have been returned to us */
   XSync (mydisplay, False);
   
   /* revert to the previous xerrorhandler */
   XSetErrorHandler(prev_xerrhandler);
   
-  if(use_xshm) {
-
-  if (shm_info.shmaddr == ((char *) -1)) {
-    fprintf(stderr, "Shared memory: Couldn't attach segment\n");
-    goto shmemerror;
-  }
-  }
-  windows[0].ximage->data = shm_info.shmaddr;
-  shm_info.readOnly = False;
-  XShmAttach(mydisplay, &shm_info);
-  XSync(mydisplay, 0);
-
   windows[0].data = windows[0].ximage->data;
   
   pixel_stride = windows[0].ximage->bits_per_pixel;
@@ -468,61 +468,63 @@ void display_change_size(int new_width, int new_height) {
 #ifndef HAVE_XV
   
   XSync(mydisplay,True);
+
+  if(use_xshm) {
+    
+    /* Destroy old display */
+    XShmDetach(mydisplay, &shm_info);
+    XDestroyImage(windows[0].ximage);
+    shmdt(shm_info.shmaddr);
+    if(shm_info.shmaddr == ((char *) -1)) {
+      fprintf(stderr, "Shared memory: Couldn't detache segment\n");
+      exit(-10);
+    }
+    if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
+      perror("shmctl ipc_rmid");
+      exit(-10);
+    }
+    XSync(mydisplay, True);
+    
+    memset( &shm_info, 0, sizeof( XShmSegmentInfo ) );
+    
+    /* Create new display */
+    windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, 
+					color_depth, ZPixmap, 
+					NULL, &shm_info,
+					scaled_image_width,
+					scaled_image_height);
+    
+    if(windows[0].ximage == NULL) {
+      fprintf(stderr, "Shared memory: couldn't create Shm image\n");
+      exit(-10);
+    }
+    
+    /* Get a shared memory segment */
+    shm_info.shmid = shmget(IPC_PRIVATE,
+			    windows[0].ximage->bytes_per_line * 
+			    windows[0].ximage->height, 
+			    IPC_CREAT | 0777);
+    
+    if(shm_info.shmid < 0) {
+      fprintf(stderr, "Shared memory: Couldn't get segment\n");
+      exit(-10);
+    }
   
-  /* Destroy old display */
-  XShmDetach(mydisplay, &shm_info);
-  XDestroyImage(windows[0].ximage);
-  shmdt(shm_info.shmaddr);
-  if(shm_info.shmaddr == ((char *) -1)) {
-    fprintf(stderr, "Shared memory: Couldn't detache segment\n");
-    exit(-10);
+    /* Attach shared memory segment */
+    shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+    if(shm_info.shmaddr == ((char *) -1)) {
+      fprintf(stderr, "Shared memory: Couldn't attach segment\n");
+      exit(-10);
+    }
+    
+    windows[0].ximage->data = shm_info.shmaddr;
+    windows[0].data = windows[0].ximage->data;
+    
+    shm_info.readOnly = False;
+    XShmAttach(mydisplay, &shm_info);
+    
+    XSync(mydisplay, 0);
   }
-  if(shmctl(shm_info.shmid, IPC_RMID, 0) == -1) {
-    perror("shmctl ipc_rmid");
-    exit(-10);
-  }
-  XSync(mydisplay, True);
-  
-  memset( &shm_info, 0, sizeof( XShmSegmentInfo ) );
-  
-  /* Create new display */
-  windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, 
-				      color_depth, ZPixmap, 
-				      NULL, &shm_info,
-				      scaled_image_width,
-				      scaled_image_height);
-  
-  if(windows[0].ximage == NULL) {
-    fprintf(stderr, "Shared memory: couldn't create Shm image\n");
-    exit(-10);
-  }
-  
-  /* Get a shared memory segment */
-  shm_info.shmid = shmget(IPC_PRIVATE,
-			  windows[0].ximage->bytes_per_line * 
-			  windows[0].ximage->height, 
-			  IPC_CREAT | 0777);
-  
-  if(shm_info.shmid < 0) {
-    fprintf(stderr, "Shared memory: Couldn't get segment\n");
-    exit(-10);
-  }
-  
-  /* Attach shared memory segment */
-  shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
-  if(shm_info.shmaddr == ((char *) -1)) {
-    fprintf(stderr, "Shared memory: Couldn't attach segment\n");
-    exit(-10);
-  }
-  
-  windows[0].ximage->data = shm_info.shmaddr;
-  windows[0].data = windows[0].ximage->data;
-  
-  shm_info.readOnly = False;
-  XShmAttach(mydisplay, &shm_info);
-  
-  XSync(mydisplay, 0);
-  
 #endif  
   /* Force a change of the widow size. */
   XResizeWindow(mydisplay, windows[0].win, 
@@ -538,10 +540,13 @@ void display_change_size(int new_width, int new_height) {
 void display_exit(void) 
 {
   // Need to add some test to se if we can detatch/free/destroy things
-  XShmDetach(mydisplay, &shm_info);
-  XDestroyImage(windows[0].ximage);
-  shmdt(shm_info.shmaddr);
-  shmctl(shm_info.shmid, IPC_RMID, 0);
+  if(use_xshm) {
+    
+    XShmDetach(mydisplay, &shm_info);
+    XDestroyImage(windows[0].ximage);
+    shmdt(shm_info.shmaddr);
+    shmctl(shm_info.shmid, IPC_RMID, 0);
+  }
   display_process_exit();
 }
 
@@ -889,9 +894,15 @@ void draw_win(debug_win *dwin)
     screenshot_jpg(dwin->data, dwin->ximage);
   }
   
-  XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0, 
-	       scaled_image_width, scaled_image_height, 1);
-  
+  if(use_xshm) {
+    
+    XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0, 
+		 scaled_image_width, scaled_image_height, 1);
+    
+  } else {
+    XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0,
+	      scaled_image_width, scaled_image_height);
+  }
   //TEST
   XSync(mydisplay, False);
 }
