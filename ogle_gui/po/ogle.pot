@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2001-05-23 19:53+0200\n"
+"POT-Creation-Date: 2001-06-04 20:45+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -22,7 +22,7 @@ msgstr ""
 msgid "Unknown format"
 msgstr ""
 
-#: src/audio.c:107 src/subpicture.c:79
+#: src/audio.c:107 src/subpicture.c:76
 msgid "None"
 msgstr ""
 
@@ -58,99 +58,95 @@ msgstr ""
 msgid "Resume"
 msgstr ""
 
-#: src/interface.c:129
-msgid "_New File"
-msgstr ""
-
-#: src/interface.c:238
+#: src/interface.c:246
 msgid "Ogle"
 msgstr ""
 
-#: src/interface.c:407
+#: src/interface.c:391
 msgid "Stop"
 msgstr ""
 
-#: src/interface.c:426
+#: src/interface.c:410
 msgid "Pause"
 msgstr ""
 
-#: src/interface.c:445
+#: src/interface.c:429
 msgid "Rewind"
 msgstr ""
 
-#: src/interface.c:464
+#: src/interface.c:448
 msgid "Skip backwards"
 msgstr ""
 
-#: src/interface.c:483
+#: src/interface.c:467
 msgid "Reverse"
 msgstr ""
 
-#: src/interface.c:502
+#: src/interface.c:486
 msgid "Step reverse"
 msgstr ""
 
-#: src/interface.c:521
+#: src/interface.c:505
 msgid "Play"
 msgstr ""
 
-#: src/interface.c:540
+#: src/interface.c:524
 msgid "Step forwards"
 msgstr ""
 
-#: src/interface.c:559
+#: src/interface.c:543
 msgid "Fast forward"
 msgstr ""
 
-#: src/interface.c:578
+#: src/interface.c:562
 msgid "Skip forwards"
 msgstr ""
 
-#: src/interface.c:605
+#: src/interface.c:589
 msgid "Play fast"
 msgstr ""
 
-#: src/interface.c:624
+#: src/interface.c:608
 msgid "Play slow"
 msgstr ""
 
-#: src/interface.c:651
+#: src/interface.c:635
 msgid "Move cursor up"
 msgstr ""
 
-#: src/interface.c:670
+#: src/interface.c:654
 msgid "Move cursor left"
 msgstr ""
 
-#: src/interface.c:689
+#: src/interface.c:673
 msgid "Move cursor right"
 msgstr ""
 
-#: src/interface.c:708
+#: src/interface.c:692
 msgid "Go up"
 msgstr ""
 
-#: src/interface.c:727
+#: src/interface.c:711
 msgid "Move cursor down"
 msgstr ""
 
-#: src/interface.c:746
+#: src/interface.c:730
 msgid "Enter"
 msgstr ""
 
-#: src/interface.c:773
+#: src/interface.c:757
 msgid "Select menu..."
 msgstr ""
 
-#: src/interface.c:792
+#: src/interface.c:776
 msgid "Audio select"
 msgstr ""
 
-#: src/interface.c:811
+#: src/interface.c:795
 msgid "Subpicture select"
 msgstr ""
 
-#: src/interface.c:830
+#: src/interface.c:814
 msgid "Angle select"
 msgstr ""
 

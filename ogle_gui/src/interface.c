@@ -126,13 +126,21 @@ create_menus_popup (void)
 
 static GnomeUIInfo file_menu_uiinfo[] =
 {
-  GNOMEUIINFO_MENU_NEW_ITEM (N_("_New File"), NULL, on_new_file_activate, NULL),
   GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
-  GNOMEUIINFO_MENU_SAVE_ITEM (on_save_activate, NULL),
-  GNOMEUIINFO_MENU_SAVE_AS_ITEM (on_save_as_activate, NULL),
+  GNOMEUIINFO_ITEM_STOCK     ("Open", "Opens the device directly.",
+			      on_open_activate, GNOME_STOCK_PIXMAP_CDROM),
+  //GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
   GNOMEUIINFO_SEPARATOR,
   GNOMEUIINFO_MENU_EXIT_ITEM (on_exit_activate, NULL),
   GNOMEUIINFO_END
+};
+
+static char* file_menu_uiinfo_string[] = {
+  "open", 
+  "open_dvd", 
+  "separator2", 
+  "exit",
+  ""
 };
 
 static GnomeUIInfo edit_menu_uiinfo[] =
@@ -254,41 +262,17 @@ create_app (void)
                             menubar_uiinfo[0].widget,
                             (GtkDestroyNotify) gtk_widget_unref);
 
-  gtk_widget_set_name (file_menu_uiinfo[0].widget, "new_file");
-  gtk_widget_ref (file_menu_uiinfo[0].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "new_file",
-                            file_menu_uiinfo[0].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
-
-  gtk_widget_set_name (file_menu_uiinfo[1].widget, "open");
-  gtk_widget_ref (file_menu_uiinfo[1].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "open",
-                            file_menu_uiinfo[1].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
-
-  gtk_widget_set_name (file_menu_uiinfo[2].widget, "save");
-  gtk_widget_ref (file_menu_uiinfo[2].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "save",
-                            file_menu_uiinfo[2].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
-
-  gtk_widget_set_name (file_menu_uiinfo[3].widget, "save_as");
-  gtk_widget_ref (file_menu_uiinfo[3].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "save_as",
-                            file_menu_uiinfo[3].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
-
-  gtk_widget_set_name (file_menu_uiinfo[4].widget, "separator2");
-  gtk_widget_ref (file_menu_uiinfo[4].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "separator2",
-                            file_menu_uiinfo[4].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
-
-  gtk_widget_set_name (file_menu_uiinfo[5].widget, "exit");
-  gtk_widget_ref (file_menu_uiinfo[5].widget);
-  gtk_object_set_data_full (GTK_OBJECT (app), "exit",
-                            file_menu_uiinfo[5].widget,
-                            (GtkDestroyNotify) gtk_widget_unref);
+  { 
+    int  i=0;
+    while(file_menu_uiinfo_string[i][0] != '\0') {
+      gtk_widget_set_name (file_menu_uiinfo[0].widget, file_menu_uiinfo_string[i]);
+      gtk_widget_ref (file_menu_uiinfo[0].widget);
+      gtk_object_set_data_full (GTK_OBJECT (app), file_menu_uiinfo_string[i],
+				file_menu_uiinfo[0].widget,
+				(GtkDestroyNotify) gtk_widget_unref);
+      i++;
+    }
+  }
 
   gtk_widget_set_name (menubar_uiinfo[1].widget, "edit");
   gtk_widget_ref (menubar_uiinfo[1].widget);
@@ -927,10 +911,10 @@ create_about (void)
   GtkWidget *about;
 
   about = gnome_about_new ("Ogle", VERSION,
-                        "",
-                        authors,
-                        "",
-                        NULL);
+			   "",
+			   authors,
+			   "",
+			   NULL);
   gtk_widget_set_name (about, "about");
   gtk_object_set_data (GTK_OBJECT (about), "about", about);
   gtk_window_set_modal (GTK_WINDOW (about), TRUE);

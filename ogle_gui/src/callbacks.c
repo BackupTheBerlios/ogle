@@ -169,7 +169,7 @@ void
 on_about_activate                     (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+  gtk_widget_show(create_about());
 }
 
 
@@ -352,7 +352,7 @@ void
 on_angle_button_clicked                (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+  angle_menu_show(button);
 }
 
 

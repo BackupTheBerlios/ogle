@@ -89,7 +89,8 @@ main (int argc, char *argv[])
     xsniff_init();
   }
 
-  
+  //gnome_window_icon_set_default_from_file ("");
+    
   audio_menu_new();
   subpicture_menu_new();
   

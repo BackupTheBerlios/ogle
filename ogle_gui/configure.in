@@ -51,6 +51,8 @@ macros/Makefile
 src/Makefile
 intl/Makefile
 po/Makefile.in
+doc/Makefile
+doc/C/Makefile
 ])
 
 

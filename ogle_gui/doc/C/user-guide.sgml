@@ -1,0 +1,41 @@
+<!DOCTYPE Book PUBLIC "-//GNOME//DTD DocBook PNG Variant V1.1//EN"[
+<!ENTITY version "0.57"> 
+]>
+
+<!-- INDEX -->
+
+<book id="index">
+
+  <bookinfo> 
+    <title>Ogle Reference Manual</title>
+
+    <copyright>
+      <year>2001</year>
+      <holder>Authors</holder>
+    </copyright>
+
+    <legalnotice>
+	<para>Released under the
+       <ulink url="http://www.gnu.org/copyleft/gpl.html" type="http">
+	GNU Public Lincense (GPL)</ulink>
+    </legalnotice>
+
+    <releaseinfo> 
+      Initial release of Ogle Reference Manual.
+    </releaseinfo>
+
+  </bookinfo>
+
+<!-- INTRODUCTION -->
+
+  <chapter id="introduction">
+    <title>Introduction</title> 
+    
+    <para>
+      Placeholder.
+    </para>
+
+  </chapter>
+
+</book>
+
