@@ -366,8 +366,8 @@ Window display_init(yuv_image_t *picture_data,
             xv_formats = XvListImageFormats(mydisplay, xv_port, 
 					    &xv_num_formats);
             for(j = 0; j < xv_num_formats; j++) {
-	      //if(xv_formats[j].id == 0x32315659) { /* YV12 */
-	      if(xv_formats[j].id == 0x30323449) { /* I420 */
+	      if(xv_formats[j].id == 0x32315659) { /* YV12 */
+	      //if(xv_formats[j].id == 0x30323449) { /* I420 */
                 fprintf(stderr, "Found image format \"%s\", using it\n", 
 			xv_formats[j].guid);
                 xv_id = xv_formats[j].id;
@@ -481,7 +481,7 @@ Window display_init(yuv_image_t *picture_data,
 
   /* make sure xshmattach has been processed and any errors
      have been returned to us */
-  XSync (mydisplay, False);
+  XSync(mydisplay, False);
   
   /* revert to the previous xerrorhandler */
   XSetErrorHandler(prev_xerrhandler);
