@@ -89,7 +89,10 @@ main (int argc, char *argv[])
 
   interpret_config();
 
-  if(argc - optind == 1){
+  if(argc - optind == 1) {
+    if(dvd_path != NULL) {
+      free(dvd_path);
+    }
     dvd_path = argv[optind];
   }
   
