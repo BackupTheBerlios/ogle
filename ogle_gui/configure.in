@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 
 AC_INIT(configure.in)
-AM_INIT_AUTOMAKE(ogle_gui, 0.7.1)
+AM_INIT_AUTOMAKE(ogle_gui, 0.7.4)
 AM_CONFIG_HEADER(config.h)
 
 
@@ -54,7 +54,7 @@ if test -z "$dvd_path"; then
   fi  
 fi
 
-AC_CHECK_LIB(dvdcontrol, DVDOpenNav, 
+AC_CHECK_LIB(dvdcontrol, DVDRequestInput, 
   [ DVDLIBS="-L$dvd_path/lib/ogle -rpath $dvd_path/lib/ogle -ldvdcontrol" 
     DVD_INCLUDEDIR=-I$dvd_path/include
   ],, 

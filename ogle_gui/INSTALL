@@ -2,13 +2,12 @@ Installation
 ============
 
   1. `cd' to the directory containing the package's source code and type
-     `./autogen.sh' to setup and generate the needed files.
+     `./configure' to setup and generate the needed files.
      There are two package specific configure options.
        --with-dvd-includes=path
        --with-dvdcontrol=prefix
-     You will need to give there to build. The most common are:
-     ./configure --with-dvd-includes=/usr/local/include 
-        --with-dvdcontrol=/usr/local
+     You might need to give these to build. The most common are:
+     ./configure --with-dvdcontrol=/usr/local
 
   3. Type `make' to compile the package.
 
@@ -20,8 +19,7 @@ Installation
      /usr/local/lib/ogle to /etc/ld.so.conf or you can add it to the 
      environment variable LD_LIBRARY_PATH.
 
-
-  5. Type `make install' to install the programs and any data files and
+  4. Type `make install' to install the programs and any data files and
      documentation.
 
   5. You can remove the program binaries and object files from the
