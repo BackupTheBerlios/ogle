@@ -13,96 +13,6 @@
 </project>
 
 <widget>
-  <class>GtkMenu</class>
-  <name>menus_popup</name>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>ptt_pm</name>
-    <tooltip>Part of title</tooltip>
-    <signal>
-      <name>activate</name>
-      <handler>on_ptt_activate_pm</handler>
-      <last_modification_time>Fri, 13 Apr 2001 17:34:11 GMT</last_modification_time>
-    </signal>
-    <label>_PTT</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>angle_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_angle_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:10:17 GMT</last_modification_time>
-    </signal>
-    <label>A_ngle</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>audio_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_audio_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:10:11 GMT</last_modification_time>
-    </signal>
-    <label>_Audio</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>subpicture_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_subpicture_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:10:06 GMT</last_modification_time>
-    </signal>
-    <label>_Subpicture</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>root_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_root_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:10:00 GMT</last_modification_time>
-    </signal>
-    <label>_Root</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>title_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_title_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:09:54 GMT</last_modification_time>
-    </signal>
-    <label>_Title</label>
-    <right_justify>False</right_justify>
-  </widget>
-
-  <widget>
-    <class>GtkMenuItem</class>
-    <name>resume_pm</name>
-    <signal>
-      <name>activate</name>
-      <handler>on_resume_activate_pm</handler>
-      <last_modification_time>Sat, 31 Mar 2001 16:09:47 GMT</last_modification_time>
-    </signal>
-    <label>Resume</label>
-    <right_justify>False</right_justify>
-  </widget>
-</widget>
-
-<widget>
   <class>GtkWindow</class>
   <name>app</name>
   <title>Ogle</title>
@@ -1265,8 +1175,9 @@ Björn Augustsson</label>
       <can_focus>True</can_focus>
       <signal>
 	<name>clicked</name>
-	<handler>gtk_widget_destroy</handler>
-	<last_modification_time>Sat, 24 Nov 2001 00:25:00 GMT</last_modification_time>
+	<handler>gtk_widget_hide</handler>
+	<object>about</object>
+	<last_modification_time>Wed, 28 Nov 2001 20:55:56 GMT</last_modification_time>
       </signal>
       <label>OK</label>
       <child>
