@@ -26,7 +26,6 @@
 #include <ogle/dvdcontrol.h>
 
 #include "callbacks.h"
-#include "interface.h"
 #include "menu.h"
 #include "audio.h"
 #include "angle.h"

@@ -28,7 +28,6 @@
 #include <glade/glade.h>
 
 #include <ogle/dvdcontrol.h>
-#include "interface.h"
 #include "xsniffer.h"
 
 #include "menu.h"
