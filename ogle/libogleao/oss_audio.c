@@ -21,7 +21,9 @@
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <fcntl.h>
+#ifdef	HAVE_STROPTS_H
 #include <stropts.h>
+#endif
 #include <stdio.h>
 
 #if defined(__OpenBSD__)
@@ -156,7 +158,9 @@ int oss_flush(ogle_ao_instance_t *_instance)
 {
   oss_instance_t *instance = (oss_instance_t *)_instance;
   
+#ifdef	I_FLUSH
   ioctl(instance->fd, I_FLUSH, FLUSHW);
+#endif
   ioctl(instance->fd, SNDCTL_DSP_SYNC, 0);
   
   return 0;
