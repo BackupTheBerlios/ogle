@@ -1,4 +1,5 @@
 #!/bin/sh
+# @configure_input@
 
 create_pipe() { 
     if [ ! -p $1 ]; then
@@ -11,6 +12,11 @@ create_pipe() {
 
 create_pipe "/tmp/ac3"
 create_pipe "/tmp/audio"
+
+# information on the build 
+echo "Build: @BUILDINFO@"
+# and the os version we are running on 
+echo "Runtime:`uname -m -r -s -p -v`"
 
 # This is were all the helper programs are placed
 prefix=@prefix@

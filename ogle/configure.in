@@ -53,6 +53,7 @@ if test "x$use_xv" = xyes; then
   AC_CHECK_LIB(Xv, XvQueryExtension, 
 	       [ AC_DEFINE([HAVE_XV], 1, [X11 supports Xv])
 		 XEXT_LIB="$XEXT_LIB -lXv"
+		 BUILD_XV=1
 	        ], 
 	       [AC_MSG_WARN([You won't be able to use Xv])], 
 	       [$X_LIBS -lX11 -lXext $X_EXTRA_LIBS])
@@ -251,6 +252,7 @@ AC_SUBST(MLIB_LIBS)
 AM_CONDITIONAL(MLIB_LIBS, [test "x$have_mlib" = xyes])
 if test "x$have_mlib" = xyes; then
   AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
+  BUILD_MLIB=1
 fi
 
 dnl ---------------------------------------------------------
@@ -343,6 +345,7 @@ if test "x$enable_oss" != xno; then
 
 dnl check for headers.. only define LIBOGLEAO_OSS if library and headers found.
         AC_DEFINE([LIBOGLEAO_OSS],,[libogleao OSS audio support])
+	BUILD_AUDIO_OSS=1
         AC_CHECK_LIB([ossaudio],[_oss_ioctl],
             [LIBOGLEAO_LIBS="$LIBOGLEAO_LIBS -lossaudio"])
 	DEFAULT_AUDIO_DRIVER="oss"
@@ -361,6 +364,7 @@ if test "x$enable_obsdaudio" != xno; then
 dnl only define LIBOGLEAO_OBSD headers found
 dnl sys/audioio.h
         AC_DEFINE([LIBOGLEAO_OBSD],,[libogleao OpenBSD audio support])
+	BUILD_AUDIO_OBSD=1
 	DEFAULT_AUDIO_DRIVER="obsd"
 	DEFAULT_AUDIO_DEVICE="/dev/audio"
     ;;
@@ -376,6 +380,7 @@ if test "x$enable_sunaudio" != xno; then
 
 dnl check for headers.. only define LIBOGLEAO_SOLARIS if headers are found.
         AC_DEFINE([LIBOGLEAO_SOLARIS],,[libogleao solaris audio support])
+	BUILD_AUDIO_SOLARIS=1
 	DEFAULT_AUDIO_DRIVER="solaris"
 	DEFAULT_AUDIO_DEVICE="/dev/audio"
     esac
@@ -422,7 +427,8 @@ AP_maGiC_VALUE
           AC_CHECK_LIB([asound],[main],
                        [ AC_DEFINE([LIBOGLEAO_ALSA],,
                                    [libogleao ALSA audio support])
-			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound" 
+			 LIBOGLEAO_LIBS="$LIBGLEAO_LIBS -lasound"
+			 BUILD_AUDIO_ALSA=1
 			 DEFAULT_AUDIO_DRIVER="alsa"
 			 DEFAULT_AUDIO_DEVICE="default"
                        ])
@@ -638,6 +644,7 @@ AC_ARG_ENABLE(altivec,
    fi])
 if test "x$USE_ALTIVEC" = xyes; then
   AC_DEFINE([HAVE_ALTIVEC],1,[Processor support ALTIVEC])
+  BUILD_ALTIVEC=1
   CFLAGS="$XCFLAGS $CFLAGS"
 fi
 
@@ -648,9 +655,18 @@ AC_ARG_ENABLE(mmx,
    fi])
 if test "x$USE_MMX" = xyes; then
   AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
+  BUILD_MMX=1
   CFLAGS="$CFLAGS $XCFLAGS"
 fi
 
+BUILDINFO="`uname -m -r -s -p -v` `date`"
+BUILDINFO="${BUILDINFO}${BUILD_MMX:+ mmx}${BUILD_ALTIVEC:+ Altivec}"
+BUILDINFO="${BUILDINFO}${BUILD_MLIB:+ mlib}${BUILD_XV:+ Xv}"
+BUILDINFO="${BUILDINFO}${BUILD_AUDIO_OSS:+ oss}${BUILD_AUDIO_ALSA:+ alsa}"
+BUILDINFO="${BUILDINFO}${BUILD_AUDIO_SOLARIS:+ solaris}${BUILD_AUDIO_OBSD:+ obsd}"
+
+
+AC_SUBST(BUILDINFO)
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, [test "x$USE_MMX" = xyes])
 AC_SUBST(USE_ALTIVEC)
