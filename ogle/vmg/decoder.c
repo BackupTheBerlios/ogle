@@ -66,8 +66,10 @@ static uint32_t bits(int byte, int bit, int count)
 static uint16_t eval_reg(uint8_t reg)
 {
   if(reg & 0x80) {
+    // assert(reg & 0x7f < 24);
     return state->SPRM[reg & 0x1f]; // FIXME max 24 not 32
   } else {
+    // assert(reg < 16);
     return state->GPRM[reg & 0x0f];
   }
 }
@@ -399,9 +401,16 @@ static bool eval_system_set(int cond, link_t *return_values)
     case 6: // Set system reg 8 (Highlighted button)
       data = eval_reg_or_data(bits(0, 3, 1), 4); // Not system reg!!
       if(cond) {
-	/* Should we mask out the lower bits like this? */
-	state->SPRM[8] = data & 0xfc00; // bits 9-0 are reserved
-      }
+	/* Do we need to check that it's in range 1..36 ? */
+	if(data < 0x0400 || data > 0x9000) {
+	  //abort(0); // FixMe
+	  data &= 0xfc00; // one more chanse
+	  if(data < 0x0400 || data > 0x9000) {
+	    //abort(0); // FixMe
+	    data = state->GPRM[8]; // Keep the value
+	  }
+	}
+	state->GPRM[8] = data;
       break;
   }
   if(bits(1, 4, 4)) {
@@ -422,7 +431,7 @@ static void eval_set_op(int op, int reg, int reg2, int data)
    * in case of overflow, 0xFFFF must be assigned
    * in case of underflow, 0x0 must be assigned
    */
-  const int shortmax = (1 << 16) - 1;
+  const int shortmax = 0xffff;
   
   int tmp;
   switch(op) {
