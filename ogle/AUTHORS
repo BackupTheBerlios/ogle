@@ -27,3 +27,5 @@ Samuel Hocevar, the VideoLAN subpicure code
 Marc van Woerkom, FreeBSD patches for libdvdread
 Björn Sandell, OpenBSD patches for libdvdread
 Øyvind Kolbu, FreeBSD fixes for Ogle
+Mario Sergio Fujikawa Ferreira, FreeBSD fixes.
+Marc Espie, Simple sample rate conversion 48->44.1 kHz in libao, OpenBSD fixes
