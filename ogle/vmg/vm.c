@@ -218,7 +218,8 @@ int main(int argc, char *argv[])
     
     // Make file name
     if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-      name = "VIDEO_TS.VOB";
+      name = malloc(16); //TODO ugly
+      snprintf(name, 14, "VIDEO_TS.VOB");
     } else {
       char part = '0'; 
       if(state.domain != VTSM_DOMAIN)
