@@ -19,6 +19,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
@@ -161,7 +166,17 @@ int parse_oglerc(char *filename)
 {
   xmlDocPtr doc;
   xmlNodePtr cur;
-  
+  int fd;
+
+  if((fd = open(filename, O_RDONLY)) == -1) {
+    if(errno != ENOENT) {
+      perror(filename);
+    }
+    return -1;
+  } else {
+    close(fd);
+  }
+
   doc = xmlParseFile(filename);
 
   if(doc == NULL) {

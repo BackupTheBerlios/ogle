@@ -1,5 +1,10 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <errno.h>
 
 #include <string.h>
 
@@ -131,6 +136,16 @@ int interpret_oglerc(char *filename)
 {
   xmlDocPtr doc;
   xmlNodePtr cur;
+  int fd;
+
+  if((fd = open(filename, O_RDONLY)) == -1) {
+    if(errno != ENOENT) {
+      perror(filename);
+    }
+    return -1;
+  } else {
+    close(fd);
+  }
   
   doc = xmlParseFile(filename);
 
