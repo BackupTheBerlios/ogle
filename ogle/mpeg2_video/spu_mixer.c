@@ -78,6 +78,9 @@ static spu_t spu_info = { 0 };
 
 static int initialized = 0;
 
+static uint32_t palette_yuv[16];
+static uint32_t palette_rgb[16];
+
 extern int msgqid;
 
 #define MAX_BUF_SIZE 65536
@@ -91,6 +94,44 @@ extern int msgqid;
 
 
 
+static uint32_t yuv2rgb(uint32_t yuv_color)
+{
+  int Y,Cb,Cr;
+  int Ey, Epb, Epr;
+  int Eg, Eb, Er;
+  uint32_t result;
+  
+  Y  = (yuv_color >> 8)  & 0xff00;
+  Cb = (yuv_color)       & 0xff00;
+  Cr = (yuv_color << 8)  & 0xff00;
+  
+  Ey  = (Y-(16<<8));
+  Epb = (Cb-(128<<8));
+  Epr = (Cr-(128<<8));
+
+  Eg = Ey/219 - 48*Epb/224 - 120*Epr/224;
+  Eb = Ey/219 + 475*Epb/224;
+  Er = Ey/219 + 403*Epr/224;
+  
+  if(Eg > 255)
+    Eg = 255;
+  if(Eg < 0)
+    Eg = 0;
+
+  if(Eb > 255)
+    Eb = 255;
+  if(Eb < 0)
+    Eb = 0;
+
+  if(Er > 255)
+    Er = 255;
+  if(Er < 0)
+    Er = 0;
+  
+  result = ((Eb&0xff)<<16) | ((Eg&0xff)<<8) | (Er&0xff);
+  
+  return result;
+}
 
 
 static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
@@ -326,8 +367,15 @@ static int eval_msg(cmd_t *cmd)
     attach_stream_buffer(cmd->cmd.stream_buffer.stream_id,
 			  cmd->cmd.stream_buffer.subtype,
 			  cmd->cmd.stream_buffer.q_shmid);
-
-
+    break;
+  case CMD_SPU_SET_PALETTE:
+    {
+      int n;
+      for(n = 0; n < 16; n++) {
+	palette_yuv[n] = cmd->cmd.spu_palette.colors[n];
+	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
+      }
+    }
     break;
   default:
     fprintf(stderr, "spu_mixer: unrecognized command cmdtype: %x\n",
@@ -730,6 +778,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
   unsigned int x;
   unsigned int y;
   int nr_vlc;
+  uint32_t color;
+  uint32_t contrast;
+  uint32_t invcontrast;
+  uint32_t *pixel;
 
   fieldoffset[0] = spu_info->fieldoffset[0];
   fieldoffset[1] = spu_info->fieldoffset[1];
@@ -743,6 +795,13 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
   x=0;
   y=0;
   nr_vlc = 0;
+  
+  {
+    int i;
+    for(i = 0; i < 16; i++) {
+      fprintf(stderr, "[%d] %08x %08x\n", i, palette_yuv[i], palette_rgb[i]);
+    }
+  }
   
   DPRINTF(5, "vlc decoding\n");
   while((fieldoffset[1] < spu_info->DCSQT_offset) && (y < spu_info->height)) {
@@ -799,7 +858,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     colorid = vlc & 3;
     pixel_data = ((spu_info->contrast[colorid] << 4) 
 		  | (spu_info->color[colorid] & 0x0f));
-    
+  
+    color = palette_rgb[spu_info->color[colorid]];
+    contrast = spu_info->contrast[colorid]<<4;
+    invcontrast = 256-contrast;
     if(length==0) { // new line
       //   if (y >= height)
       // return;
@@ -814,21 +876,48 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     /* mix spu and picture data */
     {
       int n;
-      for(n = 0; n < length; n++) {
-	if(spu_info->contrast[colorid] != 0) {
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
+      if(contrast != 0) {
+	uint32_t r,g,b;
+	r = color&0xff;
+	g = (color>>8) & 0xff;
+	b = (color>>16) & 0xff;
+
+	pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
+				    +(x+spu_info->x_start)]);
+	
+	for(n = 0; n < length; n++,pixel++) {
+	  
+	  if(contrast == (0xf<<4)) {
+	    *pixel = color;
+	  } else {
+	    uint32_t pr,pg,pb;
+	    pr = *pixel&0xff;
+	    pg = (*pixel>>8)&0xff;
+	    pb = (*pixel>>16)&0xff;
+	    
+	    pr = (pr*(invcontrast)+r*contrast)>>8;
+	    pg = (pg*(invcontrast)+g*contrast)>>8;
+	    pb = (pb*(invcontrast)+b*contrast)>>8;
+	    
+	    *pixel = pb<<16 | pg<<8 | pr;
+	  }
+	  /*
+	    if(contrast != 0 && contrast) {
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
 	    pixel_data;
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
 	    pixel_data;
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
 	    pixel_data;
-	} else {
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
+	    } else {
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+1] =
 	    255;
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+2] =
 	    255;
-	  data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
+	    data[(y+spu_info->y_start)*width*4+(x+spu_info->x_start)*4+n*4+3] =
 	    0;	  
+	    }
+	  */
 	}
       }
     }
