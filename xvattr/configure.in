@@ -7,10 +7,17 @@ AC_PROG_CC
 dnl Checks for header files.
 AC_STDC_HEADERS
      
+dnl Check for getopt_long (note that LIBOBJS is a special name for automake)
+AC_SUBST(LIBOBJS)
+AC_CHECK_FUNCS(getopt_long , , [LIBOBJS="$LIBOBJS getopt.o getopt1.o"])
+
 dnl
 dnl Checks for X11
 dnl
 AC_PATH_XTRA
+
+dnl check for gtk
+AM_PATH_GTK
 
 dnl Checks for libraries.
 AC_ARG_WITH(xv-path,[  --with-xv-path=path    Where libXv is installed],
