@@ -753,7 +753,7 @@ static void do_run(void) {
 	    
 	    /* Hack to exit STILL_MODE if we're in it. */
 	    if(cell->first_sector + block > cell->last_vobu_start_sector &&
-	       cell->still_time > 0)
+	       cell->still_time > 0) {
 	      cell->still_time = 0;
 	      still_time = 0;
 	    }
