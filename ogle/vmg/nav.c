@@ -37,9 +37,9 @@
 
 
 int get_q(char *buffer);
-cmd_t *chk_for_msg(msg_t *msg);
-int send_msg(msg_t *msg, int mtext_size);
-int eval_msg(cmd_t *cmd);
+mq_cmd_t *chk_for_msg(mq_msg_t *msg);
+int send_msg(mq_msg_t *msg, int mtext_size);
+int eval_msg(mq_cmd_t *cmd);
 int wait_init_msg(void);
 
 static void get_next_nav_packet(char *buffer) {
@@ -52,50 +52,50 @@ static void get_next_nav_packet(char *buffer) {
 }
 
 static void send_demux_sectors(int start_sector, int nr_sectors) {
-  msg_t msg;
-  cmd_t *sendcmd;
+  mq_msg_t msg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&msg.mtext;
+  sendcmd = (mq_cmd_t *)&msg.mtext;
   msg.mtype = MTYPE_CTL;
   sendcmd->cmdtype = CMD_CTRL_CMD;
   sendcmd->cmd.ctrl_cmd.ctrlcmd = CTRLCMD_PLAY_FROM_TO;
   sendcmd->cmd.ctrl_cmd.off_from = start_sector * 2048;
   sendcmd->cmd.ctrl_cmd.off_to = (start_sector + nr_sectors) * 2048;
-  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_ctrl_cmd_t));
+  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_cmd_t));
 }
 
 void send_use_file(char *file_name) {
-  msg_t msg;
-  cmd_t *sendcmd;
+  mq_msg_t msg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&msg.mtext;
+  sendcmd = (mq_cmd_t *)&msg.mtext;
   msg.mtype = MTYPE_DEMUX;
   sendcmd->cmdtype = CMD_FILE_OPEN;
   strcpy(&sendcmd->cmd.file_open.file[0], file_name);
-  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_file_open_t));
+  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_file_open_t));
 }
 
 void set_spu_palette(uint32_t palette[16]) {
-  msg_t msg;
-  cmd_t *sendcmd;
+  mq_msg_t msg;
+  mq_cmd_t *sendcmd;
   int n;
   
-  sendcmd = (cmd_t *)&msg.mtext;
+  sendcmd = (mq_cmd_t *)&msg.mtext;
   msg.mtype = MTYPE_SPU_DECODE;
   sendcmd->cmdtype = CMD_SPU_SET_PALETTE;
   for(n = 0; n < 16; n++) {
     sendcmd->cmd.spu_palette.colors[n] = palette[n];
   }
-  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_spu_palette_t));
+  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_spu_palette_t));
 }
 
 void send_highlight(int x_start, int y_start, int x_end, int y_end, 
 		    uint32_t btn_coli) {
-  msg_t msg;
-  cmd_t *sendcmd;
+  mq_msg_t msg;
+  mq_cmd_t *sendcmd;
   int n;
   
-  sendcmd = (cmd_t *)&msg.mtext;
+  sendcmd = (mq_cmd_t *)&msg.mtext;
   msg.mtype = MTYPE_SPU_DECODE;
   sendcmd->cmdtype = CMD_SPU_SET_HIGHLIGHT;
   sendcmd->cmd.spu_highlight.x_start = x_start;
@@ -106,12 +106,12 @@ void send_highlight(int x_start, int y_start, int x_end, int y_end,
     sendcmd->cmd.spu_highlight.color[n] = 0xf & btn_coli>>(16 + 4*n);
   for(n = 0; n < 4; n++)
     sendcmd->cmd.spu_highlight.contrast[n] = 0xf & btn_coli>>(4*n);
-  send_msg(&msg, sizeof(cmdtype_t) + sizeof(cmd_spu_highlight_t));
+  send_msg(&msg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_spu_highlight_t));
 }
 
 
 static int process_pci(pci_t *pci, uint16_t *btn_nr) {
-  msg_t msg;
+  mq_msg_t msg;
   int is_action = 0;
   
   if((pci->hli.hl_gi.hli_ss & 0x03) != 0 
@@ -122,10 +122,13 @@ static int process_pci(pci_t *pci, uint16_t *btn_nr) {
   /* Check for and read any user input */
   /* Must not consume events after a 'enter/click' event. (?) */
   while(!is_action) {
-    cmd_t *cmd = chk_for_msg(&msg);
+    mq_cmd_t *cmd = chk_for_msg(&msg);
     /* Exit when no more input. */
+
     if(cmd == NULL)
       break;
+    
+
     
     switch(cmd->cmdtype) {
     case CMD_DVDCTRL_CMD:

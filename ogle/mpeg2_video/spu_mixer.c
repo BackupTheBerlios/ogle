@@ -356,12 +356,12 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
 
 
 
-static int eval_msg(cmd_t *cmd)
+static int eval_msg(mq_cmd_t *cmd)
 {
-  msg_t sendmsg;
-  cmd_t *sendcmd;
+  mq_msg_t sendmsg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&sendmsg.mtext;
+  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
   case CMD_CTRL_DATA:
@@ -415,9 +415,9 @@ static int eval_msg(cmd_t *cmd)
 
 static int chk_for_msg(void)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   if(msgrcv(msgqid, &msg, sizeof(msg.mtext),

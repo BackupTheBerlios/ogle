@@ -16,7 +16,7 @@ typedef enum {
   MTYPE_CTRL_INPUT = 9,
   MTYPE_SPU_DECODE = 10,
   MTYPE_DVD_NAV = 11
-} mtype_t;
+} mq_mtype_t;
 
 
 typedef enum { 
@@ -37,7 +37,7 @@ typedef enum {
   CMD_SPU_SET_PALETTE = 14,
   CMD_SPU_SET_HIGHLIGHT = 15,
   CMD_DVDCTRL_CMD = 16
-} cmdtype_t;
+} mq_cmdtype_t;
 
 typedef enum {
   DVDCTRL_CMD_UP_BUTTON,
@@ -47,12 +47,12 @@ typedef enum {
   DVDCTRL_CMD_ACTIVATE_BUTTON,
   DVDCTRL_CMD_SELECT_BUTTON_NR,
   DVDCTRL_CMD_SELECT_ACTIVATE_BUTTON_NR
-} dvdctrl_cmd_t;
+} mq_dvdctrl_cmd_t;
 
 typedef struct {
-  dvdctrl_cmd_t cmd;
+  mq_dvdctrl_cmd_t cmd;
   int button_nr;
-} cmd_dvdctrl_cmd_t;
+} mq_cmd_dvdctrl_cmd_t;
 
 typedef enum {
   CTRLCMD_NONE = 0,
@@ -61,13 +61,13 @@ typedef enum {
   CTRLCMD_PLAY_FROM = 3,
   CTRLCMD_PLAY_TO = 4,
   CTRLCMD_PLAY_FROM_TO = 5
-} ctrlcmd_t;
+} mq_ctrlcmd_t;
 
 typedef enum {
   OUTPUT_NONE = 0,
   OUTPUT_VIDEO_YUV = 1,
   OUTPUT_SPU = 2
-} output_t;
+} mq_output_t;
 
 typedef struct {
   int x_start;
@@ -76,91 +76,91 @@ typedef struct {
   int y_end;
   uint8_t color[4];
   uint8_t contrast[4];
-} cmd_spu_highlight_t;
+} mq_cmd_spu_highlight_t;
 
 typedef struct {
   uint32_t colors[16];
-} cmd_spu_palette_t;
+} mq_cmd_spu_palette_t;
 
 typedef struct {
   char file[PATH_MAX+1];
-} cmd_file_open_t;
+} mq_cmd_file_open_t;
 
 typedef struct {
   int size;
-} cmd_demux_info_t;
+} mq_cmd_demux_info_t;
 
 typedef struct {
   int size;
-} cmd_req_buffer_t;
+} mq_cmd_req_buffer_t;
 
 typedef struct {
   int shmid;
   int size;
-} cmd_gnt_buffer_t;
+} mq_cmd_gnt_buffer_t;
 
 typedef struct {
   uint8_t stream_id;  // 0xe0-ef mpeg_video, 0xc0-df mpeg_audio, ...
   int subtype;        // in case of private stream...
   int data_buf_shmid; // shmid of databuffer corresponding to offsets
   int nr_of_elems;    // nr of elements in q
-} cmd_new_stream_t;
+} mq_cmd_new_stream_t;
 
 typedef struct {
-  output_t type;  
+  mq_output_t type;  
   int data_buf_size;
   int nr_of_elems;    // nr of elements in q
-} cmd_new_output_t;
+} mq_cmd_new_output_t;
 
 typedef struct {
   uint8_t stream_id;
   uint8_t subtype;
   int q_shmid;
-} cmd_stream_buffer_t;
+} mq_cmd_stream_buffer_t;
 
 typedef struct {
   int data_shmid;
   int data_size;
   int q_shmid;
-} cmd_output_buffer_t;
+} mq_cmd_output_buffer_t;
 
 
 typedef struct {
   int shmid;
-} cmd_ctrl_data_t;
+} mq_cmd_ctrl_data_t;
 
 
 
 typedef struct {
-  ctrlcmd_t ctrlcmd;
+  mq_ctrlcmd_t ctrlcmd;
   int off_from;
   int off_to;
-} cmd_ctrl_cmd_t;
+} mq_cmd_ctrl_cmd_t;
 
 typedef struct {
-  cmdtype_t cmdtype;
+  mq_cmdtype_t cmdtype;
   union {
-    cmd_file_open_t file_open;
-    cmd_demux_info_t demux_info;
-    cmd_req_buffer_t req_buffer;
-    cmd_gnt_buffer_t gnt_buffer;
-    cmd_new_stream_t new_stream;
-    cmd_stream_buffer_t stream_buffer;
-    cmd_ctrl_data_t ctrl_data;
-    cmd_ctrl_cmd_t ctrl_cmd;
-    cmd_new_output_t new_output;
-    cmd_output_buffer_t output_buffer;
-    cmd_spu_palette_t spu_palette;
-    cmd_spu_highlight_t spu_highlight;
-    cmd_dvdctrl_cmd_t dvdctrl_cmd;
+    mq_cmd_file_open_t file_open;
+    mq_cmd_demux_info_t demux_info;
+    mq_cmd_req_buffer_t req_buffer;
+    mq_cmd_gnt_buffer_t gnt_buffer;
+    mq_cmd_new_stream_t new_stream;
+    mq_cmd_stream_buffer_t stream_buffer;
+    mq_cmd_ctrl_data_t ctrl_data;
+    mq_cmd_ctrl_cmd_t ctrl_cmd;
+    mq_cmd_new_output_t new_output;
+    mq_cmd_output_buffer_t output_buffer;
+    mq_cmd_spu_palette_t spu_palette;
+    mq_cmd_spu_highlight_t spu_highlight;
+    mq_cmd_dvdctrl_cmd_t dvdctrl_cmd;
   } cmd;
-} cmd_t;
+} mq_cmd_t;
 
 
 typedef struct {
   long mtype;
-  char mtext[sizeof(cmd_t)];
-} msg_t;
+  char mtext[sizeof(mq_cmd_t)];
+} mq_msg_t;
 
 typedef struct {
   int shmid;

@@ -155,7 +155,7 @@ void display_process()
     }
     // Fixme!!! wait_time can't be used here..
     timesub(&wait_time, &prefered_time, &real_time);
-    
+    /*    
     fprintf(stderr, "pref: %d.%09ld\n",
 	    TIME_S(prefered_time), TIME_SS(prefered_time));
 
@@ -164,7 +164,7 @@ void display_process()
 
     fprintf(stderr, "wait: %d.%09ld, ",
 	    TIME_S(wait_time), TIME_SS(wait_time));
-         
+    */
 
     if(wait_time.tv_nsec > 5000000 && wait_time.tv_sec >= 0) {
       nanosleep(&wait_time, NULL);

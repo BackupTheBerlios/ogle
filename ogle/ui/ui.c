@@ -17,8 +17,8 @@
 #include "queue.h"
 
 
-int wait_for_msg(cmdtype_t cmdtype);
-int eval_msg(cmd_t *cmd);
+int wait_for_msg(mq_cmdtype_t cmdtype);
+int eval_msg(mq_cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int get_q();
 int attach_ctrl_shm(int shmid);
@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
 }
 
 
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("ctrl: msgsnd1");
@@ -92,11 +92,11 @@ int send_msg(msg_t *msg, int mtext_size)
 }
 
 
-int wait_for_msg(cmdtype_t cmdtype)
+int wait_for_msg(mq_cmdtype_t cmdtype)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   while(cmd->cmdtype != cmdtype) {
@@ -118,7 +118,7 @@ int wait_for_msg(cmdtype_t cmdtype)
 
 
 
-int eval_msg(cmd_t *cmd)
+int eval_msg(mq_cmd_t *cmd)
 {
   
   switch(cmd->cmdtype) {
@@ -136,16 +136,16 @@ int eval_msg(cmd_t *cmd)
 
 #define CMDSTR_LEN 256
 int input() {
-  msg_t msg;
-  cmd_t *sendcmd;
-  ctrlcmd_t cmd;
+  mq_msg_t msg;
+  mq_cmd_t *sendcmd;
+  mq_ctrlcmd_t cmd;
   char cmdstr[CMDSTR_LEN];
   char *cmdtokens[16];
   char *tok;
   int m,n;
   int time;
   
-  sendcmd = (cmd_t *)&msg.mtext;
+  sendcmd = (mq_cmd_t *)&msg.mtext;
 
   fprintf(stderr, "****input()\n");
   while(!feof(infile)) {
@@ -292,20 +292,20 @@ int input() {
       if(cmd != CTRLCMD_NONE) {
 	sendcmd->cmd.ctrl_cmd.ctrlcmd = cmd;
 	
-	send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
+	send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
       }
       break;
     case CMD_FILE_OPEN:
-      send_msg(&msg, sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+      send_msg(&msg, sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
       break;
     case CMD_SPU_SET_HIGHLIGHT:
-      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_highlight_t));      
+      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_highlight_t));      
       break;
     case CMD_SPU_SET_PALETTE:
-      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_spu_palette_t));
+      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_spu_palette_t));
       break;
     case CMD_DVDCTRL_CMD:
-      send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_dvdctrl_cmd_t));
+      send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_dvdctrl_cmd_t));
       break;
     default:
       break;

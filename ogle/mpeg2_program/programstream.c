@@ -65,10 +65,10 @@ buf_data_t id_reg_ps1[256];
 int register_id(uint8_t id, int subtype);
 int id_registered(uint8_t id, uint8_t subtype);
 int init_id_reg();
-int wait_for_msg(cmdtype_t cmdtype);
-int eval_msg(cmd_t *cmd);
+int wait_for_msg(mq_cmdtype_t cmdtype);
+int eval_msg(mq_cmd_t *cmd);
 int get_buffer(int size);
-int send_msg(msg_t *msg, int mtext_size);
+int send_msg(mq_msg_t *msg, int mtext_size);
 int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 int id_stat(uint8_t id, uint8_t subtype);
 char *id_qaddr(uint8_t id, uint8_t subtype);
@@ -338,7 +338,7 @@ typedef enum {
 typedef struct {
   cmd_type_t cmd_type;
   union {
-    cmd_ctrl_cmd_t ctrl;
+    mq_cmd_ctrl_cmd_t ctrl;
     char *file;
   } cmd;
 } demux_q_t;
@@ -380,7 +380,7 @@ void add_to_demux_q(int type, void *cmd)
     demux_q[pos].cmd_type = type;
     switch(type) {
     case CMD_CTRL:
-      demux_q[pos].cmd.ctrl = *(cmd_ctrl_cmd_t *)cmd;
+      demux_q[pos].cmd.ctrl = *(mq_cmd_ctrl_cmd_t *)cmd;
       break;
     case CMD_FILE:
       demux_q[pos].cmd.file = strdup((char *)cmd);
@@ -1557,8 +1557,8 @@ int create_shm(int size)
 int register_id(uint8_t id, int subtype)
 {
   /* TODO clean up */
-  msg_t msg;
-  cmd_t *cmd;
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
   data_buf_head_t *data_buf_head;
   int qsize;
   
@@ -1566,7 +1566,7 @@ int register_id(uint8_t id, int subtype)
     
     data_buf_head = (data_buf_head_t *)data_buf_addr;
     
-    cmd = (cmd_t *)&msg.mtext;
+    cmd = (mq_cmd_t *)&msg.mtext;
     
     /* send create decoder request msg*/
     msg.mtype = MTYPE_CTL;
@@ -1593,7 +1593,7 @@ int register_id(uint8_t id, int subtype)
       
     cmd->cmd.new_stream.nr_of_elems = qsize;
     cmd->cmd.new_stream.data_buf_shmid = data_buf_head->shmid;
-    send_msg(&msg, sizeof(cmdtype_t)+sizeof(cmd_new_stream_t));
+    send_msg(&msg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_new_stream_t));
     
     /* wait for answer */
     
@@ -1697,9 +1697,9 @@ int init_id_reg()
 
 int chk_for_msg(void)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   
   if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_DEMUX, IPC_NOWAIT) == -1) {
     if(errno == ENOMSG) {
@@ -1716,11 +1716,11 @@ int chk_for_msg(void)
   return 1;
 }
 
-int wait_for_msg(cmdtype_t cmdtype)
+int wait_for_msg(mq_cmdtype_t cmdtype)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   while(cmd->cmdtype != cmdtype) {
@@ -1735,7 +1735,7 @@ int wait_for_msg(cmdtype_t cmdtype)
   return 0;
 }
 
-int eval_msg(cmd_t *cmd)
+int eval_msg(mq_cmd_t *cmd)
 {
   
   switch(cmd->cmdtype) {
@@ -1761,7 +1761,7 @@ int eval_msg(cmd_t *cmd)
     break;
   case CMD_CTRL_CMD:
     {
-      static ctrlcmd_t prevcmd = CTRLCMD_PLAY;
+      static mq_ctrlcmd_t prevcmd = CTRLCMD_PLAY;
       switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
       case CTRLCMD_STOP:
 	if(prevcmd != CTRLCMD_STOP) {
@@ -1854,19 +1854,19 @@ int attach_buffer(int shmid, int size)
 
 int get_buffer(int size)
 {
-  msg_t msg;
-  cmd_t *cmd;
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
   
   size+= sizeof(data_buf_head_t)+900*sizeof(data_elem_t);
 
   msg.mtype = MTYPE_CTL;
-  cmd = (cmd_t *)&msg.mtext;
+  cmd = (mq_cmd_t *)&msg.mtext;
   
   cmd->cmdtype = CMD_DEMUX_REQ_BUFFER;
   cmd->cmd.req_buffer.size = size;
   
   if(msgsnd(msgqid, &msg,
-	    sizeof(cmdtype_t)+sizeof(cmd_req_buffer_t),
+	    sizeof(mq_cmdtype_t)+sizeof(mq_cmd_req_buffer_t),
 	    0) == -1) {
     perror("msgsnd");
   }
@@ -1876,7 +1876,7 @@ int get_buffer(int size)
   return 0;
 }
 
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("ctrl: msgsnd1");

@@ -24,11 +24,11 @@
 #include "timemath.h"
 //#include "sync.h"
 
-int send_msg(msg_t *msg, int mtext_size);
+int send_msg(mq_msg_t *msg, int mtext_size);
 int wait_init_msg(void);
-int wait_for_msg(cmdtype_t cmdtype);
-cmd_t *chk_for_msg(msg_t *msg);
-int eval_msg(cmd_t *cmd);
+int wait_for_msg(mq_cmdtype_t cmdtype);
+mq_cmd_t *chk_for_msg(mq_msg_t *msg);
+int eval_msg(mq_cmd_t *cmd);
 int get_q();
 
 int file_open(char *infile);
@@ -53,7 +53,7 @@ int msgqid = -1;
 
 
 
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("vmg: msgsnd1");
@@ -72,11 +72,11 @@ int wait_init_msg(void)
   return 0;
 }
 
-int wait_for_msg(cmdtype_t cmdtype)
+int wait_for_msg(mq_cmdtype_t cmdtype)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   while(cmd->cmdtype != cmdtype) {
@@ -95,10 +95,10 @@ int wait_for_msg(cmdtype_t cmdtype)
   return 0;
 }
 
-cmd_t *chk_for_msg(msg_t *msg)
+mq_cmd_t *chk_for_msg(mq_msg_t *msg)
 {
-  cmd_t *cmd;
-  cmd = (cmd_t *)(&msg->mtext);
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(&msg->mtext);
   cmd->cmdtype = CMD_NONE;
   
   if(msgrcv(msgqid, msg, sizeof(msg->mtext),
@@ -112,12 +112,12 @@ cmd_t *chk_for_msg(msg_t *msg)
 }
 
 
-int eval_msg(cmd_t *cmd)
+int eval_msg(mq_cmd_t *cmd)
 {
-  msg_t sendmsg;
-  cmd_t *sendcmd;
+  mq_msg_t sendmsg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&sendmsg.mtext;
+  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
   case CMD_FILE_OPEN:

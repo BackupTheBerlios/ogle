@@ -58,10 +58,10 @@ char *stream_shmaddr;
 int data_buf_shmid = -1;
 char *data_buf_shmaddr;
 
-int wait_for_msg(cmdtype_t cmdtype);
+int wait_for_msg(mq_cmdtype_t cmdtype);
 int chk_for_msg();
 int get_q();
-int eval_msg(cmd_t *cmd);
+int eval_msg(mq_cmd_t *cmd);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
 int attach_ctrl_shm(int shmid);
@@ -343,7 +343,7 @@ void next_word(void)
 
 
 
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("video_dec: msgsnd1");
@@ -353,11 +353,11 @@ int send_msg(msg_t *msg, int mtext_size)
 }
 
 
-int wait_for_msg(cmdtype_t cmdtype)
+int wait_for_msg(mq_cmdtype_t cmdtype)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   while(cmd->cmdtype != cmdtype) {
@@ -378,9 +378,9 @@ int wait_for_msg(cmdtype_t cmdtype)
 
 int chk_for_msg()
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
@@ -399,12 +399,12 @@ int chk_for_msg()
 
 
 
-int eval_msg(cmd_t *cmd)
+int eval_msg(mq_cmd_t *cmd)
 {
-  msg_t sendmsg;
-  cmd_t *sendcmd;
+  mq_msg_t sendmsg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&sendmsg.mtext;
+  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
   case CMD_FILE_OPEN:
@@ -427,7 +427,7 @@ int eval_msg(cmd_t *cmd)
     break;
   case CMD_CTRL_CMD:
     {
-      static ctrlcmd_t prevcmd = CTRLCMD_PLAY;
+      static mq_ctrlcmd_t prevcmd = CTRLCMD_PLAY;
       switch(cmd->cmd.ctrl_cmd.ctrlcmd) {
       case CTRLCMD_STOP:
 	if(prevcmd != CTRLCMD_STOP) {

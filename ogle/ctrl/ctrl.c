@@ -26,11 +26,11 @@ int create_msgq();
 int init_demux(char *msqqid_str);
 int init_decode(char *msgqid_str);
 int chk_for_msg(void);
-int eval_msg(cmd_t *cmd);
-int send_msg(msg_t *msg, int mtext_size);
+int eval_msg(mq_cmd_t *cmd);
+int send_msg(mq_msg_t *msg, int mtext_size);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
 int create_q(int nr_of_elems, int buf_shmid);
-int wait_for_msg(cmdtype_t cmdtype);
+int wait_for_msg(mq_cmdtype_t cmdtype);
 int create_ctrl_data();
 int init_ctrl(char *msgqid_str);
 
@@ -44,7 +44,7 @@ int msgqid;
 
 int ctrl_data_shmid;
 
-msg_t msg;
+mq_msg_t msg;
 char *program_name;
 char msgqid_str[9];
 
@@ -161,16 +161,16 @@ int main(int argc, char *argv[])
   demux_pid = init_demux(msgqid_str);
   
   if(input_file != NULL) {
-    cmd_t *cmd;
+    mq_cmd_t *cmd;
     
     msg.mtype = MTYPE_DEMUX;
-    cmd = (cmd_t *)&msg.mtext;
+    cmd = (mq_cmd_t *)&msg.mtext;
     
     cmd->cmdtype = CMD_FILE_OPEN;
     strcpy(cmd->cmd.file_open.file, input_file);
     
     if(msgsnd(msgqid, &msg,
-	      sizeof(cmdtype_t)+strlen(cmd->cmd.file_open.file)+1,
+	      sizeof(mq_cmdtype_t)+strlen(cmd->cmd.file_open.file)+1,
 	      0) == -1) {
       perror("msgsnd");
     }
@@ -189,9 +189,9 @@ int main(int argc, char *argv[])
 
 int chk_for_msg(void)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   
   if(msgrcv(msgqid, &msg, sizeof(msg.mtext), MTYPE_CTL, IPC_NOWAIT) == -1) {
     if(errno == ENOMSG) {
@@ -209,11 +209,11 @@ int chk_for_msg(void)
 }
 
 
-int wait_for_msg(cmdtype_t cmdtype)
+int wait_for_msg(mq_cmdtype_t cmdtype)
 {
-  msg_t msg;
-  cmd_t *cmd;
-  cmd = (cmd_t *)(msg.mtext);
+  mq_msg_t msg;
+  mq_cmd_t *cmd;
+  cmd = (mq_cmd_t *)(msg.mtext);
   cmd->cmdtype = CMD_NONE;
   
   while(cmd->cmdtype != cmdtype) {
@@ -692,12 +692,12 @@ void destroy_msgq()
 
 
 
-int eval_msg(cmd_t *cmd)
+int eval_msg(mq_cmd_t *cmd)
 {
-  msg_t sendmsg;
-  cmd_t *sendcmd;
+  mq_msg_t sendmsg;
+  mq_cmd_t *sendcmd;
   
-  sendcmd = (cmd_t *)&sendmsg.mtext;
+  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
   
   switch(cmd->cmdtype) {
   case CMD_DEMUX_REQ_BUFFER:
@@ -714,7 +714,7 @@ int eval_msg(cmd_t *cmd)
       sendcmd->cmdtype = CMD_DEMUX_GNT_BUFFER;
       sendcmd->cmd.gnt_buffer.shmid = bufinfo.shmid;
       sendcmd->cmd.gnt_buffer.size = bufinfo.size;
-      send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_gnt_buffer_t));
+      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_gnt_buffer_t));
       
     }
     break;
@@ -762,7 +762,7 @@ int eval_msg(cmd_t *cmd)
       sendcmd->cmd.stream_buffer.subtype =
 	cmd->cmd.new_stream.subtype; 
       fprintf(stderr, "send_msg\n");
-      send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 
       if(shmid >= 0) {
 	// lets start the decoder
@@ -779,8 +779,8 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmdtype = CMD_CTRL_DATA;
 	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
-		     sizeof(cmd_ctrl_data_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		     sizeof(mq_cmd_ctrl_data_t));
 	    
 
 	    // temporary fix to mmap infile
@@ -791,7 +791,7 @@ int eval_msg(cmd_t *cmd)
 	    strcpy(sendcmd->cmd.file_open.file, input_file);
 	    
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
 	    */
 
@@ -804,7 +804,7 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmd.stream_buffer.subtype =
 	      cmd->cmd.new_stream.subtype; 
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	    
 	  } else if((cmd->cmd.new_stream.subtype >= 0x20) &&
 		    (cmd->cmd.new_stream.subtype < 0x40)) {
@@ -818,8 +818,8 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmdtype = CMD_CTRL_DATA;
 	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
-		     sizeof(cmd_ctrl_data_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		     sizeof(mq_cmd_ctrl_data_t));
 	    
 
 	    // temporary fix to mmap infile
@@ -830,7 +830,7 @@ int eval_msg(cmd_t *cmd)
 	    strcpy(sendcmd->cmd.file_open.file, input_file);
 	    
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
 	    */
 
@@ -843,7 +843,7 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmd.stream_buffer.subtype =
 	      cmd->cmd.new_stream.subtype; 
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 
 	  }
 	  
@@ -859,7 +859,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	  send_msg(&sendmsg, sizeof(cmdtype_t) + sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_data_t));
 	  
 	  
 	  // temporary fix to mmap infile
@@ -870,7 +870,7 @@ int eval_msg(cmd_t *cmd)
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 	  
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
 		   strlen(sendcmd->cmd.file_open.file)+1);
 	  */
 
@@ -883,7 +883,7 @@ int eval_msg(cmd_t *cmd)
           sendcmd->cmd.stream_buffer.subtype =
             cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	  
 	} else if((cmd->cmd.new_stream.stream_id >= 0xe0) &&
@@ -897,8 +897,8 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
-		   sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		   sizeof(mq_cmd_ctrl_data_t));
 	  
 	  // mpeg video stream
 	  /*
@@ -907,7 +907,7 @@ int eval_msg(cmd_t *cmd)
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
-		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
 	  */
 	  
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
@@ -918,7 +918,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmd.stream_buffer.subtype =
 	    cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	} else if(cmd->cmd.new_stream.stream_id == 0xbf) {
 	  
@@ -931,8 +931,8 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
-		   sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		   sizeof(mq_cmd_ctrl_data_t));
 	  
 	  // mpeg private stream 2 
 	  /*
@@ -941,7 +941,7 @@ int eval_msg(cmd_t *cmd)
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
-		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
 	  */
 	  
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
@@ -952,7 +952,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmd.stream_buffer.subtype =
 	    cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	}
 	
@@ -983,7 +983,7 @@ int eval_msg(cmd_t *cmd)
       sendcmd->cmd.output_buffer.data_shmid = bufinfo.shmid;
       sendcmd->cmd.output_buffer.data_size = bufinfo.size;
       sendcmd->cmd.output_buffer.q_shmid = q_shmid;
-      send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_output_buffer_t));
+      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_output_buffer_t));
       
 
 
@@ -995,7 +995,7 @@ int eval_msg(cmd_t *cmd)
       sendcmd->cmd.stream_buffer.subtype =
 	cmd->cmd.new_stream.subtype; 
       fprintf(stderr, "send_msg\n");
-      send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+      send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 
       if(q_shmid >= 0) {
 	// lets start the decoder
@@ -1012,8 +1012,8 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmdtype = CMD_CTRL_DATA;
 	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
-		     sizeof(cmd_ctrl_data_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		     sizeof(mq_cmd_ctrl_data_t));
 	    
 
 	    // temporary fix to mmap infile
@@ -1024,7 +1024,7 @@ int eval_msg(cmd_t *cmd)
 	    strcpy(sendcmd->cmd.file_open.file, input_file);
 	    
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
 		     strlen(sendcmd->cmd.file_open.file)+1);
 	    */
 
@@ -1037,7 +1037,7 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmd.stream_buffer.subtype =
 	      cmd->cmd.new_stream.subtype; 
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	    
 	  } else if((cmd->cmd.new_stream.subtype >= 0x20) &&
 		    (cmd->cmd.new_stream.subtype < 0x40)) {
@@ -1051,8 +1051,8 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmdtype = CMD_CTRL_DATA;
 	    sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	    send_msg(&sendmsg, sizeof(cmdtype_t) +
-		     sizeof(cmd_ctrl_data_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		     sizeof(mq_cmd_ctrl_data_t));
 	    
 
 	    // temporary fix to mmap infile
@@ -1076,7 +1076,7 @@ int eval_msg(cmd_t *cmd)
 	    sendcmd->cmd.stream_buffer.subtype =
 	      cmd->cmd.new_stream.subtype; 
 	    
-	    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 
 	  }
 	  
@@ -1092,7 +1092,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 
-	  send_msg(&sendmsg, sizeof(cmdtype_t) + sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) + sizeof(mq_cmd_ctrl_data_t));
 	  
 	  
 	  // temporary fix to mmap infile
@@ -1116,7 +1116,7 @@ int eval_msg(cmd_t *cmd)
           sendcmd->cmd.stream_buffer.subtype =
             cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	  
 	} else if((cmd->cmd.new_stream.stream_id >= 0xe0) &&
@@ -1130,8 +1130,8 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
-		   sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		   sizeof(mq_cmd_ctrl_data_t));
 	  
 	  // mpeg video stream
 	  /*
@@ -1140,7 +1140,7 @@ int eval_msg(cmd_t *cmd)
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
-		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
 	  */
 	  
 	  sendmsg.mtype = MTYPE_VIDEO_DECODE_MPEG;
@@ -1151,7 +1151,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmd.stream_buffer.subtype =
 	    cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	} else if(cmd->cmd.new_stream.stream_id == 0xbf) {
 	  
@@ -1164,8 +1164,8 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmdtype = CMD_CTRL_DATA;
 	  sendcmd->cmd.ctrl_data.shmid = ctrl_data_shmid;
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t) +
-		   sizeof(cmd_ctrl_data_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t) +
+		   sizeof(mq_cmd_ctrl_data_t));
 	  
 	  // mpeg private stream 2 
 	  /*
@@ -1174,7 +1174,7 @@ int eval_msg(cmd_t *cmd)
 	  strcpy(sendcmd->cmd.file_open.file, input_file);
 
 	  send_msg(&sendmsg,
-		   sizeof(cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
+		   sizeof(mq_cmdtype_t)+strlen(sendcmd->cmd.file_open.file)+1);
 	  */
 	  
 	  sendmsg.mtype = MTYPE_DECODE_MPEG_PRIVATE_STREAM_2;
@@ -1185,7 +1185,7 @@ int eval_msg(cmd_t *cmd)
 	  sendcmd->cmd.stream_buffer.subtype =
 	    cmd->cmd.new_stream.subtype; 
 	  
-	  send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_stream_buffer_t));
+	  send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_stream_buffer_t));
 	  
 	}
 	
@@ -1198,13 +1198,13 @@ int eval_msg(cmd_t *cmd)
     sendcmd->cmdtype = cmd->cmdtype;
     sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
     
-    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
+    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
     */
     sendmsg.mtype = MTYPE_DEMUX;
     sendcmd->cmdtype = cmd->cmdtype;
     sendcmd->cmd.ctrl_cmd = cmd->cmd.ctrl_cmd;
     
-    send_msg(&sendmsg, sizeof(cmdtype_t)+sizeof(cmd_ctrl_cmd_t));
+    send_msg(&sendmsg, sizeof(mq_cmdtype_t)+sizeof(mq_cmd_ctrl_cmd_t));
     
     break;
   default:
@@ -1218,7 +1218,7 @@ int eval_msg(cmd_t *cmd)
 }
 
 
-int send_msg(msg_t *msg, int mtext_size)
+int send_msg(mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("ctrl: msgsnd1");
