@@ -15,10 +15,10 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-pkglib_PROGRAMS = ctrl
+pkglib_PROGRAMS = ogle_ctrl
 
 INCLUDES = @TOP_INCLUDES@
 
-ctrl_SOURCES = ctrl.c
-ctrl_LDADD = $(top_builddir)/common/libcommon.a \
+ogle_ctrl_SOURCES = ctrl.c
+ogle_ctrl_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la

@@ -15,7 +15,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-pkglib_PROGRAMS = nav
+pkglib_PROGRAMS = ogle_nav
 bin_PROGRAMS = ifo_dump
 noinst_PROGRAMS =  vmg_dump dump
 
@@ -40,10 +40,10 @@ ifo_dump_LDADD = @DVDREAD_LIBS@
 ifo_dump_SOURCES = ifo_dump.c \
 	vmcmd.c
 
-nav_LDADD = $(top_builddir)/common/libcommon.a \
+ogle_nav_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
 	@DVDREAD_LIBS@
-nav_SOURCES = nav.c \
+ogle_nav_SOURCES = nav.c \
 	vm.c vm.h \
 	decoder.c decoder.h \
 	vmcmd.c vmcmd.h \

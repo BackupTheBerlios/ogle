@@ -36,30 +36,30 @@ EXTRA_DIST = \
 	c_mlib.c c_mlib.h \
 	ffb_asm.s ffb_asm.h
 
-pkglib_PROGRAMS = video_stream video_output
+pkglib_PROGRAMS = ogle_mpeg_vs ogle_vout
 
 INCLUDES = @TOP_INCLUDES@ @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
 
-video_stream_SOURCES = \
+ogle_mpeg_vs_SOURCES = \
 	video_stream.c video_stream.h \
 	video_mpeg1.c video_mpeg2.c video_motion.c \
 	c_getbits.c c_getbits.h \
 	video_tables.c video_tables.h \
 	video_types.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
-video_stream_LDADD = \
+ogle_mpeg_vs_LDADD = \
 	@MLIB_LIBS@ \
 	$(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la
 
-video_output_SOURCES = \
+ogle_vout_SOURCES = \
 	video_output_x11.c video_output.c \
 	yuv2rgb.c yuv2rgb.h \
 	screenshot.c screenshot.h \
 	spu_mixer.c spu_mixer.h \
 	wm_state.c wm_state.h \
 	$(MLIBSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
-video_output_LDADD = \
+ogle_vout_LDADD = \
 	@MLIB_LIBS@ @JPEG_LIBS@ \
 	@X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ \
 	$(top_builddir)/common/libcommon.a \

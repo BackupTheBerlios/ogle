@@ -18,28 +18,28 @@ exec_prefix=@exec_prefix@
 DVDP_ROOT=@libdir@/@PACKAGE@
 
 export DVDP_ROOT
-DVDP_CTRL=$DVDP_ROOT/ctrl
+DVDP_CTRL=$DVDP_ROOT/ogle_ctrl
 export DVDP_CTRL
-DVDP_DEMUX=$DVDP_ROOT/programstream
+DVDP_DEMUX=$DVDP_ROOT/ogle_mpeg_ps
 export DVDP_DEMUX
 DVDP_CLI_UI=$DVDP_ROOT/ogle_cli
 export DVDP_CLI_UI
 DVDP_UI=$DVDP_ROOT/ogle_gui
 export DVDP_UI
-#DVDP_AC3=$DVDP_ROOT/ac3dec_wrap
-DVDP_AC3=$DVDP_ROOT/a52_decoder
+#DVDP_AC3=$DVDP_ROOT/ogle_ac3_p
+DVDP_AC3=$DVDP_ROOT/ogle_a52
 export DVDP_AC3
-DVDP_MPEGAUDIO=$DVDP_ROOT/mpg123_wrap
-export DVDP_MPEGAUDIO
-DVDP_VIDEO=$DVDP_ROOT/video_stream
+#DVDP_MPEGAUDIO=$DVDP_ROOT/mpg123_wrap
+#export DVDP_MPEGAUDIO
+DVDP_VIDEO=$DVDP_ROOT/ogle_mpeg_vs
 export DVDP_VIDEO
-DVDP_VMG=$DVDP_ROOT/nav
+DVDP_VMG=$DVDP_ROOT/ogle_nav
 #DVDP_VMG=RUNNING
 export DVDP_VMG
 #DVDP_SPU=$DVDP_ROOT/subpicture/spu_wrap
-DVDP_SPU=$DVDP_ROOT/video_output
+DVDP_SPU=$DVDP_ROOT/ogle_vout
 export DVDP_SPU
-DVDP_VIDEO_OUT=$DVDP_ROOT/video_output
+DVDP_VIDEO_OUT=$DVDP_ROOT/ogle_vout
 export DVDP_VIDEO_OUT
 if [ -x "$DVDP_UI" ]; then
   $DVDP_CTRL -u gui $*;

@@ -15,12 +15,12 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
-pkglib_PROGRAMS = programstream
+pkglib_PROGRAMS = ogle_mpeg_ps
 
 INCLUDES = @TOP_INCLUDES@ @DVDREAD_CFLAGS@
 
-programstream_SOURCES = programstream.c programstream.h
+ogle_mpeg_ps_SOURCES = programstream.c programstream.h
 
-programstream_LDADD = $(top_builddir)/common/libcommon.a \
+ogle_mpeg_ps_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
 	@DVDREAD_LIBS@
