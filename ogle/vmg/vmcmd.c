@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <ctype.h>
 #include <inttypes.h>
 
 typedef struct
@@ -32,7 +33,7 @@ char *system_reg_table[] = {
   "Title Number",
   "VTS Title Number",
   "Title PGC Number",
-  "Part Of Title Number for One_Sequential_PGC_Title",
+  "Part of Title Number for One_Sequential_PGC_Title",
   "Highlighted Button Number",
   "Navigation Timer",
   "Title PGC Number for Navigation Timer",
@@ -84,10 +85,12 @@ uint32_t bits (int byte, int bit, int count)
   return (val);
 }
 
+static void
 print_system_reg(uint16_t reg) {
   printf(system_reg_table[reg]);
 }
 
+static void
 print_reg(uint8_t reg) {
   if(reg&0x80) {
     print_system_reg(reg&0x1f);
@@ -97,24 +100,30 @@ print_reg(uint8_t reg) {
   }
 }
 
+static void
 print_op(uint8_t op) {
   printf(" %s ", op_table[op]);
 }
 
+static void
 print_set_op(uint8_t op) {
   char *set_op = set_op_table[op];
   printf(" %s ", set_op ? set_op : " ?? ");
 }
 
+static void
 print_reg_or_data(int i, int byte) {
   if (i) { // immediate
-    printf("0x%x", bits(byte,0,16));
+    int i = bits(byte,0,16);
+    printf("0x%x", i);
+    if( isprint(i & 0xff) && isprint((i>>8) & 0xff) )
+      printf(" (\"%c%c\")", (char)((i>>8) & 0xff), (char)(i & 0xff));
   } else {
     print_reg(bits(byte+1,0,8));
   }
 }
 
-
+static void
 print_if_version_1() {
   uint8_t op = (bits(1,1,3));
   if(op) {
@@ -126,6 +135,7 @@ print_if_version_1() {
   }
 }
 
+static void
 print_special_instruction() {
   switch(bits(1,4,4)) {
     case 0: // NOP
@@ -146,6 +156,7 @@ print_special_instruction() {
   }
 }
 
+static void
 print_link_instruction() {
   uint8_t op = bits(1,4,4);
   uint8_t but = bits(6,0,6);
@@ -181,6 +192,7 @@ print_link_instruction() {
   }
 }
 
+static void
 print_if_version_2 () {
   uint8_t op = (bits(1,1,3));
   if(op) {
@@ -192,6 +204,7 @@ print_if_version_2 () {
   }
 }
 
+static void
 print_jump_instruction () {
   switch(bits(1,4,4)) {
     case 1:
@@ -249,6 +262,7 @@ print_jump_instruction () {
   }
 }
 
+static void
 print_reg_or_data_2(int i, int byte) {
   if (i) { // immediate
     printf("0x%x", bits(byte,1,7));
@@ -257,6 +271,7 @@ print_reg_or_data_2(int i, int byte) {
   }
 }
 
+static void
 print_system_set () {
   int i;
   switch(bits(0,4,4)) {
@@ -288,6 +303,7 @@ print_system_set () {
   }
 }
 
+static void
 print_if_version_3 () {
   uint8_t op = (bits(1,1,3));
   if(op) {
@@ -299,6 +315,7 @@ print_if_version_3 () {
   }
 }
 
+static void
 print_set () {
   uint8_t set_op = bits(0,4,4);
   print_reg(bits(3,0,8));
@@ -310,6 +327,7 @@ print_set () {
   }
 }
 
+void
 vmcmd(uint8_t *bytes)  {
   int i, extra_bits;
   for(i=0;i<8;i++) {
