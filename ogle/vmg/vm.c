@@ -405,6 +405,7 @@ void get_VTS_PTT(int tt, int part) {
   state.cellN = 0;
   //ifoFree_VTS_PTT_SRPT(&vts_ptt_srpt);
   
+  pgcit = malloc( sizeof(pgcit) );
   ifoRead_PGCIT(pgcit, vtsi_mat.vts_pgcit * DVD_BLOCK_LEN);
   memcpy(&pgc, pgcit->pgci_srp[state.pgcN-1].pgc, sizeof(pgc));
   //ifoFree_PGCIT(&pgcit);
