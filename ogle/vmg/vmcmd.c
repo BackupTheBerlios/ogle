@@ -485,7 +485,7 @@ void vmPrint_mnemonic(vm_cmd_t *command)  {
   }
 }
 
-void vmPrint_cmd(int row, vm_cmd_t *command) {
+void vmPrint_CMD(int row, vm_cmd_t *command) {
   int i;
 
   fprintf(stderr, "(%03d) ", row + 1);
