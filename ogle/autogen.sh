@@ -3,8 +3,8 @@ set -x
 
 aclocal
 ## Should we have this? 
-libtoolize --force
+libtoolize --copy --force --automake
 ##autoheader
-automake --add-missing
+automake --copy --add-missing
 autoconf
 rm -f config.cache
