@@ -27,35 +27,35 @@ static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
     
     if(!strcmp("DefaultMenuLanguage", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	fprintf(stderr, "DefaultMenuLanguage = '%s'\n", s);
+	//fprintf(stderr, "DefaultMenuLanguage = '%s'\n", s);
 	lang = s[0] << 8 | s[1];
 	DVDDefaultMenuLanguageSelect(nav, lang);
 	free(s);
       }
     } else if(!strcmp("DefaultAudioLanguage", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	fprintf(stderr, "DefaultAudioLanguage = %s\n", s);
+	//fprintf(stderr, "DefaultAudioLanguage = %s\n", s);
 	lang = s[0] << 8 | s[1];
 	DVDDefaultAudioLanguageSelect(nav, lang);    
 	free(s);
       }
     } else if(!strcmp("DefaultSubpictureLanguage", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	fprintf(stderr, "DefaultSubpictureLanguage = %s\n", s);
+	//fprintf(stderr, "DefaultSubpictureLanguage = %s\n", s);
 	lang = s[0] << 8 | s[1];
 	DVDDefaultSubpictureLanguageSelect(nav, lang);    
 	free(s);
       } 
     } else if(!strcmp("ParentalCountry", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	fprintf(stderr, "ParentalCountry = %s\n", s);
+	//fprintf(stderr, "ParentalCountry = %s\n", s);
 	country = s[0] << 8 | s[1];
 	DVDParentalCountrySelect(nav, country);    
 	free(s);
       } 
     } else if(!strcmp("ParentalLevel", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	fprintf(stderr, "ParentalLevel = %s\n", s);
+	//fprintf(stderr, "ParentalLevel = %s\n", s);
 	plevel = atoi(s);
 	DVDParentalLevelSelect(nav, plevel);    
 	free(s);
@@ -96,26 +96,27 @@ static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
     if(!xmlIsBlankNode(cur)) {
       if(!strcmp("action", cur->name)) {
 	if(action != NULL) {
-	  fprintf(stderr, "ERROR: interpret_b(): more than one <action>\n");
+	  fprintf(stderr,
+		  "ERROR[dvd_cli]: interpret_b(): more than one <action>\n");
 	  break;
 	}
 	action = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(action == NULL) {
-	  fprintf(stderr, "ERROR: interpret_b(): <action> empty\n");
+	  fprintf(stderr, "ERROR[dvd_cli]: interpret_b(): <action> empty\n");
 	} else {
-	  fprintf(stderr, "action: %s\n", action);
+	  //fprintf(stderr, "action: %s\n", action);
 	}
       } else if(!strcmp("key", cur->name)) {
 	if(action == NULL) {
-	  fprintf(stderr, "ERROR: interpret_b(): no <action>\n");
+	  fprintf(stderr, "ERROR[dvd_cli]: interpret_b(): no <action>\n");
 	  break;
 	}
 	key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
 	if(key == NULL) {
-	  fprintf(stderr, "WARNING: interpret_b(): <key> empty\n");
+	  fprintf(stderr, "WARNING[dvd_cli]: interpret_b(): <key> empty\n");
 	} else {
 	  add_keybinding(key, action);
-	  fprintf(stderr, "key: %s\n", key);	
+	  //fprintf(stderr, "key: %s\n", key);	
 	  free(key);
 	}
       }
@@ -243,7 +244,7 @@ int interpret_oglerc(char *filename)
 
   } else {
 
-    fprintf(stderr, "WARNING: dvd_cli: Couldn't load config file\n");
+    fprintf(stderr, "WARNING[dvd_cli]: Couldn't load config file\n");
 
     return -1;
 
@@ -259,12 +260,12 @@ int interpret_config(void)
 
   if((r+= interpret_oglerc(CONFIG_FILE_NAME)) == -1) {
     fprintf(stderr,
-	    "ERROR: interpret_config(): Couldn't read "CONFIG_FILE_NAME" \n");
+	    "ERROR[dvd_cli]: interpret_config(): Couldn't read "CONFIG_FILE_NAME"\n");
   }
 
   home = getenv("HOME");
   if(home == NULL) {
-    fprintf(stderr, "cli: no $HOME\n");
+    fprintf(stderr, "WARNING[dvd_cli]: No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -276,7 +277,7 @@ int interpret_config(void)
     
     if((r+= interpret_oglerc(rcpath)) == -1) {
       fprintf(stderr,
-	      "ERROR: interpret_config(): Couldn't read '%s'\n", rcpath);
+	      "WARNING[dvd_cli]: interpret_config(): Couldn't read '%s'\n", rcpath);
     }
     
     free(rcpath);

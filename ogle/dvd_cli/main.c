@@ -93,6 +93,11 @@ main (int argc, char *argv[])
     dvd_path = argv[optind];
   }
   
+  if(dvd_path == NULL) {
+    fprintf(stderr, "ERROR: dvd_cli: You must specify the path to your dvd device, either in the oglerc or on the command line\n");
+    exit(-1);
+  }
+  
   res = DVDSetDVDRoot(nav, dvd_path);
   if(res != DVD_E_Ok) {
     DVDPerror("DVDSetDVDRoot:", res);

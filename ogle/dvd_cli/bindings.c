@@ -181,9 +181,50 @@ void actionFastForward(void)
   DVDForwardScan(nav, speed);
 }
 
-void actionSlowMotion(void)
+void actionSlowForward(void)
 {
-  DVDForwardScan(nav, 0.5);
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
+  if(speed > 1.0) {
+    speed = 0.5;
+  } else if((speed > 0.1) && (speed <= 1.0)) {
+    speed /= 2.0;
+  }
+  DVDForwardScan(nav, speed);
+}
+
+
+void actionFaster(void)
+{
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+  
+  if((speed >= 1.0) && (speed < 8.0)) {
+    speed += 0.5;
+  } else if(speed < 1.0) {
+    speed *= 2.0;
+  }
+  DVDForwardScan(nav, speed);
+}
+
+void actionSlower(void)
+{
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
+  if(speed > 1.0) {
+    speed -= 0.5;
+  } else if((speed > 0.1) && (speed <= 1.0)) {
+    speed /= 2.0;
+  }
+  DVDForwardScan(nav, speed);
 }
 
 
@@ -209,10 +250,12 @@ typedef struct {
 
 action_mapping_t actions[] = {
   { "Play", actionPlay },
-  { "Pause", actionPauseToggle },
+  { "PauseToggle", actionPauseToggle },
   { "Stop", NULL },
-  { "FastForward", NULL },
-  { "SlowMotion", NULL },
+  { "FastForward", actionFastForward },
+  { "SlowForward", actionSlowForward },
+  { "Faster", actionFaster },
+  { "Slower", actionSlower },
   { "NextPG", actionNextPG },
   { "PrevPG", actionPrevPG },
   { "UpperButton", actionUpperButtonSelect },
@@ -227,7 +270,7 @@ action_mapping_t actions[] = {
   { "PTTMenu", actionMenuCallPTT },
   { "SubtitleMenu", actionMenuCallSubpicture },
   { "Resume", actionResume },
-  { "FullScreen", actionFullScreenToggle },
+  { "FullScreenToggle", actionFullScreenToggle },
   { "SubtitleToggle", actionSubpictureToggle },
   { "Quit", actionQuit },
 
@@ -241,11 +284,27 @@ void do_keysym_action(KeySym keysym)
 
   for(n = 0; n < ks_maps_index; n++) {
     if(ks_maps[n].keysym == keysym) {
-      ks_maps[n].fun();
+      if(ks_maps[n].fun != NULL) {
+	ks_maps[n].fun();
+      }
       return;
     }
   }
   return;
+}
+
+
+void remove_keysym_binding(KeySym keysym)
+{
+  int n;
+  
+  for(n = 0; n < ks_maps_index; n++) {
+    if(ks_maps[n].keysym == keysym) {
+      ks_maps[n].keysym = NoSymbol;
+      ks_maps[n].fun = NULL;
+      return;
+    }
+  }
 }
 
 void add_keysym_binding(KeySym keysym, void(*fun)(void))
@@ -281,11 +340,17 @@ void add_keybinding(char *key, char *action)
   keysym = XStringToKeysym(key);
   
   if(keysym == NoSymbol) {
-    fprintf(stderr, "WARNING: add_keybinding(): key '%s' not a valid keysym\n",
+    fprintf(stderr,
+	    "WARNING[dvd_cli]: add_keybinding(): '%s' not a valid keysym\n",
 	    key);
     return;
   }
   
+  if(!strcmp("NoAction", action)) {
+    remove_keysym_binding(keysym);
+    return;
+  }
+    
   for(n = 0; actions[n].str != NULL; n++) {
     if(!strcmp(actions[n].str, action)) {
       if(actions[n].fun != NULL) {
@@ -295,7 +360,9 @@ void add_keybinding(char *key, char *action)
     }
   }
   
-  fprintf(stderr, "WARNING: add_keybinding(): no such action '%s'\n", action);
+  fprintf(stderr,
+	  "WARNING[dvd_cli]: add_keybinding(): No such action: '%s'\n",
+	  action);
   
   return;
 }
