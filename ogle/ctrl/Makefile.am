@@ -17,4 +17,4 @@
 
 bin_PROGRAMS = ctrl
 ctrl_SOURCES = ctrl.c
-ctrl_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a
+ctrl_LDADD = $(top_builddir)/common/libcommon.a $(top_builddir)/common/libmsgcom.la

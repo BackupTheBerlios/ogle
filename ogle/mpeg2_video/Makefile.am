@@ -51,6 +51,6 @@ video_output_SOURCES = \
 	spu_mixer.c spu_mixer.h \
 	$(MLIBSOURCES) $(MMXSOURCES) $(CSOURCES)
 
-video_stream_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a  $(top_builddir)/common/libdvdcontrol.a 
+video_stream_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/common/libmsgcom.la
 
-video_output_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/common/libdvdcontrol.a
+video_output_LDADD = -ljpeg @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/common/libmsgcom.la

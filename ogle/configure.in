@@ -8,6 +8,8 @@ dnl Checks for programs.
 AC_PROG_CC
 AC_PROG_RANLIB
 
+AM_PROG_LIBTOOL
+
 dnl Checks for libraries.
 
 dnl Checks for header files.
