@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-//#include <siginfo.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -17,8 +16,10 @@
 #include "queue.h"
 
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
-int get_q();
+int get_q(void);
 int attach_ctrl_shm(int shmid);
+
+int input(void);
 
 
 char *program_name;
@@ -38,7 +39,7 @@ MsgEventClient_t spu_client;
 MsgEventClient_t nav_client;
 
 
-void usage()
+void usage(void)
 {
   fprintf(stderr, "Usage: %s  [-m <msgid>]\n", 
 	  program_name);
@@ -145,7 +146,7 @@ int main(int argc, char *argv[])
 
 
 
-int request_spu()
+int request_spu(void)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQReqCapability;
@@ -175,7 +176,7 @@ int request_spu()
 }
 
 
-int request_nav()
+int request_nav(void)
 {
   MsgEvent_t ev;
   ev.type = MsgEventQReqCapability;
@@ -208,12 +209,9 @@ int request_nav()
 
 
 #define CMDSTR_LEN 256
-int input() {
+int input(void) {
   char cmdstr[CMDSTR_LEN];
-  char *cmdtokens[16];
   char *tok;
-  int m,n;
-  int time;
   MsgEventClient_t rcpt;
   MsgEvent_t sendev;
   
