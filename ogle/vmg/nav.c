@@ -745,11 +745,18 @@ static void do_run(void) {
 	      send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
 	      last_speed = ev.dvdctrl.cmd.scan.speed;
 	    }
+	    /* Perhaps we should remeber the speed before the pause. */
 	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOn)
 	      send_ev.speed.speed = 0.000000001;
 	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOff)
 	      send_ev.speed.speed = last_speed;
-	    /* Perhaps we should remeber the speed before the pause. */
+	    
+	    /* Hack to exit STILL_MODE if we're in it. */
+	    if(cell->first_sector + block > cell->last_vobu_start_sector &&
+	       cell->still_time > 0)
+	      cell->still_time = 0;
+	      still_time = 0;
+	    }
 	    MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
           }
 	  break;
