@@ -74,6 +74,20 @@ typedef enum {
 
 } DVDCtrlEventType_t;
 
+
+typedef enum {
+  DVDCtrlLongSetDVDRoot
+} DVDCtrlLongEventType_t;
+
+typedef struct {
+  DVDCtrlLongEventType_t type;
+  char path[PATH_MAX];
+} DVDCtrlLongDVDRootEvent_t;
+
+typedef struct {
+  DVDCtrlLongEventType_t type;
+} DVDCtrlLongAnyEvent_t;
+
 /*
 typedef struct {
 } DVDCtrlLeftButtonSelectEvent_t;
@@ -263,6 +277,9 @@ typedef struct {
   DVDSubpictureAttributes_t attr;
 } DVDCtrlSubpictureAttributesEvent_t;
 
+typedef struct {
+  DVDCtrlEventType_t type;
+} DVDCtrlAnyEvent_t;
 
 typedef union {
   DVDCtrlEventType_t type;
@@ -337,6 +354,12 @@ typedef union {
   /* end infocmd */
 
 } DVDCtrlEvent_t;
+
+typedef union {
+  DVDCtrlLongEventType_t type;
+  DVDCtrlLongAnyEvent_t any;
+  DVDCtrlLongDVDRootEvent_t dvdroot;
+} DVDCtrlLongEvent_t;
 
 
 #endif /* DVDEVENTS_H */

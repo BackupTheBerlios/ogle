@@ -38,6 +38,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDemuxStream",
   "MsgEventQDemuxStreamChange",
   "MsgEventQDemuxDefault",
+  "MsgEventQDVDCtrlLong",
   NULL
 };
 
@@ -224,6 +225,17 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDemuxDefault:
     size = sizeof(MsgQDemuxDefaultEvent_t);
+    break;
+  case MsgEventQDVDCtrlLong:
+    switch(event_send->dvdctrllong.cmd.type) {
+    case DVDCtrlLongSetDVDRoot:
+      size = sizeof(MsgQAnyEvent_t) + sizeof(DVDCtrlLongAnyEvent_t)
+	+ strlen(event_send->dvdctrllong.cmd.dvdroot.path)+1;
+      break;
+    default:
+      size = sizeof(MsgQDVDCtrlLongEvent_t);
+      break;
+    }
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

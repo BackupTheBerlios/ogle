@@ -9,7 +9,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/msg.h>
-
+#include <string.h>
 #include <ogle/msgevents.h>
 #include <ogle/dvdcontrol.h>
 
@@ -547,6 +547,32 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
  * @{
  */
 
+
+
+/** 
+ * Selects the directory where the dvd files are *.VOB *.IFO.
+ * @todo implement
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param 
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrlLong;
+  ev.dvdctrllong.cmd.type = DVDCtrlLongSetDVDRoot;
+  strncpy(ev.dvdctrllong.cmd.dvdroot.path, Path,
+	  sizeof(ev.dvdctrllong.cmd.dvdroot.path));
+  ev.dvdctrllong.cmd.dvdroot.path[sizeof(ev.dvdctrllong.cmd.dvdroot.path)-1]
+    = '\0';
+  MsgSendEvent(nav->msgq, nav->client, &ev);
+  
+  return DVD_E_Ok;
+}
 
 /** 
  * Selects the button to the left of the current one.

@@ -66,7 +66,8 @@ typedef enum {
   MsgEventQFlushData,
   MsgEventQDemuxStream,
   MsgEventQDemuxStreamChange,
-  MsgEventQDemuxDefault
+  MsgEventQDemuxDefault,
+  MsgEventQDVDCtrlLong
 } MsgEventType_t;
 
 
@@ -77,6 +78,12 @@ typedef struct {
   DVDCtrlEvent_t cmd;
 } MsgQDVDCtrlEvent_t;
 
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  DVDCtrlLongEvent_t cmd;
+} MsgQDVDCtrlLongEvent_t;
 
 
 typedef enum {
@@ -323,6 +330,7 @@ typedef union {
   MsgQDemuxStreamEvent_t demuxstream;
   MsgQDemuxStreamChangeEvent_t demuxstreamchange;
   MsgQDemuxDefaultEvent_t demuxdefault;
+  MsgQDVDCtrlLongEvent_t dvdctrllong;
 } MsgEvent_t;
 
 typedef struct {

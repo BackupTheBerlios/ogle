@@ -55,6 +55,8 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 
 /* control commands */
 
+DVDResult_t DVDSetDVDRoot(DVDNav_t *nav, char *Path);
+
 DVDResult_t DVDLeftButtonSelect(DVDNav_t *nav);
 DVDResult_t DVDRightButtonSelect(DVDNav_t *nav);
 DVDResult_t DVDUpperButtonSelect(DVDNav_t *nav);
