@@ -37,3 +37,5 @@ Arjen Hommersom, exporting allowed User Opreations flags to dvdcontrol.
 Maik Schulz, sent a few DVD from a game magazine that refused to work.
 Dan Weeks, have provided us with a couple of DVDs.
 Torgeir Veimo, ALSA sound support.
+Martin Piskernig, several patches for improving the usability and features
+Kai Vehmanen, compile fixs for egcs
