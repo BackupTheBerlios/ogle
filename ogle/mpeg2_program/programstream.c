@@ -2533,7 +2533,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 
   if(scr_discontinuity || (demux_cmd & FlowCtrlFlush)) {
     scr_discontinuity = 0;
-    scr_nr = (scr_nr+1)%16;
+    scr_nr = (scr_nr+1)%32;
     ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
     ctrl_time[scr_nr].sync_master = SYNC_NONE;
     fprintf(stderr, "changed to scr_nr: %d\n", scr_nr);

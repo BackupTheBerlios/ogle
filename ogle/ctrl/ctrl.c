@@ -1427,7 +1427,7 @@ int create_ctrl_data()
   char *shmaddr;
   ctrl_time_t *ctrl_time;
   int n;
-  int nr_of_offsets = 16;
+  int nr_of_offsets = 32;
   
   if((shmid = shmget(IPC_PRIVATE,
 		     sizeof(ctrl_data_t)+
