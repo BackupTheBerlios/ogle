@@ -1156,7 +1156,9 @@ int init_mpeg_audio_decoder(char *msgqid)
 #endif
 
 
-
+/**
+ * @todo fix how to decide which streams to decode
+ */
 
 int register_stream(uint8_t stream_id, uint8_t subtype)
 {
@@ -1164,31 +1166,63 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     
-    if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
-       (ac3_audio_stream >= 0)) {
+    /* dvd, it's an ac3 stream ok */
+    if(((subtype & 0xf0) == 0x80) || ((subtype & 0xf0) == 0x90)) {
       return 1;
     }
+    /*
+      if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
+      (ac3_audio_stream >= 0)) {
+      return 1;
+      }
+    */
     
-    if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
-       (subpicture_stream >= 0)) {
+    /* dvd, it's a spu stream ok */
+    
+    if(((subtype & 0xf0) == 0x20) || ((subtype & 0xf0) == 0x90)) {
       return 1;
     }
+    /*
+      if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
+      (subpicture_stream >= 0)) {
+      return 1;
+      }
+    */
   }
   
+  /* dvd, mpeg audio stream ok */
+  if(((stream_id & 0xf0) == 0xc0) || ((stream_id & 0xf0) == 0xd0)) {
+    return 1;
+  }
+  /*
   if((stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) &&
      (mpeg_audio_stream >= 0)) { 
     return 1;
   }
-  
+  */
+
+  /* dvd, video stream ok */
+  if((stream_id & 0xf0) == 0xe0) {
+    return 1;
+  }
+  /*
   if((stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) &&
      (mpeg_video_stream >= 0)) {
     return 1;
   }
+  */
   
-  if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav packs
+  /* dvd, nav stream ok */
+  if(stream_id == MPEG2_PRIVATE_STREAM_2) { // nav packs
     return 1;
   }
   
+  /*
+  if((stream_id == MPEG2_PRIVATE_STREAM_2) && (nav_stream >= 0)) { // nav packs
+    return 1;
+  }
+  */
+
   return 0;  
   
 }

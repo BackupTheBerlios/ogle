@@ -35,6 +35,8 @@ static char *MsgEventType_str[] = {
   "MsgEventQDVDCtrl",
   "MsgEventQFlow",
   "MsgEventQFlushData",
+  "MsgEventQDemuxStream",
+  "MsgEventQDemuxStreamChange",
   NULL
 };
 
@@ -212,6 +214,12 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQFlushData:
     size = sizeof(MsgQFlushDataEvent_t);
+    break;
+  case MsgEventQDemuxStream:
+    size = sizeof(MsgQDemuxStreamEvent_t);
+    break;
+  case MsgEventQDemuxStreamChange:
+    size = sizeof(MsgQDemuxStreamChangeEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

@@ -81,6 +81,10 @@ void add_to_demux_q(MsgEvent_t *ev);
 static void handle_events(MsgEvent_t *ev);
 int id_infile(uint8_t id, uint8_t subtype);
 void id_setinfile(uint8_t id, uint8_t subtype, int newfile);
+uint8_t type_registered(uint8_t id, uint8_t subtype);
+int switch_to_stream(uint8_t id, uint8_t subtype);
+int id_has_output(uint8_t stream_id, uint8_t subtype);
+int id_get_output(uint8_t id, int subtype);
 
 typedef struct {
   uint8_t *buf_start;
@@ -694,10 +698,14 @@ void push_stream_data(uint8_t stream_id, int len,
   if((!id_registered(stream_id, subtype)) && system_header_set) {
     register_id(stream_id, subtype);
   }
-  
+
   //fprintf(stderr, "Packet id: %02x, %02x\n", stream_id, subtype);
   
   if(id_stat(stream_id, subtype) == STREAM_DECODE) {
+    if(!id_has_output(stream_id, subtype)) {
+      id_get_output(stream_id, subtype);
+    }
+
     //  if(stream_id == MPEG2_PRIVATE_STREAM_1) { 
     /*
       if((stream_id == 0xe0) || (stream_id == 0xc0) ||
@@ -1457,12 +1465,12 @@ int main(int argc, char **argv)
 	  exit(1);
 	}
 
-	id_add(stream_id, 0, STREAM_DECODE, 0, NULL, video_file);
+	id_add(stream_id, 0, STREAM_DECODE, -1, NULL, video_file);
 	
       } else {
 	fprintf(stderr, "Video stream %d disabled\n", stream_nr);
 	
-	id_add(stream_id, 0, STREAM_DISCARD, 0, NULL, NULL);
+	id_add(stream_id, 0, STREAM_DISCARD, -1, NULL, NULL);
       }
 	
 	  
@@ -1523,12 +1531,12 @@ int main(int argc, char **argv)
 	  exit(1);
 	}
 
-	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DECODE, 0, NULL, subtitle_file);
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DECODE, -1, NULL, subtitle_file);
 	
       } else {
 	fprintf(stderr, "Subtitle stream %d disabled\n", stream_nr);
 	
-	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DISCARD, 0, NULL, NULL);
+	id_add(MPEG2_PRIVATE_STREAM_1, stream_id, STREAM_DISCARD, -1, NULL, NULL);
       }
 
 
@@ -1690,6 +1698,16 @@ static void handle_events(MsgEvent_t *ev)
       break;
     }
     break;
+  case MsgEventQDemuxStream:
+    if(ev->demuxstream.stream_id != MPEG2_PRIVATE_STREAM_1) {
+      id_reg[ev->demuxstream.stream_id].state = STREAM_DECODE;
+    } else {
+      id_reg_ps1[ev->demuxstream.subtype].state = STREAM_DECODE;
+    }
+    break;
+  case MsgEventQDemuxStreamChange:
+    switch_to_stream(ev->demuxstream.stream_id, ev->demuxstream.subtype);
+    break;
   default:
     fprintf(stderr, "demux: unrecognized command\n");
     break;
@@ -1741,6 +1759,75 @@ int register_id(uint8_t id, int subtype)
     /* wait for answer */
     
     while(!id_registered(id, subtype)) {
+      MsgNextEvent(msgq, &ev);
+      if(ev.type == MsgEventQGntStreamBuf) {
+	DPRINTF(1, "demux: got stream %x, %x buffer \n",
+		ev.gntstreambuf.stream_id,
+		ev.gntstreambuf.subtype);
+	attach_decoder_buffer(ev.gntstreambuf.stream_id,
+			      ev.gntstreambuf.subtype,
+			      ev.gntstreambuf.q_shmid);
+      } else {
+	handle_events(&ev);
+      }
+    }
+
+  } else {
+    /* TODO fix */
+    /*
+      id_add(...);
+
+    */
+  }
+  
+  return 0;
+}
+
+int id_get_output(uint8_t id, int subtype)
+{
+  MsgEvent_t ev;
+  
+  data_buf_head_t *data_buf_head;
+  int qsize;
+  
+  if(msgqid != -1) {
+    
+    data_buf_head = (data_buf_head_t *)data_buf_addr;
+    
+    /* send create decoder request msg*/
+    ev.type = MsgEventQReqStreamBuf;
+    ev.reqstreambuf.stream_id = id;
+    ev.reqstreambuf.subtype = subtype;
+
+    /* TODO how should we decide buf sizes? */
+    switch(id) {
+    case MPEG2_PRIVATE_STREAM_1:
+      if((subtype&~0x1f) == 0x80) {
+	qsize = 100;
+      } else if((subtype&~0x1f) == 0x20) {
+	qsize = 100;
+      } else {
+	qsize = 100;
+      }
+      break;
+    case MPEG2_PRIVATE_STREAM_2:
+      qsize = 100;
+      break;
+    default:
+      qsize = 300;
+      break;
+    }
+
+    ev.reqstreambuf.nr_of_elems = qsize;
+    ev.reqstreambuf.data_buf_shmid = data_buf_head->shmid;
+      
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+      fprintf(stderr, "demux: couldn't send streambuf request\n");
+    }
+    
+    /* wait for answer */
+    
+    while(!id_has_output(id, subtype)) {
       MsgNextEvent(msgq, &ev);
       if(ev.type == MsgEventQGntStreamBuf) {
 	DPRINTF(1, "demux: got stream %x, %x buffer \n",
@@ -1825,6 +1912,109 @@ int id_registered(uint8_t id, uint8_t subtype)
   return 0;
 }
 
+
+uint8_t type_registered(uint8_t id, uint8_t subtype)
+{
+  int n;
+  uint8_t idtype;
+  uint8_t idrange;
+  
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    switch(id & 0xf0) {
+    case 0xe0:
+      idtype = 0xe0;
+      idrange = 16;
+      break;
+    case 0xc0:
+    case 0xd0:
+      idtype = 0xc0;
+      idrange = 32;
+      break;
+    default:
+      fprintf(stderr, "demux: type_registered(), type not handled\n");
+      break;
+    }
+    
+    for(n = idtype; n < (idtype+idrange); n++) {
+      if(id_stat(n, 0) == STREAM_DECODE) {
+	return n;
+      }
+    }
+  } else {
+    switch(subtype & 0xf0) {
+    case 0x20:
+    case 0x30:
+      idtype = 0x20;
+      idrange = 32;
+      break;
+    case 0x80:
+    case 0x90:
+      idtype = 0x80;
+      idrange = 32;
+      break;
+    default:
+      fprintf(stderr, "demux: type_registered(), subtype not handled\n");
+      break;
+    }
+    
+    for(n = idtype; n < (idtype+idrange); n++) {
+      if(id_stat(id, n) == STREAM_DECODE) {
+	return n;
+      }
+    }
+  } 
+  return 0;
+  
+}
+
+int switch_to_stream(uint8_t id, uint8_t subtype)
+{
+  uint8_t oldid;
+  
+  oldid = type_registered(id, subtype);
+  if(id == 0) {
+    if(id != MPEG2_PRIVATE_STREAM_1) {
+      id_reg[id].state = STREAM_DECODE;
+    } else {
+      id_reg_ps1[id].state = STREAM_DISCARD;
+    }
+  }
+
+  if(id != MPEG2_PRIVATE_STREAM_1) {
+    id_reg[id] = id_reg[oldid];
+    id_reg[oldid].shmid = -1;
+    id_reg[oldid].shmaddr = NULL;
+    id_reg[oldid].state = STREAM_DISCARD;
+    id_reg[oldid].file = NULL;
+  } else {
+    id_reg_ps1[id] = id_reg_ps1[oldid];
+    id_reg_ps1[oldid].shmid = -1;
+    id_reg_ps1[oldid].shmaddr = NULL;
+    id_reg_ps1[oldid].state = STREAM_DISCARD;
+    id_reg_ps1[oldid].file = NULL;
+  }
+  return 1;
+}
+
+int id_has_output(uint8_t stream_id, uint8_t subtype)
+{
+  
+  if(stream_id != MPEG2_PRIVATE_STREAM_1) {
+    if(id_reg[stream_id].shmid != -1) {
+      return 1;
+    } else {
+      return 0;
+    }
+  } else {
+    if(id_reg_ps1[subtype].shmid != -1) {
+      return 1;
+    } else {
+      return 0;
+    }
+  }
+}
+
+
 void id_add(uint8_t stream_id, uint8_t subtype, stream_state_t state, int shmid, char *shmaddr, FILE *file)
 {
     if(stream_id != MPEG2_PRIVATE_STREAM_1) {
@@ -1850,12 +2040,16 @@ int init_id_reg()
   int n;
   
   for(n = 0; n < 256; n++) {
-    id_reg[n].state = STREAM_NOT_REGISTERED;
+    id_reg[n].state = STREAM_DISCARD;
+    id_reg[n].shmid = -1;
+    id_reg[n].shmaddr = NULL;
     id_reg[n].file = NULL;
   }
 
   for(n = 0; n < 256; n++) {
-    id_reg_ps1[n].state = STREAM_NOT_REGISTERED;
+    id_reg_ps1[n].state = STREAM_DISCARD;
+    id_reg_ps1[n].shmid = -1;
+    id_reg_ps1[n].shmaddr = NULL;
     id_reg_ps1[n].file = NULL;
   }
   
@@ -1879,7 +2073,7 @@ int attach_decoder_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
     id_add(stream_id, subtype, STREAM_DECODE, shmid, shmaddr, NULL);
     
   } else {
-    id_add(stream_id, subtype, STREAM_DISCARD, 0, NULL, NULL);
+    id_add(stream_id, subtype, STREAM_DISCARD, -1, NULL, NULL);
   }
     
   return 0;  
