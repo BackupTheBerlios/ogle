@@ -3,23 +3,21 @@ Installation
 
   1. `cd' to the directory containing the package's source code and type
      `./autogen.sh' to setup and generate the needed files.
+
+  2. Type `./configure' to configure the package for your system.
      There are two package specific configure options.
-       --with-dvd-includes=path
-       --with-dvd-libs=path
-     You will need to give there to build. The most common are:
-     ./configure --with-dvd-includes=/usr/local/include 
-        --with-dvd-libs=/usr/local/lib/ogle
+       --with-libdvdread=path  specify where libdvdread is installed
+       --with-libmlib=path     specify where mediaLib is installed
+l    You might need to use these if you have installed libdvdread or 
+     mediaLib in a nonstandard location. Most users will not need to
+     give any of these options. Look at the output from configure to
+     see if it has found the library. Libdvdread is required for correct
+     operation so configure will issue an error if it fails to find it.
+     MediaLib on the other hand is optional and so ogle will compile fine
+     without it being present. MediaLib is written and provided by Sun
+     and is only available for the Solaris operating system.
 
   3. Type `make' to compile the package.
-
-     While building:
-                  /usr/i586-pc-linux-gnu/bin/ld: warning: libmsgevents.so.0,
-                  needed by /usr/local/lib/ogle/libdvdcontrol.so, not found
-     You probably need to upgrade libtool to version 1.4 or bintools (ld)
-     to version 2.11 or later. A possible workaround is to add
-     /usr/local/lib/ogle to /etc/ld.so.conf or you can add it to the 
-     environment variable LD_LIBRARY_PATH.
-
 
   5. Type `make install' to install the programs and any data files and
      documentation.
