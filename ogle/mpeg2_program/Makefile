@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -DDEBUG -g -Wall -O6 -mcpu=ultrasparc -mvis 
+CFLAGS= -g -pg -Wall -O6 -mcpu=ultrasparc -mvis 
 #LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl
 #LDFLAGS= 
 
