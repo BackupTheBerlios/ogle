@@ -1030,11 +1030,12 @@ void display_process_exit(void) {
 static int bsdi_getticks(void)
 {
   int mib[2];
+  size_t olen = sizeof (struct clockinfo);
   struct clockinfo ci;
   
   mib[0] = CTL_KERN;
   mib[1] = KERN_CLOCKRATE;
-  if (sysctl(mib, 2, NULL, 0, &ci, sizeof (ci)) < 0) {
+  if (sysctl(mib, 2, &ci, &olen, NULL, 0) < 0) {
     perror("sysctl kern.clockrate");
     return(100);
   }
