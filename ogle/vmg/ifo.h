@@ -49,8 +49,8 @@ typedef struct {
   unsigned int letterboxed          : 1;
   unsigned int film_mode            : 1;
 #else
-  unsigned int display_aspect_ratio : 2;
   unsigned int permitted_df         : 2;
+  unsigned int display_aspect_ratio : 2;
   unsigned int video_format         : 2;
   unsigned int mpeg_version         : 2;
   
