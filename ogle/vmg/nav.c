@@ -47,6 +47,15 @@ extern dvd_state_t state;
 
 static void do_run(void);
 
+static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
+{
+  dest->Hours   = source->hour;
+  dest->Minutes = source->minute;
+  dest->Seconds = source->second;
+  dest->Frames  = source->frame_u & 0x3f;
+}
+
+
 
 MsgEventQ_t *msgq;
 
@@ -813,23 +822,21 @@ static void do_run(void) {
 	case DVDCtrlGetCurrentLocation:
 	  {
 	    MsgEvent_t send_ev;
-
+	    dvd_time_t current_time;
+	    dvd_time_t total_time;
+	    DVDLocation_t *location;
 	    send_ev.type = MsgEventQDVDCtrl;
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentLocation;
-	    /* should not return in domain is wrong( /= title). */
+	    /* should not return when domain is wrong( /= title). */
 	    /* how to get current time for searches in menu/system space? */
 	    /* a bit of a hack */
-	    send_ev.dvdctrl.cmd.location.location.title = state.TTN_REG;
-	    send_ev.dvdctrl.cmd.location.location.ptt = state.PTTN_REG;
-	    /* This is wrong, just gives the time within the cell. */
-	    send_ev.dvdctrl.cmd.location.location.time.Hours = 
-	      pci.pci_gi.e_eltm.hour;
-	    send_ev.dvdctrl.cmd.location.location.time.Minutes = 
-	      pci.pci_gi.e_eltm.minute;
-	    send_ev.dvdctrl.cmd.location.location.time.Seconds = 
-	      pci.pci_gi.e_eltm.second;
-	    send_ev.dvdctrl.cmd.location.location.time.Frames = 
-	      pci.pci_gi.e_eltm.frame_u & 0x3f;
+	    location = &send_ev.dvdctrl.cmd.location.location;
+	    location->title = state.TTN_REG;
+	    location->ptt = state.PTTN_REG;
+	    vm_get_total_time(&total_time);
+	    time_convert(&location->title_total, &total_time);
+	    vm_get_current_time(&current_time, &pci);
+	    time_convert(&location->title_current, &current_time);
 	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }
 	  break;
@@ -1064,7 +1071,7 @@ static void do_run(void) {
 	*/
 	/* Evaluate and Instantiate the new pci packet */
 	process_pci(&pci, &state.HL_BTNN_REG);
-	  
+        
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
 	navRead_DSI(&dsi, &buffer[1]);
 	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
@@ -1072,7 +1079,7 @@ static void do_run(void) {
 	  dsi.dsi_gi.nv_pck_lbn = -1;
 	  continue;
 	}
-	//fprintf(stdout, "nav: Got DSI packet\n");	  
+	//fprintf(stdout, "nav: Got DSI packet\n");
 	//navPrint_DSI(&dsi);
 
       } else {
