@@ -1,13 +1,31 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
+
 #include "video_stream.h"
+
+#include <mlib_types.h>
+#include <mlib_status.h>
+#include <mlib_sys.h>
+#include <mlib_video.h>
+
+
+#include <X11/Xlib.h>
+#include <X11/Xutil.h>
+#include <X11/extensions/XShm.h>
+
+unsigned char *ImageData;
+XImage *myximage;
+Display *mydisplay;
+Window mywindow;
+
+
 
 #define READ_SIZE 2048
 #define ALLOC_SIZE 2048
 #define BUF_SIZE_MAX 2048*8
 
-
+#define DEBUG
 
 unsigned int debug = 0;
 //prototypes
@@ -39,6 +57,19 @@ void reset_PMV();
 void motion_vectors(unsigned int s);
 void motion_vector(int r, int s);
 
+void reset_to_default_quantiser_matrix();
+int sign(int16_t num);
+
+
+void display_init();
+void Display_Image(XImage *myximage, unsigned char *ImageData);
+void motion_comp();
+
+
+
+
+
+
 // Not implemented
 void extension_data(unsigned int i);
 
@@ -65,6 +96,40 @@ unsigned int bits_left = 32;
 uint32_t cur_word = 0;
 
 uint8_t bytealign = 1;
+
+
+
+
+
+/* image data */
+typedef struct {
+  mlib_u8 *y; //[480][720];  //y-component image
+  mlib_u8 *u; //[480/2][720/2]; //u-component
+  mlib_u8 *v; //[480/2][720/2]; //v-component
+} yuv_image_t;
+
+
+yuv_image_t r1_img;
+yuv_image_t r2_img;
+yuv_image_t dst_img;
+
+yuv_image_t *ref_image1;
+yuv_image_t *ref_image2;
+yuv_image_t *dst_image;
+yuv_image_t *b_image;
+
+
+
+
+
+
+/*macroblock*/
+mlib_u8 abgr[16*16*4];
+mlib_u8 y_blocks[64*4];
+mlib_u8 u_block[64];
+mlib_u8 v_block[64];
+
+
 
 
 
@@ -122,49 +187,51 @@ void next_word(void)
 
 }
 
-
+#ifdef DEBUG
 uint32_t getbits(unsigned int nr, char *func)
+#else
+uint32_t getbits(unsigned int nr)
+#endif
 {
   uint32_t result;
   uint32_t rem;
 
-  //  fprintf(stderr, "LEFT %d\n", bits_left);
   if(nr <= bits_left) {
     result = (cur_word << (32-bits_left)) >> (32-nr);
-    //   fprintf(stderr, "C %08x\n",cur_word);
-    //fprintf(stderr, "X %08x\n",result);
     bits_left -=nr;
     if(bits_left == 0) {
       next_word();
       bits_left = 32;
     } 
     bytealign = !(bits_left%8);
+#ifdef DEBUG
     if(debug > 2) {
       fprintf(stderr, "%s getbits(%u): %x, ", func, nr, result);
       fprintbits(stderr, nr, result);
       fprintf(stderr, "\n");
     }
+#endif
     return result;
   } else {
     rem = nr-bits_left;
     result = ((cur_word << (32-bits_left)) >> (32-bits_left)) << rem;
-    //fprintf(stderr, "Y %08x\n",result);
 
     bits_left = 32;
     next_word();
     result |= ((cur_word << (32-bits_left)) >> (32-rem));
-    // fprintf(stderr, "Z %08x\n",result);
     bits_left -=rem;
     if(bits_left == 0) {
       next_word();
       bits_left = 32;
     }
     bytealign = !(bits_left%8);
+#ifdef DEBUG
     if(debug > 2) {
       fprintf(stderr, "%s getbits(%u): %x ", func, nr, result);
       fprintbits(stderr, nr, result);
       fprintf(stderr, "\n");
     }
+#endif
     return result;
   }
 }
@@ -198,6 +265,11 @@ uint32_t nextbits(unsigned int nr)
 
 int main(int argc, char **argv)
 {
+
+  ref_image1 = &r1_img;
+  ref_image2 = &r2_img;
+  dst_image = &dst_img;
+
   if(argc > 1) {
     debug = atoi(argv[1]);
   }
@@ -208,6 +280,9 @@ int main(int argc, char **argv)
   } else {
     infile = stdin;
   }
+
+  display_init();
+
   next_word();
   
   while(!feof(infile)) {
@@ -217,20 +292,30 @@ int main(int argc, char **argv)
   return 0;
 }
 
+#ifdef DEBUG
+
+#define GETBITS(a,b) getbits(a,b)
+
+#else
+
+#define GETBITS(a,b) getbits(a)
+
+#endif
+
+
 void next_start_code(void)
 {
   while(!bytealigned()) {
-    getbits(1, "next_start_code");
+    GETBITS(1, "next_start_code");
   }
   while(nextbits(24) != 0x000001) {
-    getbits(8, "next_start_code");
+    GETBITS(8, "next_start_code");
   }
 }
 
 void resync(void) {
   fprintf(stderr, "Resyncing\n");
-  getbits(8, "resync");
-  //usleep(200000);
+  GETBITS(8, "resync");
 
 }
 
@@ -238,9 +323,9 @@ void video_sequence(void) {
   next_start_code();
   if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
     fprintf(stderr, "Found Sequence Header\n");
-    //usleep(500000);
+
     sequence_header();
-    //usleep(500000);
+
     if(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
       sequence_extension();
       do {
@@ -252,37 +337,37 @@ void video_sequence(void) {
 	  }
 	  picture_header();
 	  picture_coding_extension();
-	  //usleep(500000);
+
 	  extension_and_user_data(2);
-	  //usleep(200000);
+
 	  picture_data();
-	  //usleep(200000);
+
 	  //fprintf(stderr, "end of pic nextbits: %08x\n", nextbits(32));
        	} while((nextbits(32) == MPEG2_VS_PICTURE_START_CODE) ||
 		(nextbits(32) == MPEG2_VS_GROUP_START_CODE));
 	if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
-	  //usleep(2000000);
+
 	  if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
 	    fprintf(stderr, "*** not a sequence header\n");
-	    //usleep(5000000);
+
 	    break;
 	  }
 	  sequence_header();
-	  //usleep(200000);
+
 	  sequence_extension();
-	  //usleep(200000);
+
 	}
       } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
     } else {
       fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
     }
     if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
-      getbits(32, "Sequence End Code");
+      GETBITS(32, "Sequence End Code");
       fprintf(stderr, "Found Sequence End\n");
-      usleep(10000000);
+
     } else {
       fprintf(stderr, "*** Didn't find Sequence End\n");
-      //usleep(1000000);
+
     }
   } else {
     resync();
@@ -293,7 +378,7 @@ void video_sequence(void) {
 
 void marker_bit(void)
 {
-  if(!getbits(1, "markerbit")) {
+  if(!GETBITS(1, "markerbit")) {
     fprintf(stderr, "*** incorrect marker_bit\n");
     exit(-1);
   }
@@ -314,7 +399,9 @@ typedef struct {
   uint8_t load_non_intra_quantiser_matrix;
   uint8_t non_intra_quantiser_matrix[64];
   
-  
+  /***/
+  uint8_t intra_inverse_quantiser_matrix[8][8];
+  uint8_t non_intra_inverse_quantiser_matrix[8][8];
 } sequence_header_t;
 
 
@@ -360,37 +447,67 @@ void sequence_header(void)
   
   fprintf(stderr, "sequence_header\n");
   
-  sequence_header_code = getbits(32, "sequence header code");
+  sequence_header_code = GETBITS(32, "sequence header code");
   
-  seq.header.horizontal_size_value = getbits(12, "horizontal_size_value");
-  seq.header.vertical_size_value = getbits(12, "vertical_size_value");
-  seq.header.aspect_ratio_information = getbits(4, "aspect_ratio_information");
+  /* When a sequence_header_code is decoded all matrices shall be reset
+     to their default values */
+  
+  reset_to_default_quantiser_matrix();
+  
+  seq.header.horizontal_size_value = GETBITS(12, "horizontal_size_value");
+  seq.header.vertical_size_value = GETBITS(12, "vertical_size_value");
+  seq.header.aspect_ratio_information = GETBITS(4, "aspect_ratio_information");
   fprintf(stderr, "vertical: %u\n", seq.header.horizontal_size_value);
   fprintf(stderr, "horisontal: %u\n", seq.header.vertical_size_value);
-  seq.header.frame_rate_code = getbits(4, "frame_rate_code");
-  seq.header.bit_rate_value = getbits(18, "bit_rate_value");  
+  seq.header.frame_rate_code = GETBITS(4, "frame_rate_code");
+  seq.header.bit_rate_value = GETBITS(18, "bit_rate_value");  
   marker_bit();
-  seq.header.vbv_buffer_size_value = getbits(10, "vbv_buffer_size_value");
-  seq.header.constrained_parameters_flag = getbits(1, "constrained_parameters_flag");
-  seq.header.load_intra_quantiser_matrix = getbits(1, "load_intra_quantiser_matrix");
+  seq.header.vbv_buffer_size_value = GETBITS(10, "vbv_buffer_size_value");
+  seq.header.constrained_parameters_flag = GETBITS(1, "constrained_parameters_flag");
+  seq.header.load_intra_quantiser_matrix = GETBITS(1, "load_intra_quantiser_matrix");
   if(seq.header.load_intra_quantiser_matrix) {
     int n;
     for(n = 0; n < 64; n++) {
-      seq.header.intra_quantiser_matrix[n] = getbits(8, "intra_quantiser_matrix[n]");
+      seq.header.intra_quantiser_matrix[n] = GETBITS(8, "intra_quantiser_matrix[n]");
     }
+    
+    /* inverse scan for matrix download */
+    {
+      int v, u;
+      for (v=0; v<8; v++) {
+	for (u=0; u<8; u++) {
+	  seq.header.intra_inverse_quantiser_matrix[v][u] =
+	    seq.header.intra_quantiser_matrix[scan[0][v][u]];
+	}
+      }
+    }
+    
   }
-  seq.header.load_non_intra_quantiser_matrix = getbits(1, "load_non_intra_quantiser_matrix");
+  seq.header.load_non_intra_quantiser_matrix = GETBITS(1, "load_non_intra_quantiser_matrix");
   if(seq.header.load_non_intra_quantiser_matrix) {
     int n;
     for(n = 0; n < 64; n++) {
-      seq.header.non_intra_quantiser_matrix[n] = getbits(8, "non_intra_quantiser_matrix[n]");
+      seq.header.non_intra_quantiser_matrix[n] = GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
+   
+    /* inverse scan for matrix download */
+    {
+      int v, u;
+      for (v=0; v<8; v++) {
+	for (u=0; u<8; u++) {
+	  seq.header.non_intra_inverse_quantiser_matrix[v][u] =
+	    seq.header.non_intra_quantiser_matrix[scan[0][v][u]];
+	}
+      }
+    }
+    
   }
 
 
   seq.horizontal_size = seq.header.horizontal_size_value;
   seq.vertical_size = seq.header.vertical_size_value;
   
+
 }
 
 
@@ -399,12 +516,13 @@ void sequence_extension(void) {
   uint32_t extension_start_code;
   
   
-  extension_start_code = getbits(32, "extension_start_code");
+  extension_start_code = GETBITS(32, "extension_start_code");
   //fprintf(stderr, "sequence_extension: %08x\n", extension_start_code);
-  //usleep(1000000);
-  seq.ext.extension_start_code_identifier = getbits(4, "extension_start_code_identifier");
-  seq.ext.profile_and_level_indication = getbits(8, "profile_and_level_indication");
 
+  seq.ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
+  seq.ext.profile_and_level_indication = GETBITS(8, "profile_and_level_indication");
+
+#ifdef DEBUG
   if(debug > 0) {
     fprintf(stderr, "profile_and_level_indication: ");
     if(seq.ext.profile_and_level_indication & 0x80) {
@@ -453,32 +571,63 @@ void sequence_extension(void) {
       fprintf(stderr, "\n");
     }
   }
+#endif
       
-  seq.ext.progressive_sequence = getbits(1, "progressive_sequence");
-  if(debug > 1) {
+  seq.ext.progressive_sequence = GETBITS(1, "progressive_sequence");
+#ifdef DEBUG
+  if(debug > 0) {
     fprintf(stderr, "progressive seq: %01x\n", seq.ext.progressive_sequence);
   }
-  seq.ext.chroma_format = getbits(2, "chroma_format");
-  seq.ext.horizontal_size_extension = getbits(2, "horizontal_size_extension");
-  seq.ext.vertical_size_extension = getbits(2, "vertical_size_extension");
-  seq.ext.bit_rate_extension = getbits(12, "bit_rate_extension");
+#endif
+  seq.ext.chroma_format = GETBITS(2, "chroma_format");
+  seq.ext.horizontal_size_extension = GETBITS(2, "horizontal_size_extension");
+  seq.ext.vertical_size_extension = GETBITS(2, "vertical_size_extension");
+  seq.ext.bit_rate_extension = GETBITS(12, "bit_rate_extension");
   marker_bit();
-  seq.ext.vbv_buffer_size_extension = getbits(8, "vbv_buffer_size_extension");
-  seq.ext.low_delay = getbits(1, "low_delay");
-  seq.ext.frame_rate_extension_n = getbits(2, "frame_rate_extension_n");
-  seq.ext.frame_rate_extension_d = getbits(5, "frame_rate_extension_d");
+  seq.ext.vbv_buffer_size_extension = GETBITS(8, "vbv_buffer_size_extension");
+  seq.ext.low_delay = GETBITS(1, "low_delay");
+  seq.ext.frame_rate_extension_n = GETBITS(2, "frame_rate_extension_n");
+  seq.ext.frame_rate_extension_d = GETBITS(5, "frame_rate_extension_d");
   next_start_code();
 
   seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
+  { 
+    int num_pels = seq.horizontal_size * seq.vertical_size;
+   
+    if(ref_image1->y == NULL) {
+      fprintf(stderr, "allocateing buffers\n");
+      ref_image1->y = memalign(8, num_pels);
+      ref_image1->u = memalign(8, num_pels/4);
+      ref_image1->v = memalign(8, num_pels/4);
+      
+      ref_image2->y = memalign(8, num_pels);
+      ref_image2->u = memalign(8, num_pels/4);
+      ref_image2->v = memalign(8, num_pels/4);
+      
+      dst_image->y = memalign(8, num_pels);
+      dst_image->u = memalign(8, num_pels/4);
+      dst_image->v = memalign(8, num_pels/4);
+
+      myximage = XGetImage(mydisplay, mywindow, 0, 0,
+			   seq.horizontal_size,
+			   seq.vertical_size,
+			   AllPlanes, ZPixmap);
+      ImageData = myximage->data;
+      
+    }
+  }
 }
 
 void extension_and_user_data(unsigned int i) {
   
+#ifdef DEBUG
+
   if(debug > 1) {
     fprintf(stderr, "extension_and_user_data(%u)\n", i);
   }
+#endif
 
   while((nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) ||
 	(nextbits(32) == MPEG2_VS_USER_DATA_START_CODE)) {
@@ -545,55 +694,60 @@ void picture_coding_extension(void)
 {
   uint32_t extension_start_code;
 
-  
+#ifdef DEBUG
+
   if(debug > 1) {
     fprintf(stderr, "picture_coding_extension\n");
   }
+#endif
 
-  extension_start_code = getbits(32, "extension_start_code");
-  pic.coding_ext.extension_start_code_identifier = getbits(4, "extension_start_code_identifier");
-  pic.coding_ext.f_code[0][0] = getbits(4, "f_code[0][0]");
-  pic.coding_ext.f_code[0][1] = getbits(4, "f_code[0][1]");
-  pic.coding_ext.f_code[1][0] = getbits(4, "f_code[1][0]");
-  pic.coding_ext.f_code[1][1] = getbits(4, "f_code[1][1]");
-  pic.coding_ext.intra_dc_precision = getbits(2, "intra_dc_precision");
-  pic.coding_ext.picture_structure = getbits(2, "pciture_structure");
+  extension_start_code = GETBITS(32, "extension_start_code");
+  pic.coding_ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
+  pic.coding_ext.f_code[0][0] = GETBITS(4, "f_code[0][0]");
+  pic.coding_ext.f_code[0][1] = GETBITS(4, "f_code[0][1]");
+  pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
+  pic.coding_ext.f_code[1][1] = GETBITS(4, "f_code[1][1]");
+  pic.coding_ext.intra_dc_precision = GETBITS(2, "intra_dc_precision");
+  pic.coding_ext.picture_structure = GETBITS(2, "pciture_structure");
 
-  fprintf(stderr, "picture_structure: ");
-  switch(pic.coding_ext.picture_structure) {
-  case 0x0:
-    fprintf(stderr, "reserved");
-    break;
-  case 0x1:
-    fprintf(stderr, "Top Field");
-    break;
-  case 0x2:
-    fprintf(stderr, "Bottom Field");
-    break;
-  case 0x3:
-    fprintf(stderr, "Frame Picture");
-    break;
+  if(debug > 0) {
+    fprintf(stderr, "picture_structure: ");
+    switch(pic.coding_ext.picture_structure) {
+    case 0x0:
+      fprintf(stderr, "reserved");
+      break;
+    case 0x1:
+      fprintf(stderr, "Top Field");
+      break;
+    case 0x2:
+      fprintf(stderr, "Bottom Field");
+      break;
+    case 0x3:
+      fprintf(stderr, "Frame Picture");
+      break;
+    }
+    fprintf(stderr, "\n");
   }
-  fprintf(stderr, "\n");
-  
-  pic.coding_ext.top_field_first = getbits(1, "top_field_first");
-  pic.coding_ext.frame_pred_frame_dct = getbits(1, "frame_pred_frame_dct");
-  pic.coding_ext.concealment_motion_vectors = getbits(1, "concealment_motion_vectors");
-  pic.coding_ext.q_scale_type = getbits(1, "q_scale_type");
-  pic.coding_ext.intra_vlc_format = getbits(1, "intra_vlc_format");
-  pic.coding_ext.alternate_scan = getbits(1, "alternate_scan");
-  pic.coding_ext.repeat_first_field = getbits(1, "repeat_first_field");
-  pic.coding_ext.chroma_420_type = getbits(1, "chroma_420_type");
-  pic.coding_ext.progressive_frame = getbits(1, "progressive_frame");
+
+  pic.coding_ext.top_field_first = GETBITS(1, "top_field_first");
+  pic.coding_ext.frame_pred_frame_dct = GETBITS(1, "frame_pred_frame_dct");
+  pic.coding_ext.concealment_motion_vectors = GETBITS(1, "concealment_motion_vectors");
+  pic.coding_ext.q_scale_type = GETBITS(1, "q_scale_type");
+  pic.coding_ext.intra_vlc_format = GETBITS(1, "intra_vlc_format");
+  pic.coding_ext.alternate_scan = GETBITS(1, "alternate_scan");
+  pic.coding_ext.repeat_first_field = GETBITS(1, "repeat_first_field");
+  pic.coding_ext.chroma_420_type = GETBITS(1, "chroma_420_type");
+  pic.coding_ext.progressive_frame = GETBITS(1, "progressive_frame");
+  if(debug > 0) {
   fprintf(stderr, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
-  //usleep(200000); 
-  pic.coding_ext.composite_display_flag = getbits(1, "composite_display_flag");
+  }
+  pic.coding_ext.composite_display_flag = GETBITS(1, "composite_display_flag");
   if(pic.coding_ext.composite_display_flag) {
-    pic.coding_ext.v_axis = getbits(1, "v_axis");
-    pic.coding_ext.field_sequence = getbits(3, "field_sequence");
-    pic.coding_ext.sub_carrier = getbits(1, "sub_carrier");
-    pic.coding_ext.burst_amplitude = getbits(7, "burst_amplitude");
-    pic.coding_ext.sub_carrier_phase = getbits(8, "sub_carrier_phase");
+    pic.coding_ext.v_axis = GETBITS(1, "v_axis");
+    pic.coding_ext.field_sequence = GETBITS(3, "field_sequence");
+    pic.coding_ext.sub_carrier = GETBITS(1, "sub_carrier");
+    pic.coding_ext.burst_amplitude = GETBITS(7, "burst_amplitude");
+    pic.coding_ext.sub_carrier_phase = GETBITS(8, "sub_carrier_phase");
   }
   next_start_code();
 
@@ -619,15 +773,18 @@ void user_data(void)
   uint32_t user_data_start_code;
   uint8_t user_data;
   
+#ifdef DEBUG
+
   if(debug > 1) {
     fprintf(stderr, "user_data\n");
   }
+#endif
 
-  //usleep(500000);
 
-  user_data_start_code = getbits(32, "user_date_start_code");
+
+  user_data_start_code = GETBITS(32, "user_date_start_code");
   while(nextbits(24) != 0x000001) {
-    user_data = getbits(8, "user_data");
+    user_data = GETBITS(8, "user_data");
   }
   next_start_code();
   
@@ -640,14 +797,28 @@ void group_of_pictures_header(void)
   uint8_t closed_gop;
   uint8_t broken_link;
   
+#ifdef DEBUG
+
   if(debug > 1) {
     fprintf(stderr, "group_of_pictures_header\n");
   }
 
-  group_start_code = getbits(32, "group_start_code");
-  time_code = getbits(25, "time_code");
-  closed_gop = getbits(1, "closed_gop");
-  broken_link = getbits(1, "broken_link");
+#endif
+
+  group_start_code = GETBITS(32, "group_start_code");
+  time_code = GETBITS(25, "time_code");
+
+#ifdef DEBUG
+  if(debug > 0) {
+    fprintf(stderr, "time_code: %02d:%02d.%02d'%02d\n",
+	    (time_code & 0x00f80000)>>19,
+	    (time_code & 0x0007e000)>>13,
+	    (time_code & 0x00000fc0)>>6,
+	    (time_code & 0x0000003f));
+  }
+#endif
+  closed_gop = GETBITS(1, "closed_gop");
+  broken_link = GETBITS(1, "broken_link");
   next_start_code();
   
 }
@@ -657,15 +828,18 @@ void picture_header(void)
 {
   uint32_t picture_start_code;
 
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "picture_header\n");
   }
-  
+#endif  
 
-  picture_start_code = getbits(32, "picture_start_code");
-  pic.header.temporal_reference = getbits(10, "temporal_reference");
-  pic.header.picture_coding_type = getbits(3, "picture_coding_type");
-  fprintf(stderr, "picture coding type: %01x, ", pic.header.picture_coding_type);
+  picture_start_code = GETBITS(32, "picture_start_code");
+  pic.header.temporal_reference = GETBITS(10, "temporal_reference");
+  pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
+  if(debug > 0) {
+    fprintf(stderr, "picture coding type: %01x, ", pic.header.picture_coding_type);
+  }
   switch(pic.header.picture_coding_type) {
   case 0x00:
     fprintf(stderr, "forbidden\n");
@@ -686,24 +860,24 @@ void picture_header(void)
     fprintf(stderr, "reserved\n");
     break;
   }
-  pic.header.vbv_delay = getbits(16, "vbv_delay");
+  pic.header.vbv_delay = GETBITS(16, "vbv_delay");
 
   if((pic.header.picture_coding_type == 2) ||
      (pic.header.picture_coding_type == 3)) {
-    pic.header.full_pel_forward_vector = getbits(1, "full_pel_forward_vector");
-    pic.header.forward_f_code = getbits(3, "forward_f_code");
+    pic.header.full_pel_forward_vector = GETBITS(1, "full_pel_forward_vector");
+    pic.header.forward_f_code = GETBITS(3, "forward_f_code");
   }
   
   if(pic.header.picture_coding_type == 3) {
-    pic.header.full_pel_backward_vector = getbits(1, "full_pel_backward_vector");
-    pic.header.backward_f_code = getbits(3, "backward_f_code");
+    pic.header.full_pel_backward_vector = GETBITS(1, "full_pel_backward_vector");
+    pic.header.backward_f_code = GETBITS(3, "backward_f_code");
   }
   
   while(nextbits(1) == 1) {
-    pic.header.extra_bit_picture = getbits(1, "extra_bit_picture");
-    pic.header.extra_information_picture = getbits(8, "extra_information_picture");
+    pic.header.extra_bit_picture = GETBITS(1, "extra_bit_picture");
+    pic.header.extra_information_picture = GETBITS(8, "extra_information_picture");
   }
-  pic.header.extra_bit_picture = getbits(1, "extra_bit_picture");
+  pic.header.extra_bit_picture = GETBITS(1, "extra_bit_picture");
   next_start_code();
 
 
@@ -711,16 +885,96 @@ void picture_header(void)
 
 void picture_data(void)
 {
+
+    yuv_image_t *tmp_img;
+    yuv_image_t *display_image;
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "picture_data\n");
   }
+#endif
+  
+  
+  
+  
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    //I,P picture
+    b_image = dst_image;
+    tmp_img = ref_image1;
+    ref_image1 = ref_image2;
+    dst_image = tmp_img;
+    ref_image2 = tmp_img;
+    display_image = ref_image1;
+    break;
+  case 0x3:
+    // B-picture
+    dst_image = b_image;
+    display_image = b_image;
+    break;
+  }
+  /*
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+    tmp_img = ref_image1;
+    ref_image1 = ref_image2;
+    ref_image2 = tmp_img;
+    dst_image = tmp_img;
+    display_image = tmp_img;
+    break;
+  case 0x3:
+    // B-picture
+    dst_image = &dst_img;
+    //display_image = b_image;
+    break;
+  }
+  */
+  if(debug > 0) {
+    fprintf(stderr," switching buffers\n");
+  }
+  //fprintf(stderr,"
+//  dst_image = ref_image1;
+  //display_image = dst_image;
+  
+  memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
+  memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
+  memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
 
   do {
     slice();
   } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	  (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   
+  //  memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
+  //memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
+  //memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
+
+  /* display screen */
+  
+  switch(pic.header.picture_coding_type) {
+  case 0x1:
+  case 0x2:
+  case 0x3:
+    mlib_VideoColorYUV2ABGR420(ImageData,
+			       display_image->y,
+			       display_image->u,
+			       display_image->v,
+			       seq.horizontal_size,
+			       seq.vertical_size,
+			       seq.horizontal_size*4, //TODO
+			     seq.horizontal_size,
+			       seq.horizontal_size/2);
+    
+    
+    
+    Display_Image(myximage, ImageData);
+    break;
+  default:
+    break;
+  }
   next_start_code();
 }
 
@@ -730,9 +984,7 @@ void extension_data(unsigned int i)
   exit(-1);
 }
 
-void slice(void)
-{
-  uint32_t slice_start_code;
+typedef struct {
   uint8_t slice_vertical_position;
   uint8_t slice_vertical_position_extension;
   uint8_t priority_breakpoint;
@@ -742,49 +994,61 @@ void slice(void)
   uint8_t reserved_bits;
   uint8_t extra_bit_slice;
   uint8_t extra_information_slice;
+} slice_t;
+
+slice_t slice_data;
+
+void slice(void)
+{
+  uint32_t slice_start_code;
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "slice\n");
   }
+#endif
   
   reset_dc_dct_pred();
   reset_PMV();
+
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "start of slice\n");
   }
+#endif
 
-  slice_start_code = getbits(32, "slice_start_code");
-  slice_vertical_position = slice_start_code & 0xff;
+  slice_start_code = GETBITS(32, "slice_start_code");
+  slice_data.slice_vertical_position = slice_start_code & 0xff;
   
   if(seq.vertical_size > 2800) {
-    slice_vertical_position_extension = getbits(3, "slice_vertical_position_extension");
+    slice_data.slice_vertical_position_extension = GETBITS(3, "slice_vertical_position_extension");
   }
 
   if(seq.vertical_size > 2800) {
-    seq.mb_row = (slice_vertical_position_extension << 7) +
-      slice_vertical_position - 1;
+    seq.mb_row = (slice_data.slice_vertical_position_extension << 7) +
+      slice_data.slice_vertical_position - 1;
   } else {
-    seq.mb_row = slice_vertical_position - 1;
+    seq.mb_row = slice_data.slice_vertical_position - 1;
   }
 
   seq.previous_macroblock_address = (seq.mb_row * seq.mb_width)-1;
 
   if(0) {//sequence_scalable_extension_present) {
     if(0) { //scalable_mode == DATA_PARTITIONING) {
-      priority_breakpoint = getbits(7, "priority_breakpoint");
+      slice_data.priority_breakpoint = GETBITS(7, "priority_breakpoint");
     }
   }
-  quantiser_scale_code = getbits(5, "quantiser_scale_code");
+  slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
   if(nextbits(1) == 1) {
-    intra_slice_flag = getbits(1, "intra_slice_flag");
-    intra_slice = getbits(1, "intra_slice");
-    reserved_bits = getbits(7, "reserved_bits");
+    slice_data.intra_slice_flag = GETBITS(1, "intra_slice_flag");
+    slice_data.intra_slice = GETBITS(1, "intra_slice");
+    slice_data.reserved_bits = GETBITS(7, "reserved_bits");
     while(nextbits(1) == 1) {
-      extra_bit_slice = getbits(1, "extra_bit_slice");
-      extra_information_slice = getbits(8, "extra_information_slice");
+      slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
+      slice_data.extra_information_slice = GETBITS(8, "extra_information_slice");
     }
   }
-  extra_bit_slice = getbits(1, "extra_bit_slice");
+  slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
   
   do {
     macroblock();
@@ -814,7 +1078,7 @@ typedef struct {
 typedef struct {
   uint16_t macroblock_escape;
   uint16_t macroblock_address_increment;
-  uint8_t quantiser_scale_code;
+  //  uint8_t quantiser_scale_code; // in slice_data
   macroblock_modes_t modes; 
   
   uint8_t pattern_code[12];
@@ -832,6 +1096,10 @@ typedef struct {
   int16_t motion_residual[2][2][2];
   int16_t vector[2][2][2];
 
+
+
+  int16_t f[6][8*8];
+  
 } macroblock_t;
 
 macroblock_t mb;
@@ -842,11 +1110,14 @@ void macroblock(void)
   unsigned int block_count;
   uint16_t inc_add = 0;
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "macroblock()\n");
   }
+#endif
+
   while(nextbits(11) == 0x0008) {
-    mb.macroblock_escape = getbits(11, "macroblock_escape");
+    mb.macroblock_escape = GETBITS(11, "macroblock_escape");
     inc_add+=33;
   }
 
@@ -860,42 +1131,106 @@ void macroblock(void)
 
   seq.mb_column = seq.macroblock_address % seq.mb_width;
   
-  if(debug > 1) {
+#ifdef DEBUG
+  if(debug > 0) {
     fprintf(stderr, " Macroblock: %d, row: %d, col: %d\n",
 	    seq.macroblock_address,
 	    seq.mb_row,
 	    seq.mb_column);
   }
   
-  if(debug > 1) {
+  if(debug > 0) {
     if(mb.macroblock_address_increment > 1) {
       fprintf(stderr, "Skipped %d macroblocks\n",
 	      mb.macroblock_address_increment);
     }
   }
+#endif
   
-  // usleep(50000);
-  macroblock_modes();
 
-  if(mb.modes.macroblock_intra == 0) {
+    if(pic.header.picture_coding_type == 0x2) {
+    /* In a P-picture when a macroblock is skipped */
+    if(mb.macroblock_address_increment > 1) {
+      reset_PMV();
+    }
+    }
+    
+  if(mb.macroblock_address_increment > 1) {
+   
+    int x,y;
+    int old_col = seq.mb_column;
+    switch(pic.header.picture_coding_type) {
+    case 0x2:
+
+
+      if(debug > 0) {
+	fprintf(stderr,"skipped in P-frame\n");
+      }
+      for(x = (seq.mb_column-mb.macroblock_address_increment+1)*16, y = seq.mb_row*16;
+	  y < (seq.mb_row+1)*16; y++) {
+	memcpy(&dst_image->y[y*720+x], &ref_image1->y[y*720+x], (mb.macroblock_address_increment-1)*16);
+      }
+      
+      for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, y = seq.mb_row*8;
+	  y < (seq.mb_row+1)*8; y++) {
+	memcpy(&dst_image->u[y*720/2+x], &ref_image1->u[y*720/2+x], (mb.macroblock_address_increment-1)*8);
+      }
+      
+      for(x = (seq.mb_column-mb.macroblock_address_increment+1)*8, y = seq.mb_row*8;
+	  y < (seq.mb_row+1)*8; y++) {
+	memcpy(&dst_image->v[y*720/2+x], &ref_image1->v[y*720/2+x], (mb.macroblock_address_increment-1)*8);
+      }
+      
+      break;
+    case 0x3:
+      if(debug > 0) {
+	fprintf(stderr,"skipped in B-frame\n");
+      }
+      for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
+	  seq.mb_column < old_col; seq.mb_column++) {
+	motion_comp();
+      }
+      seq.mb_column = old_col;
+      break;
+    default:
+      fprintf(stderr, "*** skipped blocks in I-frame\n");
+      break;
+    }
+  }
+
+
+  
+
+
+
+
+  macroblock_modes();
+  
+    if(mb.modes.macroblock_intra == 0) {
     reset_dc_dct_pred();
+
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "non_intra macroblock\n");
     }
+#endif
+
   }
 
   if(mb.macroblock_address_increment > 1) {
     reset_dc_dct_pred();
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "skipped block\n");
     }
+#endif
   }
     
    
 
-  //usleep(50000);
+
   if(mb.modes.macroblock_quant) {
-    mb.quantiser_scale_code = getbits(5, "quantiser_scale_code");
+    slice_data.quantiser_scale_code = GETBITS(5, "quantiser_scale_code");
   }
   if(mb.modes.macroblock_motion_forward ||
      (mb.modes.macroblock_intra &&
@@ -919,6 +1254,9 @@ void macroblock(void)
       if(mb.modes.macroblock_intra) {
 	if(pic.coding_ext.concealment_motion_vectors == 0) {
 	  reset_PMV();
+	  if(debug > 0) {
+	    fprintf(stderr, "* 1\n");
+	  }
 	} else {
 	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
 	  pic.PMV[1][0][0] = pic.PMV[0][0][0];
@@ -936,6 +1274,9 @@ void macroblock(void)
 	  if((mb.modes.macroblock_motion_forward == 0) &&
 	     (mb.modes.macroblock_motion_backward == 0)) {
 	    reset_PMV();
+	  if(debug > 0) {
+	    fprintf(stderr, "* 2\n");
+	  }
 	  }
 	}
       }
@@ -958,6 +1299,9 @@ void macroblock(void)
     case PRED_TYPE_FIELD_BASED:
       if(mb.modes.macroblock_intra) {
 	if(pic.coding_ext.concealment_motion_vectors == 0) {
+	  if(debug > 0) {
+	    fprintf(stderr, "* 3\n");
+	  }
 	  reset_PMV();
 	} else {
 	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
@@ -976,6 +1320,10 @@ void macroblock(void)
 	  if((mb.modes.macroblock_motion_forward == 0) &&
 	     (mb.modes.macroblock_motion_backward == 0)) {
 	    reset_PMV();
+	  if(debug > 0) {
+	    fprintf(stderr, "* 4\n");
+	  }
+
 	  }
 	}
       }
@@ -1001,6 +1349,9 @@ void macroblock(void)
   
   if(mb.modes.macroblock_intra) {
     if(pic.coding_ext.concealment_motion_vectors == 0) {
+      if(debug > 0) {
+	fprintf(stderr, "* 5\n");
+      }
       reset_PMV();
     }
   }
@@ -1012,18 +1363,23 @@ void macroblock(void)
      in which macroblock_motion_forward is zero */
 
     if(mb.modes.macroblock_intra == 0) {
-      if(mb.modes.macroblock_motion_forward) {
+      if(mb.modes.macroblock_motion_forward == 0) {
 	reset_PMV();
+	if(debug > 0) {
+	  fprintf(stderr, "* 6\n");
+	}
+
       }
     }
 
   /* In a P-picture when a macroblock is skipped */
-
+    /*
     if(mb.macroblock_address_increment > 1) {
       reset_PMV();
     }
+    */
   }
-
+    
   
 
 
@@ -1047,9 +1403,11 @@ void macroblock(void)
     if(mb.modes.macroblock_intra == 0) {
       for(i = 0; i < 6; i++) {
 	if(mb.cbp & (1<<(5-i))) {
+#ifdef DEBUG
 	  if(debug > 1) {
 	    fprintf(stderr, "cbpindex: %d set\n", i);
 	  }
+#endif
 	  mb.pattern_code[i] = 1;
 	}
       }
@@ -1079,40 +1437,91 @@ void macroblock(void)
   } else if(seq.ext.chroma_format == 0x03) {
     block_count = 12;
   }
-  //usleep(100000);
+
   for(i = 0; i < block_count; i++) {  
     block(i);
   }
-  // usleep(100000);
+  
+
+  
+  /*********** koll av specialfall ***/
+  
+  if(pic.header.picture_coding_type == 0x2) {
+    /* P-picture */
+    if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
+      if(debug > 0) {
+	fprintf(stderr, "macroblock\n");
+	fprintf(stderr, "prediction mode shall be Frame-based\n");
+	fprintf(stderr, "The frame motion vector shall be zero (0;0)\n");
+	fprintf(stderr, "The motion vector predictors shall be reset to zero\n");
+	fprintf(stderr, "motion_type: %02x\n", mb.modes.frame_motion_type);
+      }
+      mb.modes.macroblock_motion_forward = 1;
+      mb.vector[0][0][0] = 0;
+      mb.vector[0][0][1] = 0;
+       
+      
+
+    }
+
+    /* never happens */
+    if(mb.macroblock_address_increment > 1) {
+      if(debug > 0) {
+	fprintf(stderr, "prediction mode shall be Frame-based\n");
+	fprintf(stderr, "motion vector predictors shall be reset to zero\n");
+	fprintf(stderr, "motion vector shall be zero\n");
+      }
+      //**** TODO
+      //mb.vector[0][0][0] = 0;
+      //mb.vector[0][0][1] = 0;
+
+    }
+    
+    
+  }
+  
+  motion_comp();
+
+  
+
 }
 
 
 void macroblock_modes(void)
 {
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "macroblock_modes\n");
   }
+#endif
 
   if(pic.header.picture_coding_type == 0x01) {
     /* I-picture */
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "table_b2\n");
     }
+#endif
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
 
   } else if(pic.header.picture_coding_type == 0x02) {
     /* P-picture */
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "table_b3\n");
     }
+#endif
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
 
   } else if(pic.header.picture_coding_type == 0x03) {
     /* B-picture */
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "table_b4\n");
     }
+#endif
+
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
   } else {
@@ -1134,17 +1543,17 @@ void macroblock_modes(void)
 
   if((mb.modes.spatial_temporal_weight_code_flag == 1) &&
      ( 1 /*spatial_temporal_weight_code_table_index != 0*/)) {
-    mb.modes.spatial_temporal_weight_code = getbits(2, "spatial_temporal_weight_code");
+    mb.modes.spatial_temporal_weight_code = GETBITS(2, "spatial_temporal_weight_code");
   }
 
   if(mb.modes.macroblock_motion_forward ||
      mb.modes.macroblock_motion_backward) {
     if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
       if(pic.coding_ext.frame_pred_frame_dct == 0) {
-	mb.modes.frame_motion_type = getbits(2, "frame_motion_type");
+	mb.modes.frame_motion_type = GETBITS(2, "frame_motion_type");
       }
     } else {
-      mb.modes.field_motion_type = getbits(2, "field_motion_type");
+      mb.modes.field_motion_type = GETBITS(2, "field_motion_type");
     }
   }
 
@@ -1153,7 +1562,7 @@ void macroblock_modes(void)
      (pic.coding_ext.frame_pred_frame_dct == 0) &&
      (mb.modes.macroblock_intra || mb.modes.macroblock_pattern)) {
     
-    mb.modes.dct_type = getbits(1, "dct_type");
+    mb.modes.dct_type = GETBITS(1, "dct_type");
   }
 
 }
@@ -1164,9 +1573,12 @@ void coded_block_pattern(void)
   //  uint16_t coded_block_pattern_420;
   uint8_t cbp = 0;
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "coded_block_pattern\n");
   }
+#endif
+
   cbp = get_vlc(table_b9, "cbp (b9)");
   
 
@@ -1175,16 +1587,18 @@ void coded_block_pattern(void)
     exit(-1);
   }
   mb.cbp = cbp;
+#ifdef DEBUG
   if(debug > 2) {
     fprintf(stderr, "cpb = %u\n", mb.cbp);
   }
+#endif
 
   if(seq.ext.chroma_format == 0x02) {
-    mb.coded_block_pattern_1 = getbits(2, "coded_block_pattern_1");
+    mb.coded_block_pattern_1 = GETBITS(2, "coded_block_pattern_1");
   }
  
   if(seq.ext.chroma_format == 0x03) {
-    mb.coded_block_pattern_2 = getbits(6, "coded_block_pattern_2");
+    mb.coded_block_pattern_2 = GETBITS(6, "coded_block_pattern_2");
   }
   
 }
@@ -1197,10 +1611,12 @@ int get_vlc(vlc_table_t *table, char *func) {
     vlc=nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
+#ifdef DEBUG
 	if(debug > 2) {
 	  fprintf(stderr, "%s ", func);
 	}
-	getbits(numberofbits, "vlc");
+#endif
+	GETBITS(numberofbits, "vlc");
 	return (table[pos].value);
       }
       pos++;
@@ -1222,6 +1638,12 @@ void block(unsigned int i)
   uint16_t dct_dc_size_chrominance;
   int n = 0;
   int16_t QFS[64];
+  int16_t QF[8][8];
+  int16_t F_bis[8][8];
+  int16_t F_prim[8][8];
+  int16_t F[8][8];
+
+
   int16_t dct_diff;
   int16_t half_range;
   uint8_t cc;
@@ -1237,25 +1659,31 @@ void block(unsigned int i)
     cc = (i%2)+1;
   }
   if(mb.pattern_code[i]) {
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "pattern_code(%d) set\n", i);
     }
+#endif
     if(mb.modes.macroblock_intra) {
       //      fprintf(stderr, "macroblock_intra\n");
       if(i < 4) {
 	//fprintf(stderr, "luma\n");
       
 	dct_dc_size_luminance = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
+#ifdef DEBUG
 	if(debug > 1) {
 	  fprintf(stderr, "luma_size: %d\n", dct_dc_size_luminance);
 	}
+#endif
 	if(dct_dc_size_luminance != 0) {
 	  //fprintf(stderr, "dct_dc_diff get\n");
-	  dct_dc_differential = getbits(dct_dc_size_luminance, "dct_dc_differential (luma)");
+	  dct_dc_differential = GETBITS(dct_dc_size_luminance, "dct_dc_differential (luma)");
 	  //fprintf(stderr, "dc_diff: %d\n", dct_dc_differential); 
+#ifdef DEBUG
 	  if(debug > 1) {
 	    fprintf(stderr, "luma_val: %d, ", dct_dc_differential);
 	  }
+#endif
 	}
 	
 	if(dct_dc_size_luminance == 0) {
@@ -1269,9 +1697,11 @@ void block(unsigned int i)
 	  } else {
 	    dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
 	  }
+#ifdef DEBUG
 	  if(debug > 1) {
 	    fprintf(stderr, "%d\n", dct_diff);
 	  }
+#endif
 	}
 	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
 	mb.dc_dct_pred[cc] = QFS[n];
@@ -1280,14 +1710,18 @@ void block(unsigned int i)
 	//fprintf(stderr, "chroma\n");
 
 	dct_dc_size_chrominance = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
+#ifdef DEBUG
 	if(debug > 1) {
 	  fprintf(stderr, "chroma_size: %d\n", dct_dc_size_chrominance);
 	}
+#endif
 	if(dct_dc_size_chrominance != 0) {
-	  dct_dc_differential = getbits(dct_dc_size_chrominance, "dct_dc_differential (chroma)");
+	  dct_dc_differential = GETBITS(dct_dc_size_chrominance, "dct_dc_differential (chroma)");
+#ifdef DEBUG
 	  if(debug > 1) {
 	    fprintf(stderr, "chroma_val: %d, ", dct_dc_differential);
 	  }
+#endif
 	}
 	
 	if(dct_dc_size_chrominance == 0) {
@@ -1299,9 +1733,11 @@ void block(unsigned int i)
 	  } else {
 	    dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
 	  }
+#ifdef DEBUG
 	  if(debug > 1) {
 	    fprintf(stderr, "%d\n", dct_diff);
 	  }
+#endif
 	}
 	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
 	mb.dc_dct_pred[cc] = QFS[n];
@@ -1316,6 +1752,7 @@ void block(unsigned int i)
       //fprintf(stderr, "First dct_dc\n");
       //First DCT coefficient
       get_dct(&runlevel, DCT_DC_FIRST, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_first");
+#ifdef DEBUG
       if(debug > 1) {
 	if(runlevel.run != VLC_END_OF_BLOCK) {
 	  if(debug > 1) {
@@ -1324,6 +1761,7 @@ void block(unsigned int i)
 	  }
 	}
       }
+#endif
       for(m = 0; m < runlevel.run; m++) {
 	QFS[n] = 0;
 	n++;
@@ -1338,6 +1776,7 @@ void block(unsigned int i)
       //fprintf(stderr, "Subsequent dct_dc\n");
       //Subsequent DCT coefficients
       get_dct(&runlevel, DCT_DC_SUBSEQUENT, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_subsequent");
+#ifdef DEBUG
       if(debug > 1) {
 	if(runlevel.run != VLC_END_OF_BLOCK) {
 	  if(debug > 1) {
@@ -1346,6 +1785,7 @@ void block(unsigned int i)
 	  }
 	}
       }
+#endif
       if(runlevel.run == VLC_END_OF_BLOCK) {
 	eob_not_read = 0;
 	while(n<64) {
@@ -1365,11 +1805,112 @@ void block(unsigned int i)
 	exit(-1);
       }
     }
+#ifdef DEBUG
     if(debug > 1) {
       fprintf(stderr, "nr of coeffs: %d\n", n);
     }
+#endif
+   
+    /* inverse scan */
+    {
+      int v,u;
+      
+      for (v=0; v<8; v++) {
+	for (u=0; u<8; u++) {
+	  QF[v][u] = QFS[scan[pic.coding_ext.alternate_scan][v][u]];
+	}
+      }
+    }
+
+
+    /* inverse quantisation  (currently only supports 4:2:0)*/
+    {
+      int v, u;
+      int sum;
+      int quantiser_scale;
+      int intra_dc_mult;
+      
+      quantiser_scale =
+	q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
+      
+      for(v = 0; v < 8; v++) {
+	for(u=0; u<8; u++) {
+	  if((u==0) && (v==0) && (mb.modes.macroblock_intra)) {
+	    /* intra dc coefficient */
+	    
+	    switch(pic.coding_ext.intra_dc_precision) {
+	    case 0x0:
+	      intra_dc_mult = 8;
+	      break;
+	    case 0x1:
+	      intra_dc_mult = 4;
+	      break;
+	    case 0x2:
+	      intra_dc_mult = 2;
+	      break;
+	    case 0x3:
+	      intra_dc_mult = 1;
+	      break;
+	    }
+	    
+	    F_bis[0][0] = intra_dc_mult * QF[v][u];
+	  } else {
+	    /* other coefficients */
+	    
+	    if(mb.modes.macroblock_intra) {
+	      F_bis[v][u] = 
+		(QF[v][u]*
+		 seq.header.intra_inverse_quantiser_matrix[v][u]*
+		 quantiser_scale*2)/32;
+	    } else {
+	      F_bis[v][u] =
+		(((QF[v][u]*2)+sign(QF[v][u])) *
+		 seq.header.non_intra_inverse_quantiser_matrix[v][u] *
+		 quantiser_scale)/32;
+	    }
+	  }
+	}
+      }
+      
+      sum = 0;
+      for(v=0; v<8; v++) {
+	for(u=0; u<8; u++) {
+	  if(F_bis[v][u] > 2047) {
+	    F_prim[v][u] = 2047;
+	  } else {
+	    if(F_bis[v][u] < -2048) {
+	      F_prim[v][u] = -2048;
+	    } else {
+	      F_prim[v][u] = F_bis[v][u];
+	    }
+
+	  }
+	  sum = sum+F_prim[v][u];
+	  F[v][u] = F_prim[v][u];
+	}
+      }
+
+      if((sum & 1) == 0) {
+	if((F[7][7]&1) != 0) {
+	  F[7][7] = F_prim[7][7]-1;
+	} else {
+	  F[7][7] = F_prim[7][7]+1;
+	}
+      }
+      
+    }
+    
+
+    
+    
+    mlib_VideoIDCT_IEEE_S16_S16(mb.f[i], (mlib_s16 *)F);      
+    
+  } else {
+    // pattern[i] == 0
+    
+    memset(mb.f[i], 0, 64*sizeof(int16_t));
+    
   }
-  
 }
 
 
@@ -1379,10 +1920,11 @@ void motion_vectors(unsigned int s)
   int8_t motion_vector_count;
   int8_t motion_vertical_field_select[2][2];
 
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "motion_vectors(%u)\n", s);
   }
-
+#endif
 
   if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
     if(pic.coding_ext.frame_pred_frame_dct == 0) {
@@ -1466,13 +2008,13 @@ void motion_vectors(unsigned int s)
 
   if(motion_vector_count == 1) {
     if((mb.mv_format == MV_FORMAT_FIELD) && (mb.dmv != 1)) {
-      motion_vertical_field_select[0][s] = getbits(1, "motion_vertical_field_select[0][s]");
+      motion_vertical_field_select[0][s] = GETBITS(1, "motion_vertical_field_select[0][s]");
     }
     motion_vector(0, s);
   } else {
-    motion_vertical_field_select[0][s] = getbits(1, "motion_vertical_field_select[0][s]");
+    motion_vertical_field_select[0][s] = GETBITS(1, "motion_vertical_field_select[0][s]");
     motion_vector(0, s);
-    motion_vertical_field_select[1][s] = getbits(1, "motion_vertical_field_select[1][s]");
+    motion_vertical_field_select[1][s] = GETBITS(1, "motion_vertical_field_select[1][s]");
     motion_vector(1, s);
   }
 }
@@ -1489,13 +2031,16 @@ void motion_vector(int r, int s)
   int16_t prediction;
   int t;
   
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "motion_vector(%d, %d)\n", r, s);
   }
+#endif
+
   mb.motion_code[r][s][0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
   if((pic.coding_ext.f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
     r_size = pic.coding_ext.f_code[s][0] - 1;
-    mb.motion_residual[r][s][0] = getbits(r_size, "motion_residual[r][s][0]");
+    mb.motion_residual[r][s][0] = GETBITS(r_size, "motion_residual[r][s][0]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[0] = get_vlc(table_b11, "dmvector[0] (b11)");
@@ -1504,7 +2049,7 @@ void motion_vector(int r, int s)
   // The reference code has f_code[s][0] here, that is probably wrong....
   if((pic.coding_ext.f_code[s][1] != 1) && (mb.motion_code[r][s][1] != 0)) {
     r_size = pic.coding_ext.f_code[s][1] - 1;
-    mb.motion_residual[r][s][1] = getbits(r_size, "motion_residual_[r][s][1]");
+    mb.motion_residual[r][s][1] = GETBITS(r_size, "motion_residual_[r][s][1]");
   }
   if(mb.dmv == 1) {
     mb.dmvector[1] = get_vlc(table_b11, "dmvector[1] (b11)");
@@ -1591,16 +2136,20 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
     vlc=nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
+#ifdef DEBUG
 	if(debug > 2) {
 	  fprintf(stderr, "%s ", func);
 	}
-	getbits(numberofbits, "(get_dct)");
+#endif
+	GETBITS(numberofbits, "(get_dct)");
 	if(table[pos].run==VLC_ESCAPE) {
+#ifdef DEBUG
 	  if(debug>1) {
 	    fprintf(stderr, "VLC_ESCAPE\n");
 	  }
-	  runlevel->run   = getbits(6, "(get_dct run)");
-	  runlevel->level = getbits(12, "(get_dct level)");
+#endif
+	  runlevel->run   = GETBITS(6, "(get_dct run)");
+	  runlevel->level = GETBITS(12, "(get_dct level)");
 	  if(runlevel->level > 2047) {
 	    runlevel->level -= 4096;
 	  }
@@ -1610,7 +2159,7 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 	  }
 	} else {
 	  if(table[pos].run != VLC_END_OF_BLOCK) {
-	    sign = getbits(1, "(get_dct sign)");
+	    sign = GETBITS(1, "(get_dct sign)");
 	  }
 	  runlevel->run   = table[pos].run;
 	  runlevel->level = (sign?-1:1) * table[pos].level;
@@ -1628,9 +2177,12 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 
 void reset_dc_dct_pred(void)
 {
+#ifdef DEBUG
   if(debug > 1) {
     fprintf(stderr, "Resetting dc_dct_pred\n");
   }
+#endif
+
   switch(pic.coding_ext.intra_dc_precision) {
   case 0:
     mb.dc_dct_pred[0] = 128;
@@ -1660,9 +2212,11 @@ void reset_dc_dct_pred(void)
 }
 
 void reset_PMV() {
-  if(debug > 1) {
+#ifdef DEBUG
+  if(debug > 0) {
     fprintf(stderr, "Resetting PMV\n");
   }
+#endif
   
   pic.PMV[0][0][0] = 0;
   pic.PMV[0][0][1] = 0;
@@ -1677,3 +2231,379 @@ void reset_PMV() {
   pic.PMV[1][1][1] = 0;
 
 }
+
+
+
+
+
+
+
+
+void reset_to_default_quantiser_matrix()
+{
+  memcpy(seq.header.intra_inverse_quantiser_matrix,
+	 default_intra_inverse_quantiser_matrix,
+	 sizeof(seq.header.intra_inverse_quantiser_matrix));
+
+  memcpy(seq.header.non_intra_inverse_quantiser_matrix,
+	 default_non_intra_inverse_quantiser_matrix,
+	 sizeof(seq.header.non_intra_inverse_quantiser_matrix));
+  
+}
+
+
+int sign(int16_t num)
+{
+  if(num > 0) {
+    return 1;
+  } else if(num < 0) {
+    return -1;
+  } else {
+    return 0;
+  }
+
+}
+
+
+GC mygc;
+
+int bpp, mode;
+XWindowAttributes attribs;
+
+#define WORDS_BIGENDIAN 
+
+void display_init()
+{
+   int screen;
+   unsigned int fg, bg;
+   char *hello = "I hate X11";
+   XSizeHints hint;
+   XVisualInfo vinfo;
+   XEvent xev;
+
+   XGCValues xgcv;
+   Colormap theCmap;
+   XSetWindowAttributes xswa;
+   unsigned long xswamask;
+
+   int image_height = 480;
+   int image_width = 720;
+
+
+   mydisplay = XOpenDisplay(NULL);
+
+   if (mydisplay == NULL)
+      fprintf(stderr,"Can not open display\n");
+
+   screen = DefaultScreen(mydisplay);
+
+   hint.x = 0;
+   hint.y = 0;
+   hint.width = image_width;
+   hint.height = image_height;
+   hint.flags = PPosition | PSize;
+
+   /* Get some colors */
+
+   bg = WhitePixel(mydisplay, screen);
+   fg = BlackPixel(mydisplay, screen);
+
+   /* Make the window */
+
+   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
+   bpp = attribs.depth;
+   if (bpp != 15 && bpp != 16 && bpp != 24 && bpp != 32) {
+      fprintf(stderr,"Only 15,16,24, and 32bpp supported. Trying 24bpp!\n");
+      bpp = 24;
+   }
+   //BEGIN HACK
+   //mywindow = XCreateSimpleWindow(mydisplay, DefaultRootWindow(mydisplay),
+   //hint.x, hint.y, hint.width, hint.height, 4, fg, bg);
+   //
+   XMatchVisualInfo(mydisplay,screen,bpp,TrueColor,&vinfo);
+   printf("visual id is  %lx\n",vinfo.visualid);
+
+   theCmap   = XCreateColormap(mydisplay, RootWindow(mydisplay,screen), 
+                               vinfo.visual, AllocNone);
+
+   xswa.background_pixel = 0;
+   xswa.border_pixel     = 1;
+   xswa.colormap         = theCmap;
+   xswamask = CWBackPixel | CWBorderPixel | CWColormap;
+
+   mywindow = XCreateWindow(mydisplay, RootWindow(mydisplay,screen),
+                            hint.x, hint.y, hint.width, hint.height, 0, bpp,
+                            CopyFromParent, vinfo.visual, xswamask, &xswa);
+
+   XSelectInput(mydisplay, mywindow, StructureNotifyMask);
+
+   /* Tell other applications about this window */
+
+   XSetStandardProperties(mydisplay, mywindow, hello, hello, None, NULL, 0, &hint);
+
+   /* Map window. */
+
+   XMapWindow(mydisplay, mywindow);
+
+   /* Wait for map. */
+   do {
+      XNextEvent(mydisplay, &xev);
+   }
+   while (xev.type != MapNotify || xev.xmap.event != mywindow);
+
+   XSelectInput(mydisplay, mywindow, NoEventMask);
+
+   XFlush(mydisplay);
+   XSync(mydisplay, False);
+   
+   mygc = XCreateGC(mydisplay, mywindow, 0L, &xgcv);
+   
+   
+   /*   
+   myximage = XGetImage(mydisplay, mywindow, 0, 0,
+			image_width, image_height, AllPlanes, ZPixmap);
+   ImageData = myximage->data;
+   
+   */
+   //   bpp = myximage->bits_per_pixel;
+   // If we have blue in the lowest bit then obviously RGB 
+   //mode = ((myximage->blue_mask & 0x01) != 0) ? 1 : 2;
+#ifdef WORDS_BIGENDIAN 
+   // if (myximage->byte_order != MSBFirst)
+#else
+   //  if (myximage->byte_order != LSBFirst) 
+#endif
+   //   {
+   //	 fprintf( stderr, "No support for non-native XImage byte order!\n" );
+   //	 exit(1);
+   //   }
+   //   yuv2rgb_init(bpp, mode);
+   
+}
+
+
+
+
+
+
+
+
+
+
+void Display_Image(XImage *myximage, unsigned char *ImageData)
+{
+
+        XPutImage(mydisplay, mywindow, mygc, myximage, 0, 0,
+                0, 0, myximage->width, myximage->height);
+	XFlush(mydisplay);
+}
+
+
+
+void motion_comp()
+{
+  int width,x,y;
+  int pitch;
+  int d;
+  uint8_t *dst_y,*dst_u,*dst_v;
+  int half_flag_y[2];
+  int half_flag_uv[2];
+  int int_vec_y[2];
+  int int_vec_uv[2];
+
+  uint8_t *pred_y;
+  uint8_t *pred_u;
+  uint8_t *pred_v;
+
+
+
+  width = seq.horizontal_size;
+
+  
+  //handle interlaced blocks
+  if (mb.modes.dct_type) { // skicka med dct_type som argument
+    d = 1;
+    pitch = width *2;
+  } else {
+    d = 8;
+    pitch = width;
+  }
+
+  x = seq.mb_column;
+  y = seq.mb_row;
+    
+  dst_y = &dst_image->y[x * 16 + y * width * 16];
+  dst_u = &dst_image->u[x * 8 + y * width/2 * 8];
+  dst_v = &dst_image->v[x * 8 + y * width/2 * 8];
+    
+    
+  if(mb.modes.macroblock_motion_forward) {
+    if(debug > 0) {
+      fprintf(stderr, "forward_motion_comp\n");
+    }
+    half_flag_y[0] = (mb.vector[0][0][0] & 1);
+    half_flag_y[1] = (mb.vector[0][0][1] & 1);
+    half_flag_uv[0] = ((mb.vector[0][0][0]/2) & 1);
+    half_flag_uv[1] = ((mb.vector[0][0][1]/2) & 1);
+    int_vec_y[0] = (mb.vector[0][0][0] >> 1) + (signed int)x * 16;
+    int_vec_y[1] = (mb.vector[0][0][1] >> 1) + (signed int)y * 16;
+    int_vec_uv[0] = ((mb.vector[0][0][0]/2) >> 1)  + x * 8;
+    int_vec_uv[1] = ((mb.vector[0][0][1]/2) >> 1)  + y * 8;
+    //int_vec_uv[0] = int_vec_y[0] / 2 ;
+    //  int_vec_uv[1] = int_vec_y[1] / 2 ;
+    
+    
+
+
+
+    if(debug > 0) {
+      fprintf(stderr, "start: 0, end: %d\n",
+	      seq.horizontal_size * seq.vertical_size);
+      
+      fprintf(stderr, "p_vec x: %d, y: %d\n",
+	      (mb.vector[0][0][0] >> 1),
+	      (mb.vector[0][0][1] >> 1));
+    }
+    pred_y  =
+      &ref_image1->y[int_vec_y[0] + int_vec_y[1] * width];
+
+    if(debug >0) {
+      fprintf(stderr, "ypos: %d\n",
+	      int_vec_y[0] + int_vec_y[1] * width);
+      
+      fprintf(stderr, "start: 0, end: %d\n",
+	      seq.horizontal_size * seq.vertical_size/4);
+    }
+    pred_u =
+      &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
+
+    if(debug > 0) {
+      fprintf(stderr, "uvpos: %d\n",
+	      int_vec_uv[0] + int_vec_uv[1] * width/2);
+    }
+    pred_v =
+      &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
+
+    if(debug > 0) {
+      fprintf(stderr, "x: %d, y: %d\n", x, y);
+    }
+	
+    if (half_flag_y[0] && half_flag_y[1]) {
+      mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+    } else if (half_flag_y[0]) {
+      mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+    } else if (half_flag_y[1]) {
+      mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+    } else {
+      mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
+    }
+
+    if (half_flag_uv[0] && half_flag_uv[1]) {
+      mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+      mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+    } else if (half_flag_uv[0]) {
+      mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+      mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+    } else if (half_flag_uv[1]) {
+      mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+      mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+    } else {
+      mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
+      mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
+    }
+  }
+      
+  if(mb.modes.macroblock_motion_backward) {
+    if(debug > 0) {
+      fprintf(stderr, "backward_motion_comp\n");
+    }
+    half_flag_y[0]   = (mb.vector[0][1][0] & 1);
+    half_flag_y[1]   = (mb.vector[0][1][1] & 1);
+    half_flag_uv[0] = ((mb.vector[0][1][0]/2) & 1);
+    half_flag_uv[1] = ((mb.vector[0][1][1]/2) & 1);
+    int_vec_y[0] = (mb.vector[0][1][0] >> 1) + x * 16;
+    int_vec_y[1] = (mb.vector[0][1][1] >> 1) + y * 16;
+    int_vec_uv[0] = ((mb.vector[0][1][0]/2) >> 1)  + x * 8;
+    int_vec_uv[1] = ((mb.vector[0][1][1]/2) >> 1)  + y * 8;
+    //int_vec_uv[0] = int_vec_y[0] / 2;
+    //int_vec_uv[1] = int_vec_y[1] / 2;
+	
+    pred_y  =
+      &ref_image2->y[int_vec_y[0] + int_vec_y[1] * width];
+    pred_u =
+      &ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
+    pred_v =
+      &ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
+                                
+    if(mb.modes.macroblock_motion_forward) {
+      if (half_flag_y[0] && half_flag_y[1]) {
+	mlib_VideoInterpAveXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else if (half_flag_y[0]) {
+	mlib_VideoInterpAveX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else if (half_flag_y[1]) {
+	mlib_VideoInterpAveY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else {
+	mlib_VideoCopyRefAve_U8_U8_16x16(dst_y,  pred_y,  width);
+      }
+      if (half_flag_uv[0] && half_flag_uv[1]) {
+	mlib_VideoInterpAveXY_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpAveXY_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+      } else if (half_flag_uv[0]) {
+	mlib_VideoInterpAveX_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpAveX_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+      } else if (half_flag_uv[1]) {
+	mlib_VideoInterpAveY_U8_U8_8x8(dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpAveY_U8_U8_8x8(dst_v, pred_v, width/2, width/2);
+      } else {
+	mlib_VideoCopyRefAve_U8_U8_8x8(dst_u, pred_u, width/2);
+	mlib_VideoCopyRefAve_U8_U8_8x8(dst_v, pred_v, width/2);
+      }
+    } else {
+      if (half_flag_y[0] && half_flag_y[1]) {
+	mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else if (half_flag_y[0]) {
+	mlib_VideoInterpX_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else if (half_flag_y[1]) {
+	mlib_VideoInterpY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
+      } else {
+	mlib_VideoCopyRef_U8_U8_16x16(dst_y,  pred_y,  width);
+      }
+      if (half_flag_uv[0] && half_flag_uv[1]) {
+	mlib_VideoInterpXY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpXY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+      } else if (half_flag_uv[0]) {
+	mlib_VideoInterpX_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpX_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+      } else if (half_flag_uv[1]) {
+	mlib_VideoInterpY_U8_U8_8x8  (dst_u, pred_u, width/2, width/2);
+	mlib_VideoInterpY_U8_U8_8x8  (dst_v, pred_v, width/2, width/2);
+      } else {
+	mlib_VideoCopyRef_U8_U8_8x8  (dst_u, pred_u, width/2);
+	mlib_VideoCopyRef_U8_U8_8x8  (dst_v, pred_v, width/2);
+      }
+    }
+  }
+  
+      
+  if(mb.pattern_code[0])
+    mlib_VideoAddBlock_U8_S16(dst_y, mb.f[0], pitch);
+      
+  if(mb.pattern_code[1])
+    mlib_VideoAddBlock_U8_S16(dst_y + 8, mb.f[1], pitch);
+      
+  if(mb.pattern_code[2])
+    mlib_VideoAddBlock_U8_S16(dst_y + width * d, mb.f[2], pitch);
+
+  if(mb.pattern_code[3])
+    mlib_VideoAddBlock_U8_S16(dst_y + width * d + 8, mb.f[3], pitch);
+      
+  if(mb.pattern_code[4])
+    mlib_VideoAddBlock_U8_S16(dst_u, mb.f[4], width/2);
+      
+  if(mb.pattern_code[5])
+    mlib_VideoAddBlock_U8_S16(dst_v, mb.f[5], width/2);
+      
+      
+}
+
+
