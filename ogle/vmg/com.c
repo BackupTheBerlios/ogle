@@ -53,11 +53,11 @@ static char *dvdroot;
 
 
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
-  return MsgSendEvent(msgq, demux_client, ev);
+  return MsgSendEvent(msgq, demux_client, ev, 0);
 }
 
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
-  return MsgSendEvent(msgq, spu_client, ev);
+  return MsgSendEvent(msgq, spu_client, ev, 0);
 }
 
 char *get_dvdroot(void) {
@@ -381,7 +381,7 @@ int get_q(MsgEventQ_t *msgq, char *buffer)
   if(q_head->writer_requests_notification) {
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+    if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       fprintf(stderr, "vmg: couldn't send notification\n");
     }
   }

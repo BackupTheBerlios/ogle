@@ -368,7 +368,7 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
 int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
 
 int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
-		 MsgEvent_t *event_send);
+		 MsgEvent_t *event_send, int msgflg);
 
 /* client types */
 #define CLIENT_NONE               0x00000000L

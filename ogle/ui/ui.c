@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = UI_DVD_CLI | UI_MPEG_CLI;
     
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "ui: couldn't register\n");
     }
 
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "ui: didn't get cap\n");
     }
 
@@ -151,7 +151,7 @@ int request_spu(void)
   MsgEvent_t ev;
   ev.type = MsgEventQReqCapability;
   ev.reqcapability.capability = DECODE_DVD_SPU;
-  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     fprintf(stderr, "ui: didn't get cap\n");
   }
   
@@ -181,7 +181,7 @@ int request_nav(void)
   MsgEvent_t ev;
   ev.type = MsgEventQReqCapability;
   ev.reqcapability.capability = DECODE_DVD_NAV;
-  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     fprintf(stderr, "ui: didn't get cap\n");
   }
   
@@ -375,7 +375,7 @@ int input(void) {
     fprintf(stderr, "****input() tok end\n");
 
     if(sendev.type != MsgEventQNone) {
-      if(MsgSendEvent(msgq, rcpt, &sendev) == -1) {
+      if(MsgSendEvent(msgq, rcpt, &sendev, 0) == -1) {
 	fprintf(stderr, "ui: couldn't send user cmd\n");
       }
     }

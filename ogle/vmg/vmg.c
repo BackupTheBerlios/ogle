@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_DVD_NAV;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "ac3wrap: register capabilities\n");
     }
     

@@ -455,7 +455,7 @@ int get_q()
     if(q_head->writer_requests_notification) {
       q_head->writer_requests_notification = 0;
       ev.type = MsgEventQNotify;
-      if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+      if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
 	fprintf(stderr, "video_decode: couldn't send notification\n");
       }
     }

@@ -83,19 +83,19 @@ int main(int argc, char *argv[])
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_DVD_NAV;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: register capabilities\n");
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DEMUX_MPEG2_PS | DEMUX_MPEG1;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: didn't get demux cap\n");
     }
     
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = DECODE_DVD_SPU;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "nav: didn't get cap\n");
     }
     
@@ -678,7 +678,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.type = DVDCtrlCurrentAudio;
 	    send_ev.dvdctrl.cmd.currentaudio.nrofstreams = nS;
 	    send_ev.dvdctrl.cmd.currentaudio.currentstream = cS;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }
 	  break;
 	case DVDCtrlIsAudioStreamEnabled:
@@ -690,7 +690,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.audiostreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.audiostreamenabled.enabled =
 	      (vm_get_audio_stream(streamN) != -1) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
 	  }
 	  break;
 	case DVDCtrlGetAudioAttributes: // FIXME XXX $$$ Not done
@@ -704,7 +704,7 @@ void do_run(void) {
 		   sizeof(DVDAudioAttributes_t)); //TBD
 	    send_ev.dvdctrl.cmd.audioattributes.attr.Language =
 	      vm_get_audio_lang(ev.dvdctrl.cmd.audioattributes.streamnr);
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
 	  }
 	  break;
 	case DVDCtrlGetCurrentSubpicture:
@@ -718,7 +718,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.currentsubpicture.currentstream = cS & ~0x40;
 	    send_ev.dvdctrl.cmd.currentsubpicture.display 
 	      = (cS & 0x40) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }
 	  break;
 	case DVDCtrlIsSubpictureStreamEnabled:
@@ -730,7 +730,7 @@ void do_run(void) {
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.streamnr = streamN;
 	    send_ev.dvdctrl.cmd.subpicturestreamenabled.enabled =
 	      (vm_get_subp_stream(streamN) != -1) ? DVDTrue : DVDFalse;
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);	    
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);	    
 	  }
 	  break;
  	case DVDCtrlGetSubpictureAttributes: // FIXME XXX $$$ Not done
@@ -744,7 +744,7 @@ void do_run(void) {
 		   sizeof(DVDSubpictureAttributes_t)); //TBD
 	    send_ev.dvdctrl.cmd.subpictureattributes.attr.Language =
 	      vm_get_subp_lang(ev.dvdctrl.cmd.subpictureattributes.streamnr);
-	    MsgSendEvent(msgq, ev.any.client, &send_ev);
+	    MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
 	  }	  
 	  break;
 	default:

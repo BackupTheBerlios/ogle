@@ -124,7 +124,7 @@ int main(int argc, char *argv[])
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_AC3_AUDIO;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "ac3wrap: register capabilities\n");
     }
     
@@ -353,7 +353,7 @@ int get_q()
       if(q_head->writer_requests_notification) {
 	q_head->writer_requests_notification = 0;
 	ev.type = MsgEventQNotify;
-	if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+	if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
 	  fprintf(stderr, "ac3wrap: couldn't send notification\n");
 	}
       }
@@ -419,7 +419,7 @@ int get_q()
   if(q_head->writer_requests_notification) {
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+    if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       fprintf(stderr, "ac3wrap: couldn't send notification\n");
     }
   }

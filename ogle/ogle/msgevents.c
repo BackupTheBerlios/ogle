@@ -142,7 +142,7 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 }
 
 int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
-		 MsgEvent_t *event_send)
+		 MsgEvent_t *event_send, int msgflg)
 {
   msg_t msg;
   int size = 0;
@@ -259,7 +259,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 	  msg.mtype);
 #endif
   
-  if(msgsnd(q->msqid, (void *)&msg, size, 0) == -1) {
+  if(msgsnd(q->msqid, (void *)&msg, size, msgflg) == -1) {
     perror("MsgSendEvent");
     return -1;
   }

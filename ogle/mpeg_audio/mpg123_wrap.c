@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "mpg123wrap: register capabilities\n");
     }
     
@@ -346,7 +346,7 @@ int get_q()
       if(q_head->writer_requests_notification) {
 	q_head->writer_requests_notification = 0;
 	ev.type = MsgEventQNotify;
-	if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+	if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
 	  fprintf(stderr, "mpg123wrap: couldn't send notification\n");
 	}
       }
@@ -409,7 +409,7 @@ int get_q()
   if(q_head->writer_requests_notification) {
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+    if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       fprintf(stderr, "mpg123wrap: couldn't send notification\n");
     }
   }

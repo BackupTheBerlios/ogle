@@ -238,7 +238,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     fprintf(stderr, "ctrl: _MsgEventQInitReq, new_id: %d\n", next_client_id);
     ev->type = MsgEventQInitGnt;
     ev->initgnt.newclientid = next_client_id++;
-    MsgSendEvent(q, CLIENT_UNINITIALIZED, ev);
+    MsgSendEvent(q, CLIENT_UNINITIALIZED, ev, 0);
     break;
   case MsgEventQRegister:
     fprintf(stderr, "ctrl: _MsgEventQRegister\n");
@@ -286,11 +286,11 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       
       if(state == CAP_running) {
-	MsgSendEvent(q, ev->reqcapability.client, &retev);
+	MsgSendEvent(q, ev->reqcapability.client, &retev, 0);
       } else {
 	fprintf(stderr, "ctrl: didn't find capability\n");
 	retev.gntcapability.client = CLIENT_NONE;
-	MsgSendEvent(q, ev->reqcapability.client, &retev);
+	MsgSendEvent(q, ev->reqcapability.client, &retev, 0);
       }
     }
     break;
@@ -307,7 +307,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       s_ev.type = MsgEventQGntBuf;
       s_ev.gntbuf.shmid = bufinfo.shmid;
       s_ev.gntbuf.size = bufinfo.size;
-      MsgSendEvent(q, ev->reqbuf.client, &s_ev);
+      MsgSendEvent(q, ev->reqbuf.client, &s_ev, 0);
     }
     break;
   case MsgEventQReqStreamBuf:
@@ -371,7 +371,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	s_ev.type = MsgEventQCtrlData;
 	s_ev.ctrldata.shmid = ctrl_data_shmid;
 	
-	MsgSendEvent(q, rcpt, &s_ev);
+	MsgSendEvent(q, rcpt, &s_ev, 0);
 	
 	// at this point we know both reader and writer client
 	// for the buffer.
@@ -392,7 +392,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	s_ev.gntstreambuf.subtype =
 	  ev->reqstreambuf.subtype; 
 	
-	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev);
+	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev, 0);
 	
 	// connect the streambuf  to the reader
 	
@@ -403,7 +403,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	s_ev.decodestreambuf.subtype = 
 	  ev->reqstreambuf.subtype;
 	
-	MsgSendEvent(q, rcpt, &s_ev);
+	MsgSendEvent(q, rcpt, &s_ev, 0);
 	
       } else {
 	// we don't want this stream
@@ -416,7 +416,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	s_ev.gntstreambuf.subtype =
 	  ev->reqstreambuf.subtype; 
 	
-	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev);
+	MsgSendEvent(q, ev->reqstreambuf.client, &s_ev, 0);
       }
     }
     break;
@@ -459,7 +459,7 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       s_ev.type = MsgEventQCtrlData;
       s_ev.ctrldata.shmid = ctrl_data_shmid;
 	
-      MsgSendEvent(q, rcpt, &s_ev);
+      MsgSendEvent(q, rcpt, &s_ev, 0);
 	
       // at this point we know both reader and writer client
       // for the buffer.
@@ -479,14 +479,14 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       fprintf(stderr, "ctrl: create_q, q_shmid: %d picture_buf_shmid: %d\n",
 	      shmid,  ev->reqpicbuf.data_buf_shmid);
       
-      MsgSendEvent(q, ev->reqpicbuf.client, &s_ev);
+      MsgSendEvent(q, ev->reqpicbuf.client, &s_ev, 0);
       
       // connect the picbuf  to the reader
       
       s_ev.type = MsgEventQAttachQ;
       s_ev.attachq.q_shmid = shmid;
       
-      MsgSendEvent(q, rcpt, &s_ev);
+      MsgSendEvent(q, rcpt, &s_ev, 0);
 	
     }
     break;
@@ -643,7 +643,7 @@ int main(int argc, char *argv[])
       fprintf(stderr, "ctrl: MsgEventQInitReq, new_id: %d\n", next_client_id);
       ev.type = MsgEventQInitGnt;
       ev.initgnt.newclientid = next_client_id++;
-      MsgSendEvent(&q, CLIENT_UNINITIALIZED, &ev);
+      MsgSendEvent(&q, CLIENT_UNINITIALIZED, &ev, 0);
       break;
     case MsgEventQRegister:
       fprintf(stderr, "ctrl: MsgEventQRegister\n");
@@ -664,10 +664,10 @@ int main(int argc, char *argv[])
 	handle_events(&q, &r_ev);
       }
       if(state == CAP_running) {
-	MsgSendEvent(&q, ev.gntcapability.client, &ev);
+	MsgSendEvent(&q, ev.gntcapability.client, &ev, 0);
       } else {
 	fprintf(stderr, "ctrl: didn't find capability\n");
-	MsgSendEvent(&q, ev.gntcapability.client, &ev);
+	MsgSendEvent(&q, ev.gntcapability.client, &ev, 0);
       }
       break;
     default:
@@ -680,7 +680,7 @@ int main(int argc, char *argv[])
   ev.type = MsgEventQCtrlData;
   ev.ctrldata.shmid = ctrl_data_shmid;
   
-  MsgSendEvent(&q, rcpt, &ev);
+  MsgSendEvent(&q, rcpt, &ev, 0);
   
 
   ev.type = MsgEventQDemuxDefault;
@@ -693,7 +693,7 @@ int main(int argc, char *argv[])
     ev.demuxdefault.state = 0;
   }
   
-  MsgSendEvent(&q, rcpt, &ev);
+  MsgSendEvent(&q, rcpt, &ev, 0);
   
   while(1){
     MsgNextEvent(&q, &ev);

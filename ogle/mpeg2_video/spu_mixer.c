@@ -443,7 +443,7 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   if(q_head->writer_requests_notification) {
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
-    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+    if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
       fprintf(stderr, "spu_mixer: couldn't send notification\n");
     }
   }

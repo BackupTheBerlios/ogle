@@ -1766,7 +1766,7 @@ int main(int argc, char **argv)
     // register with the resource manager and tell what we can do
     regev.type = MsgEventQRegister;
     regev.registercaps.capabilities = DEMUX_MPEG1 | DEMUX_MPEG2_PS;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &regev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &regev, 0) == -1) {
       fprintf(stderr, "demux: register\n");
     }
     fprintf(stderr, "demux: sent register\n");
@@ -1962,7 +1962,7 @@ int register_id(uint8_t id, int subtype)
     ev.reqstreambuf.nr_of_elems = qsize;
     ev.reqstreambuf.data_buf_shmid = data_buf_head->shmid;
       
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "demux: couldn't send streambuf request\n");
     }
     
@@ -2031,7 +2031,7 @@ int id_get_output(uint8_t id, int subtype)
     ev.reqstreambuf.nr_of_elems = qsize;
     ev.reqstreambuf.data_buf_shmid = data_buf_head->shmid;
       
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "demux: couldn't send streambuf request\n");
     }
     
@@ -2356,7 +2356,7 @@ int get_buffer(int size)
   ev.type = MsgEventQReqBuf;
   ev.reqbuf.size = size;
   
-  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     fprintf(stderr, "demux: couldn't send buffer request\n");
   }
   
@@ -2391,7 +2391,7 @@ void flush_all_streams(int scr_nr)
     if((n != MPEG2_PRIVATE_STREAM_1) && (id_reg[n].state == STREAM_DECODE)) {
       q_head = (q_head_t *)id_reg[n].shmaddr;
       //fprintf(stderr, "demux: flushing stream %02x\n", n);
-      if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+      if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
 	fprintf(stderr, "demux: couldn't send flush\n");
       }
     }
@@ -2401,7 +2401,7 @@ void flush_all_streams(int scr_nr)
     if(id_reg_ps1[n].state == STREAM_DECODE) {
       q_head = (q_head_t *)id_reg_ps1[n].shmaddr;
       //fprintf(stderr, "demux: flushing substream %02x\n", n);
-      if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+      if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
 	fprintf(stderr, "demux: couldn't send flush\n");
       }
     }
@@ -2554,7 +2554,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
     ev.notify.qid = q_head->qid;
-    if(MsgSendEvent(msgq, q_head->reader, &ev) == -1) {
+    if(MsgSendEvent(msgq, q_head->reader, &ev, 0) == -1) {
       fprintf(stderr, "demux: couldn't send notification\n");
     }
   }

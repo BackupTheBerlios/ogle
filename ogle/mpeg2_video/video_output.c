@@ -279,7 +279,7 @@ static int get_next_picture_buf_id()
 static void release_picture_buf(int id)
 {
   MsgEvent_t ev;
-  
+  int msg_sent = 0;
   
   picture_ctrl_data[id].displayed = 1;
   picture_q_elems[picture_q_head->read_nr].in_use = 0;
@@ -291,9 +291,25 @@ static void release_picture_buf(int id)
     picture_q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     //fprintf(stderr, "vo: writer wants notify, sending...\n");
-    if(MsgSendEvent(msgq, picture_q_head->writer, &ev) == -1) {
-      fprintf(stderr, "vo: couldn't send notification\n");
-    }
+    do {
+      if(MsgSendEvent(msgq, picture_q_head->writer, &ev, IPC_NOWAIT) == -1) {
+	MsgEvent_t c_ev;
+	switch(errno) {
+	case EAGAIN:
+	  fprintf(stderr, "vo: msgq full, checking incoming messages and trying again\n");
+	  while(MsgCheckEvent(msgq, &c_ev) != -1) {
+	    event_handler(msgq, &c_ev);
+	  }
+	  break;
+	default:
+	  fprintf(stderr, "vo: couldn't send notification\n");
+
+	  break;
+	}
+      } else {
+	msg_sent = 1;
+      }
+    } while(!msg_sent);
   }
 
   picture_q_head->read_nr =
@@ -594,7 +610,7 @@ int main(int argc, char **argv)
 
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = VIDEO_OUTPUT | DECODE_DVD_SPU;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       DPRINTF(1, "vo: register capabilities\n");
     }
 

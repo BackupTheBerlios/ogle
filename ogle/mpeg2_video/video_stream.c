@@ -404,14 +404,14 @@ int main(int argc, char **argv)
     
     ev.type = MsgEventQRegister;
     ev.registercaps.capabilities = DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "video_decode: register capabilities\n");
     }
 
     /*
     ev.type = MsgEventQReqCapability;
     ev.reqcapability.capability = VIDEO_OUTPUT;
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "video_decode: didn't get video_output\n");
     }
     */
@@ -854,7 +854,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   ev.type = MsgEventQReqBuf;
   ev.reqbuf.size = buf_size;
   
-  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
     fprintf(stderr, "**video_decoder: couldn't send buffer request\n");
   }
   
@@ -926,7 +926,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     ev.reqpicbuf.nr_of_elems = nr_of_bufs;
     ev.reqpicbuf.data_buf_shmid = bufshmid;
       
-    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev) == -1) {
+    if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
       fprintf(stderr, "**video_decode: couldn't send picbuf request\n");
     }
     
@@ -1608,7 +1608,7 @@ void dpy_q_put(int id)
     picture_q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
     ev.notify.qid = picture_q_head->qid;
-    if(MsgSendEvent(msgq, picture_q_head->reader, &ev) == -1) {
+    if(MsgSendEvent(msgq, picture_q_head->reader, &ev, 0) == -1) {
       fprintf(stderr, "video_decode: couldn't send notification\n");
     }
   }
