@@ -1,0 +1,1503 @@
+<?xml version="1.0"?>
+<GTK-Interface>
+
+<project>
+  <name>Ogle</name>
+  <program_name>ogle</program_name>
+  <directory></directory>
+  <source_directory>src</source_directory>
+  <pixmaps_directory>pixmaps</pixmaps_directory>
+  <language>C</language>
+  <gnome_support>True</gnome_support>
+  <gettext_support>True</gettext_support>
+  <use_widget_names>True</use_widget_names>
+  <gnome_help_support>True</gnome_help_support>
+  <output_translatable_strings>True</output_translatable_strings>
+  <translatable_strings_file>libglade_strings</translatable_strings_file>
+</project>
+
+<widget>
+  <class>GtkMenu</class>
+  <name>menus_popup</name>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>ptt_pm</name>
+    <tooltip>Part of title</tooltip>
+    <signal>
+      <name>activate</name>
+      <handler>on_ptt_activate_pm</handler>
+      <last_modification_time>Fri, 13 Apr 2001 17:34:11 GMT</last_modification_time>
+    </signal>
+    <label>_PTT</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>angle_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_angle_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:10:17 GMT</last_modification_time>
+    </signal>
+    <label>A_ngle</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>audio_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_audio_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:10:11 GMT</last_modification_time>
+    </signal>
+    <label>_Audio</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>subpicture_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_subpicture_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:10:06 GMT</last_modification_time>
+    </signal>
+    <label>_Subpicture</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>root_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_root_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:10:00 GMT</last_modification_time>
+    </signal>
+    <label>_Root</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>title_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_title_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:09:54 GMT</last_modification_time>
+    </signal>
+    <label>_Title</label>
+    <right_justify>False</right_justify>
+  </widget>
+
+  <widget>
+    <class>GtkMenuItem</class>
+    <name>resume_pm</name>
+    <signal>
+      <name>activate</name>
+      <handler>on_resume_activate_pm</handler>
+      <last_modification_time>Sat, 31 Mar 2001 16:09:47 GMT</last_modification_time>
+    </signal>
+    <label>Resume</label>
+    <right_justify>False</right_justify>
+  </widget>
+</widget>
+
+<widget>
+  <class>GnomeDialog</class>
+  <name>lang_dialog</name>
+  <width>450</width>
+  <type>GTK_WINDOW_TOPLEVEL</type>
+  <position>GTK_WIN_POS_NONE</position>
+  <modal>False</modal>
+  <allow_shrink>True</allow_shrink>
+  <allow_grow>True</allow_grow>
+  <auto_shrink>True</auto_shrink>
+  <auto_close>True</auto_close>
+  <hide_on_close>True</hide_on_close>
+
+  <widget>
+    <class>GtkVBox</class>
+    <child_name>GnomeDialog:vbox</child_name>
+    <name>lang_vbox1</name>
+    <homogeneous>False</homogeneous>
+    <spacing>8</spacing>
+    <child>
+      <padding>4</padding>
+      <expand>True</expand>
+      <fill>True</fill>
+    </child>
+
+    <widget>
+      <class>GtkHButtonBox</class>
+      <child_name>GnomeDialog:action_area</child_name>
+      <name>lang_action_area1</name>
+      <layout_style>GTK_BUTTONBOX_END</layout_style>
+      <spacing>8</spacing>
+      <child_min_width>85</child_min_width>
+      <child_min_height>27</child_min_height>
+      <child_ipad_x>7</child_ipad_x>
+      <child_ipad_y>0</child_ipad_y>
+      <child>
+	<padding>0</padding>
+	<expand>False</expand>
+	<fill>True</fill>
+	<pack>GTK_PACK_END</pack>
+      </child>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>button4</name>
+	<can_default>True</can_default>
+	<can_focus>True</can_focus>
+	<stock_button>GNOME_STOCK_BUTTON_OK</stock_button>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>button5</name>
+	<can_default>True</can_default>
+	<can_focus>True</can_focus>
+	<stock_button>GNOME_STOCK_BUTTON_APPLY</stock_button>
+      </widget>
+
+      <widget>
+	<class>GtkButton</class>
+	<name>button6</name>
+	<can_default>True</can_default>
+	<can_focus>True</can_focus>
+	<stock_button>GNOME_STOCK_BUTTON_CANCEL</stock_button>
+      </widget>
+    </widget>
+
+    <widget>
+      <class>GtkHBox</class>
+      <name>lang_top_hbox</name>
+      <homogeneous>False</homogeneous>
+      <spacing>0</spacing>
+      <child>
+	<padding>0</padding>
+	<expand>True</expand>
+	<fill>True</fill>
+      </child>
+
+      <widget>
+	<class>GtkScrolledWindow</class>
+	<name>lang_scrolledwindow</name>
+	<hscrollbar_policy>GTK_POLICY_ALWAYS</hscrollbar_policy>
+	<vscrollbar_policy>GTK_POLICY_ALWAYS</vscrollbar_policy>
+	<hupdate_policy>GTK_UPDATE_CONTINUOUS</hupdate_policy>
+	<vupdate_policy>GTK_UPDATE_CONTINUOUS</vupdate_policy>
+	<child>
+	  <padding>0</padding>
+	  <expand>True</expand>
+	  <fill>True</fill>
+	</child>
+
+	<widget>
+	  <class>GtkCList</class>
+	  <name>lang_clist</name>
+	  <can_focus>True</can_focus>
+	  <columns>2</columns>
+	  <column_widths>210,80</column_widths>
+	  <selection_mode>GTK_SELECTION_MULTIPLE</selection_mode>
+	  <show_titles>True</show_titles>
+	  <shadow_type>GTK_SHADOW_IN</shadow_type>
+
+	  <widget>
+	    <class>GtkLabel</class>
+	    <child_name>CList:title</child_name>
+	    <name>lang_language_label</name>
+	    <label>Language</label>
+	    <justify>GTK_JUSTIFY_CENTER</justify>
+	    <wrap>False</wrap>
+	    <xalign>0.5</xalign>
+	    <yalign>0.5</yalign>
+	    <xpad>0</xpad>
+	    <ypad>0</ypad>
+	  </widget>
+
+	  <widget>
+	    <class>GtkLabel</class>
+	    <child_name>CList:title</child_name>
+	    <name>lang_code_label</name>
+	    <label>Code</label>
+	    <justify>GTK_JUSTIFY_CENTER</justify>
+	    <wrap>False</wrap>
+	    <xalign>0.5</xalign>
+	    <yalign>0.5</yalign>
+	    <xpad>0</xpad>
+	    <ypad>0</ypad>
+	  </widget>
+	</widget>
+      </widget>
+
+      <widget>
+	<class>GtkAlignment</class>
+	<name>lang_vbox_alignment</name>
+	<xalign>0.5</xalign>
+	<yalign>0.5</yalign>
+	<xscale>0.76</xscale>
+	<yscale>3.57628e-07</yscale>
+	<child>
+	  <padding>0</padding>
+	  <expand>False</expand>
+	  <fill>False</fill>
+	  <pack>GTK_PACK_END</pack>
+	</child>
+
+	<widget>
+	  <class>GtkVButtonBox</class>
+	  <name>vbuttonbox1</name>
+	  <layout_style>GTK_BUTTONBOX_START</layout_style>
+	  <spacing>0</spacing>
+	  <child_min_width>77</child_min_width>
+	  <child_min_height>0</child_min_height>
+	  <child_ipad_x>0</child_ipad_x>
+	  <child_ipad_y>0</child_ipad_y>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>lang_add_button</name>
+	    <tooltip>Add language(s) to the list</tooltip>
+	    <can_default>True</can_default>
+	    <can_focus>True</can_focus>
+	    <label>Add...</label>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>lang_remove_button</name>
+	    <tooltip>Remove language(s) from list</tooltip>
+	    <can_default>True</can_default>
+	    <can_focus>True</can_focus>
+	    <label>Remove</label>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>lang_up_button</name>
+	    <can_default>True</can_default>
+	    <can_focus>True</can_focus>
+	    <stock_button>GNOME_STOCK_BUTTON_UP</stock_button>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>lang_down_button</name>
+	    <can_default>True</can_default>
+	    <can_focus>True</can_focus>
+	    <stock_button>GNOME_STOCK_BUTTON_DOWN</stock_button>
+	  </widget>
+	</widget>
+      </widget>
+    </widget>
+  </widget>
+</widget>
+
+<widget>
+  <class>GnomeApp</class>
+  <name>app</name>
+  <title>Ogle</title>
+  <type>GTK_WINDOW_TOPLEVEL</type>
+  <position>GTK_WIN_POS_NONE</position>
+  <modal>False</modal>
+  <allow_shrink>False</allow_shrink>
+  <allow_grow>True</allow_grow>
+  <auto_shrink>False</auto_shrink>
+  <enable_layout_config>True</enable_layout_config>
+
+  <widget>
+    <class>GnomeDock</class>
+    <child_name>GnomeApp:dock</child_name>
+    <name>dock1</name>
+    <allow_floating>True</allow_floating>
+    <child>
+      <padding>0</padding>
+      <expand>True</expand>
+      <fill>True</fill>
+    </child>
+
+    <widget>
+      <class>GnomeDockItem</class>
+      <name>dockitem2</name>
+      <border_width>2</border_width>
+      <placement>GNOME_DOCK_TOP</placement>
+      <band>0</band>
+      <position>0</position>
+      <offset>0</offset>
+      <locked>False</locked>
+      <exclusive>True</exclusive>
+      <never_floating>False</never_floating>
+      <never_vertical>True</never_vertical>
+      <never_horizontal>False</never_horizontal>
+      <shadow_type>GTK_SHADOW_OUT</shadow_type>
+
+      <widget>
+	<class>GtkMenuBar</class>
+	<name>menubar1</name>
+	<shadow_type>GTK_SHADOW_NONE</shadow_type>
+
+	<widget>
+	  <class>GtkMenuItem</class>
+	  <name>file1</name>
+	  <stock_item>GNOMEUIINFO_MENU_FILE_TREE</stock_item>
+
+	  <widget>
+	    <class>GtkMenu</class>
+	    <name>file1_menu</name>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>new_file1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_new_file1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_NEW_ITEM</stock_item>
+	      <label>_New File</label>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>open1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_open1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_OPEN_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>save1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_save1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_SAVE_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>save_as1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_save_as1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_SAVE_AS_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkMenuItem</class>
+	      <name>separator2</name>
+	      <right_justify>False</right_justify>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>exit1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_exit1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_EXIT_ITEM</stock_item>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkMenuItem</class>
+	  <name>edit1</name>
+	  <stock_item>GNOMEUIINFO_MENU_EDIT_TREE</stock_item>
+
+	  <widget>
+	    <class>GtkMenu</class>
+	    <name>edit1_menu</name>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>cut1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_cut1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_CUT_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>copy1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_copy1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_COPY_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>paste1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_paste1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_PASTE_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>clear1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_clear1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_CLEAR_ITEM</stock_item>
+	    </widget>
+
+	    <widget>
+	      <class>GtkMenuItem</class>
+	      <name>separator3</name>
+	      <right_justify>False</right_justify>
+	    </widget>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>properties1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_properties1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_PROPERTIES_ITEM</stock_item>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkMenuItem</class>
+	  <name>view1</name>
+	  <stock_item>GNOMEUIINFO_MENU_VIEW_TREE</stock_item>
+
+	  <widget>
+	    <class>GtkMenu</class>
+	    <name>view1_menu</name>
+
+	    <widget>
+	      <class>GtkCheckMenuItem</class>
+	      <name>full_screen</name>
+	      <accelerator>
+		<modifiers>GDK_CONTROL_MASK</modifiers>
+		<key>GDK_f</key>
+		<signal>activate</signal>
+	      </accelerator>
+	      <signal>
+		<name>activate</name>
+		<handler>on_full_screen_activate</handler>
+		<last_modification_time>Mon, 20 Aug 2001 16:58:25 GMT</last_modification_time>
+	      </signal>
+	      <label>Full screen</label>
+	      <active>False</active>
+	      <always_show_toggle>True</always_show_toggle>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkMenuItem</class>
+	  <name>settings1</name>
+	  <stock_item>GNOMEUIINFO_MENU_SETTINGS_TREE</stock_item>
+
+	  <widget>
+	    <class>GtkMenu</class>
+	    <name>settings1_menu</name>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>preferences1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_preferences1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_PREFERENCES_ITEM</stock_item>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkMenuItem</class>
+	  <name>help1</name>
+	  <stock_item>GNOMEUIINFO_MENU_HELP_TREE</stock_item>
+
+	  <widget>
+	    <class>GtkMenu</class>
+	    <name>help1_menu</name>
+
+	    <widget>
+	      <class>GtkPixmapMenuItem</class>
+	      <name>about1</name>
+	      <signal>
+		<name>activate</name>
+		<handler>on_about1_activate</handler>
+		<last_modification_time>Fri, 13 Apr 2001 16:46:47 GMT</last_modification_time>
+	      </signal>
+	      <stock_item>GNOMEUIINFO_MENU_ABOUT_ITEM</stock_item>
+	    </widget>
+	  </widget>
+	</widget>
+      </widget>
+    </widget>
+
+    <widget>
+      <class>GtkVBox</class>
+      <child_name>GnomeDock:contents</child_name>
+      <name>vbox1</name>
+      <homogeneous>False</homogeneous>
+      <spacing>0</spacing>
+
+      <widget>
+	<class>GtkHScale</class>
+	<name>hscale1</name>
+	<can_focus>True</can_focus>
+	<draw_value>False</draw_value>
+	<value_pos>GTK_POS_TOP</value_pos>
+	<digits>1</digits>
+	<policy>GTK_UPDATE_CONTINUOUS</policy>
+	<value>0</value>
+	<lower>0</lower>
+	<upper>0</upper>
+	<step>0</step>
+	<page>0</page>
+	<page_size>0</page_size>
+	<child>
+	  <padding>0</padding>
+	  <expand>False</expand>
+	  <fill>False</fill>
+	</child>
+      </widget>
+
+      <widget>
+	<class>GtkHBox</class>
+	<name>hbox1</name>
+	<homogeneous>False</homogeneous>
+	<spacing>0</spacing>
+	<child>
+	  <padding>7</padding>
+	  <expand>False</expand>
+	  <fill>True</fill>
+	</child>
+
+	<widget>
+	  <class>GtkTable</class>
+	  <name>table1</name>
+	  <rows>2</rows>
+	  <columns>5</columns>
+	  <homogeneous>False</homogeneous>
+	  <row_spacing>0</row_spacing>
+	  <column_spacing>0</column_spacing>
+	  <child>
+	    <padding>5</padding>
+	    <expand>True</expand>
+	    <fill>True</fill>
+	  </child>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>stop_button</name>
+	    <tooltip>Stop</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_stop_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:21:04 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>2</left_attach>
+	      <right_attach>3</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>stop_pixmap</name>
+	      <filename>stock_stop.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>pause_button</name>
+	    <tooltip>Pause</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_pause_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:23:50 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>2</left_attach>
+	      <right_attach>3</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>pause_pixmap</name>
+	      <filename>stock_pause.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>rewind_button</name>
+	    <tooltip>Rewind</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_rewind_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:22:36 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>rewind_pixmap</name>
+	      <filename>rewind.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>skip_backwards_button</name>
+	    <tooltip>Skip backwards</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_skip_backwards_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:23:35 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>skip_backwards_pixmap</name>
+	      <filename>skip_backwards.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>reverse_button</name>
+	    <tooltip>Reverse</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_reverse_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:22:09 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>reverse_pixmap</name>
+	      <filename>stock_left_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>step_reverse_button</name>
+	    <tooltip>Step reverse</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_step_reverse_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:23:41 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>step_reverse_pixmap</name>
+	      <filename>stock_first.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>play_button</name>
+	    <tooltip>Play</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_play_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:21:19 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>3</left_attach>
+	      <right_attach>4</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>play_pixmap</name>
+	      <filename>stock_right_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>step_forwards_button</name>
+	    <tooltip>Step forwards</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_step_forwards_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:23:57 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>3</left_attach>
+	      <right_attach>4</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>step_forwards_pixmap</name>
+	      <filename>stock_last.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>fastforward_button</name>
+	    <tooltip>Fast forward</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_fastforward_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:21:51 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>4</left_attach>
+	      <right_attach>5</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>fastforward_pixmap</name>
+	      <filename>fastforward.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>skip_forwards_button</name>
+	    <tooltip>Skip forwards</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_skip_forwards_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:24:03 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>4</left_attach>
+	      <right_attach>5</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>skip_forwards_pixmap</name>
+	      <filename>skip_forwards.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkTable</class>
+	  <name>table2</name>
+	  <rows>2</rows>
+	  <columns>1</columns>
+	  <homogeneous>False</homogeneous>
+	  <row_spacing>0</row_spacing>
+	  <column_spacing>0</column_spacing>
+	  <child>
+	    <padding>0</padding>
+	    <expand>True</expand>
+	    <fill>True</fill>
+	  </child>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>fast_button</name>
+	    <tooltip>Play fast</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_fast_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:12 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>fast_pixmap</name>
+	      <filename>stock_timer.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>slow_button</name>
+	    <tooltip>Play slow</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_slow_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:04 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>slow_pixmap</name>
+	      <filename>stock_timer_stopped.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkTable</class>
+	  <name>table3</name>
+	  <rows>2</rows>
+	  <columns>3</columns>
+	  <homogeneous>False</homogeneous>
+	  <row_spacing>0</row_spacing>
+	  <column_spacing>0</column_spacing>
+	  <child>
+	    <padding>5</padding>
+	    <expand>True</expand>
+	    <fill>True</fill>
+	  </child>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_up_button</name>
+	    <tooltip>Move cursor up</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_up_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 13:26:24 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_up_pixmap</name>
+	      <filename>stock_up_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_left_button</name>
+	    <tooltip>Move cursor left</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_left_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 13:28:15 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_left_pixmap</name>
+	      <filename>stock_left_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_right_button</name>
+	    <tooltip>Move cursor right</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_right_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 13:28:41 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>2</left_attach>
+	      <right_attach>3</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_right_pixmap</name>
+	      <filename>stock_right_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_go_up_button</name>
+	    <tooltip>Go up</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_go_up_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 13:35:07 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_go_up_pixmap</name>
+	      <filename>go_up.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_down_button</name>
+	    <tooltip>Move cursor down</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_down_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 12:41:05 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_down_pixmap</name>
+	      <filename>stock_down_arrow.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>cursor_enter_button</name>
+	    <tooltip>Enter</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_cursor_enter_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 13:26:53 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>2</left_attach>
+	      <right_attach>3</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>True</xfill>
+	      <yfill>True</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>cursor_enter_pixmap</name>
+	      <filename>enter.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+	</widget>
+
+	<widget>
+	  <class>GtkTable</class>
+	  <name>table4</name>
+	  <rows>2</rows>
+	  <columns>2</columns>
+	  <homogeneous>False</homogeneous>
+	  <row_spacing>0</row_spacing>
+	  <column_spacing>0</column_spacing>
+	  <child>
+	    <padding>5</padding>
+	    <expand>True</expand>
+	    <fill>True</fill>
+	  </child>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>menus_button</name>
+	    <tooltip>Select menu...</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_menus_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:30 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>menus_pixmap</name>
+	      <filename>menus.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>audio_button</name>
+	    <tooltip>Audio select</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_audio_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:44 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>0</top_attach>
+	      <bottom_attach>1</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>audio_pixmap</name>
+	      <filename>stock_volume.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>subpicture_button</name>
+	    <tooltip>Subpicture select</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_subpicture_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:37 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>0</left_attach>
+	      <right_attach>1</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>subpicture_pixmap</name>
+	      <filename>subpicture.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+
+	  <widget>
+	    <class>GtkButton</class>
+	    <name>angle_button</name>
+	    <tooltip>Angle select</tooltip>
+	    <can_focus>True</can_focus>
+	    <signal>
+	      <name>clicked</name>
+	      <handler>on_angle_button_clicked</handler>
+	      <last_modification_time>Sun, 01 Apr 2001 18:33:51 GMT</last_modification_time>
+	    </signal>
+	    <child>
+	      <left_attach>1</left_attach>
+	      <right_attach>2</right_attach>
+	      <top_attach>1</top_attach>
+	      <bottom_attach>2</bottom_attach>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <xexpand>False</xexpand>
+	      <yexpand>False</yexpand>
+	      <xshrink>False</xshrink>
+	      <yshrink>False</yshrink>
+	      <xfill>False</xfill>
+	      <yfill>False</yfill>
+	    </child>
+
+	    <widget>
+	      <class>GtkPixmap</class>
+	      <name>angle_pixmap</name>
+	      <filename>angle.xpm</filename>
+	      <xalign>0.5</xalign>
+	      <yalign>0.5</yalign>
+	      <xpad>0</xpad>
+	      <ypad>0</ypad>
+	      <build_insensitive>True</build_insensitive>
+	    </widget>
+	  </widget>
+	</widget>
+      </widget>
+    </widget>
+  </widget>
+
+  <widget>
+    <class>GnomeAppBar</class>
+    <child_name>GnomeApp:appbar</child_name>
+    <name>appbar</name>
+    <has_progress>False</has_progress>
+    <has_status>True</has_status>
+    <child>
+      <padding>0</padding>
+      <expand>True</expand>
+      <fill>True</fill>
+    </child>
+  </widget>
+</widget>
+
+<widget>
+  <class>GnomeAbout</class>
+  <name>about</name>
+  <modal>True</modal>
+  <copyright></copyright>
+  <authors></authors>
+  <comments></comments>
+</widget>
+
+</GTK-Interface>
