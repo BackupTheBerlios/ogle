@@ -114,6 +114,9 @@ void print_btnit (FILE *out, btni_t *btni_table, int btngr_ns, int btn_ns)
   int i, j;
   
   fprintf (out, "btnit:\n");
+  fprintf (out, "btngr_ns: %i\n", btngr_ns);
+  fprintf (out, "btn_ns: %i\n", btn_ns);
+
   if (btngr_ns == 0) {
     return;
   }

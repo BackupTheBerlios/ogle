@@ -66,7 +66,7 @@ void read_pci_packet (pci_t *pci, FILE *out, buffer_t *buffer)
     for (j = 0; j < 2; j++)
       B2N_32(pci->hli.btn_colit.btn_coli[i][j]);
   
-#if !WORDS_BIGENDIAN
+#ifndef WORDS_BIGENDIAN
   /* pci hli btni */
   for (i = 0; i < 36; i++) {
     char tmp[6], swap;

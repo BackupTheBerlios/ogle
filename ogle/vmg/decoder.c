@@ -249,9 +249,9 @@ eval_reg_or_data_2(int imm, int byte) {
 static bool
 eval_system_set (int cond, link_t *return_values) {
   int i;
-  uint16_t data;
+  uint16_t data, data2;
   switch(bits(0,4,4)) {
-    case 1: // 1 2 3
+    case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
       for(i = 1; i <= 3; i++) {
         if(bits(2+i,0,1)) {
           data = eval_reg_or_data_2(bits(0,3,1), 2+i);
@@ -261,17 +261,36 @@ eval_system_set (int cond, link_t *return_values) {
         }
       }
       break;
-    case 6: // 8
-      if (bits(0,3,1)) { // immediate
-        data = bits(4,0,16);
-        if (cond) {
-          state->SPRM[8] = data;
-        }
+    case 2: // Set system reg 9 & 10 (Navigation timer, Title PGC number)
+      data = eval_reg_or_data(bits(0,3,1), 2);
+      data2 = bits(5,0,8); // ?? size
+      if (cond) {
+	state->SPRM[9] = data; // time
+	state->SPRM[10] = data2; // pgcN
+      }
+      break;
+    case 3: // Mode: Counter / Register + Set
+      data = eval_reg_or_data(bits(0,3,1), 2);
+      data2 = bits(5,4,4);
+      if (bits(5,0,1)) {
+	printf ("Detected SetMODE Counter!");
+	if (cond) {
+	  null;
+	}
+	exit(-1);
       } else {
-        data = bits(5,4,4);
-        if (cond) {
-          state->SPRM[8] = state->GPRM[data];
-        }
+	if (cond) {
+	  null;
+	}
+      }
+      if (cond) {
+	state->GPRM[data2] = data;
+      }
+      break;
+    case 6: // Set system reg 8 (Highlighted button)
+      data = eval_reg_or_data(bits(0,3,1),4); // Not system reg!!
+      if (cond) {
+	state->SPRM[8] = data;
       }
       break;
   }
@@ -299,7 +318,7 @@ eval_if_version_3() {
 static void
 eval_set_op(cond) {
   uint8_t  op   = bits(0,4,4);
-  uint8_t  reg  = bits(3,0,8);
+  uint8_t  reg  = bits(3,4,4); // Erhumm..
   uint8_t  reg2 = bits(5,4,4);
   uint16_t data = eval_reg_or_data(bits(0,3,1), 4);
   if(cond) {

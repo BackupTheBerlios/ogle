@@ -19,7 +19,7 @@
  * the Free Software Foundation, Inc., 675 Mass Ave, Cambridge, MA
  * 02139, USA.
  *
- * $Id: nav.c,v 1.3 2001/02/08 20:56:08 d95hjort Exp $
+ * $Id: nav.c,v 1.4 2001/02/23 10:19:28 d95hjort Exp $
  */
 
 #include <stdio.h>
@@ -298,10 +298,12 @@ int demux_data(char *file_name, int start_sector,
   }
   fclose (vobfile);
   
-  if(res == -1)
+  if(res == -1) {
     print_pci_packet (stdout, &pci);
-  //print_dsi_packet (stdout, &dsi);
- 
+    print_dsi_packet (stdout, &dsi);
+    res = 0;
+  }
+
   return res;
 }
 

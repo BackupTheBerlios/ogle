@@ -309,7 +309,7 @@ print_system_set () {
       print_set_op(0x1); // =
       print_reg_or_data(bits(0,3,1), 2);
       break;
-    case 6: // Set system reg 8 (Highlitted button)
+    case 6: // Set system reg 8 (Highlighted button)
       print_system_reg(8);
       if (bits(0,3,1)) // immediate
         printf(" = 0x%x (button no %d)", bits(4,0,16), bits(4,0,6));

@@ -208,7 +208,10 @@ int main(int argc, char *argv[])
     /* Should this return any button_cmd that executes?? */
     {
       command_data_t cmd;
-      if(demux_data(name, cell.first_sector, cell.last_sector, &cmd)) {
+      int res = demux_data(name, cell.first_sector, cell.last_sector, &cmd);
+      if(res) {
+	// Remove me..
+	state.registers.SPRM[8] = 0x400 * res;
 	if(eval(&cmd, 1, &state.registers, &link_values)) {
 	  goto process_jump;
 	} else {
@@ -335,6 +338,17 @@ int main(int argc, char *argv[])
     goto play_PGC;
     
   case JumpSS_FP:
+    assert(state.domain == VMGM_DOMAIN || state.domain == VTSM_DOMAIN); //??   
+    state.rsm_cellN = link_values.data1; //??
+    // ?? more sets ??
+    state.domain = FP_DOMAIN;
+    ifoClose();
+    ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
+    //free pgc
+    ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
+    state.pgN = 0;
+    state.cellN = 0;
+    goto play_PGC;
   case JumpSS_VMGM_MENU:
     assert(state.domain == VMGM_DOMAIN || 
 	   state.domain == VTSM_DOMAIN || 
@@ -356,7 +370,17 @@ int main(int argc, char *argv[])
     goto play_PGC;
     
   case CallSS_FP:
-    exit(-1);
+    assert(state.domain == VTS_DOMAIN); //??   
+    state.rsm_cellN = link_values.data1; //??
+    // ?? more sets ??
+    state.domain = FP_DOMAIN;
+    ifoClose();
+    ifoOpen_VMG(&vmgi_mat, "VIDEO_TS.IFO");
+    //free pgc
+    ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
+    state.pgN = 0;
+    state.cellN = 0;
+    goto play_PGC;
   case CallSS_VMGM_MENU:
     assert(state.domain == VTS_DOMAIN); //??   
     exit(-1);    
