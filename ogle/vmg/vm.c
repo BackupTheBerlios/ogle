@@ -1066,7 +1066,8 @@ static link_t process_command(link_t link_values)
 	state.HL_BTNN_REG = link_values.data2 << 10;
       if(get_VTS_PTT(state.vtsN, state.VTS_TTN_REG, link_values.data1) == -1)
 	assert(0);
-      link_values = play_PGC(); // play_PG(); ?? I'd think PGC for symmetry
+      // not play_PGC(); Fixes Men In Black delux set / sepcial edition 
+      link_values = play_PG();
       break;
     case LinkPGN:
       if(link_values.data2 != 0)
