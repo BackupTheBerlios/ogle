@@ -655,7 +655,7 @@ static void do_run(void) {
 	case DVDCtrlForwardScan:  
 	  {
 	    MsgEvent_t send_ev;
-	    static double last_speed;
+	    static double last_speed = 1.0;
 	    send_ev.type = MsgEventQSpeed;
 	    if(ev.dvdctrl.cmd.type == DVDCtrlForwardScan) {
 	      send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
