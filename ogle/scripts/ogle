@@ -16,19 +16,20 @@ create_pipe "/tmp/ac3"
 create_pipe "/tmp/audio"
 # create_pipe "/tmp/cmd"
 
-if [ -h "$DVDP_CMD" ]; then
-    if [ -x "`which readlink`" ]; then
-	while [ -h "$DVDP_CMD" ]; do
-	    DVDP_CMD=`readlink "$DVDP_CMD"`;
-	done;
-    else
-	echo "Warning didn't find 'readlink'";
-	while [ -h "$DVDP_CMD" ]; do
-	    # Don't use symlinks that contain '->' as part of the name!!
-	    DVDP_CMD=`ls -l "$DVDP_CMD" | sed -e 's/.*-> //1'`;
-	done;
-    fi;
-fi;
+# This code fails for /usr/local/bin/ogle -> ../stow/.../ogle 
+#  if [ -h "$DVDP_CMD" ]; then
+#      if [ -x "`which readlink`" ]; then
+#  	while [ -h "$DVDP_CMD" ]; do
+#  	    DVDP_CMD=`readlink "$DVDP_CMD"`;
+#  	done;
+#      else
+#  	echo "Warning didn't find 'readlink'";
+#  	while [ -h "$DVDP_CMD" ]; do
+#  	    # Don't use symlinks that contain '->' as part of the name!!
+#  	    DVDP_CMD=`ls -l "$DVDP_CMD" | sed -e 's/.*-> //1'`;
+#  	done;
+#      fi;
+#  fi;
 
 DVDP_ROOT=`dirname "$DVDP_CMD"`
 export DVDP_ROOT
