@@ -388,7 +388,8 @@ static bool eval_system_set(int cond, link_t *return_values)
     case 6: // Set system reg 8 (Highlighted button)
       data = eval_reg_or_data(bits(0, 3, 1), 4); // Not system reg!!
       if(cond) {
-	state->SPRM[8] = data;
+	/* Should we mask out the lower bits like this? */
+	state->SPRM[8] = data & 0xfc00; // bits 9-0 are reserved
       }
       break;
   }
