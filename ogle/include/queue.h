@@ -1,7 +1,7 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-#include "msgevents.h"
+#include <ogle/msgevents.h>
 
 typedef struct {
   uint64_t PTS;

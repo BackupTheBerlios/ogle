@@ -91,4 +91,9 @@ typedef struct {
   int sync_master;
 } ctrl_data_t;
 
+typedef struct {
+  int shmid;
+  int size;
+} shm_bufinfo_t;
+
 #endif /* COMMON_H */
