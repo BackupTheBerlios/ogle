@@ -279,10 +279,12 @@ void
 on_play_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
   speed = 1.0;
   DVDForwardScan(nav, speed);
-  if(isPaused)
-    DVDPauseOff(nav);
 }
 
 
@@ -298,6 +300,11 @@ void
 on_fastforward_button_clicked          (GtkButton       *button,
                                         gpointer         user_data)
 {
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
   if((speed >= 1.0) && (speed < 8.0)) {
     speed +=0.5;
   } else {
@@ -319,6 +326,11 @@ void
 on_fast_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
   if((speed >= 1.0) && (speed < 8.0)) {
     speed += 0.5;
   } else if(speed < 1.0) {
@@ -332,6 +344,11 @@ void
 on_slow_button_clicked                 (GtkButton       *button,
                                         gpointer         user_data)
 {
+  if(isPaused) {
+    isPaused = 0;
+    DVDPauseOff(nav);
+  }
+
   if(speed > 1.0) {
     speed -= 0.5;
   } else if((speed > 0.1) && (speed <= 1.0)) {
