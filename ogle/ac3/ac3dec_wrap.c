@@ -398,7 +398,7 @@ int get_q()
   {
     clocktime_t apa = {0, 100000000};
     timesub(&apa, &time_offset, &apa);
-    if(TIME_SS(apa) > 0) {
+    if(TIME_SS(apa) > 0 || TIME_S(apa) > 0) {
       nanosleep(&apa, NULL);
     }
   }
