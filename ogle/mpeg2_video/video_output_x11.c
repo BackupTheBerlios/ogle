@@ -439,9 +439,10 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				int new_height, int resize_window) {
   int padded_width = img->info->picture.padded_width;
   int padded_height = img->info->picture.padded_height;
+  int alloc_width, alloc_height;
   
-  fprintf(stderr, "vo padded: %d, %d\n",
-	  padded_width, padded_height);
+  fprintf(stderr, "vo resize: %d, %d\n",
+	  new_width, new_height);
   
   
   /* If we cant scale (i.e no Xv or mediaLib) exit give up now. */
@@ -450,19 +451,20 @@ static void display_change_size(yuv_image_t *img, int new_width,
     return;
 #endif
   
-  // Check to not 'reallocate' if the size is the same or less than 
-  // minimum size...
-  if((new_width <= padded_width && new_height <= padded_height) ||
-     (scaled_image_width == new_width && scaled_image_height == new_height)){
-    scaled_image_width = new_width;
-    scaled_image_height = new_height;
+  // Check to not 'reallocate' if the size is the same...
+  if(scaled_image_width == new_width && scaled_image_height == new_height) {
     return;
   }
   
-  /* Save the new size so we know what to scale to. */
-  scaled_image_width = new_width;
-  scaled_image_height = new_height;
-
+  // or that we allocate less than the minimum size...
+  if(new_width * new_height < padded_width * padded_height) {
+    alloc_width = padded_width;
+    alloc_height = padded_height;
+  } else {
+    alloc_width = new_width;
+    alloc_height = new_height;
+  }
+  
 #if 0
   /* Stop events temporarily, while creating new display_image */
   XSelectInput(mydisplay, window.win, NoEventMask);
@@ -485,16 +487,16 @@ static void display_change_size(yuv_image_t *img, int new_width,
       exit(-10);
     }
     
-    XSync(mydisplay, True);
-    
     memset(&shm_info, 0, sizeof(XShmSegmentInfo));
+    
+    XSync(mydisplay, True);
     
     /* Create new display */
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, 
 				    color_depth, ZPixmap, 
 				    NULL, &shm_info,
-				    scaled_image_width,
-				    scaled_image_height);
+				    alloc_width,
+				    alloc_height);
     
     if(window.ximage == NULL) {
       fprintf(stderr, "Shared memory: couldn't create Shm image\n");
@@ -525,9 +527,13 @@ static void display_change_size(yuv_image_t *img, int new_width,
     shm_info.readOnly = False;
     XShmAttach(mydisplay, &shm_info);
     
-    XSync(mydisplay, 0);
+    XSync(mydisplay, False);
   }
-
+  
+  /* Save the new size so we know what to scale to. */
+  scaled_image_width = new_width;
+  scaled_image_height = new_height;
+  
   if(resize_window == True) {
     /* Force a change of the widow size. */
     XResizeWindow(mydisplay, window.win, 

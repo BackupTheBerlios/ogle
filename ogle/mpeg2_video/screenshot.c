@@ -119,5 +119,5 @@ void screenshot_jpg(unsigned char *data, XImage *ximg) {
 	data [y * image_width * 4 + x*4 +1 ] ;
     }
   }
-  write_JPEG_file ("sune", 100);
+  write_JPEG_file ("screenshot.jpg", 100);
 }
