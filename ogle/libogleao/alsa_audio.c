@@ -533,7 +533,7 @@ ogle_ao_instance_t *alsa_open(char *device)
   
   if((err = snd_pcm_open(&(i->alsa_pcm), device, 
 			 SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
-    ERROR("Opening alsa pcm device '%s': %s\n", device, strerror(errno));
+    ERROR("Opening alsa pcm device '%s': %s\n", device, snd_strerror(err));
     return NULL;
   }    
   
