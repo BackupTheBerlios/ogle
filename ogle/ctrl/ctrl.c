@@ -25,13 +25,9 @@
 int create_msgq();
 int init_demux(char *msqqid_str);
 int init_decoder(char *msgqid_str, char *decoderstr);
-//int chk_for_msg(void);
-//int eval_msg(mq_cmd_t *cmd);
-int send_msg(mq_msg_t *msg, int mtext_size);
 int get_buffer(int size, shm_bufinfo_t *bufinfo);
 int create_q(int nr_of_elems, int buf_shmid, 
 	     MsgEventClient_t writer, MsgEventClient_t reader);
-//int wait_for_msg(mq_cmdtype_t cmdtype);
 int create_ctrl_data();
 int init_ui(char *msgqid_str);
 int register_stream(uint8_t stream_id, uint8_t subtype);
@@ -46,7 +42,6 @@ int msgqid;
 int ctrl_data_shmid;
 ctrl_data_t *ctrl_data;
 
-mq_msg_t msg;
 char *program_name;
 char msgqid_str[9];
 
@@ -683,22 +678,6 @@ int main(int argc, char *argv[])
   
   MsgSendEvent(&q, rcpt, &ev);
   
-  if(input_file != NULL) {
-    mq_cmd_t *cmd;
-    
-    msg.mtype = MTYPE_DEMUX;
-    cmd = (mq_cmd_t *)&msg.mtext;
-    
-    cmd->cmdtype = CMD_FILE_OPEN;
-    strcpy(cmd->cmd.file_open.file, input_file);
-    
-    if(msgsnd(msgqid, &msg,
-	      sizeof(mq_cmdtype_t)+strlen(cmd->cmd.file_open.file)+1,
-	      0) == -1) {
-      perror("msgsnd");
-    }
-  }
-  
   
   while(1){
     MsgNextEvent(&q, &ev);
@@ -1236,16 +1215,6 @@ void destroy_msgq()
 
 }
 
-
-
-int send_msg(mq_msg_t *msg, int mtext_size)
-{
-  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
-    perror("ctrl: msgsnd1");
-    return -1;
-  }
-  return 0;
-}
 
 int get_buffer(int size, shm_bufinfo_t *bufinfo)
 {
