@@ -40,6 +40,7 @@
 #include "queue.h"
 #include "timemath.h"
 //#include "sync.h"
+#include "vm.h"
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
@@ -115,6 +116,40 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
     else
       fprintf(stderr, "vmg: capabilities not requested (%d)\n", 
 	      ev->gntcapability.capability);
+    break;
+  case MsgEventQDVDCtrl:
+    {
+      DVDLangID_t langid;
+      DVDCountryID_t country;
+      DVDParentalLevel_t level;
+
+      switch(ev->dvdctrl.cmd.type) {
+      case DVDCtrlDefaultMenuLanguageSelect:
+	langid = ev->dvdctrl.cmd.defaultmenulanguageselect.langid;
+	set_sprm(0, langid);
+	break;
+      case DVDCtrlDefaultAudioLanguageSelect:
+	langid = ev->dvdctrl.cmd.defaultmenulanguageselect.langid;
+	set_sprm(16, langid);
+	break;
+      case DVDCtrlDefaultSubpictureLanguageSelect:
+	langid = ev->dvdctrl.cmd.defaultmenulanguageselect.langid;
+	set_sprm(18, langid);
+	break;
+      case DVDCtrlParentalCountrySelect:
+	country = ev->dvdctrl.cmd.parentalcountryselect.countryid;
+	set_sprm(12, country);
+	break;
+      case DVDCtrlParentalLevelSelect:
+	level = ev->dvdctrl.cmd.parentallevelselect.level;
+	set_sprm(13, level);
+	break;
+      default:
+	fprintf(stderr, "*vmg: unhandled dvdctrl event type (%d)\n",
+		ev->dvdctrl.cmd.type);
+	break;
+      }
+    }
     break;
   case MsgEventQDVDCtrlLong:
     switch(ev->dvdctrllong.cmd.type) {

@@ -72,8 +72,9 @@ typedef struct {
 // Parental Level
 #define PTL_REG      registers.SPRM[13]
 
-
-int vm_reset(char *dvdroot); // , register_t regs);
+int set_sprm(unsigned int nr, uint16_t val);
+int vm_reset(void);
+int vm_init(char *dvdroot);
 int vm_start(void);
 int vm_eval_cmd(vm_cmd_t *cmd);
 int vm_get_next_cell();

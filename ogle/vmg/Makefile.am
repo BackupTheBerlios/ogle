@@ -17,14 +17,15 @@
 
 pkglib_PROGRAMS = nav
 bin_PROGRAMS = ifo_dump
-noinst_PROGRAMS = vmg vmg_dump dump
+noinst_PROGRAMS =  vmg_dump dump
 
 INCLUDES = @TOP_INCLUDES@
 CFLAGS = @CFLAGS@ @DVDREAD_CFLAGS@
 
-vmg_LDADD = $(top_builddir)/common/libcommon.a \
-	$(top_builddir)/ogle/libmsgevents.la
-vmg_SOURCES = vmg.c com.c
+#vmg_LDADD = $(top_builddir)/common/libcommon.a \
+#	$(top_builddir)/ogle/libmsgevents.la
+#vmg_SOURCES = vmg.c com.c 
+
 
 vmg_dump_LDADD = @DVDREAD_LIBS@
 vmg_dump_SOURCES = vmg_dump.c \

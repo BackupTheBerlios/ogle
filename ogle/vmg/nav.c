@@ -108,11 +108,12 @@ int main(int argc, char *argv[])
       exit(1);
     }
     
+    vm_reset();
     wait_for_init(msgq);
     
     /*  Call start here */
     // hack placed here because it calls DVDOpen...
-    if(vm_reset(get_dvdroot()) == -1)
+    if(vm_init(get_dvdroot()) == -1)
       exit(1);
 
     ev.type = MsgEventQDemuxDVDRoot;
@@ -603,7 +604,7 @@ static void do_run(void) {
       //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
           
       /* Do user input processing. Like audio change, 
-       * subpicture change and answer attribute querry requests.
+       * subpicture change and answer attribute query requests.
        * access menus, pause, play, jump forward/backward...
        */
       switch(ev.type) {

@@ -72,13 +72,19 @@ static int get_PGC(int pgcN);
 static int get_PGCN(void);
 
 
+int set_sprm(unsigned int nr, uint16_t val)
+{
+  if(nr < 0 || nr > 23) {
+    return 0;
+  }
+
+  state.registers.SPRM[nr] = val;
+
+  return 1;
+}
 
 
-
-
-
-
-int vm_reset(char *dvdroot) // , register_t regs)
+int vm_reset(void) // , register_t regs)
 { 
   // Setup State
   memset(state.registers.SPRM, 0, sizeof(uint16_t)*24);
@@ -108,7 +114,11 @@ int vm_reset(char *dvdroot) // , register_t regs)
   state.rsm_blockN = 0;
   
   state.vtsN = -1;
-  
+}  
+
+
+int vm_init(char *dvdroot) // , register_t regs)
+{
   dvd = DVDOpen(dvdroot);
   if(!dvd) {
     fprintf(stderr, "vm: faild to open/read the DVD\n");
