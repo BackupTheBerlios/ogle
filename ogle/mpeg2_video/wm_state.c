@@ -37,6 +37,7 @@ static void disable_motif_decorations(Display *dpy, Window win);
 static int EWMH_wm;
 static int gnome_wm;
 static int gnome_wm_layers;
+static int has_ewmh_state_fullscreen;
 static char *wm_name = NULL;
 
 
@@ -228,59 +229,60 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   save_normal_geometry(dpy, win);
   
+  if(!has_ewmh_state_fullscreen) {
 #if 1 // bloody wm's that can't cope with unmap/map
-  // We have to be unmapped to change motif decoration hints 
-  XUnmapWindow(dpy, win);
-  
-  // Wait for window to be unmapped
-  do {
-    XNextEvent(dpy, &ev);
-  } while(ev.type != UnmapNotify);
-  
-  remove_motif_decorations(dpy, win);
-  
-  XSetWMNormalHints(dpy, win, sizehints);
-  XFree(sizehints);
-  
-  XMapWindow(dpy, win);
-  
-  /* wait for the window to be mapped */
-  
-  do {
-    XNextEvent(dpy, &ev);
-  } while(ev.type != MapNotify);
-  
+    // We have to be unmapped to change motif decoration hints 
+    XUnmapWindow(dpy, win);
+    
+    // Wait for window to be unmapped
+    do {
+      XNextEvent(dpy, &ev);
+    } while(ev.type != UnmapNotify);
+    
+    remove_motif_decorations(dpy, win);
+    
+    XSetWMNormalHints(dpy, win, sizehints);
+    XFree(sizehints);
+    
+    XMapWindow(dpy, win);
+    
+    /* wait for the window to be mapped */
+    
+    do {
+      XNextEvent(dpy, &ev);
+    } while(ev.type != MapNotify);
+    
 #endif  
-  /* remove any outstanding configure_notifies */
-  XSync(dpy, True);
-  
-  
-
-  // Try to resize, place the window at correct place and on top
-
-
-  XGetWindowAttributes(dpy, win, &attrs);
-
-  DpyInfoGetScreenOffset(dpy, XScreenNumberOfScreen(attrs.screen),
-			 &win_changes.x, &win_changes.y);
-
-  DpyInfoGetResolution(dpy, XScreenNumberOfScreen(attrs.screen),
-		       &win_changes.width, &win_changes.height);
-
-  win_changes.stack_mode = Above;
-
-  XReconfigureWMWindow(dpy, win, 0, CWX | CWY |
-		       CWWidth | CWHeight |
-		       CWStackMode,
-		       &win_changes);
-
-
-
-
-
-  //todo: check if these are correct and how to detect a kwm
+    /* remove any outstanding configure_notifies */
+    XSync(dpy, True);
+    
+    
+    
+    // Try to resize, place the window at correct place and on top
+    
+    
+    XGetWindowAttributes(dpy, win, &attrs);
+    
+    DpyInfoGetScreenOffset(dpy, XScreenNumberOfScreen(attrs.screen),
+			   &win_changes.x, &win_changes.y);
+    
+    DpyInfoGetResolution(dpy, XScreenNumberOfScreen(attrs.screen),
+			 &win_changes.width, &win_changes.height);
+    
+    win_changes.stack_mode = Above;
+    
+    XReconfigureWMWindow(dpy, win, 0, CWX | CWY |
+			 CWWidth | CWHeight |
+			 CWStackMode,
+			 &win_changes);
+    
+    
+    
+    
+    
+    //todo: check if these are correct and how to detect a kwm
 #if 0
-
+    
     /* Now try to set KWM hints */
     WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
     if(WM_HINTS != None) {
@@ -293,81 +295,54 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
 		      sizeof(KWMHints)/sizeof(long));
       found_wm = 1;
     }
-
+    
     /* Now try to unset KWM hints */
     WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
     if(WM_HINTS != None) {
       XDeleteProperty(mydisplay, window.win, WM_HINTS);
       found_wm = 1;
     }
-
-
+    
+    
 #endif
-
-  // If we have a gnome compliant wm that supports layers, put
-  // us above the dock/panel
-
-  if(gnome_wm_layers) {
-    XEvent ev;
-    ev.type = ClientMessage;
-    ev.xclient.window = win;
-    ev.xclient.message_type = XInternAtom(dpy, "_WIN_LAYER", True);
-    ev.xclient.format = 32;
-    ev.xclient.data.l[0] = 10;
-    XSendEvent(dpy, DefaultRootWindow(dpy), False,
-	       SubstructureNotifyMask, &ev);
-  } else {
-    if(wm_name != NULL) {
-      if(strcmp(wm_name, "KWin") == 0) {
-	XEvent ev;
-	ev.type = ClientMessage;
-	ev.xclient.window = win;
-	ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
-	ev.xclient.format = 32;
-	ev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
-	ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
-	ev.xclient.data.l[2] = 0;
-
-	XSendEvent(dpy, DefaultRootWindow(dpy), False,
-		   SubstructureNotifyMask, &ev);
+    
+    // If we have a gnome compliant wm that supports layers, put
+    // us above the dock/panel
+    
+    if(gnome_wm_layers) {
+      XEvent ev;
+      ev.type = ClientMessage;
+      ev.xclient.window = win;
+      ev.xclient.message_type = XInternAtom(dpy, "_WIN_LAYER", True);
+      ev.xclient.format = 32;
+      ev.xclient.data.l[0] = 10;
+      XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		 SubstructureNotifyMask, &ev);
+    } else {
+      if(wm_name != NULL) {
+	if(strcmp(wm_name, "KWin") == 0) {
+	  XEvent ev;
+	  ev.type = ClientMessage;
+	  ev.xclient.window = win;
+	  ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
+	  ev.xclient.format = 32;
+	  ev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+	  ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
+	  ev.xclient.data.l[2] = 0;
+	  
+	  XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		     SubstructureNotifyMask, &ev);
+	}
       }
     }
-  }
-
-  // Wait for a configure notify
-  do {
-    XNextEvent(dpy, &ev);
-  } while(ev.type != ConfigureNotify);
-  
-  // save the configure event so we can return it
-  ret_ev = ev;
-
-  calc_coords(dpy, win, &x, &y, &ev);
-  
-  while(XCheckTypedEvent(dpy, ConfigureNotify, &ev) == True) {
-    ret_ev = ev;
-    calc_coords(dpy, win, &x, &y, &ev);
-  }
-  
-  //DNOTE("no more configure notify\n");
-
-  // ugly hack, but what can you do when the wm's not removing decorations
-  //  if we don't end up at (win_changes.x, win_changes.y)
-  //  try to compensate and move one more time
-  if(x != win_changes.x || y != win_changes.y) {
-    XWindowChanges win_compensate;
-    DNOTE("window is not at screen start trying to fix that\n");
     
-    win_compensate.x = win_changes.x+win_changes.x-x;
-    win_compensate.y = win_changes.y+win_changes.y-y;
-
-    XReconfigureWMWindow(dpy, win, 0, CWX | CWY,
-			 &win_compensate);
     
+    // Wait for a configure notify
     do {
       XNextEvent(dpy, &ev);
     } while(ev.type != ConfigureNotify);
     
+    // save the configure event so we can return it
     ret_ev = ev;
     
     calc_coords(dpy, win, &x, &y, &ev);
@@ -377,16 +352,63 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
       calc_coords(dpy, win, &x, &y, &ev);
     }
     
-    if(x != win_changes.x || y != win_changes.y) {
-      DNOTE("Couldn't place window at %d,%d\n", win_changes.x, win_changes.y);
-    } else {
-      //DNOTE("Fixed, window is now at %d,%d\n", win_changes.x, win_changes.y);
+    if(!has_ewmh_state_fullscreen) {
+      //DNOTE("no more configure notify\n");
+      
+      // ugly hack, but what can you do when the wm's not removing decorations
+      //  if we don't end up at (win_changes.x, win_changes.y)
+      //  try to compensate and move one more time
+      if(x != win_changes.x || y != win_changes.y) {
+	XWindowChanges win_compensate;
+	DNOTE("window is not at screen start trying to fix that\n");
+	
+	win_compensate.x = win_changes.x+win_changes.x-x;
+	win_compensate.y = win_changes.y+win_changes.y-y;
+	
+	XReconfigureWMWindow(dpy, win, 0, CWX | CWY,
+			     &win_compensate);
+	
+	do {
+	  XNextEvent(dpy, &ev);
+	} while(ev.type != ConfigureNotify);
+	
+	ret_ev = ev;
+	
+	calc_coords(dpy, win, &x, &y, &ev);
+	
+	while(XCheckTypedEvent(dpy, ConfigureNotify, &ev) == True) {
+	  ret_ev = ev;
+	  calc_coords(dpy, win, &x, &y, &ev);
+	}
+	
+	if(x != win_changes.x || y != win_changes.y) {
+	  DNOTE("Couldn't place window at %d,%d\n", win_changes.x, win_changes.y);
+	} else {
+	  //DNOTE("Fixed, window is now at %d,%d\n", win_changes.x, win_changes.y);
+	}
+	
+      }
     }
-
+  
+    XPutBackEvent(dpy, &ret_ev);
+  } else {
+    // ewmh_state_fullscreen is supported
+    XEvent ev;
+    
+    ev.type = ClientMessage;
+    ev.xclient.window = win;
+    ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", False);
+    ev.xclient.format = 32;
+    ev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD not an atom just a define
+    ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    ev.xclient.data.l[2] = 0;
+    
+    XSendEvent(dpy, DefaultRootWindow(dpy), False,
+	       SubstructureNotifyMask, &ev);
+    
+    
   }
   
-  XPutBackEvent(dpy, &ret_ev);
-
   current_state = WINDOW_STATE_FULLSCREEN;
   
 }
@@ -396,74 +418,89 @@ static void switch_to_normal_state(Display *dpy, Window win)
 {
   XEvent ev;
   XSizeHints *sizehints;
-  
-  // We don't want to have to replace the window manually when remapping it
-  sizehints = XAllocSizeHints();
-  sizehints->flags = USPosition;
-  sizehints->x = 0; // obsolete but should be set in case
-  sizehints->y = 0; // an old wm is used
-  
+
+  if(!has_ewmh_state_fullscreen) {
+    // We don't want to have to replace the window manually when remapping it
+    sizehints = XAllocSizeHints();
+    sizehints->flags = USPosition;
+    sizehints->x = 0; // obsolete but should be set in case
+    sizehints->y = 0; // an old wm is used
+    
 #if 1 //bloody wm's that can't cope with unmap/map
-  // We have to be unmapped to change motif decoration hints 
-  XUnmapWindow(dpy, win);
-  
-  // Wait for window to be unmapped
-  do {
-    XNextEvent(dpy, &ev);
-  } while(ev.type != UnmapNotify);
-  
-  disable_motif_decorations(dpy, win);
-  
-  XSetWMNormalHints(dpy, win, sizehints);
-  XFree(sizehints);
-  
-  XMapWindow(dpy, win);
-  
-  /* wait for the window to be mapped */
-  
-  do {
-    XNextEvent(dpy, &ev);
-  } while(ev.type != MapNotify);
+    // We have to be unmapped to change motif decoration hints 
+    XUnmapWindow(dpy, win);
+    
+    // Wait for window to be unmapped
+    do {
+      XNextEvent(dpy, &ev);
+    } while(ev.type != UnmapNotify);
+    
+    disable_motif_decorations(dpy, win);
+    
+    XSetWMNormalHints(dpy, win, sizehints);
+    XFree(sizehints);
+    
+    XMapWindow(dpy, win);
+    
+    /* wait for the window to be mapped */
+    
+    do {
+      XNextEvent(dpy, &ev);
+    } while(ev.type != MapNotify);
 #endif
-  
-  /* remove any outstanding configure_notifies */
-  XSync(dpy, True);
-  
-  
-  
-  // get us back to the position and size we had before fullscreen
-  restore_normal_geometry(dpy, win);
-
-  // If we have a gnome compliant wm that supports layers, put
-  // us in the normal layer
-
-  if(gnome_wm_layers) {
-    XEvent ev;
-    ev.type = ClientMessage;
-    ev.xclient.window = win;
-    ev.xclient.message_type = XInternAtom(dpy, "_WIN_LAYER", True);
-    ev.xclient.format = 32;
-    ev.xclient.data.l[0] = 4;
-    XSendEvent(dpy, DefaultRootWindow(dpy), False,
-	       SubstructureNotifyMask, &ev);
-  } else {
-    if(wm_name != NULL) {
-      if(strcmp(wm_name, "KWin") == 0) {
-	XEvent ev;
-	ev.type = ClientMessage;
-	ev.xclient.window = win;
-	ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
-	ev.xclient.format = 32;
-	ev.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
-	ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
-	ev.xclient.data.l[2] = 0;
-
-	XSendEvent(dpy, DefaultRootWindow(dpy), False,
-		   SubstructureNotifyMask, &ev);
+    
+    /* remove any outstanding configure_notifies */
+    XSync(dpy, True);
+    
+    
+    
+    // get us back to the position and size we had before fullscreen
+    restore_normal_geometry(dpy, win);
+    
+    // If we have a gnome compliant wm that supports layers, put
+    // us in the normal layer
+    
+    if(gnome_wm_layers) {
+      XEvent ev;
+      ev.type = ClientMessage;
+      ev.xclient.window = win;
+      ev.xclient.message_type = XInternAtom(dpy, "_WIN_LAYER", True);
+      ev.xclient.format = 32;
+      ev.xclient.data.l[0] = 4;
+      XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		 SubstructureNotifyMask, &ev);
+    } else {
+      if(wm_name != NULL) {
+	if(strcmp(wm_name, "KWin") == 0) {
+	  XEvent ev;
+	  ev.type = ClientMessage;
+	  ev.xclient.window = win;
+	  ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
+	  ev.xclient.format = 32;
+	  ev.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+	  ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
+	  ev.xclient.data.l[2] = 0;
+	  
+	  XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		     SubstructureNotifyMask, &ev);
+	}
       }
     }
+  } else {
+    // ewmh_state_fullscreen is supported
+    XEvent ev;
+    
+    ev.type = ClientMessage;
+    ev.xclient.window = win;
+    ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", False);
+    ev.xclient.format = 32;
+    ev.xclient.data.l[0] = 0; //_NET_WM_STATE_REMOVE not an atom just a define
+    ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN", False);
+    ev.xclient.data.l[2] = 0;
+    
+    XSendEvent(dpy, DefaultRootWindow(dpy), False,
+	       SubstructureNotifyMask, &ev);
   }
-
   current_state = WINDOW_STATE_NORMAL;
 }
 
@@ -510,12 +547,12 @@ static int check_for_gnome_wm(Display *dpy)
   }
   
   if(type_return == None) {
-    WARNING("check_for_gnome: property does not exist\n");
+    DNOTE("check_for_gnome: _WIN_SUPPORTING_WM_CHECK does not exist\n");
     return 0;
   }
 
   if(type_return != XA_CARDINAL) {
-    WARNING("check_for_gnome: property has wrong type\n");
+    WARNING("check_for_gnome: _WIN_SUPPORTING_WM_CHECK has wrong type\n");
     if(prop_return != NULL) {
       XFree(prop_return);
     }
@@ -571,7 +608,7 @@ static int check_for_gnome_wm(Display *dpy)
       }
       
       if(type_return == None) {
-	WARNING("check_for_gnome: property does not exist\n");
+	DNOTE("check_for_gnome: _WIN_SUPPORTING_WM_CHECK does not exist in specified win\n");
 	return 0;
       }
       
@@ -611,7 +648,7 @@ static int check_for_gnome_wm(Display *dpy)
 
 /* returns 1 if a window manager compliant to the
  * Extended Window Manager Hints (EWMH) spec is running.
- * (version 1.1)
+ * (version 1.2)
  * Oterhwise returns 0.
  */
 
@@ -651,7 +688,7 @@ static int check_for_EWMH_wm(Display *dpy, char **wm_name_return)
 
   if(type_return != XA_WINDOW) {
     
-    WARNING("check_for_EWMH: property has wrong type\n");
+    WARNING("check_for_EWMH: XA_WINDOW property has wrong type\n");
     if(prop_return != NULL) {
       XFree(prop_return);
     }
@@ -708,7 +745,8 @@ static int check_for_EWMH_wm(Display *dpy, char **wm_name_return)
       }
       
       if(type_return != XA_WINDOW) {
-	WARNING("check_for_EWMH: property has wrong type\n");
+	WARNING("check_for_EWMH: property has wrong type (%d)\n",
+		type_return);
 	if(prop_return != NULL) {
 	  XFree(prop_return);
 	}
@@ -811,6 +849,110 @@ static int check_for_EWMH_wm(Display *dpy, char **wm_name_return)
 }
 
 
+/* returns 1 if a window manager compliant to the
+ * Extended Window Manager Hints (EWMH) spec.
+ * supports the _NET_WM_STATE_FULLSCREEN window state
+ * Oterhwise returns 0.
+ */
+
+static int check_for_state_fullscreen(Display *dpy)
+{
+  Atom net_supported, net_wm_state, net_wm_state_fullscreen;
+  Atom type_return;
+  int format_return;
+  unsigned long nitems_return;
+  unsigned long bytes_after_return;
+  unsigned char *prop_return = NULL;
+  int nr_items = 40;
+  int item_offset = 0;
+  int supports_net_wm_state = 0;
+  int supports_net_wm_state_fullscreen = 0;
+
+  net_supported = XInternAtom(dpy, "_NET_SUPPORTED", False);
+  if(net_supported == None) {
+    return 0;
+  }
+
+  net_wm_state = XInternAtom(dpy, "_NET_WM_STATE", False);
+  if(net_wm_state == None) {
+    return 0;
+  }
+
+  net_wm_state_fullscreen = XInternAtom(dpy, "_NET_WM_STATE_FULLSCREEN",
+					False);
+  if(net_wm_state_fullscreen == None) {
+    return 0;
+  }
+
+  
+  
+  
+  do {
+    if(XGetWindowProperty(dpy, DefaultRootWindow(dpy), net_supported,
+			  item_offset, nr_items, False, XA_ATOM,
+			  &type_return, &format_return, &nitems_return,
+			  &bytes_after_return, &prop_return) != Success) {
+      WARNING("XGetWindowProperty failed in check_for_state_fullscreen\n");
+      return 0;
+    }
+    
+    if(type_return == None) {
+      WARNING("check_for_state_fullscreen: property does not exist\n");
+      return 0;
+    }
+    
+    if(type_return != XA_ATOM) {
+      
+      WARNING("check_for_state_fullscreen: XA_ATOM property has wrong type\n");
+      if(prop_return != NULL) {
+	XFree(prop_return);
+      }
+      return 0;
+    } else {
+      // _NET_SUPPORTED is set, lets see what is in it
+      
+      //DNOTE("check_for_state_fullscreen: format: %d\n", format_return);
+      //DNOTE("check_for_state_fullscreen: nitmes: %ld\n", nitems_return);
+      //DNOTE("check_for_state_fullscreen: bytes_after: %ld\n", bytes_after_return);
+      
+      if(format_return == 32) {
+	int n;
+	
+	for(n = 0; n < nitems_return; n++) {
+	  if(((long *)prop_return)[n] == net_wm_state) {
+	    supports_net_wm_state = 1;
+	  } else if(((long *)prop_return)[n] == net_wm_state_fullscreen) {
+	    supports_net_wm_state_fullscreen = 1;
+	  }
+	  
+	  if(supports_net_wm_state && supports_net_wm_state_fullscreen) {
+	    XFree(prop_return);
+	    prop_return = NULL;
+	    
+	    return 1;
+	  }
+	}
+	
+	
+	XFree(prop_return);
+	prop_return = NULL;
+      
+	
+	
+      } else {
+	XFree(prop_return);
+	return 0;
+      }
+    }
+    
+    item_offset+= nr_items;
+    
+  } while(bytes_after_return > 0);
+  return 0;
+
+}
+
+
 static int check_for_gnome_wm_layers(Display *dpy)
 {
   Atom layer_atom;
@@ -886,9 +1028,12 @@ int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
   if(state != current_state) {
     
     EWMH_wm = check_for_EWMH_wm(dpy, &wm_name);
+    if(EWMH_wm) {
+      has_ewmh_state_fullscreen = check_for_state_fullscreen(dpy);
+    }
+    
     gnome_wm = check_for_gnome_wm(dpy);
     
-
     //DNOTE("EWMH_wm: %s\n", EWMH_wm ? "True" : "False");
     //DNOTE("gnome_wm: %s\n", gnome_wm ? "True" : "False");
     
