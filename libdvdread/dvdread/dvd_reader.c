@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2001, 2002, 2003 Billy Biggs <vektor@dumbterm.net>,
- *                                Håkan Hjort <d95hjort@dtek.chalmers.se>
+ *                                Håkan Hjort <d95hjort@dtek.chalmers.se>,
+ *                                Björn Englund <d4bjorn@dtek.chalmers.se>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -48,6 +49,8 @@
 #include "dvd_reader.h"
 #include "md5.h"
 
+#define DEFAULT_UDF_CACHE_LEVEL 1
+
 struct dvd_reader_s {
     /* Basic information. */
     int isImageFile;
@@ -62,6 +65,10 @@ struct dvd_reader_s {
 
     /* Information required for a directory path drive. */
     char *path_root;
+  
+    /* Filesystem cache */
+    int udfcache_level; /* 0 - turned off, 1 - on */
+    void *udfcache;
 };
 
 struct dvd_file_s {
@@ -82,6 +89,42 @@ struct dvd_file_s {
     /* Calculated at open-time, size in blocks. */
     ssize_t filesize;
 };
+
+/**
+ * Set the level of caching on udf
+ * level = 0 (no caching)
+ * level = 1 (caching filesystem info)
+ */
+int DVDUDFCacheLevel(dvd_reader_t *device, int level)
+{
+  struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
+  
+  if(level > 0) {
+    level = 1;
+  } else if(level < 0) {
+    return dev->udfcache_level;
+  }
+
+  dev->udfcache_level = level;
+  
+  return level;
+}
+
+void *GetUDFCacheHandle(dvd_reader_t *device)
+{
+  struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
+  
+  return dev->udfcache;
+}
+
+void SetUDFCacheHandle(dvd_reader_t *device, void *cache)
+{
+  struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
+
+  dev->udfcache = cache;
+}
+
+
 
 /* Loop over all titles and call dvdcss_title to crack the keys. */
 static int initAllCSSKeys( dvd_reader_t *dvd )
@@ -168,6 +211,9 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
     dvd->dev = dev;
     dvd->path_root = 0;
     
+    dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
+    dvd->udfcache = NULL;
+
     if( have_css ) {
       /* Only if DVDCSS_METHOD = title, a bit if it's disc or if
        * DVDCSS_METHOD = key but region missmatch. Unfortunaly we
@@ -188,6 +234,9 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
     dvd->isImageFile = 0;
     dvd->dev = 0;
     dvd->path_root = strdup( path_root );
+
+    dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
+    dvd->udfcache = NULL;
 
     return dvd;
 }
@@ -400,6 +449,7 @@ void DVDClose( dvd_reader_t *dvd )
     if( dvd ) {
         if( dvd->dev ) DVDinput_close( dvd->dev );
         if( dvd->path_root ) free( dvd->path_root );
+	if( dvd->udfcache ) FreeUDFCache( dvd->udfcache );
         free( dvd );
     }
 }
@@ -928,7 +978,7 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
   md5_init_ctx( &ctx );
   /* Go through all ifo:s in order and md5sum them
    * Can there be "gaps" in the title numbers? */
-  for( title = 0; title < 100; title++ ) {
+  for( title = 0; title < 10; title++ ) {
     dvd_file_t *dvd_file = DVDOpenFile( dvd, title, DVD_READ_INFO_FILE );
     if( dvd_file != NULL ) {
       ssize_t read;
@@ -942,7 +992,7 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
         DVDCloseFile( dvd_file );
         return -1;
       }
-
+      
       md5_process_bytes( buffer, file_size,  &ctx );
 
       DVDCloseFile( dvd_file );
@@ -952,4 +1002,91 @@ int DVDDiscID( dvd_reader_t *dvd, char *discid )
   md5_finish_ctx( &ctx, discid );
 
   return 0;
+}
+
+
+int DVDISOVolumeInfo( dvd_reader_t *dvd,
+		      char *volid, int volid_size,
+		      char *volsetid, int volsetid_size )
+{
+  char *buffer;
+  int ret;
+
+  /* Check arguments. */
+  if( dvd == NULL )
+    return 0;
+  
+  if( dvd->dev == NULL ) {
+    /* No block access, so no ISO... */
+    return -1;
+  }
+  
+  buffer = malloc( DVD_VIDEO_LB_LEN );
+  if( buffer == NULL ) {
+    fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
+	     "allocate memory for file read!\n" );
+    return -1;
+  }
+
+  ret = DVDReadBlocksUDFRaw( dvd, 16, 1, buffer, 0 );
+  if( ret != 1 ) {
+    fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
+	     "read ISO9660 Primary Volume Descriptor!\n" );
+    return -1;
+  }
+  
+  if( (volid != NULL) && (volid_size > 0) ) {
+    int n;
+    for(n = 0; n < 32; n++) {
+      if(buffer[40+n] == 0x20) {
+	break;
+      }
+    }
+    
+    if(volid_size > n+1) {
+      volid_size = n+1;
+    }
+
+    memcpy(volid, &buffer[40], volid_size-1);
+    volid[volid_size-1] = '\0';
+  }
+  
+  if( (volsetid != NULL) && (volsetid_size > 0) ) {
+    if(volsetid_size > 128) {
+      volsetid_size = 128;
+    }
+    memcpy(volsetid, &buffer[190], volsetid_size);
+  }
+  return 0;
+}
+
+
+int DVDUDFVolumeInfo( dvd_reader_t *dvd,
+		      char *volid, int volid_size,
+		      char *volsetid, int volsetid_size )
+{
+  int ret;
+  /* Check arguments. */
+  if( dvd == NULL )
+    return -1;
+  
+  if( dvd->dev == NULL ) {
+    /* No block access, so no UDF VolumeSet Identifier */
+    return -1;
+  }
+  
+  if( (volid != NULL) && (volid_size > 0) ) {
+    ret = UDFGetVolumeIdentifier(dvd, volid, volid_size);
+    if(!ret) {
+      return -1;
+    }
+  }
+  if( (volsetid != NULL) && (volsetid_size > 0) ) {
+    ret =  UDFGetVolumeSetIdentifier(dvd, volsetid, volsetid_size);
+    if(!ret) {
+      return -1;
+    }
+  }
+    
+  return 0;  
 }
