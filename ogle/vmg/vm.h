@@ -114,9 +114,9 @@ void vm_get_volume_info(int *nrofvolumes, int *volume,
 			int *side, int *nroftitles);
 int vm_get_titles(void);
 int vm_get_ptts_for_title(DVDTitle_t titleN);
-subp_attr_t vm_get_subp_attr(int streamN);
+int vm_get_subp_attr(int streamN, subp_attr_t *attr);
 user_ops_t vm_get_uops(void);
-audio_attr_t vm_get_audio_attr(int streamN);
+int vm_get_audio_attr(int streamN, audio_attr_t *attr);
 video_attr_t vm_get_video_attr(void);
 void vm_get_video_res(int *width, int *height);
 void vm_get_total_time(dvd_time_t *current_time);
