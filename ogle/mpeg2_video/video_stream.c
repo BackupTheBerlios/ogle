@@ -5,18 +5,22 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <malloc.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <signal.h>
 
 #include "video_stream.h"
 
+#ifdef HAVE_MLIB
 #include <mlib_types.h>
 #include <mlib_status.h>
 #include <mlib_sys.h>
 #include <mlib_video.h>
 #include <mlib_algebra.h>
-
+#else
+#include "c_mlib.h"
+#endif
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -24,6 +28,8 @@
 #include <X11/extensions/XShm.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+
+#include <glib.h>
 
 #include "../include/common.h"
 
@@ -345,9 +351,9 @@ macroblock_t mb;
 
 /* image data */
 typedef struct {
-  mlib_u8 *y; //[480][720];  //y-component image
-  mlib_u8 *u; //[480/2][720/2]; //u-component
-  mlib_u8 *v; //[480/2][720/2]; //v-component
+  uint8_t *y; //[480][720];  //y-component image
+  uint8_t *u; //[480/2][720/2]; //u-component
+  uint8_t *v; //[480/2][720/2]; //v-component
   
   //timecode_t time;
 
@@ -370,10 +376,10 @@ yuv_image_t *ring;
 
 
 /*macroblock*/
-mlib_u8 abgr[16*16*4];
-mlib_u8 y_blocks[64*4];
-mlib_u8 u_block[64];
-mlib_u8 v_block[64];
+uint8_t abgr[16*16*4];
+uint8_t y_blocks[64*4];
+uint8_t u_block[64];
+uint8_t v_block[64];
 
 
 
@@ -433,11 +439,14 @@ uint32_t getbits(unsigned int nr)
     if(offs >= buf_size)
       read_buf();
     else {
-      uint32_t new_word = buf[offs++];
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       bits_left += 32;
     }
   }
+  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+  DPRINTBITS(6, nr, result);
+  DPRINTF(5, "\n");
   return result;
 }
 #else
@@ -450,12 +459,15 @@ uint32_t getbits(unsigned int nr)
   result = result >> (32-nr);
   bits_left -=nr;
   if(bits_left <= 32) {
-    uint32_t new_word = buf[offs++];
+    uint32_t new_word = GUINT_FROM_BE(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = (cur_word << 32) | new_word;
     bits_left += 32;
   }
+  DPRINTF(5, "%s getbits(%u): %x, ", func, nr, result);
+  DPRINTBITS(6, nr, result);
+  DPRINTF(5, "\n");
   return result;
 }
 #endif
@@ -498,7 +510,7 @@ uint32_t getbits(unsigned int nr)
 #endif
 
 
-//static inline   
+static inline   
 void dropbits(unsigned int nr)
 #ifndef GETBITS32
 #ifdef GETBITSMMAP
@@ -508,7 +520,7 @@ void dropbits(unsigned int nr)
     if(offs >= buf_size)
       read_buf();
     else {
-      uint32_t new_word = buf[offs++];
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       bits_left += 32;
     }
@@ -518,7 +530,7 @@ void dropbits(unsigned int nr)
 {
   bits_left -= nr;
   if(bits_left <= 32) {
-    uint32_t new_word = buf[offs++];
+    uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = (cur_word << 32) | new_word;
@@ -574,11 +586,13 @@ void setup_mmap(char *filename) {
     perror("mmap");
     exit(1);
   }
+#ifdef HAVE_MADVISE
   rv = madvise(mmap_base, statbuf.st_size, MADV_SEQUENTIAL);
   if(rv == -1) {
     perror("madvise");
     exit(1);
   }
+#endif
   DPRINTF(1, "All mmap systems ok!\n");
 }
 
@@ -646,7 +660,7 @@ void read_buf()
     offs = 0;
 
     if(bits_left <= 32) {
-      uint32_t new_word = buf[offs++];
+      uint32_t new_word = GUINT32_FROM_BE(buf[offs++]);
       cur_word = (cur_word << 32) | new_word;
       bits_left += 32;
     }
@@ -861,11 +875,11 @@ int main(int argc, char **argv)
 #else
   fread(&buf[0], READ_SIZE, 1, infile);
   {
-    uint32_t new_word1 = buf[offs++];
+    uint32_t new_word1 = GUINT32_FROM_BE(buf[offs++]);
     uint32_t new_word2;
     if(offs >= READ_SIZE/4)
       read_buf();
-    new_word2 = buf[offs++];
+    new_word2 = GUINT32_FROM_BE(buf[offs++]);
     if(offs >= READ_SIZE/4)
       read_buf();
     cur_word = ((uint64_t)(new_word1) << 32) | new_word2;
@@ -2029,7 +2043,6 @@ void macroblock(void)
   
   
   
-  
   if(mb.macroblock_address_increment > 1) {
     
     int x,y;
@@ -2037,28 +2050,34 @@ void macroblock(void)
     int old_address = seq.macroblock_address;
     
     mb.skipped = 1;
-
-    for(seq.macroblock_address = seq.macroblock_address-mb.macroblock_address_increment+1; seq.macroblock_address < old_address; seq.macroblock_address++) {
-      switch(pic.header.picture_coding_type) {
-      case 0x1:
-      case 0x2:
-	if(show_stat) {
+    
+    if(show_stat) {
+      for(seq.macroblock_address = seq.macroblock_address-mb.macroblock_address_increment+1; 
+	  seq.macroblock_address < old_address; 
+	  seq.macroblock_address++) {
+	switch(pic.header.picture_coding_type) {
+	case 0x1:
+	case 0x2:
 	  memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
-	}
-	break;
-      case 0x3:
-	if(show_stat) {
+	  break;
+	case 0x3:
 	  memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
+	  break;
 	}
-	break;
       }
     }
     
+    /* Skipped blocks never have any DCT-coefficients */
+    {
+      int i;
+      for(i = 0; i < 12; i++)
+	mb.pattern_code[i] = 0;
+      // mb.cbp = 0;
+    }
     
     switch(pic.header.picture_coding_type) {
+    
     case 0x2:
-      
-      
       DPRINTF(3,"skipped in P-frame\n");
       for(x = (seq.mb_column-mb.macroblock_address_increment+1)*16, y = seq.mb_row*16;
 	  y < (seq.mb_row+1)*16; y++) {
@@ -2082,26 +2101,23 @@ void macroblock(void)
       }
       
       break;
+    
     case 0x3:
       DPRINTF(3,"skipped in B-frame\n");
+      if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
+	/* 7.6.6.4  B frame picture */
+	mb.prediction_type = PRED_TYPE_FRAME_BASED;
+	mb.motion_vector_count = 1;
+	mb.mv_format = MV_FORMAT_FRAME;
+	mb.dmv = 0;
+      }
       for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
 	  seq.mb_column < old_col; seq.mb_column++) {
-	if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
-	  {
-	    int i;
-	    for(i = 0; i < 12; i++)    // !!!!! Why is this needed ???
-	      mb.pattern_code[i] = 0;
-	  }
-	  /* 7.6.6.4  B frame picture */
-	  mb.prediction_type = PRED_TYPE_FRAME_BASED;
-	  mb.motion_vector_count = 1;
-	  mb.mv_format = MV_FORMAT_FRAME;
-	  mb.dmv = 0;
-	}
 	motion_comp();
       }
       seq.mb_column = old_col;
       break;
+    
     default:
       fprintf(stderr, "*** skipped blocks in I-frame\n");
       break;
@@ -2312,24 +2328,26 @@ void macroblock(void)
 
 
 
-  if(mb.modes.macroblock_pattern) {
-    coded_block_pattern();
-  } else {
-    mb.cbp = 0;
-  }
-
-  {
+  /* Intra blocks always have all sub block and are writen directly 
+     to the output buffers by block() */
+  if(mb.modes.macroblock_intra) {
     int i;
+    for(i = 0; i < block_count; i++) {  
+      //  mb.pattern_code[i] = 1;
+      block_intra(i);
+    }
+  } 
+  else {
+    int i;
+    
     for(i = 0; i < 12; i++) {  // !!!!
       mb.pattern_code[i] = 0;
     } 
     
-    if(mb.modes.macroblock_intra != 0) {
-      for(i = 0; i < block_count; i++) {  
-	mb.pattern_code[i] = 1;
-	block_intra(i);
-      }
-    } else {
+    if(mb.modes.macroblock_pattern) {
+
+      coded_block_pattern();
+      
       for(i = 0; i < 6; i++) {
 	if(mb.cbp & (1<<(5-i))) {
 	  DPRINTF(4, "cbpindex: %d set\n", i);
@@ -2353,12 +2371,9 @@ void macroblock(void)
 	  }
 	}
       }
-    } 
+    }
   }
-  
-
-  
-
+    
   /*** 7.6.3.5 Prediction in P-pictures ***/
 
   if(pic.header.picture_coding_type == 0x2) {
@@ -2382,8 +2397,6 @@ void macroblock(void)
       mb.vector[1][0][0] = 0;
       mb.vector[1][0][1] = 0;
        
-      
-
     }
 
     /* never happens */
@@ -2403,26 +2416,23 @@ void macroblock(void)
     
   }
  
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    if(show_stat) {
+  if(show_stat) {
+    switch(pic.header.picture_coding_type) {
+    case 0x1:
+    case 0x2:
       memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
-    }
-    break;
-  case 0x3:
-    if(show_stat) {
+      break;
+    case 0x3:
       memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
-    }
-    break;
-
+      break;
+    } 
   }
   
   // HH - 2000-02-10
   // Intra blocks are already handled directly in block()
-  if( !mb.modes.macroblock_intra )
+  if(mb.modes.macroblock_intra == 0) {
     motion_comp();
-
+  }
 }
 
 /* 6.2.5.1 Macroblock modes */
@@ -3228,7 +3238,7 @@ void block_intra(unsigned int i)
       else
 	dst = &dst_image->v[x * 8 + y * width/2 * 8];
     }
-    mlib_VideoIDCT8x8_U8_S16(dst, (mlib_s16 *)mb.QFS, stride);
+    mlib_VideoIDCT8x8_U8_S16(dst, (int16_t *)mb.QFS, stride);
   }
 }
 
@@ -3396,7 +3406,7 @@ void block_non_intra(unsigned int b)
     
     DPRINTF(4, "nr of coeffs: %d\n", n);
   }
-  mlib_VideoIDCT8x8_S16_S16(mb.f[b], (mlib_s16 *)mb.QFS);
+  mlib_VideoIDCT8x8_S16_S16(mb.f[b], (int16_t *)mb.QFS);
 }
 
 /* 6.2.5.2 Motion vectors */
@@ -3762,7 +3772,7 @@ void display_init()
 
   window_stat = XCreateSimpleWindow(mydisplay, RootWindow(mydisplay,screen),
 				    hint.x, hint.y, 200, 200, 0,
-				    0);
+				    0, 0);
 
   XSelectInput(mydisplay, mywindow, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);
   XSelectInput(mydisplay, window_ref1, StructureNotifyMask | KeyPressMask | ButtonPressMask | ExposureMask);

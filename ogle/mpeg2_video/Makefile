@@ -1,6 +1,6 @@
 CC=gcc
-DFLAGS= -g -pg -Wall -O6 -mcpu=ultrasparc -mvis -I/opt/SUNWmlib/include
-#CFLAGS=  -g -pg -Wall -O6 -mcpu=ultrasparc -mvis -I/opt/SUNWmlib/include
+DFLAGS= -g -Wall -O6 `glib-config --cflags` -mcpu=ultrasparc -mvis \
+	-DHAVE_MLIB -DHAVE_MADVICE -I/opt/SUNWmlib/include
 #LDFLAGS=-L/opt/SUNWmlib/lib -R/opt/SUNWmlib/lib -lmlib -lX11 -lXext -lsocket -lnsl
 LDFLAGS=-lX11 -lXext -lsocket -lnsl 
 CFLAGS= -DDCFLAGS='"$(DFLAGS)"' -DDLDFLAGS='"$(LDFLAGS)"' $(DFLAGS)
