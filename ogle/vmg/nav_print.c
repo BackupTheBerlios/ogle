@@ -208,10 +208,37 @@ void print_dsi_gi(FILE *out, dsi_gi_t *dsi_gi) {
 }
 
 void print_sml_pbi(FILE *out, sml_pbi_t *sml_pbi) {
+  int i;
+  fprintf(out, "sml_pbi:\n");
+  /* X--- ---- 'PREU flag' VOBU is (not) in preunit 
+   *
+   * -X-- ---- 'ILVU flag' VOBU is (not) in ILVU   
+   *
+   * --X- ---- 'Unit Start flag' VOBU is (not) at the beginning of an ILVU
+   *
+   * ---X ---- 'Unit End flag'   VOBU is (not) at end of PREU of ILVU
+   *
+   */
+  fprintf(out, "category 0x%04x\n", sml_pbi->category);
+  if(sml_pbi->category & 0x8000)
+    fprintf(out, "VOBU is in preunit\n");
+  if(sml_pbi->category & 0x4000)
+    fprintf(out, "VOBU is in ILVU\n");
+  if(sml_pbi->category & 0x2000)
+    fprintf(out, "VOBU at the beginning of ILVU\n");
+  if(sml_pbi->category & 0x1000)
+    fprintf(out, "VOBU at end of PREU of ILVU\n");
+  
+  fprintf(out, "ilvu_ea       0x%08x\n", sml_pbi->ilvu_ea);
+  fprintf(out, "nxt_ilvu_sa   0x%08x\n", sml_pbi->ilvu_sa);
+  fprintf(out, "nxt_ilvu_size 0x%04x\n", sml_pbi->size);
+  
+  fprintf(out, "unknown_s_ptm 0x%08x\n", sml_pbi->unknown_s_ptm);
+  fprintf(out, "unknown_e_ptm 0x%08x\n", sml_pbi->unknown_e_ptm);
+  
   /* $$$ more code needed here */
 #if 1
-  int i;
-  for(i = 0; i < 148; i++) {
+  for(i = 0; i < sizeof(sml_pbi->unknown); i++) {
     fprintf(stdout, "%02x ", sml_pbi->unknown[i]);
     if(i % 20 == 19)
       fprintf(stdout, "\n");
@@ -222,20 +249,19 @@ void print_sml_pbi(FILE *out, sml_pbi_t *sml_pbi) {
 }
 
 void print_sml_agli(FILE *out, sml_agli_t *sml_agli) {
-  /* $$$ more code needed here */
-#if 1
   int i;
+  fprintf(out, "sml_agli:\n");
   for(i = 0; i < 9; i++) {
-    fprintf(stdout, "agl_c%d address: %04x size %02x\n", i,
+    fprintf(stdout, "agl_c%d address: 0x%08x size 0x%04x\n", i,
 	    sml_agli->dsta[i].address, sml_agli->dsta[i].size);
   }
-#endif
 }
 
 void print_vobu_sri(FILE *out, vobu_sri_t *vobu_sri) {
+  int i;
+  fprintf(out, "vobu_sri:\n");
   /* $$$ more code needed here */
 #if 1
-  int i;
   fprintf(stdout, "%08x\n", vobu_sri->unknown1);
   for(i = 0; i < 20; i++) {
     fprintf(stdout, "%08x ", vobu_sri->unknown2[i]);
@@ -253,17 +279,23 @@ void print_vobu_sri(FILE *out, vobu_sri_t *vobu_sri) {
 }
 
 void print_synci(FILE *out, synci_t *synci) {
+  int i;
+  fprintf(out, "synci:\n");
   /* $$$ more code needed here */
 #if 1
-  int i;
-  fprintf(stdout, "%04x\n", synci->offset);
-  for(i = 0; i < 142; i++) {
-    fprintf(stdout, "%02x ", synci->unknown[i]);
+  fprintf(out, "unknown_offset %04x\n", synci->unknown_offset);
+  for(i = 0; i < sizeof(synci->unknown1); i++)
+    fprintf(out, "%02x ", synci->unknown1[i]);
+  fprintf(out,"\n");
+  fprintf(out, "start_of_cell_offset1 %08x\n", synci->start_of_cell_offset1);
+  fprintf(out, "start_of_cell_offset2 %08x\n", synci->start_of_cell_offset2);
+  for(i = 0; i < sizeof(synci->unknown2); i++) {
+    fprintf(out, "%02x ", synci->unknown2[i]);
     if(i % 20 == 19)
-      fprintf(stdout, "\n");
+      fprintf(out, "\n");
   }
   if(i % 20 != 19)
-    fprintf(stdout, "\n");
+    fprintf(out, "\n");
 #endif
 }
 

@@ -180,8 +180,10 @@ typedef struct { /* Seamless PlayBack Information */
   uint32_t ilvu_ea;  // end address of interleaved Unit (sectors)
   uint32_t ilvu_sa;  // start address of next interleaved unit (sectors)
   uint16_t size;     // size of next interleaved unit (sectors)
-  
-  uint8_t unknown[136];
+  uint32_t unknown_s_ptm; // ?? first pts in cell/ pts of first object 
+  uint32_t unknown_e_ptm; // ?? last pts in cell/ pts of last object
+ 
+  uint8_t unknown[128];
 } __attribute__ ((packed)) sml_pbi_t;
 
 typedef struct { /* AnGLe Information for seamless playback */
@@ -200,8 +202,11 @@ typedef struct { /* VOBUnit SeaRch Information */
 } __attribute__ ((packed)) vobu_sri_t;
 
 typedef struct { /* SYNChronous Information */ 
-  uint16_t offset;      //  Highbit == signbit
-  uint8_t unknown[142];
+  uint16_t unknown_offset;      //  Highbit == signbit
+  uint8_t unknown1[14];
+  uint32_t start_of_cell_offset1; //?? 7f ff ff ff == at start
+  uint32_t start_of_cell_offset2; //??  
+  uint8_t unknown2[120];
 } __attribute__ ((packed)) synci_t;
 
 typedef struct {

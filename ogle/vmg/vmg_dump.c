@@ -63,12 +63,12 @@ void parse_vmg_data (FILE *in)
     buffer.bit_position = 8;
     
     if(substream == PS2_PCI_SUBSTREAM_ID) {
-      read_pci_packet(&pci, &buffer.bytes[0], PCI_BYTES - 1);
+      read_pci_packet(&pci, &buffer.bytes[1], PCI_BYTES - 1);
       buffer.bit_position += 8 * (PCI_BYTES - 1);
       print_pci_packet(stdout, &pci);
     }
     else if(substream == PS2_DSI_SUBSTREAM_ID) {
-      read_dsi_packet(&dsi, &buffer.bytes[0], DSI_BYTES - 1);
+      read_dsi_packet(&dsi, &buffer.bytes[1], DSI_BYTES - 1);
       buffer.bit_position += 8 * (DSI_BYTES - 1);
       print_dsi_packet(stdout, &dsi);
     }
