@@ -364,7 +364,7 @@ int audio_config(audio_config_t *aconf,
 	    aconf->ainfo->encoding);
       switch(aconf->ainfo->encoding) {
       case OGLE_AO_ENCODING_IEC61937:
-	aconf->dst_format.sample_format == SampleFormat_IEC61937;
+	aconf->dst_format.sample_format = SampleFormat_IEC61937;
 	break;
       case OGLE_AO_ENCODING_LINEAR:
       default:
