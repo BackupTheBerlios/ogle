@@ -25,6 +25,9 @@
 #include <ogle/dvd.h>
 #include <ogle/dvdevents.h>
 
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>
+#endif
 
 #if 0 /* One message queue for every listener */
 
@@ -444,6 +447,10 @@ MsgEventQ_t *MsgOpen(int msqid);
 void MsgClose(MsgEventQ_t *q);
 
 int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
+
+#if (defined(BSD) && (BSD >= 199306))
+int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return);
+#endif
 
 int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return);
 

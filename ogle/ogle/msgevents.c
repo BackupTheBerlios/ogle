@@ -25,6 +25,14 @@
 #include <errno.h>
 #include <ogle/msgevents.h>
 
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>
+#endif
+
+#if (defined(BSD) && (BSD >= 199306))
+#include <unistd.h>
+#endif
+
 //#define DEBUG
 #ifdef DEBUG
 
@@ -159,6 +167,38 @@ int MsgNextEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
   }    
 
 }
+
+#if (defined(BSD) && (BSD >= 199306))
+int MsgNextEventNonBlocking(MsgEventQ_t *q, MsgEvent_t *event_return)
+{
+  msg_t msg;
+  
+  while (1) {
+    if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
+             q->mtype, IPC_NOWAIT) == -1) {
+      switch(errno) {
+#ifdef ENOMSG
+      case ENOMSG:
+#endif
+      case EAGAIN:
+      case EINTR:     // interrupted by system call, try again
+       usleep(10000);
+       continue;
+       break;
+      default:
+       perror("MsgNextEvent");
+       break;
+      }
+      return -1;
+    } else {
+      
+      memcpy(event_return, msg.event_data, sizeof(MsgEvent_t));
+      return 0;
+    }
+  }
+
+}
+#endif
 
 int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 {

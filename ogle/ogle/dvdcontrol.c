@@ -24,6 +24,10 @@
 #include <ogle/msgevents.h>
 #include <ogle/dvdcontrol.h>
 
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>
+#endif
+
 /** @file
  * DVD navigator interface.
  * This file contains the functions that form the interface to
@@ -673,6 +677,19 @@ DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev)
   return DVD_E_Ok;
   
 } 
+
+#if (defined(BSD) && (BSD >= 199306))
+DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev)
+{
+  
+  if(MsgNextEventNonBlocking(nav->msgq, ev) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  return DVD_E_Ok;
+  
+} 
+#endif
 
 DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask)
 {

@@ -22,6 +22,9 @@
 #include <ogle/dvd.h>
 #include <ogle/msgevents.h> // Only for the hack with DVDNextEvent !!
 
+#if (defined(__unix__) || defined(unix)) && !defined(USG)
+#include <sys/param.h>
+#endif
 
 typedef struct DVDNav_s DVDNav_t;
 
@@ -72,6 +75,9 @@ DVDResult_t DVDGetDefaultSubpictureLanguage(DVDNav_t *nav,
 /* end info commands */
 
 /* hack */
+#if (defined(BSD) && (BSD >= 199306))
+DVDResult_t DVDNextEventNonBlocking(DVDNav_t *nav, MsgEvent_t *ev);
+#endif
 DVDResult_t DVDNextEvent(DVDNav_t *nav, MsgEvent_t *ev);
 DVDResult_t DVDRequestInput(DVDNav_t *nav, InputMask_t mask);
 
