@@ -548,6 +548,8 @@ void init_config(Display *dpy)
     }
   }
   
+  DpyInfoSetEWMHFullscreen(cfg_display->ewmh_fullscreen);
+
   DpyInfoSetUserGeometry(dpy, screen_nr,
 			 cfg_display->geometry.width,
 			 cfg_display->geometry.height);

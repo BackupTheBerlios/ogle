@@ -23,6 +23,7 @@ typedef struct _cfg_display_t {
   char *geometry_src;
   char *resolution_src;
   int switch_resolution;
+  int ewmh_fullscreen;
   struct _cfg_display_t *next;
 } cfg_display_t;
 

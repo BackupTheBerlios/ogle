@@ -77,6 +77,7 @@
 	<geometry_src>X11</geometry_src>
 	<resolution_src>Xinerama</resolution_src>
 	<switch_resolution>no</switch_resolution>
+	<ewmh_fullscreen>yes</ewmh_fullscreen>
 	<initial_state>
 	  <fullscreen>no</fullscreen>
 	</initial_state>

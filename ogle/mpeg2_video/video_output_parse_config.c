@@ -198,6 +198,13 @@ static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 	    }
 	    free(s);
 	  }
+	} else if(!strcmp("ewmh_fullscreen", cur->name)) {
+	  if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	    if(!strcmp("yes", s)) {
+	      (*cur_display)->ewmh_fullscreen = 1;
+	    }
+	    free(s);
+	  }
 	} else 	if(!strcmp("initial_state", cur->name)) {
 	  parse_initial_state(doc, cur, *cur_display);
 	}

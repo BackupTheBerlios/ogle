@@ -67,4 +67,7 @@ int DpyInfoGetGeometry(Display *dpy, int screen_nr,
 int DpyInfoGetSAR(Display *dpy, int screen_nr,
 		  int *sar_frac_n, int *sar_frac_d);
 
+int DpyInfoSetEWMHFullscreen(int enabled);
+int DpyInfoGetEWMHFullscreen(void);
+
 #endif /* OGLE_DISPLAY_H */

@@ -62,6 +62,7 @@ typedef struct {
   DpyInfoOrigin_t resolution_origin;
   resolution_t normal_dpy_res;
   fullscreen_resolution_t *fullscreen_dpy_res;
+  int ewmh_fullscreen;
 } dpy_info_t;
 
 dpy_info_t dpyinfo;
@@ -429,3 +430,13 @@ DpyInfoOrigin_t DpyInfoSetUpdateResolution(Display *dpy, int screen_nr,
   return 0;
 }
 
+int DpyInfoSetEWMHFullscreen(int enabled)
+{
+  dpyinfo.ewmh_fullscreen = enabled;
+  return 1;
+}
+
+int DpyInfoGetEWMHFullscreen(void)
+{
+  return dpyinfo.ewmh_fullscreen;
+}
