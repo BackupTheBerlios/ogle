@@ -86,6 +86,7 @@ typedef struct {
 } highlight_t;
 
 
+extern char *program_name;
 
 extern ctrl_data_t *ctrl_data;
 extern ctrl_time_t *ctrl_time;
@@ -174,11 +175,12 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   char *shmaddr;
   q_head_t *q_head;
   
-  //fprintf(stderr, "spu_mixer: shmid: %d\n", shmid);
+  //DNOTE("spu_mixer: shmid: %d\n", shmid);
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("spu_mixer: attach_decoder_buffer(), shmat()");
+      ERROR("spu_mixer: attach_decoder_buffer()");
+      perror("shmat");
       return -1;
     }
     
@@ -191,7 +193,8 @@ static int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
   
   if(shmid >= 0) {
     if((shmaddr = shmat(shmid, NULL, SHM_SHARE_MMU)) == (void *)-1) {
-      perror("spu: attach_data_buffer(), shmat()");
+      ERROR("spu: attach_data_buffer()");
+      perror("shmat");
       return -1;
     }
     
@@ -259,7 +262,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     }
     break;
   default:
-    fprintf(stderr, "spu_mixer: ignoring event type (%d)\n", ev->type);
+    DNOTE("spu_mixer: ignoring event type (%d)\n", ev->type);
     return 0;
     break;
   }
@@ -301,7 +304,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
 	return 0;
       }
     }
-    //fprintf(stderr, "spu_mixer: get element\n");
+    //DNOTE("spu_mixer: get element\n");
   }
   data_head = (data_buf_head_t *)data_buf_shmaddr;
   data_buffer = data_buf_shmaddr + data_head->buffer_start_offset;
@@ -328,17 +331,17 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
     DTS = data_elem->DTS;
   }
   
-  //fprintf(stderr, "spu_mixer: len: %d\n", len);
-  //fprintf(stderr, "spu_mixer: readlen: %d\n", readlen);
-  //fprintf(stderr, "spu_mixer: read_offset: %d\n", read_offset);
+  //DNOTE("spu_mixer: len: %d\n", len);
+  //DNOTE("spu_mixer: readlen: %d\n", readlen);
+  //DNOTE("spu_mixer: read_offset: %d\n", read_offset);
 
   if((readlen + read_offset) > len) {
     cpy_len = len-read_offset;
-    //fprintf(stderr, "spu_mixer: bigger than available\n");
+    //DNOTE("spu_mixer: bigger than available\n");
   } else {
     cpy_len = readlen;
   }
-  //fprintf(stderr, "spu_mixer: cpy_len: %d\n", cpy_len);
+  //DNOTE("spu_mixer: cpy_len: %d\n", cpy_len);
   memcpy(dst, data_buffer + off + read_offset, cpy_len);
   
   if(cpy_len + read_offset == len) {
@@ -352,7 +355,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
   }
   
   // release elem
-  //fprintf(stderr, "spu_mixer: release element\n");
+  //DNOTE("spu_mixer: release element\n");
   
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;
@@ -361,7 +364,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
     q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     if(MsgSendEvent(msgq, q_head->writer, &ev, 0) == -1) {
-      fprintf(stderr, "spu_mixer: couldn't send notification\n");
+      FATAL("spu_mixer: couldn't send notification\n");
       exit(1);
     }
   }
@@ -376,12 +379,13 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
 
 int init_spu(void)
 {
-  fprintf(stderr, "spu_mixer: init\n");
+  DNOTE("spu_mixer: init\n");
   spu_info.buffer = malloc(MAX_BUF_SIZE);
   spu_info.next_buffer = malloc(MAX_BUF_SIZE);
-  if(spu_info.buffer == NULL || spu_info.next_buffer == NULL)
-    perror("init_spu");
-
+  if(spu_info.buffer == NULL || spu_info.next_buffer == NULL) {
+    ERROR("init_spu\n");
+    perror("malloc");
+  }
   register_event_handler(handle_events);
 
   return 0;
@@ -400,7 +404,7 @@ static int get_data(uint8_t *databuf, int bufsize,
   /*
   if(bufsize < 2) {
     // databuf not big enough
-    fprintf(stderr, "buffer too small\n");
+    ERROR("buffer too small\n");
     return -1;
   }
   */
@@ -420,7 +424,7 @@ static int get_data(uint8_t *databuf, int bufsize,
 	return -1;
       } else if(r == 0) {
 	/* no more elements in q at this moment */
-	//fprintf(stderr, "q empty, %d bytes read\n", 2-bytes_to_read);
+	//DNOTE("q empty, %d bytes read\n", 2-bytes_to_read);
 	return 0;
       }
     }
@@ -429,7 +433,7 @@ static int get_data(uint8_t *databuf, int bufsize,
     
     if(spu_size > bufsize) {
       // databuf not big enough
-      fprintf(stderr, "buffer too small\n");
+      ERROR("buffer too small\n");
       return -1;
     }
     
@@ -451,7 +455,7 @@ static int get_data(uint8_t *databuf, int bufsize,
     } else  {
       /* no more elements in q at this time */
       /*
-	fprintf(stderr, "q empty, %d of %d bytes read\n",
+	DNOTE("q empty, %d of %d bytes read\n",
 	      spu_size-bytes_to_read, spu_size);
       */
       return 0;
@@ -484,7 +488,7 @@ static inline uint32_t getbytes(unsigned int num)
   uint32_t result = 0;
 
   if(num > 4)
-    fprintf(stderr, "spu_mixer: getbytes used with more than 4 bytes\n");
+    ERROR("spu_mixer: getbytes used with more than 4 bytes\n");
 
   while(num > 0) {
     result <<= 8;
@@ -522,7 +526,7 @@ static void decode_dcsqt(spu_t *spu_info)
   set_byte(spu_info->buffer);
   
   /* Reset state  */
-  //fprintf(stderr, "spu: reset 1\n");
+  //DNOTE("spu: reset 1\n");
   spu_info->display_start = 0;
   // Maybe some other...
   
@@ -680,20 +684,19 @@ static void decode_dcsq(spu_t *spu_info)
 	  u2 = GETBYTES(2, "wipe x_end 1?");
 	  u3 = GETBYTES(2, "wipe x_end 2?");
 	} else {
-	  fprintf(stderr, "unknown cmd 07 type\n");
+	  FATAL("unknown cmd 07 type\n");
 	  exit(1);
 	}
 	  
 	if((u1 != 0) || (u2 != 0x0fff) || (u3 != 0xffff)) {
-	  fprintf(stderr, "unknown bits in cmd 7 used\n");
+	  FATAL("unknown bits in cmd 7 used\n");
 	  exit(1);
 	}
       }
       break;
     default:
-      fprintf(stderr,
-	      "\t\t\t\t*Unknown Display Control Command: %02x\n",
-	      command);
+      ERROR("\t\t\t\t*Unknown Display Control Command: %02x\n",
+	    command);
       //exit(1);
       break;
     }
@@ -902,7 +905,7 @@ static void decode_display_data(spu_t *spu_info, char *data,
   aligned = 1;
   set_byte(&spu_info->buffer[fieldoffset[field]]);
   
-  //fprintf(stderr, "\nDecoding overlay picture data\n");
+  //DNOTE("\nDecoding overlay picture data\n");
   
   //initialize(spu_info->width, spu_info->height);
   x = 0;
@@ -959,7 +962,7 @@ static void decode_display_data(spu_t *spu_info, char *data,
       length = spu_info->width - x;
     }
     if(length+x > spu_info->width) {
-      fprintf(stderr, "tried to write past line-end\n");
+      WARNING("tried to write past line-end\n");
       length = spu_info->width - x;
     }
     
@@ -1063,7 +1066,7 @@ static int next_spu_cmd_pending(spu_t *spu_info)
 	  // FIXME: assumes order of src_nr
 	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 	    /* Reset state  */
-	    //fprintf(stderr, "spu: flush/reset 2\n");
+	    //DNOTE("spu: flush/reset 2\n");
 	    spu_info->display_start = 0;
 	    spu_info->has_highlight = 0;
 	  }
@@ -1097,11 +1100,11 @@ static int next_spu_cmd_pending(spu_t *spu_info)
   //  timesub(&errtime, &spu_info->next_time, &realtime);
 
   if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
-    //fprintf(stderr,"spu: time: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
+    //DNOTE("spu: time: %d.%09d\n",TIME_S(errtime),TIME_SS(errtime));
     return 1;
   }
   if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
-    //fprintf(stderr,"spu: spu_info->scr_nr != video_scr_nr\n");
+    //DNOTE("spu: spu_info->scr_nr != video_scr_nr\n");
     return 1;
   }
   
@@ -1110,7 +1113,7 @@ static int next_spu_cmd_pending(spu_t *spu_info)
 
       
       /* Reset state  */
-      //fprintf(stderr, "spu: flush/reset 3\n");
+      //DNOTE("spu: flush/reset 3\n");
       spu_info->display_start = 0;
       spu_info->has_highlight = 0;
       
@@ -1200,7 +1203,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
   if(spu_info.display_start /* || spu_info.menu */) {
     int width = img->info->picture.padded_width;
     int height = img->info->picture.padded_height;
-    //fprintf(stderr, "decoding data\n");
+    //DNOTE("decoding data\n");
     //ugly hack
     if(img->info->is_reference) {
       int size;
@@ -1231,7 +1234,7 @@ void flush_subpicture(int scr_id)
     return;
   }
   
-  //fprintf(stderr, "spu: flush_subpicture\n");
+  //DNOTE("spu: flush_subpicture\n");
   flush_to_scrid = scr_id;
 
   while(next_spu_cmd_pending(&spu_info)) {
