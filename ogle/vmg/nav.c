@@ -591,10 +591,14 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 //        current vobu and last vobu. ??
 // if address = 3fff ffff -> vobu does not exist
 #define VALID_XWDA(OFFSET) \
-  ((OFFSET) & SRI_END_OF_CELL) != SRI_END_OF_CELL && \
-  ((OFFSET) & 0x80000000)
+  (((OFFSET) & SRI_END_OF_CELL) != SRI_END_OF_CELL && \
+  ((OFFSET) & 0x80000000))
   
   case DVDCtrlTimeSkip:
+    if(dsi->dsi_gi.nv_pck_lbn == -1) { // we are waiting for a new nav block
+      res = 0;
+      break;
+    }
     // We have 120 60 30 10 7.5 7 6.5 ... 0.5 seconds markers
     if(ev.dvdctrl.cmd.timeskip.seconds > 0) {
       const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
