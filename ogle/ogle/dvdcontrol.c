@@ -489,9 +489,42 @@ DVDResult_t DVDGetCurrentAngle(DVDNav_t *nav, int *const AnglesAvailable,
 
 }
 
+/**
+ * Query the  current DVD volume information.
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param VolumeInfo will get the Volume info of the DVD.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav, 
+				DVDVolumeInfo_t *const VolumeInfo)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetDVDVolumeInfo;
+ 
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlDVDVolumeInfo)) {
+      *VolumeInfo = ev.dvdctrl.cmd.volumeinfo.volumeinfo;
+      return DVD_E_Ok;
+    }
+  }
+}
 
 /** 
- * Querry the number of Titel tracks on the DVD.
+ * Query the number of Titel tracks on the DVD.
  * @param nav Specifies the connection to the DVD navigator.
  * @param TitlesAvailable Will contain the number of Title tracks.
  *

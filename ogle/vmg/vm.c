@@ -580,6 +580,14 @@ int vm_get_domain(void)
   return state.domain;
 }
 
+void vm_get_volume_info(int *nrofvolumes,int *volume,int *side,int *nroftitles)
+{
+ *nrofvolumes = vmgi->vmgi_mat->vmg_nr_of_volumes;
+ *volume = vmgi->vmgi_mat->vmg_this_volume_nr;
+ *side = vmgi->vmgi_mat->disc_side;
+ *nroftitles = vmgi->vmgi_mat->vmg_nr_of_title_sets;
+}
+
 int vm_get_titles(void)
 {
  int titles = 0;

@@ -106,6 +106,9 @@ typedef enum {
   DVDCtrlGetCurrentUOPS,
   DVDCtrlCurrentUOPS,
   
+  DVDCtrlGetDVDVolumeInfo,
+  DVDCtrlDVDVolumeInfo,
+
   DVDCtrlGetTitles,
   DVDCtrlTitles,
   
@@ -333,6 +336,11 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  DVDVolumeInfo_t volumeinfo
+} DVDCtrlVolumeInfoEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
   int titles;
 } DVDCtrlTitlesEvent_t;
 
@@ -465,6 +473,7 @@ typedef union {
   DVDCtrlAudioStreamEnabledEvent_t audiostreamenabled;
   DVDCtrlAudioAttributesEvent_t audioattributes;
 
+  DVDCtrlVolumeInfoEvent_t volumeinfo;
   DVDCtrlTitlesEvent_t titles;
   DVDCtrlNumberOfPTTsEvent_t parts;
 

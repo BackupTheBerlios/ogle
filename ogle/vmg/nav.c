@@ -715,6 +715,20 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
     break;
+  case DVDCtrlGetDVDVolumeInfo:
+    {
+      int nofv,vol,side,noft;
+      MsgEvent_t send_ev;
+      send_ev.type = MsgEventQDVDCtrl;
+      send_ev.dvdctrl.cmd.type = DVDCtrlDVDVolumeInfo;
+      vm_get_volume_info(&nofv,&vol,&side,&noft);
+      send_ev.dvdctrl.cmd.volumeinfo.volumeinfo.nrofvolumes = nofv;
+      send_ev.dvdctrl.cmd.volumeinfo.volumeinfo.volume = vol;
+      send_ev.dvdctrl.cmd.volumeinfo.volumeinfo.side = side;
+      send_ev.dvdctrl.cmd.volumeinfo.volumeinfo.nroftitles = noft;
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
   case DVDCtrlGetTitles:
     {
       MsgEvent_t send_ev;

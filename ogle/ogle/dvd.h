@@ -298,6 +298,13 @@ typedef struct {
   DVDTimecode_t title_total;
 } DVDLocation_t;
 
+typedef struct {
+  int nrofvolumes;
+  int volume;
+  int side;             /**< 0: Side_A, 1: Side_B */
+  int nroftitles;
+} DVDVolumeInfo_t;
+
 /* hack */
 
 typedef enum {

@@ -59,6 +59,8 @@ DVDResult_t DVDGetCurrentDomain(DVDNav_t *nav, DVDDomain_t *const Domain);
 DVDResult_t DVDGetCurrentLocation(DVDNav_t *nav, 
 				  DVDLocation_t *const Location);
 
+DVDResult_t DVDGetDVDVolumeInfo(DVDNav_t *nav, DVDVolumeInfo_t *const VolumeInfo);
+
 DVDResult_t DVDGetTitles(DVDNav_t *nav, int *const TitlesAvailable);
 
 DVDResult_t DVDGetNumberOfPTTs(DVDNav_t *nav, DVDTitle_t Title,
