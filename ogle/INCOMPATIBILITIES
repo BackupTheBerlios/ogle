@@ -8,9 +8,16 @@ sem_init: SOLARIS needs -lrt or -lposix4, LINUX needs -lrt or -lpthread
 sem_init: so use -lrt
 
 clock_gettime: SOLARIS has it, LINUX has not (fallback to gettimeofday?)
+clock_gettime: with glibc 2.2 Linux does indeed have clock_gettime.
 clock_gettiem: <time.h>, gettimeofday <sys/time.h>
 
 getopt: SOLARIS in <stdlib.h>, LINUX in <unistd.h>
 
 getsubopt: SOLARIS in <stdlib.h>, LINUX in <stdlib.h> but #ifdef __USE_XOPEN_EXTENDED
 
+linking: having one shared library depend on another that isn't in the standard
+linking: library search path does not work with with bintools version < 2.11
+linking: i.e the encoded run path in the first library isn't searched
+
+libtool: does not work correctly with shared library dependency 
+libtool: versions < 1.4 fail for different reasons

@@ -7,4 +7,5 @@ SUBDIRS= ogle \
 	ac3 \
 	mpeg_audio \
 	vmg \
-	ui
+	ui \
+	scripts
