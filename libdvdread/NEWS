@@ -1,4 +1,12 @@
 Version 0.9.2
+  Support for MacOS X/Darwin have been added.<br>
+  Ported to use libdvdcss2 (1.2.0 and later).
+  Can now use libdvdcss to also decrypt files on a normal filsystem.
+  A bit more tolerant of incorrectly mastered DVDs.
+  Build robustness fixes from Mark Espie.
+  Added some Doxygen markup and comments.
+
+Version 0.9.2
   Add support for BSD/OS. Make sure that the raw device is used on all
   BSD variants for the CSS ioctls to work correctly.  Small bug fix for
   access to mounted DVD via soft-links and a malloc/free mistake.
