@@ -230,10 +230,14 @@ int DVDBookmarkGet(DVDBookmark_t *bm, int nr,
   cur = cur->xmlChildrenNode;
   while(cur != NULL) {
     if((!xmlStrcmp(cur->name, (const xmlChar *)"navstate"))) {
+      xmlBufferPtr xmlbuf;
       if(navstate != NULL) {
-	data = xmlNodeListGetString(bm->doc, cur->xmlChildrenNode, 1);
-	*navstate = strdup(data);
-	xmlFree(data);
+	if((xmlbuf = xmlBufferCreate()) == NULL) {
+	  return -1;
+	} 
+	xmlNodeDump(xmlbuf, bm->doc, cur, 0, 0);
+	*navstate = strdup(xmlBufferContent(xmlbuf));
+	xmlBufferFree(xmlbuf);
       }
     } else if((!xmlStrcmp(cur->name, (const xmlChar *)"usercomment"))) {
       if(usercomment != NULL) {
@@ -294,12 +298,27 @@ int DVDBookmarkAdd(DVDBookmark_t *bm,
   
   if((cur = xmlNewChild(cur, NULL, "bookmark", NULL)) == NULL) {
     return -1;
+  } else {
+    xmlDocPtr navdoc = NULL;
+    xmlNodePtr navnode, navcopy;
+    
+    if((navdoc = xmlParseDoc(navstate)) == NULL) {
+      return -1;
+    }
+   
+    if((navnode = xmlDocGetRootElement(navdoc)) == NULL) {
+      return -1;
+    }
+    
+    if((navcopy = xmlDocCopyNode(navnode, bm->doc, 1)) == NULL) {
+      return -1;
+    }
+    
+    xmlFreeDoc(navdoc);
+    
+    xmlAddChild(cur, navcopy);
   }
-  
-  if((xmlNewTextChild(cur, NULL, "navstate", navstate)) == NULL) {
-    return -1;
-  }
-  
+
   if(usercomment) {
     if((xmlNewTextChild(cur, NULL, "usercomment", usercomment)) == NULL) {
       return -1;
