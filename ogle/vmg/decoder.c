@@ -17,6 +17,7 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
 
@@ -367,31 +368,46 @@ static bool eval_system_set(int cond, link_t *return_values) {
    For the swap case the contents of reg is stored in reg2.
 */
 static void eval_set_op(int op, int reg, int reg2, int data) {
+  const int shortmax = (2 << 16) - 1;
+  int tmp;
   switch(op) {
     case 1:
       state->GPRM[reg] = data;
       break;
     case 2: /* SPECIAL CASE - SWAP! */
       state->GPRM[reg2] = state->GPRM[reg];
-      state->GPRM[reg] = data;
+      state->GPRM[reg]  = data;
       break;
     case 3:
-      state->GPRM[reg] += data;
+      tmp = state->GPRM[reg] + data;
+      if(tmp >= shortmax) tmp = shortmax;
+      state->GPRM[reg] = (uint16_t)tmp;
       break;
     case 4:
-      state->GPRM[reg] -= data;
+      tmp = state->GPRM[reg] - data;
+      if(tmp < 0) tmp = 0;
+      state->GPRM[reg] = (uint16_t)tmp;      
       break;
     case 5:
-      state->GPRM[reg] *= data;
+      tmp = state->GPRM[reg] * data;
+      if(tmp >= shortmax) tmp = shortmax;
+      state->GPRM[reg] = (uint16_t)tmp;
       break;
     case 6:
-      state->GPRM[reg] /= data;
+      if(data != 0)
+	state->GPRM[reg] /= data;
+      else
+	state->GPRM[reg] = 0; /* realy an error I guess */
       break;
     case 7:
       state->GPRM[reg] %= data;
       break;
-    case 8: /* SPECIAL CASE - RND! */
-      state->GPRM[reg] += data; // TODO FIXME
+    case 8: /* SPECIAL CASE - RANDOM! */
+      if(data != 0)
+	/* TODO rand() might only return 0-32768  */
+	state->GPRM[reg] = (rand() % data) + 1;
+      else
+	state->GPRM[reg] = 0; /* realy an error I guess */
       break;
     case 9:
       state->GPRM[reg] &= data;
