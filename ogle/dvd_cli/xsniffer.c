@@ -33,46 +33,24 @@
 
 extern DVDNav_t *nav;
 static Display *display;
-Window win = 0;
-//pthread_t at;
 
 
 void xsniff_init() {
-  int ret = 0;
   
-  if(win==0) {
-    fprintf(stderr, "Window-id == 0  Won't try to sniff events.\n");
-    return;
-  }
-
   fprintf(stderr, "sniff_init\n");
-  display = XOpenDisplay(NULL);
 
-  /*
-  ret = XSelectInput(display, win, StructureNotifyMask | KeyPressMask 
-		     | PointerMotionMask | ButtonPressMask | ExposureMask);
-  */
-  fprintf(stderr, "Ret: %d\n", ret);
-  //pthread_create(&at, NULL, xsniff_mouse, NULL);
 
   fprintf(stderr, "sniff_init  out\n");
 }
 
 void* xsniff_mouse(void* args) {
   MsgEvent_t mev;
-  //XEvent ev;
-
-  fprintf(stderr, "xsniff_mouse\n");
   
   while(1) {
     
 
     DVDNextEvent(nav, &mev);
 
-    fprintf(stderr, "dvd_cli: got event\n");
-    //XNextEvent(display, &ev);
-    
-    //switch(ev.type) {
     switch(mev.type) {
     
       
@@ -80,54 +58,27 @@ void* xsniff_mouse(void* args) {
     case MsgEventQInputPointerMotion:
       {
 	DVDResult_t res;
-	int i = 5;
-	Bool b;
-	/*
-	usleep(50000);  // wait for 0.05 s
-	b = XCheckMaskEvent(display, PointerMotionMask, &ev);
-	while(b == True && i >= 0) {
-	  i--;
-	  b = XCheckMaskEvent(display, PointerMotionMask, &ev);
-	}
-	*/
-	{ 
-	  int x, y;
-	  /*
-	    XWindowAttributes xattr;
-	    XGetWindowAttributes(display, win, &xattr);
-	    // Represent the coordinate as a fixpoint numer btween 0..65536
-	    x = ev.xbutton.x * 65536 / xattr.width;
-	    y = ev.xbutton.y * 65536 / xattr.height;
-	  */
-	  x = mev.input.x * 65536 / 720;
-	  y = mev.input.y * 65536 / 576;
-	  
-	  res = DVDMouseSelect(nav, x, y);
-	}
+	int x, y;
 	
+	x = mev.input.x;
+	y = mev.input.y;
+	
+	res = DVDMouseSelect(nav, x, y);
 	
 	if(res != DVD_E_Ok) {
 	  fprintf(stderr, "DVDMouseSelect failed. Returned: %d\n", res);
 	}
       }
       break;
-      //    case ButtonPress:
     case MsgEventQInputButtonPress:
-      //switch(ev.xbutton.button) {
       switch(mev.input.input) {
       case 0x1:
 	{ 
 	  DVDResult_t res;
 	  int x, y;
-	  /*
-	  XWindowAttributes xattr;
-	  XGetWindowAttributes(display, win, &xattr);
-	  // Represent the coordinate as a fixpoint numer btween 0..65536
-	  x = ev.xbutton.x * 65536 / xattr.width;
-	  y = ev.xbutton.y * 65536 / xattr.height;
-	  */
-	  x = mev.input.x * 65536 / 720;;
-	  y = mev.input.y * 65536 / 576;;
+
+	  x = mev.input.x;
+	  y = mev.input.y;
 	  
 	  res = DVDMouseActivate(nav, x, y);
 	  if(res != DVD_E_Ok) {
@@ -141,16 +92,10 @@ void* xsniff_mouse(void* args) {
 	break;
       }
       break;
-
-
-      //case KeyPress:
     case MsgEventQInputKeyPress:
       {
-	//static int debug_change = 0;
 	KeySym keysym;
 	keysym = mev.input.input;
-	//XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
-	//buff[1] = '\0';
 
 	switch(keysym) {
 	case XK_Up:

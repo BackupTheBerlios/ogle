@@ -104,7 +104,7 @@ main (int argc, char *argv[])
     }
     win = windowid;
     */
-    sleep(1);
+    //    sleep(1);
     DVDRequestInput(nav,
 		    INPUT_MASK_KeyPress | INPUT_MASK_ButtonPress |
 		    INPUT_MASK_PointerMotion);
