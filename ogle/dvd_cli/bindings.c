@@ -263,6 +263,42 @@ void actionBookmarkAdd(void *data)
   free(state);
 }
 
+
+void actionBookmarkRemove(void *data)
+{
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  int n;
+  
+  if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+    NOTE("%s", "GetDiscID failed\n");
+    return;
+  }
+  
+  if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+    NOTE("%s", "BookmarkOpen failed\n");
+    return;
+  }
+
+  n = DVDBookmarkGetNr(bm);
+
+  if(n == -1) {
+    NOTE("%s", "DVDBookmarkGetNr failed\n");
+  } else if(n > 0) {
+    if(DVDBookmarkRemove(bm, n-1) != -1) {
+      NOTE("Bookmark %d removed\n", n-1);
+      
+      if(DVDBookmarkSave(bm, 0) == -1) {
+	NOTE("%s", "BookmarkSave failed\n");
+      }
+    } else {
+      NOTE("%s", "DVDBookmarkRemove failed\n");
+    }
+
+  }
+  DVDBookmarkClose(bm);
+}
+
 void actionBookmarkRestore(void *data)
 {
   DVDBookmark_t *bm;
@@ -279,15 +315,13 @@ void actionBookmarkRestore(void *data)
     NOTE("%s", "BookmarkOpen failed\n");
     return;
   }
-  for(n = -1;;n++) {
-    if(DVDBookmarkGet(bm, n+1, NULL, NULL, NULL, NULL) == -1) {
-      break;
-    }
-  }
+
+  n = DVDBookmarkGetNr(bm);
+
   if(n == -1) {
-    NOTE("%s", "DVDBookmarkGet failed\n");
-  } else {
-    DVDBookmarkGet(bm, n, &state, NULL, NULL, NULL);
+    NOTE("%s", "DVDBookmarkGetNr failed\n");
+  } else if(n > 0) {
+    DVDBookmarkGet(bm, n-1, &state, NULL, NULL, NULL);
     
     if(DVDSetState(nav, state) != DVD_E_Ok) {
       NOTE("%s", "DVDSetState failed\n");
@@ -351,6 +385,7 @@ static action_mapping_t actions[] = {
   { "SubtitleToggle", actionSubpictureToggle },
   { "Quit", actionQuit },
   { "BookmarkAdd", actionBookmarkAdd },
+  { "BookmarkRemove", actionBookmarkRemove },
   { "BookmarkRestore", actionBookmarkRestore },
   { NULL, NULL }
 };
