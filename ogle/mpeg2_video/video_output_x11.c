@@ -802,7 +802,7 @@ void draw_win(debug_win *dwin)
   if(msgqid != -1) {
     mix_subpicture(address,
 		   dwin->image->info->padded_width,
-		   dwin->image->info->padded_height);
+		   dwin->image->info->padded_height, 0);
   }
 #endif
 
@@ -890,6 +890,15 @@ void draw_win(debug_win *dwin)
 #else
     xv_image->data = dwin->image->y;
 #endif
+
+#ifdef SPU
+  if(msgqid != -1) {
+    mix_subpicture(xv_image->data,
+		   dwin->image->info->padded_width,
+		   dwin->image->info->padded_height, 1);
+  }
+#endif
+
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
                   0, 0, 
                   dwin->image->info->horizontal_size, dwin->image->info->vertical_size,

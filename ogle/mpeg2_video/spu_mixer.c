@@ -789,7 +789,8 @@ void decode_dcsq(spu_t *spu_info) {
 }
 
 
-void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
+void decode_display_data(spu_t *spu_info, char *data, int width, int height,
+			 int picformat) {
   unsigned int x;
   unsigned int y;
   int nr_vlc;
@@ -877,16 +878,28 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
 		  | (spu_info->color[colorid] & 0x0f));
 
     if(!spu_info->menu) {
-      color = palette_rgb[spu_info->color[colorid]];
+      if(picformat == 0) {
+	color = palette_rgb[spu_info->color[colorid]];
+      } else {
+	color = palette_yuv[spu_info->color[colorid]];
+      }
       contrast = spu_info->contrast[colorid]<<4;
     } else {
       if(y+spu_info->y_start >= highlight.y_start &&
 	 y+spu_info->y_start <= highlight.y_end &&
 	 x >= highlight.x_start && x <= highlight.x_end) {
-	color = palette_rgb[highlight.color[colorid]];
+	if(picformat == 0) {
+	  color = palette_rgb[highlight.color[colorid]];
+	} else {
+	  color = palette_yuv[highlight.color[colorid]];
+	}
 	contrast = highlight.contrast[colorid]<<4;
       } else {
-	color = palette_rgb[spu_info->color[colorid]];
+	if(picformat == 0) {
+	  color = palette_rgb[spu_info->color[colorid]];
+	} else {
+	  color = palette_yuv[spu_info->color[colorid]];
+	}
 	contrast = spu_info->contrast[colorid]<<4;
       }
     }
@@ -901,9 +914,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
       fprintf(stderr, "tried to write past line-end\n");
       length = spu_info->width-x;
     }
-
+    
     /* mix spu and picture data */
-    {
+    
+    if(picformat == 0) {
       int n;
       
       /* if total transparency do nothing */
@@ -932,6 +946,64 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
 	    pb = (pb*(invcontrast)+b*contrast)>>8;
 	    
 	    *pixel = pb<<16 | pg<<8 | pr;
+	  }
+	}
+
+      } 
+    } else {
+      int n;
+      
+      /* if total transparency do nothing */
+      if(contrast != 0) {
+	uint8_t y,u,v;
+	uint8_t *y_pixel;
+	uint8_t *u_pixel;
+	uint8_t *v_pixel;
+	int even;
+	y = color&0xff;
+	u = (color>>8) & 0xff;
+	v = (color>>16) & 0xff;
+	
+	
+	pixel = &(((uint32_t *)data)[(y+spu_info->y_start)*width
+				    +(x+spu_info->x_start)]);
+	y_pixel = &(((uint8_t *)data)[(y+spu_info->y_start)*width
+				     +(x+spu_info->x_start)]);
+	even = !((int)y_pixel & 1);
+	
+	if(even) {
+	  u_pixel = &(((uint8_t *)data)[width*height+
+				       (y+spu_info->y_start)*width/2
+				       +(x+spu_info->x_start)/2]);
+	  v_pixel = &(((uint8_t *)data)[width*height+width/2*height/2+
+				       (y+spu_info->y_start)*width/2
+				       +(x+spu_info->x_start)/2]);
+	}
+	
+	for(n = 0; n < length; n++,pixel++) {
+	  
+	  /* if no transparancy just overwrite */
+	  if(contrast == (0xf<<4)) {
+	    *y_pixel = y;
+	    if(even) {
+	      *u_pixel = u;
+	      *v_pixel = v;
+	    }
+	  } else {
+	    uint32_t py,pu,pv;
+	    py = *y_pixel;
+	    py = (py*(invcontrast)+y*contrast)>>8;
+	    *y_pixel = py;
+	
+	    if(even) {
+	      pu = *u_pixel;
+	      pu = (pu*(invcontrast)+u*contrast)>>8;
+	      *u_pixel = pu;
+	      pv = *v_pixel;
+	      pv = (pv*(invcontrast)+v*contrast)>>8;
+	      *v_pixel = pv;
+	    }
+	    
 	  }
 	}
 
@@ -1007,7 +1079,7 @@ int next_spu_cmd_pending(spu_t *spu_info) {
 }
 
 
-void mix_subpicture(char *data, int width, int height)
+void mix_subpicture(char *data, int width, int height, int picformat)
 {
   /*
    * Check for, and process, messages. Exit if not 
@@ -1047,7 +1119,7 @@ void mix_subpicture(char *data, int width, int height)
 
   if(spu_info.display_start || spu_info.menu) {
     //fprintf(stderr, "decoding data\n");
-    decode_display_data(&spu_info, data, width, height);
+    decode_display_data(&spu_info, data, width, height, picformat);
   }
   
 }
