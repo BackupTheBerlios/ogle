@@ -699,7 +699,6 @@ void ifoRead_MENU_PGCI_UT(menu_pgci_ut_t *pgci_ut, int sector) {
   for(i = 0; i < pgci_ut->nr_of_lang_units; i++) {
     memcpy(&pgci_ut->menu_lu[i], ptr, MENU_PGCI_LU_SIZE);
     ptr += MENU_PGCI_LU_SIZE;
-    B2N_16(pgci_ut->menu_lu[i].lang_code);
     B2N_32(pgci_ut->menu_lu[i].lang_start_byte); 
   }
   free(data);

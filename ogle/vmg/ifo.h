@@ -146,7 +146,7 @@ typedef struct { // Program Chain Information Table
 #define PGCIT_SIZE 8
 
 typedef struct { // Menu PGCI Language Unit Table
-  uint16_t lang_code;
+  char     lang_code[2];
   uint8_t  zero_1;
   uint8_t  exists;
   uint32_t lang_start_byte; // prt
@@ -238,7 +238,7 @@ typedef struct { // Text Data
 
   
 typedef struct { // Text Data Language Unit 
-  uint16_t lang_code;
+  char     lang_code[2];
   uint16_t unknown; // 0x0001, title 1? disc 1? side 1?
   uint32_t _start_byte; // prt, rel start of vmg_txtdt_mgi
   txtdt_t  *txtdt;
