@@ -19,7 +19,7 @@ pkglib_LTLIBRARIES = libmsgevents.la libdvdcontrol.la
 pkginclude_HEADERS = dvd.h dvdcontrol.h msgevents.h dvdevents.h dvdbookmarks.h
 
 
-AM_CPPFLAGS = @TOP_INCLUDES@ @XML_CFLAGS@
+AM_CPPFLAGS = @TOP_INCLUDES@ @XML_CPPFLAGS@
 AM_CFLAGS = @O_CFLAGS@
 
 libmsgevents_la_SOURCES = msgevents.c
