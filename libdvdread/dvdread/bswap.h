@@ -20,8 +20,6 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#include <config.h>
-
 #if defined(WORDS_BIGENDIAN)
 /* All bigendian systems are fine, just ignore the swaps. */  
 #define B2N_16(x) (void)(x)
@@ -77,7 +75,7 @@
  * functionality! 
  */
 
-#elif defined(__FreeBSD__) || defined(__sun) || defined(__bsdi__)
+#elif defined(__FreeBSD__) || defined(__sun) || defined(__bsdi__) || defined(WIN32)
 #define B2N_16(x) \
  x = ((((x) & 0xff00) >> 8) | \
       (((x) & 0x00ff) << 8))
