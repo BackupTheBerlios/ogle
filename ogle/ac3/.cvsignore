@@ -2,5 +2,5 @@
 .libs
 Makefile
 Makefile.in
-ac3dec_wrap
-a52_decoder
+ogle_ac3_p
+ogle_a52
