@@ -16,7 +16,7 @@ getopt: SOLARIS in <stdlib.h>, LINUX in <unistd.h>
 getsubopt: SOLARIS in <stdlib.h>, LINUX in <stdlib.h> but #ifdef __USE_XOPEN_EXTENDED
 
 linking: having one shared library depend on another that isn't in the standard
-linking: library search path does not work with with bintools version < 2.11
+linking: library search path does not work with with binutils version < 2.11
 linking: i.e the encoded run path in the first library isn't searched
 
 libtool: does not work correctly with shared library dependency 

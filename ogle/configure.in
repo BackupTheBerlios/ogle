@@ -48,12 +48,9 @@ AC_CHECK_FUNCS(clock_gettime madvise)
 AC_ARG_WITH(libdvdread, 
   [  --with-libdvdread=path  specify where libdvdread is installed],
   if test x$withval = xno; then
-    AC_MSG_ERROR(You must have/use libdvdread)
+    AC_MSG_ERROR([You must have/use libdvdread])
   fi
-  if test x$withval = xyes; then
-    withval=""
-  fi
-  if test x$withval != x; then
+  if test x$withval != xyes; then
     AC_CHECK_LIB(dvdread, DVDOpen, [ DVDREAD_LIBS="-L$withval/lib -rpath $withval/lib -ldvdread"
                                      DVDREAD_CFLAGS=-I$withval/include
                                    ],, -L$withval/lib)
@@ -62,7 +59,7 @@ if test -z "$DVDREAD_LIBS" ; then
   AC_CHECK_LIB(dvdread, DVDOpen, DVDREAD_LIBS=-ldvdread)
 fi
 if test -z "$DVDREAD_LIBS" ; then
- AC_MSG_ERROR(You need libdvdread)
+ AC_MSG_ERROR([You need libdvdread])
 fi
 dnl Linux needs this to prototype lseek64 and others
 DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
@@ -121,7 +118,19 @@ INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include -I/usr/pd/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
 
-AC_OUTPUT(ogle/Makefile include/Makefile common/Makefile ctrl/Makefile ui/Makefile ac3/Makefile mpeg2_video/Makefile Makefile vmg/Makefile mpeg_audio/Makefile mpeg2_program/Makefile subpicture/Makefile)
+AC_OUTPUT(Makefile 
+ogle/Makefile 
+include/Makefile 
+common/Makefile 
+ctrl/Makefile 
+ui/Makefile 
+ac3/Makefile 
+mpeg2_video/Makefile 
+vmg/Makefile 
+mpeg_audio/Makefile 
+mpeg2_program/Makefile 
+subpicture/Makefile
+scripts/Makefile)
 
 
 
