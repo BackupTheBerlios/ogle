@@ -15,6 +15,9 @@ case x"$host_os" in
     CFLAGS="${CFLAGS} -no-cpp-precomp"
     AC_DEFINE(__DARWIN__, 1, Have a Mac OS X system)
     ;;
+  x*mingw32* | x*cygwin*)
+    CFLAGS="${CFLAGS} -Dssize_t=long"
+    ;;
   x*)
     ;;
 esac
