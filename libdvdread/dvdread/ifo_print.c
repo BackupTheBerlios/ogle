@@ -776,6 +776,11 @@ static void ifoPrint_CELL_POSITION(cell_position_t *cell_position, int nr) {
 void ifoPrint_PGC(pgc_t *pgc) {
   int i;
   
+  if(pgc == NULL) {
+    printf("No PGC present\n");
+    return;
+  }
+
   printf("Number of Programs: %i\n", pgc->nr_of_programs);
   printf("Number of Cells: %i\n", pgc->nr_of_cells);
   /* Check that time is 0:0:0:0 also if nr_of_programs==0 */
