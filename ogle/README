@@ -17,7 +17,7 @@ To play a dvd you start ogle.
   or if you don't want any audio
   cat /tmp/ac3 >/dev/null & 
 
-Navigation in the simple player
+Navigation in _both_ players if you have the mouse in the _video window_
   '>', skips to the next chapter
   '<', skips to the previous chapter
   't', jumps to the Title menu
@@ -27,12 +27,16 @@ Navigation in the simple player
   'g', jumps to the Angle menu
   'p', jumps to the PTT (Chapter) menu
   'c', does resume (if you have jumped to a menu from the movie)
+  'i', saves a screen shoot (as screenshoot.jpg in pwd)
+  'I', saves a screen shoot with the subpicture overlay intact
+  'f', toggle between fullscreen and window mode
   'q', exit the player
 
 
 Ogle GUI
   If you install the ogle_gui package you will also have access to a 
   graphical user interface
+  You start the GUI with 'ogle' _not_ ogle_gui.
   In the menu of ogle_gui which will pop up you choose open and 
   type the device name of your dvd drive
   /dev/hdc or wherever it is on your system
@@ -54,4 +58,12 @@ Ogle GUI
   At the moment you have to exit ogle and restart to play another dvd.
 
 
-For more information plees look at:  http://www.dtek.chalmers.se/~dvd/
+Solaris
+
+  If you have a FFB2 frame buffer (a Creator 3D) then you can use it
+hardware yuv2rgb to gain faster playback speed.  This is still
+exprimental code be warned.  Enable it by setting the environment 
+variable USE_FFB2_YUV2RGB.
+
+
+For more information please visit http://www.dtek.chalmers.se/~dvd/

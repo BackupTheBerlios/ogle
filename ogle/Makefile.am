@@ -10,3 +10,5 @@ SUBDIRS= ogle \
 	ui \
 	dvd_cli \
 	scripts
+
+EXTRA_DIST = autogen.sh
