@@ -745,6 +745,7 @@ void display_init(int padded_width, int padded_height,
     XSelectInput(mydisplay, window.win,
 		 StructureNotifyMask | ExposureMask |
 		 KeyPressMask | ButtonPressMask |
+		 KeyReleaseMask | ButtonReleaseMask |
 		 PointerMotionMask | PropertyChangeMask);
     
     create_transparent_cursor(mydisplay, window.win);
@@ -1227,6 +1228,46 @@ void check_x_events(yuv_image_t *current_image)
 	}
       }
       break;
+    case KeyRelease:
+      // send keyrelease to whoever wants it
+      if(input_mask & INPUT_MASK_KeyRelease) {
+	MsgEvent_t m_ev;
+	KeySym keysym;
+	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
+	m_ev.type = MsgEventQInputKeyRelease;
+	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
+	  current_image->info->picture.horizontal_size /
+	  window.video_area.width;
+	m_ev.input.y = (ev.xkey.y - window.video_area.y) *
+	  current_image->info->picture.vertical_size /
+	  window.video_area.height;
+	m_ev.input.x_root = ev.xkey.x_root;
+	m_ev.input.y_root = ev.xkey.y_root;
+	m_ev.input.mod_mask = ev.xkey.state;
+	m_ev.input.input = keysym;
+
+	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	  switch(errno) {
+	  case EAGAIN:
+	    // msgq full, drop message
+	    break;
+#ifdef EIDRM
+	  case EIDRM:
+#endif
+	  case EINVAL:
+	    FATAL("keyrelease\n");
+	    perror("MsgSendEvent");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  default:
+	    FATAL("keyrelease, couldn't send notification\n");
+	    perror("MsgSendEvent");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  }
+	}
+      }
+      break;
     case ButtonPress:
       // send buttonpress to whoever wants it
       if(input_mask & INPUT_MASK_ButtonPress) {
@@ -1259,6 +1300,51 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  default:
 	    FATAL("buttonpress, couldn't send notification\n");
+	    perror("MsgSendEvent");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  }
+	}
+      }
+      
+      if(cursor_visible == False) {
+	restore_cursor(mydisplay, window.win);
+	cursor_visible = True;
+      }
+      clocktime_get(&prev_time);
+      break;
+    case ButtonRelease:
+      // send buttonrelease to whoever wants it
+      if(input_mask & INPUT_MASK_ButtonRelease) {
+	MsgEvent_t m_ev;
+	
+	m_ev.type = MsgEventQInputButtonRelease;
+	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
+	  current_image->info->picture.horizontal_size /
+	  window.video_area.width;
+	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
+	  current_image->info->picture.vertical_size /
+	  window.video_area.height;
+	m_ev.input.x_root = ev.xbutton.x_root;
+	m_ev.input.y_root = ev.xbutton.y_root;
+	m_ev.input.mod_mask = ev.xbutton.state;
+	m_ev.input.input = ev.xbutton.button;
+
+	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	  switch(errno) {
+	  case EAGAIN:
+	    // msgq full, drop message
+	    break;
+#ifdef EIDRM
+	  case EIDRM:
+#endif
+	  case EINVAL:
+	    FATAL("buttonrelease\n");
+	    perror("MsgSendEvent");
+	    display_exit(); //TODO clean up and exit
+	    break;
+	  default:
+	    FATAL("buttonrelease, couldn't send notification\n");
 	    perror("MsgSendEvent");
 	    display_exit(); //TODO clean up and exit
 	    break;
