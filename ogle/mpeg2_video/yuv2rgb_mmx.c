@@ -62,7 +62,7 @@ void __yuv2rgb_mmx_preventwarnings_dontusethis(void)
 	 MMX_grnmask);
 };
 
-#ifdef __OpenBSD__
+#ifdef defined(__OpenBSD__) && !defined(__ELF__)
 #define _	"_"
 #else
 #define _
