@@ -22,7 +22,6 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <malloc.h>
 #include <unistd.h>
 #include <inttypes.h>
 #include <signal.h>
