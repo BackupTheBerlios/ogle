@@ -1291,11 +1291,11 @@ void check_x_events(yuv_image_t *current_image)
 	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
 	m_ev.type = MsgEventQInputKeyPress;
 	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
-	  current_image->info->picture.horizontal_size /
-	  window.video_area.width;
+	  src_view_area.width / window.video_area.width +
+	  src_view_area.x;
 	m_ev.input.y = (ev.xkey.y - window.video_area.y) *
-	  current_image->info->picture.vertical_size /
-	  window.video_area.height;
+	  src_view_area.height / window.video_area.height +
+	  src_view_area.y;
 	m_ev.input.x_root = ev.xkey.x_root;
 	m_ev.input.y_root = ev.xkey.y_root;
 	m_ev.input.mod_mask = ev.xkey.state;
@@ -1339,11 +1339,11 @@ void check_x_events(yuv_image_t *current_image)
 	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
 	m_ev.type = MsgEventQInputKeyRelease;
 	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
-	  current_image->info->picture.horizontal_size /
-	  window.video_area.width;
+	  src_view_area.width / window.video_area.width +
+	  src_view_area.x;
 	m_ev.input.y = (ev.xkey.y - window.video_area.y) *
-	  current_image->info->picture.vertical_size /
-	  window.video_area.height;
+	  src_view_area.height / window.video_area.height +
+	  src_view_area.y;
 	m_ev.input.x_root = ev.xkey.x_root;
 	m_ev.input.y_root = ev.xkey.y_root;
 	m_ev.input.mod_mask = ev.xkey.state;
@@ -1378,11 +1378,11 @@ void check_x_events(yuv_image_t *current_image)
 	
 	m_ev.type = MsgEventQInputButtonPress;
 	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
-	  current_image->info->picture.horizontal_size /
-	  window.video_area.width;
+	  src_view_area.width / window.video_area.width +
+	  src_view_area.x;
 	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
-	  current_image->info->picture.vertical_size /
-	  window.video_area.height;
+	  src_view_area.height / window.video_area.height +
+	  src_view_area.y;
 	m_ev.input.x_root = ev.xbutton.x_root;
 	m_ev.input.y_root = ev.xbutton.y_root;
 	m_ev.input.mod_mask = ev.xbutton.state;
@@ -1429,11 +1429,11 @@ void check_x_events(yuv_image_t *current_image)
 	
 	m_ev.type = MsgEventQInputButtonRelease;
 	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
-	  current_image->info->picture.horizontal_size /
-	  window.video_area.width;
+	  src_view_area.width / window.video_area.width +
+	  src_view_area.x;
 	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
-	  current_image->info->picture.vertical_size /
-	  window.video_area.height;
+	  src_view_area.height / window.video_area.height +
+	  src_view_area.y;
 	m_ev.input.x_root = ev.xbutton.x_root;
 	m_ev.input.y_root = ev.xbutton.y_root;
 	m_ev.input.mod_mask = ev.xbutton.state;
@@ -1492,11 +1492,11 @@ void check_x_events(yuv_image_t *current_image)
 	  
 	  m_ev.type = MsgEventQInputPointerMotion;
 	  m_ev.input.x = (ev.xmotion.x - window.video_area.x) *
-	    current_image->info->picture.horizontal_size /
-	    window.video_area.width;
+	    src_view_area.width / window.video_area.width +
+	    src_view_area.x;
 	  m_ev.input.y = (ev.xmotion.y - window.video_area.y) *
-	    current_image->info->picture.vertical_size /
-	    window.video_area.height;
+	    src_view_area.height / window.video_area.height +
+	    src_view_area.y;
 	  m_ev.input.x_root = ev.xmotion.x_root;
 	  m_ev.input.y_root = ev.xmotion.y_root;
 	  m_ev.input.mod_mask = ev.xmotion.state;
