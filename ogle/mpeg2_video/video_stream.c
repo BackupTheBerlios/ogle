@@ -61,7 +61,93 @@ XWindowAttributes attribs;
 #define BUF_SIZE_MAX 1024*8
 
 //#define DEBUG
+//#define STATS
 
+
+uint8_t intra_inverse_quantiser_matrix_changed = 1;
+
+uint8_t non_intra_inverse_quantiser_matrix_changed = 1;
+
+
+#ifdef STATS
+uint64_t stats_bits_read = 0;
+uint8_t stats_intra_inverse_quantiser_matrix_reset = 0;
+uint8_t stats_intra_inverse_quantiser_matrix_loaded = 0;
+
+uint32_t stats_intra_inverse_quantiser_matrix_changes_possible = 0;
+uint32_t stats_intra_inverse_quantiser_matrix_loaded_nr = 0;
+uint32_t stats_intra_inverse_quantiser_matrix_reset_nr = 0;
+
+
+uint8_t stats_non_intra_inverse_quantiser_matrix_reset = 0;
+uint8_t stats_non_intra_inverse_quantiser_matrix_loaded = 0;
+
+uint32_t stats_non_intra_inverse_quantiser_matrix_changes_possible = 0;
+uint32_t stats_non_intra_inverse_quantiser_matrix_loaded_nr = 0;
+uint32_t stats_non_intra_inverse_quantiser_matrix_reset_nr = 0;
+
+uint32_t stats_quantiser_scale_possible = 0;
+uint32_t stats_quantiser_scale_nr = 0;
+
+uint32_t stats_intra_quantiser_scale_possible = 0;
+uint32_t stats_intra_quantiser_scale_nr = 0;
+
+uint32_t stats_non_intra_quantiser_scale_possible = 0;
+uint32_t stats_non_intra_quantiser_scale_nr = 0;
+
+uint32_t stats_block_non_intra_nr = 0;
+uint32_t stats_f_non_intra_compute_first_nr = 0;
+uint32_t stats_f_non_intra_compute_subseq_nr = 0;
+
+uint32_t stats_block_intra_nr = 0;
+uint32_t stats_f_intra_compute_subseq_nr = 0;
+uint32_t stats_f_intra_compute_first_nr = 0;
+
+uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
+uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
+
+void statistics_init()
+{
+  
+  stats_intra_inverse_quantiser_matrix_reset = 0;
+  stats_intra_inverse_quantiser_matrix_loaded = 0;
+
+  stats_intra_inverse_quantiser_matrix_changes_possible = 0;
+  stats_intra_inverse_quantiser_matrix_loaded_nr = 0;
+  stats_intra_inverse_quantiser_matrix_reset_nr = 0;
+
+
+  non_intra_inverse_quantiser_matrix_changed = 1;
+  stats_non_intra_inverse_quantiser_matrix_reset = 0;
+  stats_non_intra_inverse_quantiser_matrix_loaded = 0;
+
+  stats_non_intra_inverse_quantiser_matrix_changes_possible = 0;
+  stats_non_intra_inverse_quantiser_matrix_loaded_nr = 0;
+  stats_non_intra_inverse_quantiser_matrix_reset_nr = 0;
+
+  stats_quantiser_scale_possible = 0;
+  stats_quantiser_scale_nr = 0;
+
+  stats_intra_quantiser_scale_possible = 0;
+  stats_intra_quantiser_scale_nr = 0;
+
+  stats_non_intra_quantiser_scale_possible = 0;
+  stats_non_intra_quantiser_scale_nr = 0;
+
+
+  stats_block_non_intra_nr = 0;
+  stats_f_non_intra_compute_first_nr = 0;
+  stats_f_non_intra_compute_subseq_nr = 0;
+
+  stats_block_intra_nr = 0;
+  stats_f_intra_compute_subseq_nr = 0;
+  stats_f_intra_compute_first_nr = 0;
+
+  stats_f_non_intra_subseq_escaped_run_nr = 0;
+  stats_f_non_intra_first_escaped_run_nr = 0;
+}
+
+#endif
 
 #ifdef DEBUG
 #define DPRINTF(level, text...) \
@@ -122,6 +208,8 @@ void reset_vectors();
 void motion_vectors(unsigned int s);
 void motion_vector(int r, int s);
 
+void reset_to_default_intra_quantiser_matrix();
+void reset_to_default_non_intra_quantiser_matrix();
 void reset_to_default_quantiser_matrix();
 int sign(int16_t num);
 
@@ -313,7 +401,9 @@ uint32_t getbits(unsigned int nr)
 #ifndef GETBITS32
 {
   uint32_t result;
-
+#ifdef STATS
+  stats_bits_read+=nr;
+#endif
   result = (cur_word << (64-bits_left)) >> 32;
   result = result >> (32-nr);
   bits_left -=nr;
@@ -476,6 +566,7 @@ uint32_t nextbits(unsigned int nr)
 }
 #endif
 
+
 #ifdef DEBUG
 #define GETBITS(a,b) getbits(a,b)
 #else
@@ -507,7 +598,6 @@ int get_vlc(const vlc_table_t *table, char *func) {
 }
 
 
-
 void program_init()
 {
   
@@ -521,6 +611,9 @@ void program_init()
   b_image = &b_img;
   display_init();
 
+#ifdef STATS
+  statistics_init();
+#endif
 return;
 }
 int main(int argc, char **argv)
@@ -732,7 +825,7 @@ void sequence_header(void)
   /* When a sequence_header_code is decoded all matrices shall be reset
      to their default values */
   
-  reset_to_default_quantiser_matrix();
+  //  reset_to_default_quantiser_matrix();
   
   seq.header.horizontal_size_value = GETBITS(12, "horizontal_size_value");
   seq.header.vertical_size_value = GETBITS(12, "vertical_size_value");
@@ -747,6 +840,10 @@ void sequence_header(void)
   seq.header.load_intra_quantiser_matrix = GETBITS(1, "load_intra_quantiser_matrix");
   if(seq.header.load_intra_quantiser_matrix) {
     int n;
+    intra_inverse_quantiser_matrix_changed = 1;
+#ifdef STATS
+    stats_intra_inverse_quantiser_matrix_loaded = 1;
+#endif
     for(n = 0; n < 64; n++) {
       seq.header.intra_quantiser_matrix[n] = GETBITS(8, "intra_quantiser_matrix[n]");
     }
@@ -762,10 +859,36 @@ void sequence_header(void)
       }
     }
     
+  } else {
+    if(intra_inverse_quantiser_matrix_changed) {
+      reset_to_default_intra_quantiser_matrix();
+      intra_inverse_quantiser_matrix_changed = 0;
+#ifdef STATS
+      stats_intra_inverse_quantiser_matrix_reset = 1;
+#endif
+    }
   }
+  
+#ifdef STATS
+  stats_intra_inverse_quantiser_matrix_changes_possible++;
+
+  if(stats_intra_inverse_quantiser_matrix_loaded) {
+    stats_intra_inverse_quantiser_matrix_loaded_nr++;
+    stats_intra_inverse_quantiser_matrix_loaded = 0;
+  }
+  if(stats_intra_inverse_quantiser_matrix_reset) {
+    stats_intra_inverse_quantiser_matrix_reset_nr++;
+    stats_intra_inverse_quantiser_matrix_reset = 0;
+  }
+#endif
+  
   seq.header.load_non_intra_quantiser_matrix = GETBITS(1, "load_non_intra_quantiser_matrix");
   if(seq.header.load_non_intra_quantiser_matrix) {
     int n;
+    non_intra_inverse_quantiser_matrix_changed = 1;
+#ifdef STATS
+    stats_non_intra_inverse_quantiser_matrix_loaded = 1;
+#endif
     for(n = 0; n < 64; n++) {
       seq.header.non_intra_quantiser_matrix[n] = GETBITS(8, "non_intra_quantiser_matrix[n]");
     }
@@ -781,7 +904,28 @@ void sequence_header(void)
       }
     }
     
+  } else {
+    if(non_intra_inverse_quantiser_matrix_changed) {
+      reset_to_default_non_intra_quantiser_matrix();
+      non_intra_inverse_quantiser_matrix_changed = 0;
+#ifdef STATS
+      stats_non_intra_inverse_quantiser_matrix_reset = 1;
+#endif
+    }
   }
+
+#ifdef STATS
+  stats_non_intra_inverse_quantiser_matrix_changes_possible++;
+
+  if(stats_non_intra_inverse_quantiser_matrix_loaded) {
+    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
+    stats_non_intra_inverse_quantiser_matrix_loaded = 0;
+  }
+  if(stats_non_intra_inverse_quantiser_matrix_reset) {
+    stats_non_intra_inverse_quantiser_matrix_reset_nr++;
+    stats_non_intra_inverse_quantiser_matrix_reset = 0;
+  }
+#endif
 
 
   seq.horizontal_size = seq.header.horizontal_size_value;
@@ -1299,6 +1443,12 @@ void picture_data(void)
     static struct timeval otv;
     static struct timeval tva;
     static struct timeval otva;
+
+#ifdef STATS
+    static unsigned long long bits_read_old = 0;
+    static unsigned long long bits_read_new = 0;
+#endif
+
     double diff;
     
     otv.tv_sec = tv.tv_sec;
@@ -1362,15 +1512,32 @@ void picture_data(void)
 	otva.tv_sec = tva.tv_sec;
 	otva.tv_usec = tva.tv_usec;
 	gettimeofday(&tva, NULL);
-	
-	fprintf(stderr, "frame rate: %f fps\n",
+#ifdef STATS
+	bits_read_old = bits_read_new;
+	bits_read_new = stats_bits_read;
+#endif
+	fprintf(stderr, "frame rate: %f fps\t",
 		25.0/(((double)tva.tv_sec+
 		       (double)(tva.tv_usec)/1000000.0)-
 		      ((double)otva.tv_sec+
 		       (double)(otva.tv_usec)/1000000.0))
 		);
+#ifdef STATS
+	fprintf(stderr, "bit rate: %.2f Mb/s, (%.2f), ",
+		(((double)(bits_read_new-bits_read_old))/1000000.0)/
+		(((double)tva.tv_sec+
+		  (double)(tva.tv_usec)/1000000.0)-
+		 ((double)otva.tv_sec+
+		  (double)(otva.tv_usec)/1000000.0)),
+		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0*24.0);
 	
 	
+	fprintf(stderr, "(%.2f), %.2f Mb/f\n",
+		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0*30.0,
+		(((double)(bits_read_new-bits_read_old))/1000000.0)/25.0);
+#else
+	fprintf(stderr, "\n");
+#endif
       }
       frame_nr--;
     }
@@ -1647,6 +1814,35 @@ void macroblock(void)
     /**/
     new_scaled = 1;
   }
+  
+#ifdef STATS
+  stats_quantiser_scale_possible++;
+  if(new_scaled) {
+    stats_quantiser_scale_nr++;
+  }
+#endif
+  if(mb.modes.macroblock_intra) {
+#ifdef STATS
+    stats_intra_quantiser_scale_possible++;
+#endif
+    if(new_scaled) {
+#ifdef STATS
+      stats_intra_quantiser_scale_nr++;
+#endif
+      new_scaled = 0;
+    }
+    
+  } else {
+#ifdef STATS
+    stats_non_intra_quantiser_scale_possible++;
+#endif
+    if(new_scaled) {
+#ifdef STATS
+      stats_non_intra_quantiser_scale_nr++;
+#endif
+      new_scaled = 0;
+    }
+  }    
   if(mb.modes.macroblock_motion_forward ||
      (mb.modes.macroblock_intra &&
       pic.coding_ext.concealment_motion_vectors)) {
@@ -2351,6 +2547,9 @@ void get_dct_non_intra_first(runlevel_t *runlevel, char *func)
   
   if (tab->run==65) { /* escape */
     uint32_t tmp = GETBITS(6+6+12, "(get_dct escape - run & level )");
+#ifdef STATS
+    stats_f_non_intra_first_escaped_run_nr++;
+#endif
     //    dropbits(tab->len);
     //    run = GETBITS(6, "(get_dct escape - run )");
     //    val = GETBITS(12, "(get_dct escape - level )");
@@ -2472,6 +2671,9 @@ void block_intra(unsigned int i)
   else
     cc = (i%2)+1;
   
+#ifdef STATS
+  stats_block_intra_nr++;
+#endif  
   {
     int x = seq.mb_column;
     int y = seq.mb_row;
@@ -2541,7 +2743,9 @@ void block_intra(unsigned int i)
 	  mb.QFS[0] = f;
 	  inverse_quantisation_sum = f;
 	}
-
+#ifdef STATS
+	stats_f_intra_compute_first_nr++;
+#endif
 	n++;
       }
       
@@ -2573,6 +2777,12 @@ void block_intra(unsigned int i)
 	    int f = (runlevel.level 
 		     * seq.header.intra_inverse_quantiser_matrix[i]
 		     * mb.quantiser_scale)/16;
+
+
+#ifdef STATS
+	    stats_f_intra_compute_subseq_nr++;
+#endif
+
 	    if(f > 2047)
 	      f = 2047;
 	    else if(f < -2048)
@@ -2610,6 +2820,11 @@ void block_intra(unsigned int i)
 	    int f = (runlevel.level 
 		     * seq.header.intra_inverse_quantiser_matrix[i]
 		     * mb.quantiser_scale)/16;
+
+#ifdef STATS
+	    stats_f_intra_compute_subseq_nr++;
+#endif
+	    
 	    if(f > 2047)
 	      f = 2047;
 	    else if(f < -2048)
@@ -2704,6 +2919,10 @@ void block_non_intra(unsigned int b)
     cc = 0;
   else
     cc = (b%2)+1;
+
+#ifdef STATS
+  stats_block_non_intra_nr++;
+#endif
   
   {
     int n;
@@ -2732,6 +2951,10 @@ void block_non_intra(unsigned int b)
     f = ( ((runlevel.level*2)+(runlevel.level > 0 ? 1 : -1))
 	  * seq.header.non_intra_inverse_quantiser_matrix[i]
 	  * mb.quantiser_scale )/32;
+
+#ifdef STATS
+    stats_f_non_intra_compute_first_nr++;
+#endif
     
     if(f > 2047)
       f = 2047;
@@ -2743,7 +2966,8 @@ void block_non_intra(unsigned int b)
     
     n++;
     
-    while( 1 ) {
+    
+    while(1) {
       //      get_dct_non_intra_subseq(&runlevel, "dct_dc_subsequent");
       int code;
       const DCTtab *tab;
@@ -2791,6 +3015,11 @@ void block_non_intra(unsigned int b)
       } 
       else {
 	if (tab->run == 65) { /* escape */
+
+#ifdef STATS
+	  stats_f_non_intra_subseq_escaped_run_nr++;
+#endif
+
 	  //	  run = GETBITS(6, "(get_dct escape - run )");
 	  //	  val = GETBITS(12, "(get_dct escape - level )");
 	  //	  dropbits(tab->len); escape always = 6 bits
@@ -2826,6 +3055,10 @@ void block_non_intra(unsigned int b)
 	      * mb.quantiser_scale )/32;
 	// flytta ut mb.quantiser_scale ??
 	
+#ifdef STATS
+	stats_f_non_intra_compute_subseq_nr++;
+#endif
+
 	if(f > 2047) {
 	  //	  fprintf(stderr,"clip");
 	  //	  if( sgn )
@@ -3112,6 +3345,20 @@ void reset_to_default_quantiser_matrix()
 	 default_non_intra_inverse_quantiser_matrix,
 	 sizeof(seq.header.non_intra_inverse_quantiser_matrix));
   
+}
+
+void reset_to_default_intra_quantiser_matrix()
+{
+  memcpy(seq.header.intra_inverse_quantiser_matrix,
+	 default_intra_inverse_quantiser_matrix,
+	 sizeof(seq.header.intra_inverse_quantiser_matrix));
+}
+
+void reset_to_default_non_intra_quantiser_matrix()
+{
+  memcpy(seq.header.non_intra_inverse_quantiser_matrix,
+	 default_non_intra_inverse_quantiser_matrix,
+	 sizeof(seq.header.non_intra_inverse_quantiser_matrix));
 }
 
 
@@ -4356,6 +4603,62 @@ void exit_program()
   }
 
   
- 
+#ifdef STATS 
+  
+  
+  fprintf(stderr, "intra_mtrx_chg_possible: %d\n",
+	  stats_intra_inverse_quantiser_matrix_changes_possible);
+  fprintf(stderr, "intra_mtrx_loaded: %d\n",
+	  stats_intra_inverse_quantiser_matrix_loaded_nr);
+  fprintf(stderr, "intra_mtrx_reset: %d\n",
+	  stats_intra_inverse_quantiser_matrix_reset_nr);
+
+  fprintf(stderr, "non_intra_mtrx_chg_possible: %d\n",
+	  stats_non_intra_inverse_quantiser_matrix_changes_possible);
+  fprintf(stderr, "non_intra_mtrx_loaded: %d\n",
+	  stats_non_intra_inverse_quantiser_matrix_loaded_nr);
+  fprintf(stderr, "non_intra_mtrx_reset: %d\n",
+	  stats_non_intra_inverse_quantiser_matrix_reset_nr);
+  
+
+  fprintf(stderr, "stats_quantiser_scale_possible: %d\n",
+	  stats_quantiser_scale_possible);
+  fprintf(stderr, "stats_quantiser_scale_nr: %d\n",
+	  stats_quantiser_scale_nr);
+
+  fprintf(stderr, "stats_intra_quantiser_scale_possible: %d\n",
+	  stats_intra_quantiser_scale_possible);
+  fprintf(stderr, "stats_intra_quantiser_scale_nr: %d\n",
+	  stats_intra_quantiser_scale_nr);
+
+  fprintf(stderr, "stats_non_intra_quantiser_scale_possible: %d\n",
+	  stats_non_intra_quantiser_scale_possible);
+  fprintf(stderr, "stats_non_intra_quantiser_scale_nr: %d\n",
+	  stats_non_intra_quantiser_scale_nr);
+
+  fprintf(stderr, "stats_block_non_intra_nr: %d\n",
+	  stats_block_non_intra_nr);
+  fprintf(stderr, "stats_f_non_intra_compute_first_nr: %d\n",
+	  stats_f_non_intra_compute_first_nr);
+  fprintf(stderr, "stats_f_non_intra_compute_subseq_nr: %d\n",
+	  stats_f_non_intra_compute_subseq_nr);
+  fprintf(stderr, "stats_f_non_intra_first_escaped_run_nr: %d\n",
+	  stats_f_non_intra_first_escaped_run_nr);
+  fprintf(stderr, "stats_f_non_intra_subseq_escaped_run_nr: %d\n",
+	  stats_f_non_intra_subseq_escaped_run_nr);
+  
+
+  fprintf(stderr, "stats_block_intra_nr: %d\n",
+	  stats_block_intra_nr);
+  fprintf(stderr, "stats_f_intra_compute_first_nr: %d\n",
+	  stats_f_intra_compute_first_nr);
+  fprintf(stderr, "stats_f_intra_compute_subseq_nr: %d\n",
+	  stats_f_intra_compute_subseq_nr);
+
+
+  
+
+
+#endif
   exit(0);
 }
