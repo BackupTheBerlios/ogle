@@ -46,6 +46,10 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 
+#if USE_SOLARIS_XMU 
+#include <X11/Xmu/XmuSolaris.h>
+#endif
+
 #include "common.h"
 #include "debug_print.h"
 #include "video_types.h"
@@ -681,6 +685,11 @@ void display_init(int padded_width, int padded_height,
   XSetWindowAttributes xswa;
   unsigned long xswamask;
   XTextProperty window_name_prop, icon_name_prop;
+  XVisualInfo *vinfo_list;
+  int vinfo_nitems;
+  long vinfo_mask;
+  XVisualInfo vinfo_template;
+
   scale.image_width = padded_width;
   scale.image_height = padded_height;
   
@@ -715,8 +724,38 @@ void display_init(int padded_width, int padded_height,
       color_depth = 24;
     }
     
-    XMatchVisualInfo(mydisplay, screen_nr, color_depth, TrueColor, &vinfo);
-    //DNOTE("X11 visual id is %lx\n", vinfo.visualid);
+
+    vinfo_template.screen = screen_nr;
+    vinfo_template.depth = color_depth;
+    vinfo_template.class = TrueColor;
+
+    vinfo_mask = VisualScreenMask | VisualDepthMask | VisualClassMask;
+    vinfo_list = XGetVisualInfo(mydisplay, vinfo_mask,
+				&vinfo_template, &vinfo_nitems);
+    
+
+    if(vinfo_list == NULL) {
+      FATAL("No suitable visual found\n");
+    } else {
+      int n = 0;
+#if USE_SOLARIS_XMU
+      double gamma;
+      
+      for(n = 0; n < vinfo_nitems; n++) {
+	if(XSolarisGetVisualGamma(mydisplay, screen_nr, vinfo_list[n].visual,
+				  &gamma) == Success) {
+	  if(gamma == 1.0) {
+	    // choose a visual with a gamma that can be changed
+	    break;
+	  }
+	}
+      }
+#endif
+      NOTE("Found %d matching visuals, using visual id: %x\n",
+	   vinfo_nitems, vinfo_list[n].visualid);
+      vinfo = vinfo_list[n];
+      XFree(vinfo_list);
+    }
     
     size_hints = XAllocSizeHints();
     
