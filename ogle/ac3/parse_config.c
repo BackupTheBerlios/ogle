@@ -33,6 +33,12 @@ static int front = 2;
 static int rear = 0;
 static int sub = 0;
 
+static char *audio_driver = NULL;
+
+char *get_audio_driver(void)
+{
+  return audio_driver;
+}
 
 char *get_audio_device(void)
 {
@@ -41,7 +47,7 @@ char *get_audio_device(void)
 
 static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
 {
-  xmlChar *s;
+  xmlChar *s = NULL;
   
   cur = cur->xmlChildrenNode;
   
@@ -54,8 +60,18 @@ static void parse_device(xmlDocPtr doc, xmlNodePtr cur)
 	    free(audio_device);
 	  }
 	  audio_device = strdup(s);
-	  free(s);
 	}
+      } else if(!strcmp("driver", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(audio_driver != NULL) {
+	    free(audio_driver);
+	  }
+	  audio_driver = strdup(s);
+	}
+      }
+      if(s) {
+	free(s);
+	s = NULL;
       }
     }
     cur = cur->next;

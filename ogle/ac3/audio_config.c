@@ -22,6 +22,7 @@
 #include "audio_config.h"
 
 #include "sync.h"
+#include "debug_print.h"
 
 audio_config_t *audio_config_init(void)
 {
@@ -68,13 +69,31 @@ int audio_config(audio_config_t *aconf,
     drivers = ao_drivers();
     fprintf(stderr, "ao_drivers passed\n");
     if(!aconf->adev_handle) {
-      if(drivers[0].open != NULL) {
+      int n;
+      int driver_n = 0;
+      char *driver_str = get_audio_driver();
+      
+      if(driver_str != NULL) {
+	for(n = 0; drivers[n].name != NULL; n++) {
+	  if(!strcmp(drivers[n].name, driver_str)) {
+	    driver_n = n;
+	    break;
+	  }
+	}
+	if(drivers[n].name == NULL) {
+	  NOTE("Audio driver '%s' not found\n", driver_str);
+	}
+      }
+
+      NOTE("Using audio driver '%s'\n", drivers[driver_n].name);
+	     
+      if(drivers[driver_n].open != NULL) {
 	char *dev_string = get_audio_device();
-	fprintf(stderr, "trying audio driver %s\n", drivers[0].name);
-	aconf->adev_handle = ogle_ao_open(drivers[0].open, dev_string);
+	fprintf(stderr, "trying audio driver %s\n", drivers[driver_n].name);
+	aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
 	if(!aconf->adev_handle) {
 	  fprintf(stderr, "failed opening the %s audio driver at %s\n",
-		  drivers[0].name, dev_string);
+		  drivers[driver_n].name, dev_string);
 	  exit(1);
 	}
       } else {

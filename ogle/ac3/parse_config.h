@@ -22,6 +22,7 @@
 int parse_config(void);
 
 char *get_audio_device(void);
+char *get_audio_driver(void);
 
 int get_num_sub_speakers(void);
 int get_num_rear_speakers(void);
