@@ -41,7 +41,7 @@ for p in $*; do
     elif [ $p = "--check" ]; then
 	debug="1"
 	check="1"
-    elif [ `echo $p | grep == "--debug-"` != "" ]; then
+    elif [ `echo $p | grep -- "--debug-"` != "" ]; then
 	if [ $p = --debug-nav ]; then
 	    nav_debug=$d_suf
 	elif [ $p = --debug-audio ]; then
