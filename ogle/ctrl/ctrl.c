@@ -270,7 +270,7 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
     *ret_capability = DECODE_MPEG1_AUDIO | DECODE_MPEG2_AUDIO;
   } else if((capability & DECODE_DVD_SPU) == capability) {
     name = getenv("DVDP_SPU");
-    *ret_capability = DECODE_DVD_SPU;
+    *ret_capability = (DECODE_DVD_SPU | VIDEO_OUTPUT);
   } else if((capability & (DECODE_MPEG1_VIDEO | DECODE_MPEG2_VIDEO))
 	    == capability) {
     name = getenv("DVDP_VIDEO");
@@ -291,6 +291,9 @@ static char *capability_to_decoderstr(int capability, int *ret_capability)
 	    == capability) {
     name = getenv("DVDP_UI");
     *ret_capability = UI_DVD_GUI;
+  } else if((capability & VIDEO_OUTPUT) == capability) {
+    name = getenv("DVDP_VIDEO_OUT");
+    *ret_capability = (DECODE_DVD_SPU | VIDEO_OUTPUT);
   }
 
   return name;
@@ -1296,6 +1299,14 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
   int stat_loc;
   int died = 0;
   pid_t pid;
+
+  fprintf(stderr, "ctrl: sigchldhandler got signal %d\n", info->si_signo);
+  if(info->si_errno) {
+    fprintf(stderr, "ctrl: error: %s\n", strerror(info->si_errno));
+  }
+  fprintf(stderr, "si_code: %d\n", info->si_code);
+
+  fprintf(stderr, "si_pid: %d\n", info->si_pid);
   
   switch(info->si_code) {
   case CLD_STOPPED:
@@ -1321,9 +1332,11 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 	    info->si_pid, info->si_status);
     died = 1;
     break;
-  case SI_NOINFO:
+#ifdef SI_NOINFO  //solaris only
+   case SI_NOINFO:
     fprintf(stderr, "ctrl: sigchld with no info\n");
     break;
+#endif
   default:
     fprintf(stderr, "**ctrl: unknown cause of sigchld, si_code: %d\n",
 	    info->si_code);
@@ -1335,32 +1348,42 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 #define WIFCONTINUED(x) 0
 #endif
 
-  if(waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)
-     != info->si_pid) {
-    perror("waitpid");
+  while(1) {
+    if((pid =waitpid(info->si_pid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
+      perror("waitpid");
+      switch(errno) {
+      case EINTR:
+	continue;
+	break;
+      default:
+	break;
+      }
+    }
+    break;
   }
+  
   if(WIFEXITED(stat_loc)) {
     died = 1;
     fprintf(stderr, "pid: %d exited with status: %d\n",
-	    info->si_pid,
+	    pid,
 	    WEXITSTATUS(stat_loc));
   } else if(WIFSIGNALED(stat_loc)) {
     died = 1;
     fprintf(stderr, "pid: %d terminated on signal: %d\n",
-	    info->si_pid,
+	    pid,
 	    WTERMSIG(stat_loc));
   } else if(WIFSTOPPED(stat_loc)) {
     fprintf(stderr, "pid: %d stopped on signal: %d\n",
-	    info->si_pid, 
+	    pid, 
 	    WSTOPSIG(stat_loc));
   } else if(WIFCONTINUED(stat_loc)) {
-    fprintf(stderr, "pid: %d continued\n", info->si_pid);
+    fprintf(stderr, "pid: %d continued\n", pid);
   } else {
-    fprintf(stderr, "pid: %d\n", info->si_pid);
+    fprintf(stderr, "pid: %d\n", pid);
   }
   if(died) {
     int n;
-    if(!remove_from_pidlist(info->si_pid)) {
+    if(!remove_from_pidlist(pid)) {
       fprintf(stderr, "pid died before registering\n");
     }
     for(n = 0; n < num_pids; n++) {
