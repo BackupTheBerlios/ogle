@@ -93,8 +93,7 @@ eval_if_version_1() {
 }
 
 /* Evaluate special instruction....this could mean goto
-   Return new row number or 0 if no new row or -1 if BREAK or -2 if
-   UNKNOWN. */
+   Return new row number; 0 if no new row, 256 if Break or -1 if UNKNOWN. */
 static int
 eval_special_instruction() {
   switch(bits(1,4,4)) {
@@ -103,12 +102,12 @@ eval_special_instruction() {
     case 1: // Goto line
       return bits(7,0,8);
     case 2: // Break
-      return -1;
+      return 256; // max number of rows < 256, so we will end this set
     case 3: // Set temporary parental level and goto
       state->SPRM[13] = bits(6,4,4);
       return bits(7,0,8); 
   }
-  return -2;
+  return -1;
 }
 
 /* Evaluate link instruction.
@@ -135,18 +134,18 @@ eval_link_instruction(link_t *return_values) {
         return 1;
       case 5:
         return_values->command = LinkPTTN;
-        return_values->data1 = but;
-        return_values->data2 = bits(6,6,10);
+        return_values->data1 = bits(6,6,10);
+        return_values->data2 = but;
         return 1;
       case 6:
         return_values->command = LinkPGN;
-        return_values->data1 = but;
-        return_values->data2 = bits(7,1,7);
+        return_values->data1 = bits(7,1,7);
+        return_values->data2 = but;
         return 1;
       case 7:
         return_values->command = LinkCN;
-        return_values->data1 = but;
-        return_values->data2 = bits(7,0,8);
+        return_values->data1 = bits(7,0,8);
+        return_values->data2 = but;
         return 1;
     }
   }
@@ -215,18 +214,18 @@ eval_jump_instruction (link_t *return_values) {
           return 1;
         case 1:
           return_values->command = CallSS_VMGM_MENU;
-          return_values->data1 = bits(4,0,8);
-          return_values->data2 = bits(5,4,4);
+          return_values->data1 = bits(5,4,4);
+          return_values->data2 = bits(4,0,8);
           return 1;
         case 2:
           return_values->command = CallSS_VTSM;
-          return_values->data1 = bits(4,0,8);
-          return_values->data2 = bits(5,4,4);
+          return_values->data1 = bits(5,4,4);
+          return_values->data2 = bits(4,0,8);
           return 1;
         case 3:
           return_values->command = CallSS_VMGM_PGC;
-          return_values->data1 = bits(4,0,8);
-          return_values->data2 = bits(5,4,4);
+          return_values->data1 = bits(2,1,15);
+          return_values->data2 = bits(4,0,8);
           return 1;
       }
       break;
@@ -277,6 +276,7 @@ eval_system_set (int cond, link_t *return_values) {
   if(bits(1,4,4)) {
     return eval_link_instruction(return_values);
   }
+  return 0;
 }
 
 /* Evaluate if version 3 
@@ -300,7 +300,7 @@ eval_set_op(cond) {
   uint8_t  reg  = bits(3,0,8);
   uint8_t  reg2 = bits(5,4,4);
   uint16_t data = eval_reg_or_data(bits(0,3,1), 4);
-  if (cond) {
+  if(cond) {
     switch(op) {
       case 1:
         state->GPRM[reg] = data;
@@ -359,7 +359,7 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
   int i, extra_bits;
   int res, cond;
 
-  for(i=0;i<8;i++) {
+  for(i = 0; i < 8; i++) {
     cmd.bits[i] = bytes[i];
     cmd.examined[i] = 0;
   }
@@ -370,7 +370,7 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
       res = eval_special_instruction();
       if(cond) {
         if(res == -1) {
-          fprintf(stderr, "EXIT!");
+          fprintf(stderr, "UNKNOWN!");
           exit(0);
         }
         return res;
@@ -396,33 +396,31 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
     case 2: // System set instructions
       cond = eval_if_version_2();
       res = eval_system_set(cond, return_values);
-      if (res) {
+      //Should there be a if(cond) { here?
+      if(res)
         return -1; 
-      }
       break;
     case 3: // Set instructions
       cond = eval_if_version_3();
       res = eval_set(cond, return_values);
-      if (res) {
-        return -1; 
-      }
+      //Should there be a if(cond) { here?
+      if(res)
+        return -1;
       break;
   }
   // Check if there are bits not yet examined
 
   extra_bits = 0;
-  for (i = 0; i < 8; i++)
-    if (cmd.bits [i] & ~ cmd.examined [i])
-    {
+  for(i = 0; i < 8; i++)
+    if(cmd.bits [i] & ~cmd.examined [i]) {
       extra_bits = 1;
       break;
     }
-  if (extra_bits)
-  {
+  if(extra_bits) {
     printf ("[WARNING, unknown bits:");
-    for (i = 0; i < 8; i++)
-      printf (" %02x", cmd.bits [i] & ~ cmd.examined [i]);
-    printf ("]\n");
+    for(i = 0; i < 8; i++)
+      printf(" %02x", cmd.bits [i] & ~cmd.examined [i]);
+    printf("]\n");
   }
 
   return 0;
@@ -433,16 +431,18 @@ static int eval_command (uint8_t *bytes, link_t *return_values) {
 bool
 eval (uint8_t commands[][8], int num_commands, 
       state_t *registers, link_t *return_values) {
-  int i=0;
-  int total=0;
+  int i = 0;
+  int total = 0;
   int line;
+  
   state = registers;
 
-  while(i<=num_commands && total<100000) {
-    line=eval_command(commands[i], return_values);
+  while(i < num_commands && total < 100000) {
+    memset(return_values, 0, sizeof(link_t));
+    line = eval_command(commands[i], return_values);
     if (line>0) { // Goto command
-      i=line-1;
-    } else if (line<0) { // Link command
+      i = line-1;
+    } else if (line < 0) { // Link command
       return 1;
     } else {
       i++;

@@ -59,7 +59,7 @@ typedef struct {
 } state_t;
 
 bool
-eval (uint8_t commands[][8], int num_commands, 
-      state_t *registers, link_t *return_values);
+eval(uint8_t commands[][8], int num_commands, 
+     state_t *registers, link_t *return_values);
 
 #endif /* DECODER_H */
