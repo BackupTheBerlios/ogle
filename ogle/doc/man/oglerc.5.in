@@ -57,6 +57,9 @@ DVD-ROM drive.
     <device>
       <driver>oss</driver>
       <path>/dev/audio</path>
+      <alsa>
+        <name>default</name>
+      </alsa>
     </device>
     <speakers>
       <front>2</front>
@@ -78,8 +81,10 @@ DVD-ROM drive.
 	It can be one of 'oss', 'alsa', 'solaris', 'obsd'.
 	
 <path>
-	The path to your audio device
+	The path to your audio device.
 
+<alsa><name>
+	The name of the alsa device when using alsa.
 
 <liba52>
 .RS 2

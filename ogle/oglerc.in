@@ -21,6 +21,9 @@
     <device>
       <driver>@DEFAULT_AUDIO_DRIVER@</driver>
       <path>@DEFAULT_AUDIO_DEVICE@</path>
+      <alsa>
+	<name>default</name>
+      </alsa>
     </device>
     <speakers>
       <front>2</front>
