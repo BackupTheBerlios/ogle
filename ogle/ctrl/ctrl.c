@@ -93,7 +93,7 @@ char *demux_debug = NULL;
 int ac3_audio_stream = -1;
 int dts_audio_stream = -1;
 int mpeg_audio_stream = -1;
-int pcm_audio_stream = -1;
+int lpcm_audio_stream = -1;
 int mpeg_video_stream = -1;
 int subpicture_stream = -1;
 int nav_stream = -1;
@@ -254,6 +254,9 @@ static char *streamid_to_decoderstr(uint8_t stream_id, uint8_t subtype)
       
     } else if((subtype >= 0x88) && (subtype < 0x90)) {
       name = getenv("DVDP_DTS");
+
+    } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
+      name = getenv("DVDP_LPCM");
 
     } else if((subtype >= 0x20) && (subtype < 0x40)) {
       name = getenv("DVDP_SPU");
@@ -751,7 +754,7 @@ int main(int argc, char *argv[])
       mpeg_audio_stream = atoi(optarg);
       break;
     case 'p':
-      pcm_audio_stream = atoi(optarg);
+      lpcm_audio_stream = atoi(optarg);
       break;
     case 'v':
       mpeg_video_stream = atoi(optarg);
@@ -837,7 +840,7 @@ int main(int argc, char *argv[])
   
   /* If any streams are specified on the commadline, dexmux only those */
   /*
-  if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
+  if((ac3_audio_stream & mpeg_audio_stream & lpcm_audio_stream &
       dts_audio_stream & mpeg_video_stream & subpicture_stream &
       nav_stream) == -1) {
     ev.demuxdefault.state = 1;
@@ -1002,7 +1005,7 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
   int state;
   
   /* If any stream is specified on the commadline, dexmux only those */
-  if((ac3_audio_stream & mpeg_audio_stream & pcm_audio_stream &
+  if((ac3_audio_stream & mpeg_audio_stream & lpcm_audio_stream &
       dts_audio_stream & mpeg_video_stream & subpicture_stream &
       nav_stream) == -1)
     state = 0;
@@ -1039,6 +1042,22 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
       
       /* dvd, it's an dts stream ok */
       if((subtype >= 0x88) && (subtype < 0x90)) {
+	return 1;
+      }
+      
+    }
+
+    if(state) {
+
+      if((subtype == (0xA0 | (lpcm_audio_stream & 0x7))) &&
+	 (lpcm_audio_stream >= 0) && (lpcm_audio_stream < 8)) {
+	return 1;
+      }
+      
+    } else {
+      
+      /* dvd, it's an lpcm stream ok */
+      if((subtype >= 0xA0) && (subtype < 0xA8)) {
 	return 1;
       }
       
