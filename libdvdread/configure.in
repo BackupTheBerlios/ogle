@@ -1,5 +1,5 @@
 AC_INIT(dvdread/dvd_reader.c)
-AM_INIT_AUTOMAKE(libdvdread, 0.9.2)
+AM_INIT_AUTOMAKE(libdvdread, 0.9.3)
 AM_CONFIG_HEADER(config.h)
 
 AC_CANONICAL_HOST
@@ -63,8 +63,8 @@ AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
 
-dnl Linux and Solaris needs this to prototype lseek64 and others
-CFLAGS="-D_LARGEFILE64_SOURCE $CFLAGS"
+dnl Linux and Solaris needs this to make lseek and others be 64 bit.
+CFLAGS="-D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 $CFLAGS"
 
 dnl It's nice to have clean code...
 AC_ARG_ENABLE([warnings],
@@ -81,8 +81,7 @@ AC_ARG_ENABLE([pedantic],
     [  --enable-pedantic	       enable various extra warnings for gcc])
 if test x"$enable_pedantic" = xyes; then
     if test x"$GCC" = xyes; then
-	OPT_CFLAGS="-Wall -Wundef -Wshadow -pedantic -Wbad-function-cast -Wmissing-noreturn -Wchar-subscripts -Wcomments -Wconversion -Wformat -Wimplicit-function-dec -Wimplicit-int -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wsign-compare -Wstrict-prototypes -Wwrite-strings $CFLAGS"
-	AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
+	CFLAGS="-Wall -Wundef -Wshadow -pedantic -Wbad-function-cast -Wmissing-noreturn -Wchar-subscripts -Wcomments -Wconversion -Wformat -Wimplicit-function-dec -Wimplicit-int -Wmain -Wmissing-braces -Wmultichar -Wnested-externs -Wparentheses -Wpointer-arith -Wsign-compare -Wstrict-prototypes -Wwrite-strings $CFLAGS"
     fi
 fi
 

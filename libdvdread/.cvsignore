@@ -1,7 +1,5 @@
 .*.sw[po]
 *~
-*.diff
-*.patch
 *.lo
 *.o
 Makefile
