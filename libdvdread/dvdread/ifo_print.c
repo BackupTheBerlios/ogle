@@ -213,7 +213,7 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
      && attr->lang_code == 0
      && attr->lang_extension == 0
      && attr->code_extension == 0
-     && attr->unknown2 == 0
+     && attr->unknown3 == 0
      && attr->unknown1 == 0) {
     printf("-- Unspecified --");
     return;
@@ -327,8 +327,22 @@ static void ifoPrint_audio_attributes(int level, audio_attr_t *attr) {
     printf("(please send a bug report) ");
   }
     
-  printf("%d ", attr->unknown1);
-  printf("%d ", attr->unknown2);
+  printf("%d ", attr->unknown3);
+  if(attr->application_mode == 1) {
+    printf("ca=%d ", attr->app_info.karaoke.channel_assignment);
+    printf("%d ", attr->app_info.karaoke.version);
+    if(attr->app_info.karaoke.mc_intro) 
+      printf("mc intro ");
+    printf("%s ", attr->app_info.karaoke.mode ? "duet" : "solo");
+    printf("%d ", attr->app_info.karaoke.unknown4);
+  }
+  if(attr->application_mode == 2) {
+    if(attr->app_info.surround.dolby_encoded) {
+      printf("dolby surround ");
+    }
+    printf("%d ", attr->app_info.surround.unknown5);
+    printf("%d ", attr->app_info.surround.unknown6);
+  }    
 }
 
 static void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {

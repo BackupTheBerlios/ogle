@@ -107,7 +107,7 @@ typedef struct {
 } ATTRIBUTE_PACKED video_attr_t;
 
 /**
- * Audio Attributes. (Incomplete/Wrong?)
+ * Audio Attributes.
  */
 typedef struct {
 #ifdef WORDS_BIGENDIAN
@@ -134,11 +134,39 @@ typedef struct {
   uint16_t lang_code;
   uint8_t  lang_extension;
   uint8_t  code_extension;
-  uint16_t unknown2;
+  uint8_t unknown3;
+  union {
+    struct ATTRIBUTE_PACKED {
+#ifdef WORDS_BIGENDIAN
+      unsigned int unknown4           : 1;
+      unsigned int channel_assignment : 3;
+      unsigned int version            : 2;
+      unsigned int mc_intro           : 1; /* probably 0: true, 1:false */
+      unsigned int mode               : 1; /* Karaoke mode 0: solo 1: duet */
+#else
+      unsigned int mode               : 1;
+      unsigned int mc_intro           : 1;
+      unsigned int version            : 2;
+      unsigned int channel_assignment : 3;
+      unsigned int unknown4           : 1;
+#endif
+    } karaoke;
+    struct ATTRIBUTE_PACKED {
+#ifdef WORDS_BIGENDIAN
+      unsigned int unknown5           : 4;
+      unsigned int dolby_encoded      : 1; /* suitable for surround decoding */
+      unsigned int unknown6           : 3;
+#else
+      unsigned int unknown6           : 3;
+      unsigned int dolby_encoded      : 1;
+      unsigned int unknown5           : 4;
+#endif
+    } surround;
+  } app_info;
 } ATTRIBUTE_PACKED audio_attr_t;
 
 /**
- * Subpicture Attributes.(Incomplete/Wrong)
+ * Subpicture Attributes.
  */
 typedef struct {
   /*
