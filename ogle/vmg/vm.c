@@ -430,8 +430,6 @@ int get_Audio_stream(int audioN)
 {
   int streamN = -1;
   
-  get_PGC(state.pgcN);
-  
   /* Is there any contol info for this logical stream */ 
   if(state.pgc->audio_control[audioN] & (1<<15)) {
     streamN = (state.pgc->audio_control[audioN] >> 8) & 0x07;  
@@ -445,8 +443,6 @@ int get_Spu_stream(int spuN)
 {
   int streamN = -1;
   int source_aspect = get_video_aspect();
-  
-  get_PGC(state.pgcN);
   
   /* Is there any contol info for this logical stream */ 
   if(state.pgc->subp_control[spuN] & (1<<31)) {

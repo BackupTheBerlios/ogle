@@ -498,7 +498,10 @@ void do_run(void) {
 	case DVDCtrlPauseOn:
 	case DVDCtrlPauseOff:
 	case DVDCtrlStop:
-	
+	  fprintf(stderr, "Unknown (not handled) DVDCtrlEvent %d\n",
+		  ev.dvdctrl.cmd.type);
+	  break;
+	  
 	case DVDCtrlGetCurrentAudio:
 	  {
 	    MsgEvent_t send_ev;

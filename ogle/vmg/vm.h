@@ -21,7 +21,7 @@ typedef struct {
   
   domain_t domain;
   int vtsN; // 0 is vmgm?
-  int pgcN; // either this or *pgc is enough. Which to use?
+  //  int pgcN; // either this or *pgc is enough. Which to use?
   int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN;
   int blockN;
