@@ -1,24 +1,31 @@
- SSSS      CCC          r[A]
-=======   =====    ===============
-0001  =   000      0000_XXXX  g[X]
-0010 <->  001 BC   100X_XXXX  s[x]
-0011 +=   010 EQ
-0100 -=   011 NE
-0101 *=   100 GE
-0110 /=   101 GT
-0111 %=   110 LE
-1000 rnd  111 LT
+ SSSS      CCC            r[A]
+=======   =====      ===============
+0001  =   000        0000_XXXX  g[X]
+0010 <->  001 BC &   100X_XXXX  s[x]
+0011 +=   010 EQ ==
+0100 -=   011 NE !=
+0101 *=   100 GE >=
+0110 /=   101 GT >
+0111 %=   110 LE <=
+1000 rnd  111 LT <
 1001 &= 
 1010 |= 
 1011 ^= 
 
-00*0_0000 0CCC_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- if (r[A] `C` r[B]) then ...
-00*0_0000 1CCC_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- if (r[A] `C` D) then ...
+000 -- Special commands
+=======================
+0000_0000 0CCC_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- if (r[A] `C` r[B]) then ...
+0000_0000 1CCC_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- if (r[A] `C` D) then ...
 
 0000_0000 ****_0000 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- NOP
-0000_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** LLLL_LLLL -- Goto line
+0000_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** LLLL_LLLL -- Goto L
 0000_0000 ****_0010 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Break
-0000_0000 ****_0011 ****_**** ****_**** ****_**** ****_**** ****_PPPP LLLL_LLLL -- Set parental level to P and goto line L (enter pin code?)
+0000_0000 ****_0011 ****_**** ****_**** ****_**** ****_**** ****_PPPP LLLL_LLLL -- SetTMPL P,L
+
+001 -- Link/jump commands
+=========================
+0010_0000 0CCC_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- if (r[A] `C` r[B]) then ...
+0010_0000 1CCC_**** ****_**** AAAA_AAAA DDDD_DDDD DDDD_DDDD ****_**** ****_**** -- if (r[A] `C` D) then ...
 
 0010_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** BBBB_BB** 0000_0000 -- LinkNoLink
 0010_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** BBBB_BB** 0000_0001 -- LinkTopC
@@ -42,7 +49,7 @@
 
 0011_0000 ****_0001 ****_**** ****_**** ****_**** ****_**** ****_**** ****_**** -- Exit
 0011_0000 ****_0010 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpTT          (jump to title in vts title domain [from FP,VMGM])
-0011_0000 ****_0011 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpVTS_TT      (jump to title in same vts title domain [from VTSM,TT])
+0011_0000 ****_0011 ****_**** ****_**** ****_**** *TTT_TTTT ****_**** ****_**** -- JumpVTS_TT      (jump to title in same vts title domain [from VTSM,VTS])
 0011_0000 ****_0101 ****_**PP PPPP_PPPP ****_**** *TTT_TTTT ****_**** ****_**** -- JumpVTS_PTT     (jump to ptt in the same vts)
 0011_0000 ****_0110 ****_**** ****_**** ****_**** 00**_**** ****_**** ****_**** -- JumpSS FP_DOM   (jump to FP)                      (from FP,VMGM,VTSM)
 0011_0000 ****_0110 ****_**** ****_**** ****_**** 01**_MMMM ****_**** ****_**** -- JumpSS VMGM_DOM (jump to menu in VMG)             (from FP,VTSM)
@@ -53,12 +60,16 @@
 0011_0000 ****_1000 ****_**** ****_**** RRRR_RRRR 10**_MMMM ****_**** ****_**** -- CallSS VTSM_DOM (jump to menu in VTSM [this vts]) (from VTS)
 0011_0000 ****_1000 *PPP_PPPP PPPP_PPPP RRRR_RRRR 11**_**** ****_**** ****_**** -- CallSS VMGM_DOM (jump to pgc in VMG)              (from VTS)
 
+010 -- Set System Parameters
+============================
 010*_**** *CCC_**** ****_**** ****_**** ****_**** ****_**** AAAA_AAAA BBBB_BBBB -- if (r[A] `C` r[B]) then ...
 0100_0001 ****_**** ****_**** A***_XXXX B***_YYYY C***_ZZZZ ****_**** ****_**** -- A -> s[1]=g[X]  B -> s[2]=g[Y]  c -> s[3]=g[Z]
 0101_0001 ****_**** ****_**** AXXX_XXXX BYYY_YYYY CZZZ_ZZZZ ****_**** ****_**** -- A -> s[1]=X     B -> s[2]=Y     c -> s[3]=Z
 0100_0110 ****_**** ****_**** ****_**** ****_**** ****_XXXX ****_**** ****_**** -- s[8]=g[X]
 0101_0110 ****_**** ****_**** ****_**** XXXX_XXXX XXXX_XXXX ****_**** ****_**** -- s[8]=X (button number are stored in the highest six bits)
 
+011 -- Set General Parameters
+=============================
 011*_**** 0CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** ****_**** BBBB_BBBB -- if (r[A] `C` r[B]) ...
 011*_**** 1CCC_**** AAAA_AAAA ****_**** ****_**** ****_**** DDDD_DDDD DDDD_DDDD -- if (r[A] `C` D)    ...
 0110_SSSS ****_**** ****_**** AAAA_AAAA ****_**** BBBB_BBBB ****_**** ****_**** -- r[A] `S` r[B]
