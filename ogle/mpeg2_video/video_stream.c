@@ -571,7 +571,8 @@ void video_sequence(void) {
 	}
       }
       
-
+      next_start_code();
+      
       extension_and_user_data(1);
       do {
 	group_of_pictures_header();
