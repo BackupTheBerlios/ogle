@@ -2,8 +2,7 @@ dnl Process this file with autoconf to produce a configure script.
 AC_INIT(ac3/ac3dec_wrap.c)
 AM_INIT_AUTOMAKE(ogle, 0.7.4)
 dnl AM_CONFIG_HEADER(config.h)
-
-
+AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
 
 dnl Checks for programs.
@@ -12,16 +11,14 @@ AC_PROG_CC
 dnl AM_DISABLE_SHARED
 AM_PROG_LIBTOOL
 
-dnl Checks for libraries.
-
-dnl Checks for header files.
-
-AC_CHECK_HEADERS(byteswap.h)
-
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
+
+
+dnl Checks for header files.
+AC_CHECK_HEADERS(byteswap.h)
 
 
 dnl Find X Window System
@@ -87,11 +84,14 @@ AC_ARG_WITH(libjpeg-includes,
   [  --with-libjpeg-includes=path specify location of libjpeg headers ], 
   JPEG_CFLAGS=-I$with_libjpeg_includes)
 
-if test -z "JPEG_CFLAGS"; then
-  AC_CHECK_HEADER(jpeglib.h,, 
-    [ AC_MSG_WARN([Can not find jpeglib.h])
-      AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location]) ] )
-fi
+
+saved_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $JPEG_CFLAGS"
+AC_CHECK_HEADER(jpeglib.h,, 
+  [ AC_MSG_WARN([Can not find jpeglib.h, need the libjpeg headers])
+    AC_MSG_ERROR([Install the headers and/or specify their location]) 
+  ])
+CPPFLAGS=$saved_CPPFLAGS
 
 AC_SUBST(JPEG_CFLAGS)
 AC_SUBST(JPEG_LIBS)
@@ -104,13 +104,13 @@ AC_CHECK_FUNC(nanosleep, ,
 )
 
 dnl clock_gettime is in librt on Solaris
-AC_CHECK_FUNC(clock_gettime, , 
-  AC_CHECK_LIB(rt, clock_gettime, , 
+AC_CHECK_FUNC(clock_gettime, AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]), 
+  AC_CHECK_LIB(rt, clock_gettime, AC_DEFINE([HAVE_CLOCK_GETTIME], 1, [ ]), 
     dnl AC_MSG_WARN(You need clock_gettime)
   )
 )
 
-dnl Should this also have some fallback library
+dnl Should this also have some fallback library?
 AC_CHECK_FUNCS(madvise)
 
 
@@ -149,9 +149,17 @@ AC_ARG_WITH(dvdread-includes,
 
 dnl Linux and Solaris needs this to prototype lseek64 and others
 DVDREAD_CFLAGS="-D_LARGEFILE64_SOURCE $DVDREAD_CFLAGS"
+
+saved_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $DVDREAD_CFLAGS"
+AC_CHECK_HEADER(dvdread/dvd_reader.h,, 
+  [ AC_MSG_WARN([Can not find dvd_reader.h, need the libdvdread headers])
+    AC_MSG_ERROR([Install the headers and/or specify their location]) 
+  ])
+CPPFLAGS=$saved_CPPFLAGS
+
 AC_SUBST(DVDREAD_CFLAGS)
 AC_SUBST(DVDREAD_LIBS)
-
 
 
 dnl Sun MediaLib
@@ -172,12 +180,76 @@ if test x$mlib_path != xno; then
                ],,)
   CFLAGS=$saved_CPPFLAGS
 fi
+if test x$have_mlib = xyes; then
+  saved_CPPFLAGS=$CPPFLAGS
+  CPPFLAGS="$CPPFLAGS $MLIB_CFLAGS"
+  AC_CHECK_HEADER(mlib_types.h,, 
+    [ AC_MSG_WARN([Can not find mlib_types.h, need the mediaLib headers])
+      AC_MSG_ERROR([Install the headers and/or specify their location]) 
+    ])
+  CPPFLAGS=$saved_CPPFLAGS
+fi
+
+
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
 AM_CONDITIONAL(MLIB_LIBS, test x$have_mlib = xyes)
 if test x$have_mlib = xyes; then
   AC_DEFINE(HAVE_MLIB, 1, [Solaris MultiMedia Library installed])
 fi
+
+
+a52_path=""
+AC_ARG_WITH(a52, 
+  [  --with-a52=path     specify the install prefix to liba52 (a52dec) ], 
+  if test x$with_a52 = xno; then
+    AC_MSG_ERROR([You must have/use a52dec])
+  fi
+  if test x$with_a52 != xyes; then
+    a52_path=$with_a52
+  fi)
+if test -z "$a52_path"; then
+  dnl We have nothing better to go on, guess that it's installed in prefix
+  if test "x$prefix" != xNONE; then
+    a52_path=$prefix
+  else
+    a52_path=$ac_default_prefix
+  fi  
+fi
+if test x$have_mlib = xyes; then
+  AC_CHECK_LIB(a52, a52_init, 
+    [ A52_LIBS="-L$a52_path/lib -rpath $a52_path/lib -la52" 
+      A52_CFLAGS=-I$a52_path/include
+    ],, -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
+else
+  AC_CHECK_LIB(a52, a52_init, 
+    [ A52_LIBS="-L$a52_path/lib -rpath $a52_path/lib -la52" 
+      A52_CFLAGS=-I$a52_path/include
+    ],, -L$a52_path/lib -lm)
+fi
+if test -z "$A52_LIBS"; then
+    AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+fi
+AC_CHECK_LIB(ao, ao_drivers, 
+    [ A52_LIBS="$A52_LIBS -lao" ],
+    [ AC_MSG_ERROR([Need libao, install a52dec or specify it's location]) ],
+    -L$a52_path/lib)
+
+AC_ARG_WITH(a52-includes, 
+  [  --with-a52-includes=path specify location of liba52 headers ], 
+  A52_CFLAGS=-I$with_a52_includes)
+
+saved_CPPFLAGS=$CPPFLAGS
+CPPFLAGS="$CPPFLAGS $A52_CFLAGS"
+AC_CHECK_HEADER(a52dec/a52.h,, 
+    [ AC_MSG_WARN([Can not find a52dec/a52.h, need the liba52 headers])
+      AC_MSG_ERROR([Install a52dec(-dev) and/or specify it's location]) 
+    ])
+CPPFLAGS=$saved_CPPFLAGS
+
+AC_SUBST(A52_CFLAGS)
+AC_SUBST(A52_LIBS)
+
 
 
 
