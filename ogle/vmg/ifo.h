@@ -16,7 +16,7 @@ typedef struct {
 } dvd_time_t;
 
 typedef struct { // Video Manager Information Management Table
-  char vmg_identifier[12];
+  char     vmg_identifier[12];
   uint32_t vmg_last_sector;
   uint8_t  zero_1[12];
   uint32_t vmgi_last_sector;
@@ -28,7 +28,7 @@ typedef struct { // Video Manager Information Management Table
   uint8_t  disc_side;
   uint8_t  zero_3[19];
   uint16_t vmg_nr_of_title_sets; // Number of VTSs.
-  char provider_identifier[32];
+  char     provider_identifier[32];
   uint64_t vmg_pos_code;
   uint8_t  zero_4[24];
   uint32_t vmgi_last_byte;
@@ -98,7 +98,7 @@ typedef struct {
   uint16_t goup_pgc_nr;
   uint8_t  still_time;
   uint8_t  pg_playback_mode;
-  uint32_t palette[16]; // New type
+  uint32_t palette[16]; // New type {zero_1, Y, Cr, Cb}
   pgc_command_tbl_t *pgc_command_tbl;
   pgc_progam_map_t  *pgc_progam_map;
   cell_playback_tbl_t *cell_playback_tbl;
@@ -119,7 +119,7 @@ typedef struct {
 typedef struct {
   uint16_t nr_of_srpts;
   uint16_t zero_1;
-  uint16_t last_byte;
+  uint32_t last_byte;
   title_info_t  *title_info; // New type.
 } __attribute__ ((packed)) vmg_ptt_srpt_t;
 

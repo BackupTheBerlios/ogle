@@ -13,6 +13,10 @@
 #include "ifo.h"
 void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat);
 void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat);
+void ifoRead_PGC(pgc_t *pgc, int offset);
+void ifoPrint_PGC(pgc_t *pgc);
+void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector);
+void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt);
 
 
 #define PUT(level, text...) \
@@ -88,7 +92,8 @@ int main(int argc, char *argv[])
     uint8_t *data = malloc( DVD_BLOCK_LEN );
     vmgi_mat_t vmgi_mat;
     vtsi_mat_t vtsi_mat;
-    
+    pgc_t pgc;
+    vmg_ptt_srpt_t vmg_ptt_srpt;
 #if 0
 #define DINFO(name) fprintf(stdout, #name " size: %i\n", sizeof(name) )
     DINFO(dvd_time_t);
@@ -119,6 +124,13 @@ int main(int argc, char *argv[])
       
       ifoPrint_VMGI_MAT(&vmgi_mat);
       
+      ifoRead_PGC(&pgc, vmgi_mat.first_play_pgc);
+      ifoPrint_PGC(&pgc);
+      
+      ifoRead_VMG_PTT_SRPT(&vmg_ptt_srpt, vmgi_mat.vmg_ptt_srpt);
+      ifoPrint_VMG_PTT_SRPT(&vmg_ptt_srpt);
+      
+      ifoRead_
       
       
     } else if(strncmp("DVDVIDEO-VTS",data, 12) == 0) {
@@ -155,7 +167,7 @@ void ifoPrint_VMGI_MAT(vmgi_mat_t *vmgi_mat) {
   PUT(5, "Disc side %i\n", vmgi_mat->disc_side);
   PUT(5, "VMG Number of Title Sets %i\n", vmgi_mat->vmg_nr_of_title_sets);
   PUT(5, "Provider ID: %.32s\n", vmgi_mat->provider_identifier);
-  PUT(5, "VMG POS Code: %016x\n", vmgi_mat->vmg_pos_code);
+  PUT(5, "VMG POS Code: %032llx\n", vmgi_mat->vmg_pos_code);
   PUT(5, "End byte of VMGI_MAT: %08x\n", vmgi_mat->vmgi_last_byte);
   PUT(5, "Start byte of First Play PGC FP PGC: %08x\n", 
       vmgi_mat->first_play_pgc);
@@ -225,3 +237,91 @@ void ifoPrint_VTSI_MAT(vtsi_mat_t *vtsi_mat) {
   PUT(5, "VTS Number of Sub-picture attributes: %i\n", 
       vtsi_mat->nr_of_vts_subp_streams);
 }
+
+void ifoRead_PGC(pgc_t *pgc, int offset) {
+  fseek(ifo_file, offset, SEEK_SET);
+  if(fread(pgc, sizeof(pgc_t), 1, ifo_file) != 1) {
+    perror("First Play PGC");
+    exit(1);
+  }
+}
+
+
+void ifoPrint_PGC(pgc_t *pgc) {
+  CHECK_ZERO(pgc->zero_1);
+  
+  PUT(5, "Number of Programs: %i\n", pgc->nr_of_programs);
+  PUT(5, "Number of Cells: %i\n", pgc->nr_of_cells);
+  PUT(5, "Playback time: %02x:%02x:%02x.%02x @ %s\n", 
+      pgc->playback_time.hour,
+      pgc->playback_time.minute,
+      pgc->playback_time.second,
+      pgc->playback_time.frame_u & 0x3f,
+      pgc->playback_time.frame_u & 0xc0 ? "30fps" : "25fps");
+  
+  PUT(5, "Prohibited user operations: %08x\n", pgc->prohibited_ops);
+  {
+    int i;
+    for(i=0;i<8;i++)
+      PUT(5, "Audio stream %i status: %04x\n", i, pgc->audio_status[i]);
+  }
+  {
+    int i;
+    for(i=0;i<32;i++)
+      PUT(5, "Sub-picture stream %2i status: %04x\n", i, pgc->subp_status[i]);
+  }
+  
+  PUT(5, "Next PGC number: %i\n", pgc->next_pgc_nr);
+  PUT(5, "Prev PGC number: %i\n", pgc->prev_pgc_nr);
+  PUT(5, "GoUp PGC number: %i\n", pgc->goup_pgc_nr);
+  
+  PUT(5, "Still time: %i seconds (255=inf)\n", pgc->still_time);
+  PUT(5, "PG Playback mode %02x\n", pgc->pg_playback_mode);
+  {
+    int i;
+    for(i=0;i<16;i++)
+      PUT(5, "Color %2i: %08x\n", i, pgc->palette[i]);
+  }
+  
+  /* Memmory offsets to div. tables. */
+  
+}
+
+void ifoRead_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt, int sector) {
+  
+  fseek(ifo_file, sector * DVD_BLOCK_LEN, SEEK_SET);
+  if(fread(vmg_ptt_srpt, 8, 1, ifo_file) != 1) {
+    perror("VMG_PTT_SRPT");
+    exit(1);
+  }
+  vmg_ptt_srpt->title_info = malloc( vmg_ptt_srpt->last_byte + 1 - 8); 
+  if(fread(vmg_ptt_srpt->title_info, vmg_ptt_srpt->last_byte + 1 - 8, 1, ifo_file) != 1) {
+    perror("VMG_PTT_SRPT");
+    exit(1);
+  }
+  
+}
+
+void ifoPrint_VMG_PTT_SRPT(vmg_ptt_srpt_t *vmg_ptt_srpt) {
+  CHECK_ZERO(vmg_ptt_srpt->zero_1);
+  PUT(5, "Number of PartofTitle search pointers: %i\n", vmg_ptt_srpt->nr_of_srpts);
+  {
+    int i;
+    for(i=0;i<vmg_ptt_srpt->nr_of_srpts;i++) {
+      PUT(5, "VMG Title set index %i\n", i+1);
+      PUT(5, "\tTitle set number (VTS): %i", 
+	  vmg_ptt_srpt->title_info[i].title_set_nr);
+      PUT(5, "\tVTS_TTN: %i\n", vmg_ptt_srpt->title_info[i].vts_ttn);
+      PUT(5, "\tNumber of PTTs: %i\n", vmg_ptt_srpt->title_info[i].nr_of_ptts);
+      PUT(5, "\tNumber of angles: %i\n", 
+	  vmg_ptt_srpt->title_info[i].nr_of_angles);
+      PUT(5, "\tTitle playback type: %02x\n", 
+	  vmg_ptt_srpt->title_info[i].playback_type);
+      PUT(5, "\tParental ID field: %04x\n", 
+	  vmg_ptt_srpt->title_info[i].parental_id);
+      PUT(5, "\tTitle set starting sector %08x\n", 
+	  vmg_ptt_srpt->title_info[i].title_set_sector);
+    }
+  }
+}
+
