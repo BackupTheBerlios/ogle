@@ -43,10 +43,7 @@ msg_t msg;
 char *program_name;
 char msgqid_str[9];
 
-void usage(void)
-{
-  fprintf(stderr, "Usage: %s [-h] <input file>\n", program_name);
-}
+
 
 
 char *input_file;
@@ -56,10 +53,22 @@ char *output_bufs = NULL;
 char *file_offset = NULL;
 char *videodecode_debug = NULL;
 
-int ac3_audio_stream = 0;
-int mpeg_audio_stream = 0;
-int mpeg_video_stream = 0;
-int subpicture_stream = 0;
+int ac3_audio_stream = -1;
+int mpeg_audio_stream = -1;
+int pcm_audio_stream = -1;
+int mpeg_video_stream = -1;
+int subpicture_stream = -1;
+int nav_stream = -1;
+
+
+
+void usage(void)
+{
+  fprintf(stderr, "Usage: %s [-h] [-a <ac3_stream#>] [-m <mpeg_audio_stream#>] [-p <pcm_audio_stream#>] [-v <mpeg_video_stream#>] [-s <subpicture_stream#>] [-n <#>] [-f <fps>] [-r <#ouput_bufs>] [-o <file_offset>] [-d <debug_level>] <input file>\n", program_name);
+}
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -78,7 +87,7 @@ int main(int argc, char *argv[])
   
   program_name = argv[0];
   
-  while((c = getopt(argc, argv, "a:v:s:m:f:r:o:d:h?")) != EOF) {
+  while((c = getopt(argc, argv, "a:v:s:n:m:f:r:o:p:d:h?")) != EOF) {
     switch(c) {
     case 'a':
       ac3_audio_stream = atoi(optarg);
@@ -86,11 +95,17 @@ int main(int argc, char *argv[])
     case 'm':
       mpeg_audio_stream = atoi(optarg);
       break;
+    case 'p':
+      pcm_audio_stream = atoi(optarg);
+      break;
     case 'v':
       mpeg_video_stream = atoi(optarg);
       break;
     case 's':
       subpicture_stream = atoi(optarg);
+      break;
+    case 'n':
+      nav_stream = atoi(optarg);
       break;
     case 'f':
       framerate = optarg;
@@ -583,24 +598,29 @@ int register_stream(uint8_t stream_id, uint8_t subtype)
   
 
   if(stream_id == MPEG2_PRIVATE_STREAM_1) {
-    if(subtype == (0x80 | (ac3_audio_stream & 0x1f))) {
+    
+    if((subtype == (0x80 | (ac3_audio_stream & 0x1f))) &&
+       (ac3_audio_stream >= 0)) {
       return 1;
     }
     
-    if(subtype == (0x20 | (subpicture_stream & 0x1f))) {
+    if((subtype == (0x20 | (subpicture_stream & 0x1f))) &&
+       (subpicture_stream >= 0)) {
       return 1;
     }
   }
   
-  if(stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) { 
+  if((stream_id == (0xc0 | (mpeg_audio_stream & 0x1f))) &&
+     (mpeg_audio_stream >= 0)) { 
     return 1;
   }
   
-  if(stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) {
+  if((stream_id == (0xe0 | (mpeg_video_stream & 0x0f))) &&
+     (mpeg_video_stream >= 0)) {
     return 1;
   }
   
-  if(stream_id == 0xbf) { // nav packs
+  if((stream_id == 0xbf) && (nav_stream >= 0)) { // nav packs
     return 1;
   }
   
