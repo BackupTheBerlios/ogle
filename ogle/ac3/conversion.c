@@ -447,7 +447,7 @@ static int convert_LPCM_to_sXXne(uint8_t *lpcm, void *output,
     case 32:
       for (i = 0, s = 0; i < nr_samples; s+=1) {
 	int j;
-	uint8_t *lsb = &((int16_t *)lpcm)[(s+2)*src_ch];
+	uint8_t *lsb = (uint8_t *)&((int16_t *)lpcm)[(s+2)*src_ch];
 	for(j = 0; j < 2; j++, i++, s++, lsb+=src_ch) {
 	  for(n = 0; n < dst_ch; n++) {
 	    if((ct = ch_transform[n]) != -1) {
