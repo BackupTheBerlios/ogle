@@ -68,6 +68,9 @@ Bool talk_to_xscreensaver;
 
 static int end_of_wait;
 
+static long clk_tck;
+static long min_time_left;
+
 AspectModeSrc_t aspect_mode = AspectModeSrcVM;
 AspectModeSrc_t aspect_sender;
 
@@ -541,8 +544,8 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
       sigaction(SIGALRM, &act, &oact);
       setitimer(ITIMER_REAL, &timer, NULL);
 
-    } else if(TIME_SS(time_left) > (5*(CT_FRACTION/1000))) {
-      // less than 100ms but more than 5 ms left, lets wait
+    } else if(TIME_SS(time_left) > min_time_left) {
+      // less than 100ms but more than clktck/2 left, lets wait
       struct timespec sleeptime;
  
 #if 0
@@ -563,8 +566,8 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 				    scr, sp);
       return time_left;
     } else {
-      // less than 5 ms left or negative time left, we cant sleep
-      // a shorter period than 10 ms so we return
+      // less than clktck/2 left or negative time left, we cant sleep
+      // a shorter period than clktck so we return
 
       return time_left;
     }
@@ -1056,7 +1059,22 @@ int main(int argc, char **argv)
     }
   }
   
+  errno = 0;
   
+  if((clk_tck = sysconf(_SC_CLK_TCK)) <= 0) {
+    // linux returns 0 as error also
+    if(errno != 0 && clk_tck == -1) {
+      perror("sysconf(_SC_CLK_TCK)");
+    } else {
+      fprintf(stderr, "sysconf(_SC_CLK_TCK), not supported\n");
+    }
+    //guessed default value
+    clk_tck = 100;
+  }
+
+  min_time_left = (CT_FRACTION/clk_tck)/2;
+
+  DNOTE("CLK_TCK: %ld\n", clk_tck);
 
   if(msgqid != -1) {
     
