@@ -383,19 +383,19 @@ int mouse_over_hl(pci_t *pci, unsigned int x, unsigned int y) {
 static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
   /* Keep the button register value in a local variable. */
   uint16_t button_nr = (*btn_reg) >> 10;
-  int is_action = 0;
+  int tmp, is_action = 0;
 
   /* MORE CODE HERE :) */
   
   /* Paranoia.. */
   
-  // No highlight/button pci info to use
-  if((pci->hli.hl_gi.hli_ss & 0x03) == 0)
+  // No highlight/button pci info to use or no buttons
+  if((pci->hli.hl_gi.hli_ss & 0x03) == 0 || pci->hli.hl_gi.btn_ns == 0)
     return 0;
-  // Selected buton > than max button ?
-  // FIXME $$$ check how btn_ofn affects things like this
+  
+  // Selected button > than max button? then cap it
   if(button_nr > pci->hli.hl_gi.btn_ns)
-    button_nr = 1;
+    button_nr = pci->hli.hl_gi.btn_ns;
   
   switch(ce->type) {
   case DVDCtrlUpperButtonSelect:
@@ -417,7 +417,11 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
     is_action = 1;
     /* Fall through */
   case DVDCtrlButtonSelect:
-    button_nr = ce->button.nr;
+    tmp = ce->button.nr - pci->hli.hl_gi.btn_ofn;
+    if(tmp > 0 && tmp <= pci->hli.hl_gi.nsl_btn_ns)
+      button_nr = tmp;
+    else /* not a valid button */
+      is_action = 0;
     break;
   case DVDCtrlMouseActivate:
     is_action = 1;
@@ -502,9 +506,23 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
     }
   }
   
-  /* Paranoia.. */
-  if((pci->hli.hl_gi.hli_ss & 0x03) != 0
-     && button_nr > pci->hli.hl_gi.btn_ns) {
+  /* SPRM[8] can be changed by 
+     A) user operations  
+         user operations can only change SPRM[8] if buttons exist.
+     B) navigation commands  
+         navigation commands can change SPRM[8] always.
+     C) highlight information
+     
+     if no buttons exist SPRM[8] is kept at it's value 
+     (except when navigation commands change it)
+
+     if SPRM[8] doesn't have a valid value  (button_nr > nr_buttons)  
+     button_nr = nr_buttons  (except when nr_buttons == 0, 
+     then button_nr isn't changed at all.
+  */
+  if((pci->hli.hl_gi.hli_ss & 0x03) != 0 
+     && button_nr > pci->hli.hl_gi.btn_ns
+     && pci->hli.hl_gi.btn_ns != 0) {
     button_nr = pci->hli.hl_gi.btn_ns;
   }
 
