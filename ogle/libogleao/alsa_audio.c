@@ -58,49 +58,49 @@ static int set_hwparams(alsa_instance_t *instance)
 	int err, dir;
 
 	if ((err = snd_pcm_hw_params_any(instance->alsa_pcm, instance->hwparams)) < 0) {
-		printf("Broken configuration for playback: no configurations available: %s\n", snd_strerror(err));
+		fprintf(stderr, "Broken configuration for playback: no configurations available: %s\n", snd_strerror(err));
 		return err;
 	}
 	/* set the interleaved read/write format */
 	if ((err = snd_pcm_hw_params_set_access(instance->alsa_pcm, instance->hwparams, 
 		SND_PCM_ACCESS_RW_INTERLEAVED)) < 0) {
-		printf("Access type not available for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Access type not available for playback: %s\n", snd_strerror(err));
 		return err;
 	}
 	/* set the sample format */
 	if ((err = snd_pcm_hw_params_set_format(instance->alsa_pcm, instance->hwparams, instance->format)) < 0) {
-		printf("Sample format not available for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Sample format not available for playback: %s\n", snd_strerror(err));
 		return err;
 	}
 	/* set the count of channels */
 	if ((err = snd_pcm_hw_params_set_channels(instance->alsa_pcm, instance->hwparams, instance->channels)) > 0) {
-		printf("Channels count (%i) not available for playbacks: %s\n", instance->channels, snd_strerror(err));
+		fprintf(stderr, "Channels count (%i) not available for playbacks: %s\n", instance->channels, snd_strerror(err));
 		return err;
 	}
 	/* set the stream rate */
 	if ((err = snd_pcm_hw_params_set_rate_near(instance->alsa_pcm, instance->hwparams, instance->sample_rate, 0)) < 0) {
-		printf("Rate %iHz not available for playback: %s\n", instance->sample_rate, snd_strerror(err));
+		fprintf(stderr, "Rate %iHz not available for playback: %s\n", instance->sample_rate, snd_strerror(err));
 		return err;
 	}
 	if (err != instance->sample_rate) {
-		printf("Rate doesn't match (requested %iHz, get %iHz)\n", instance->sample_rate, err);
+		fprintf(stderr, "Rate doesn't match (requested %iHz, get %iHz)\n", instance->sample_rate, err);
 		return -EINVAL;
 	}
 	/* set buffer time */
 	if ((err = snd_pcm_hw_params_set_buffer_time_near(instance->alsa_pcm, instance->hwparams, BUFFER_TIME, &dir)) < 0) {
-		printf("Unable to set buffer time %i for playback: %s\n", BUFFER_TIME, snd_strerror(err));
+		fprintf(stderr, "Unable to set buffer time %i for playback: %s\n", BUFFER_TIME, snd_strerror(err));
 		return err;
 	}
 	instance->buffer_size = snd_pcm_hw_params_get_buffer_size(instance->hwparams);
 	/* set period time */
 	if ((err = snd_pcm_hw_params_set_period_time_near(instance->alsa_pcm, instance->hwparams, PERIOD_TIME, &dir)) < 0) {
-		printf("Unable to set period time %i for playback: %s\n", PERIOD_TIME, snd_strerror(err));
+		fprintf(stderr, "Unable to set period time %i for playback: %s\n", PERIOD_TIME, snd_strerror(err));
 		return err;
 	}
 	instance->period_size = snd_pcm_hw_params_get_period_size(instance->hwparams, &dir);
 	/* write the parameters to device */
 	if ((err = snd_pcm_hw_params(instance->alsa_pcm, instance->hwparams)) < 0) {
-		printf("Unable to set hw params for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to set hw params for playback: %s\n", snd_strerror(err));
 		return err;
 	}
 	return 0;
@@ -112,23 +112,23 @@ static int set_swparams(alsa_instance_t *instance)
 
 	/* get current swparams */
 	if ((err = snd_pcm_sw_params_current(instance->alsa_pcm, instance->swparams)) < 0) {
-		printf("Unable to determine current swparams for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to determine current swparams for playback: %s\n", snd_strerror(err));
 	}
 	/* start transfer when the buffer is full */
 /*	if ((err = snd_pcm_sw_params_set_start_threshold(instance->alsa_pcm, instance->swparams, MINIMUM_SAMPLES)) < 0) {
-		printf("Unable to set start threshold mode for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to set start threshold mode for playback: %s\n", snd_strerror(err));
 	}*/	
 	/* allow transfer when at least period_size samples can be processed */
 	if ((err = snd_pcm_sw_params_set_avail_min(instance->alsa_pcm, instance->swparams, MINIMUM_SAMPLES)) < 0) {
-		printf("Unable to set avail min for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to set avail min for playback: %s\n", snd_strerror(err));
 	}
 	/* align all transfers to 1 samples */
 	if ((err = snd_pcm_sw_params_set_xfer_align(instance->alsa_pcm, instance->swparams, 1)) < 0) {
-		printf("Unable to set transfer align for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to set transfer align for playback: %s\n", snd_strerror(err));
 	}
 	/* set swparams */	
 	if ((err = snd_pcm_sw_params(instance->alsa_pcm, instance->swparams)) < 0) {	
-		printf("Unable to set sw params for playback: %s\n", snd_strerror(err));
+		fprintf(stderr, "Unable to set sw params for playback: %s\n", snd_strerror(err));
 		return err;
 	}
 	return 0;
@@ -174,14 +174,14 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	instance->channels = audio_info->channels;
 
 	if ((err = set_hwparams(instance)) < 0) {
-		printf("Setting of hwparams failed: %s\n", snd_strerror(err));
+		fprintf(stderr, "Setting of hwparams failed: %s\n", snd_strerror(err));
 		return -1;
 	}
 	if ((err = set_swparams(instance)) < 0) {
-		printf("Setting of swparams failed: %s\n", snd_strerror(err));
+		fprintf(stderr, "Setting of swparams failed: %s\n", snd_strerror(err));
 		return -1;
 	}
-	printf("Stream parameters are %iHz, %s, %i channels, sample size: %d\n", 
+	fprintf(stderr, "Stream parameters are %iHz, %s, %i channels, sample size: %d\n", 
 		instance->sample_rate, snd_pcm_format_name(instance->format), 
 		instance->channels, instance->sample_size);
     
@@ -191,11 +191,11 @@ int alsa_init(ogle_ao_instance_t *_instance,
 
 static int xrun_recovery(snd_pcm_t *handle, int err)
 {
-	printf("xrun_recovery\n");
+	fprintf(stderr, "xrun_recovery\n");
 	if (err == -EPIPE) {	/* underrun */
 		err = snd_pcm_prepare(handle);
 		if (err < 0)
-			printf("Can't recovery from underrun, prepare failed: %s\n", snd_strerror(err));
+			fprintf(stderr, "Can't recovery from underrun, prepare failed: %s\n", snd_strerror(err));
 		return 0;
 	} else if (err == -ESTRPIPE) {
 		while ((err = snd_pcm_resume(handle)) == -EAGAIN)
@@ -203,7 +203,7 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
 		if (err < 0) {
 			err = snd_pcm_prepare(handle);
 			if (err < 0)
-				printf("Can't recovery from suspend, prepare failed: %s\n", snd_strerror(err));
+				fprintf(stderr, "Can't recovery from suspend, prepare failed: %s\n", snd_strerror(err));
 		}
 		return 0;
 	}
@@ -230,7 +230,7 @@ int alsa_play(ogle_ao_instance_t *_instance, void *samples, size_t nbytes)
 		if (written < 0) {
 			//printf("buffer underrun, retrying..\n");
 			if (xrun_recovery(instance->alsa_pcm, written) < 0) {
-				printf("Write error: %s\n", snd_strerror(written));
+				fprintf(stderr, "Write error: %s\n", snd_strerror(written));
 				exit(EXIT_FAILURE);
 			}
 			break;	/* skip one period */
@@ -252,7 +252,8 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 	int err;
     
   	if ((err = snd_pcm_delay(instance->alsa_pcm, &avail)) < 0) {
-		printf("odelay error: %s\n", snd_strerror(err));	  
+		fprintf(stderr, "odelay error: %s\n", snd_strerror(err));
+		avail = 0;
 	}
   
   	*samples_return = avail;
@@ -274,10 +275,10 @@ int alsa_flush(ogle_ao_instance_t *_instance)
 {
 	alsa_instance_t *instance = (alsa_instance_t *)_instance;
 	int err;
-	printf("[ogle_alsa]: flushing...\n");
+	fprintf(stderr, "[ogle_alsa]: flushing...\n");
 	
     if ((err = snd_pcm_reset(instance->alsa_pcm)) < 0) {
-		printf("drop failed: %s\n", snd_strerror(err));
+		fprintf(stderr, "drop failed: %s\n", snd_strerror(err));
     }
     //if ((err = snd_pcm_start(instance->alsa_pcm)) < 0) {
 		//printf("drop failed: %s\n", snd_strerror(err));
@@ -291,7 +292,7 @@ int alsa_drain(ogle_ao_instance_t *_instance)
 {
 	alsa_instance_t *instance = (alsa_instance_t *)_instance;
 	int err;
-	printf("[ogle_alsa]: draining...\n");
+	fprintf(stderr, "[ogle_alsa]: draining...\n");
 	
     if ((err = snd_pcm_drop(instance->alsa_pcm)) < 0) {
 		printf("drain failed: %s\n", snd_strerror(err));
@@ -325,12 +326,12 @@ ogle_ao_instance_t *alsa_open(char *dev)
     instance->samples_written = 0;
     instance->sample_size = 0;
 
-    if ((err = snd_output_stdio_attach(&logs, stdout, 0)) < 0) {
-		printf("Output log failed: %s\n", snd_strerror(err));
+    if ((err = snd_output_stdio_attach(&logs, stderr, 0)) < 0) {
+		fprintf(stderr, "Output log failed: %s\n", snd_strerror(err));
 		return NULL;
     }
  	
-    printf("[ogle_alsa]: Opening device: %s\n", device);
+    fprintf(stderr, "[ogle_alsa]: Opening device: %s\n", device);
 	
     if ((err = snd_pcm_open(&(instance->alsa_pcm), device, 
 			SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
