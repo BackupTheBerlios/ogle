@@ -694,12 +694,6 @@ void decode_dcsq(spu_t *spu_info) {
 	      spu_info->x_start, spu_info->x_end,
 	      spu_info->y_start, spu_info->y_end,
 	      spu_info->width, spu_info->height);
-
-      fprintf(stderr, "x_start=%i x_end=%i, y_start=%i, y_end=%i "
-	      "width=%i height=%i\n",
-	      spu_info->x_start, spu_info->x_end,
-	      spu_info->y_start, spu_info->y_end,
-	      spu_info->width, spu_info->height);
       break;
     case 0x06: /* set start address in PXD */
       DPRINTF(3, "\t\t\t\tset start address in PXD\n");
