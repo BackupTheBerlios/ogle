@@ -254,33 +254,37 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
 
-  
+
+  if(ctrl_data->sync_master <= SYNC_AUDIO) {
+    ctrl_data->sync_master = SYNC_AUDIO;
+    
   //TODO release scr_nr when done
-  if(prev_scr_nr != scr_nr) {
-    ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
-  }
-  
-  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+    if(prev_scr_nr != scr_nr) {
+      ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
+    }
+    
+    if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+      if(PTS_DTS_flags & 0x2) {
+	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+      }
+    }
     if(PTS_DTS_flags & 0x2) {
+      time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+    }
+    prev_scr_nr = scr_nr;
+    
+    /*
+     * primitive resync in case output buffer is emptied 
+     */
+    
+    if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
+      TIME_S(time_offset) = 0;
+      TIME_SS(time_offset) = 0;
+      
       set_time_base(PTS, ctrl_time, scr_nr, time_offset);
     }
   }
-  if(PTS_DTS_flags & 0x2) {
-    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
-  }
-  prev_scr_nr = scr_nr;
-  
-  /*
-   * primitive resync in case output buffer is emptied 
-   */
 
-  if(TIME_SS(time_offset) < 0 || TIME_S(time_offset) < 0) {
-    TIME_S(time_offset) = 0;
-    TIME_SS(time_offset) = 0;
- 
-    set_time_base(PTS, ctrl_time, scr_nr, time_offset);
-  }
-    
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
   fwrite(mmap_base+off, len, 1, outfile);

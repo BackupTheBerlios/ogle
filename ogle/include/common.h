@@ -76,9 +76,13 @@ typedef struct {
   offset_valid_t offset_valid;
 } ctrl_time_t;
 
+#define SYNC_NONE 0
+#define SYNC_VIDEO 1
+#define SYNC_AUDIO 2
 
 typedef struct {
   playmode_t mode;
+  int sync_master;
 } ctrl_data_t;
 
 #endif /* COMMON_H */

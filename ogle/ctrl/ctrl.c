@@ -1317,6 +1317,7 @@ int create_ctrl_data()
   
   ctrl = (ctrl_data_t *)shmaddr;
   ctrl->mode = MODE_STOP;
+  ctrl->sync_master = SYNC_NONE;
   ctrl_time = (ctrl_time_t *)(shmaddr+sizeof(ctrl_data_t));
   
   for(n = 0; n < nr_of_offsets; n++) {
