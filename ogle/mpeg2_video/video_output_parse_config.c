@@ -6,8 +6,10 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
+#include "debug_print.h"
 #include "video_output_parse_config.h"
 
+extern char *program_name;
 
 static void parse_geometry(xmlDocPtr doc, xmlNodePtr cur,
 			   cfg_display_t *display)
@@ -131,14 +133,12 @@ static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 	    }
 	  }
 	} else {
-	  fprintf(stderr,
-		  "ERROR[ogle_vo]: parse_display(): more than 1 <name>\n");
+	  ERROR("parse_display(): more than 1 <name>\n");
 	}
       } else {
 	if(!name_found) {
 	  name_found++;
-	  fprintf(stderr,
-		  "ERROR[ogle_vo]: parse_display(): <name> not first, assuming empty <name>\n");
+	  ERROR("parse_display(): <name> not first, assuming empty <name>\n");
 	  while(*cur_display) {
 	    if((*cur_display)->name == NULL) {
 	      break;
@@ -179,7 +179,7 @@ static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 static void parse_window(xmlDocPtr doc, xmlNodePtr cur,
 			cfg_window_t *window)
 {
-  xmlChar *s;
+  //  xmlChar *s;
   
   cur = cur->xmlChildrenNode;
   
@@ -256,7 +256,7 @@ static int parse_oglerc(char *filename, cfg_video_t *video)
 
   } else {
 
-    fprintf(stderr, "WARNING[ogle_vo]: Couldn't load config file\n");
+    WARNING("Couldn't load config file\n");
 
     return -1;
 
@@ -277,13 +277,12 @@ int get_video_config(cfg_video_t **video)
   if(parse_oglerc(CONFIG_FILE, *video) != -1) {
     r |= 1;
   } else {
-    fprintf(stderr,
-	    "ERROR[ogle_vo]: get_video_config(): Couldn't read "CONFIG_FILE"\n");
+    ERROR("get_video_config(): Couldn't read "CONFIG_FILE"\n");
   }
   
   home = getenv("HOME");
   if(home == NULL) {
-    fprintf(stderr, "WARNING[ogle_vo]: No $HOME\n");
+    WARNING("No $HOME\n");
   } else {
     char *rcpath = NULL;
     char rcfile[] = ".oglerc";
@@ -296,8 +295,7 @@ int get_video_config(cfg_video_t **video)
     if(parse_oglerc(rcpath, *video) != -1) {
       r |= 2;
     } else {
-      fprintf(stderr,
-	      "NOTE[ogle_vo]: get_video_config(): Couldn't read '%s'\n", rcpath);
+      NOTE("get_video_config(): Couldn't read '%s'\n", rcpath);
     }
     
     free(rcpath);
