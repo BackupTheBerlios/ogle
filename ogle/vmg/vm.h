@@ -21,16 +21,25 @@
 
 #include <dvdread/ifo_types.h>
 #include <dvdread/nav_types.h>
+/* TODO: Remove the dependency on ogle/dvd.h */
 #include <ogle/dvd.h>
 #include "decoder.h"
 
 
 typedef enum {
-  FP_DOMAIN = 1,
-  VTS_DOMAIN = 2,
-  VMGM_DOMAIN = 4,
-  VTSM_DOMAIN = 8
-} domain_t;  
+  FP_DOMAIN   = DVD_DOMAIN_FirstPlay,
+  VMGM_DOMAIN = DVD_DOMAIN_VMG,
+  VTSM_DOMAIN = DVD_DOMAIN_VTSMenu,
+  VTS_DOMAIN  = DVD_DOMAIN_VTSTitle
+} domain_t;
+
+
+typedef enum {
+  RESET_MODE = 1,
+  PLAY_MODE  = 2,
+  STILL_MODE = 4,
+  PAUSE_MODE = 8
+} player_mode_t;  
 
 /**
  * State: SPRM, GPRM, Domain, pgc, pgN, cellN, ?
@@ -46,6 +55,8 @@ typedef struct {
   int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN;
   int blockN;
+  
+  player_mode_t mode;
   
   /* Resume info */
   int rsm_vtsN;
