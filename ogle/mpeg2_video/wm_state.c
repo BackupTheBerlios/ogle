@@ -96,14 +96,40 @@ static void disable_motif_decorations(Display *dpy, Window win)
 
 static void calc_coords(Display *dpy, Window win, int *x, int *y, XEvent *ev)
 {
+  int dest_x_ret;
+  int dest_y_ret;
+  Window dest_win;
+  
   if(ev->xconfigure.send_event == True) {
+
+    fprintf(stderr, "send_event: True\n");
+
     *x = ev->xconfigure.x;
     *y = ev->xconfigure.y;
-    fprintf(stderr, "send_event: True\n");
+    
+    XTranslateCoordinates(dpy, win, DefaultRootWindow(dpy), 
+			  0,
+			  0,
+			  &dest_x_ret,
+			  &dest_y_ret,
+			  &dest_win);
+    
+    if(*x != dest_x_ret) {
+      fprintf(stderr, "f**king non-compliant wm, we can't trust it on x-coords\n");
+      fprintf(stderr, "wm_x: %d, xtranslate_x: %d\n", *x, dest_x_ret);
+      *x = dest_x_ret;
+    }
+
+    if(*y != dest_y_ret) {
+      fprintf(stderr, "f**king non-compliant wm, we can't trust it on y-coords\n");
+      fprintf(stderr, "wm_y: %d, xtranslate_y: %d\n", *y, dest_y_ret);
+      *y = dest_y_ret;
+    }
+    
   } else {
-    int dest_x_ret;
-    int dest_y_ret;
-    Window dest_win;
+    
+    fprintf(stderr, "send_event: False\n");
+    
     XTranslateCoordinates(dpy, win, DefaultRootWindow(dpy), 
 			  0,
 			  0,
@@ -112,7 +138,7 @@ static void calc_coords(Display *dpy, Window win, int *x, int *y, XEvent *ev)
 			  &dest_win);
     *x = dest_x_ret;
     *y = dest_y_ret;
-    fprintf(stderr, "send_event: False\n");
+    
   }
 
   fprintf(stderr, "x: %d, y: %d\n", *x, *y);
@@ -255,9 +281,10 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
   
   fprintf(stderr, "no more configure notify\n");
 
+  
   // ugly hack, but what can you do when the wm's not removing decorations
   //  if we don't end up at 0,0 try to compensate and move one more time
-  
+ 
   if(x != 0 || y != 0) {
     
     fprintf(stderr, "window is not at 0,0 trying to fix that\n");
@@ -285,7 +312,7 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     }
 
   }
-
+  
   current_state = WINDOW_STATE_FULLSCREEN;
   
 }
