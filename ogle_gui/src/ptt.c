@@ -84,13 +84,13 @@ void ptt_menu_update(void) {
 
     submenu = gtk_menu_new ();
 
-    label = g_strdup_printf("%i", i);
+    label = g_strdup_printf(_("Title %i"), i);
     menu_item = gtk_menu_item_new_with_label(label);
     g_free(label);
   
     for (j=1; j<=num_ptts; j++) {
 
-      label = g_strdup_printf("%i", j);
+      label = g_strdup_printf(_("Chapter %i"), j);
       submenu_item = gtk_menu_item_new_with_label(label);
       g_free(label);
 

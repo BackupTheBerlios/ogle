@@ -6,5 +6,6 @@ src/fileselector.c
 src/language.c
 src/main.c
 src/menu.c
+src/ptt.c
 src/subpicture.c
 pixmaps/glade-strings.c
