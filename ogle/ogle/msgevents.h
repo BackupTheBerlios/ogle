@@ -91,9 +91,7 @@ typedef enum {
 
 typedef union {
  
-  struct {
-    MsgEventQType_t type;
-  } any;
+  MsgEventQType_t type;
 #ifdef HAVE_SYSV_MSG  
   struct {
     MsgEventQType_t type;

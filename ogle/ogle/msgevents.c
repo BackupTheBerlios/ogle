@@ -36,12 +36,26 @@
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#endif
+
+#ifdef HAVE_POLL
+
+#if defined(HAVE_POLL_H)
+#include <poll.h>
+#elif defined(HAVE_SYS_POLL_H)
 #include <sys/poll.h>
 #endif
 
-#if (defined(BSD) && (BSD >= 199306))
-#include <unistd.h>
+#else //HAVE_POLL
+
+#ifdef HAVE_SYS_SELECT
+#include <sys/select.h>
+#else
+#include <sys/time.h>
 #endif
+
+#endif //HAVE_POLL
+
 
 //#define DEBUG
 //#define XDEBUG
@@ -316,7 +330,7 @@ MsgEventQ_t *MsgOpen(int msqid)
 void MsgClose(MsgEventQ_t *q)
 {
   
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:  
     fprintf(stderr, "msg close FIX\n");
@@ -367,7 +381,7 @@ static int MsgNextEvent_internal(MsgEventQ_t *q, MsgEvent_t *event_return, int i
 {
   msg_t msg;
  
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     while(1) {
@@ -518,7 +532,7 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
   fprintf(stderr, "MsgCheckEvent: pid: %d\n", getpid());
 #endif
 #ifdef SOCKIPC  
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     while (1) {
@@ -547,6 +561,7 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
     break;
 #endif
   case MsgEventQType_socket:
+#ifdef HAVE_POLL
     while (1) {
       struct sockaddr_un from_addr;
       int from_addr_len;
@@ -566,9 +581,6 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 			      (struct sockaddr *)&from_addr,
 			      &from_addr_len)) == -1) {
 	    switch(errno) {
-#ifdef ENOMSG
-	    case ENOMSG:
-#endif
 	    case EAGAIN:
 	      break;
 	    case EINTR:     // interrupted by system call/signal, try again
@@ -606,6 +618,67 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
 	return -1;
       }
     }
+#else //HAVE_POLL
+    while (1) {
+      struct sockaddr_un from_addr;
+      int from_addr_len;
+      fd_set rfds;
+      struct timeval tv;
+      int r;
+      int rlen;
+
+      FD_ZERO(&rfds);
+      FD_SET(q->socket.sd);
+      tv.tv_sec = 0;
+      tv.tv_usec = 0;
+
+      from_addr_len = sizeof(from_addr);
+
+      r = select(q->socket.sd, &rfds, NULL, NULL, &tv);
+      if(r > 0) {
+	if(FD_ISSET(q->socket.sd, &rfds)) {
+	  if((rlen = recvfrom(q->socket.sd, (void *)&msg,
+			      sizeof(MsgEvent_t), 0,
+			      (struct sockaddr *)&from_addr,
+			      &from_addr_len)) == -1) {
+	    switch(errno) {
+	    case EAGAIN:
+	      break;
+	    case EINTR:     // interrupted by system call/signal, try again
+	      continue;
+	      break;
+	    default:
+	      perror("MsgNextEvent");
+	      break;
+	    }
+	    return -1;
+	  } else {
+	    
+	    memcpy(event_return, msg.socket.event_data, rlen);
+
+#ifdef XDEBUG
+	    fprintf(stderr, "MsgCheckEvent: pid: %d got %s (%d B), from: %d\n",
+		    getpid(), MsgEventType_str[event_return->any.type],
+		    rlen, event_return->any.client);
+#endif
+	    return 0;
+	  }
+	}
+      } else if(r == -1) {
+	switch(errno) {
+	case EINTR:
+	  continue;
+	  break;
+	default:
+	  perror("MsgNextEvent, select");
+	  return -1;
+	  break;
+	}
+      } else {
+	return -1;
+      }
+    }
+#endif //HAVE_POLL
     break;
   case MsgEventQType_pipe:
     break;
@@ -647,7 +720,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   struct sockaddr_un to_addr;
   int to_addr_len = sizeof(to_addr);
 
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     msg.msgq.mtype = client; // the recipient of this message
@@ -824,7 +897,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   }
 
 #ifdef SOCKIPC
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     memcpy(msg.msgq.event_data, event_send, size);
@@ -849,7 +922,7 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 #endif
   
 #ifdef SOCKIPC
-  switch(q->any.type) {
+  switch(q->type) {
 #ifdef HAVE_SYSV_MSG
   case MsgEventQType_msgq:
     while(1) {
