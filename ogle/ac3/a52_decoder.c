@@ -116,6 +116,10 @@ int main(int argc, char *argv[])
     }
   }
   
+  if(parse_config() < -1) {
+    fprintf(stderr, "FATAL[a52_decoder]: Couldn't read config files\n");
+  }
+
   {
     ao_driver_t * drivers;
     uint32_t accel;
