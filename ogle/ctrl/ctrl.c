@@ -293,11 +293,11 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
       
       if(state == CAP_running) {
-	MsgSendEvent(q, ev->reqcapability.client, retev);
+	MsgSendEvent(q, ev->reqcapability.client, &retev);
       } else {
 	fprintf(stderr, "ctrl: didn't find capability\n");
 	retev.gntcapability.client = CLIENT_NONE;
-	MsgSendEvent(q, ev->reqcapability.client, retev);
+	MsgSendEvent(q, ev->reqcapability.client, &retev);
       }
     }
     break;
