@@ -1344,7 +1344,7 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
   
   CHECK_ZERO(pgcit->zero_1);
   assert(pgcit->nr_of_pgci_srp != 0);
-  assert(pgcit->nr_of_pgci_srp < 1000); // ?? 99
+  assert(pgcit->nr_of_pgci_srp < 10000); // ?? seen max of 1338
   
   info_length = pgcit->nr_of_pgci_srp * PGCI_SRP_SIZE;
   data = malloc(info_length);

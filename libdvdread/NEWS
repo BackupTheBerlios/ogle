@@ -1,3 +1,10 @@
+Version 0.9.1
+  Change the way the endian swaps are defined and make sure Solaris x86 works.
+  Fix from Juergen Keil for a bug that caused libdvdread to close random fds.
+  Update the limit on the number of pgcs in the pgcit to 10000.
+  Correct bug in 0.9.0 that made using a DVD located on a normal filsystem
+  impossible.
+
 Version 0.9.0
   API breakage, new types to not be influenced by differing off_t types 
   and DVDReadBlocks now returns blocks read not bytes read.

@@ -157,6 +157,7 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
     
     if( dvdcss_library ) {
         struct timeval all_s, all_e;
+	struct timeval t_s, t_e;
 	char filename[ MAX_UDF_FILE_NAME_LEN ];
 	uint32_t start, len;
 	int title;
@@ -169,6 +170,7 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 	gettimeofday(&all_s, NULL);
 	
 	for( title = 0; title < 100; title++ ) {
+	  gettimeofday( &t_s, NULL );
 	    if( title == 0 ) {
 	        sprintf( filename, "/VIDEO_TS/VIDEO_TS.VOB" );
 	    } else {
@@ -183,8 +185,13 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 		    fprintf( stderr, "libdvdread: Error cracking CSS key!!\n");
 		}
 	    }
+	    gettimeofday( &t_e, NULL );
+	    fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
+		     (long int) t_e.tv_sec - t_s.tv_sec );
+	    
 	    if( title == 0 ) continue;
 	    
+	    gettimeofday( &t_s, NULL );
 	    sprintf( filename, "/VIDEO_TS/VTS_%02d_%d.VOB", title, 1 );
 	    start = UDFFindFile( dvd, filename, &len );
 	    if( start == 0 || len == 0 ) break;
@@ -195,6 +202,9 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
 	    if( dvdcss_title( dvd->dev, (int)start ) < 0 ) {
 	        fprintf( stderr, "libdvdread: Error cracking CSS key!!\n");
 	    }
+	    gettimeofday( &t_e, NULL );
+	    fprintf( stderr, "libdvdread: Elapsed time %ld\n",  
+		     (long int) t_e.tv_sec - t_s.tv_sec );
 	}
 	title--;
 	
@@ -216,7 +226,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location )
 {
     dvd_reader_t *dvd;
     dvdcss_handle dev = 0;
-    int fd = 0;
+    int fd = -1;
 
     setupCSS();
 
@@ -256,6 +266,7 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
     dvd->isImageFile = 0;
     dvd->dev = 0;
     dvd->init_keys = 0;
+    dvd->fd = -1;
     dvd->path_root = strdup( path_root );
 
     return dvd;
@@ -341,12 +352,16 @@ dvd_reader_t *DVDOpen( const char *path )
 	/* Resolve any symlinks and get the absolut dir name. */
 	{
 	    char *new_path;
-	    
-	    chdir( path_copy );
-	    new_path = getcwd( NULL, PATH_MAX );
-	    if( new_path ) {
-		free( path_copy );
-		path_copy = new_path;
+	    int cdir = open( ".", O_RDONLY );
+	    if( cdir >= 0 ) {
+		chdir( path_copy );
+		new_path = getcwd( NULL, PATH_MAX );
+		fchdir( cdir );
+		close( cdir );
+		if( new_path ) {
+		    free( path_copy );
+		    path_copy = new_path;
+		}
 	    }
 	}
 	
@@ -368,7 +383,6 @@ dvd_reader_t *DVDOpen( const char *path )
             while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
                 if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
 		    char *dev_name = sun_block2char( mp.mnt_special );
-	    
 		    fprintf( stderr, 
 			     "libdvdread: Attempting to use device %s"
                              " mounted on %s for CSS authentication\n",
@@ -401,11 +415,11 @@ dvd_reader_t *DVDOpen( const char *path )
 	}
 #endif
 	if( !auth_drive ) {
-            fprintf( stderr, "libdvdread: Device inaccessible, "
+	    fprintf( stderr, "libdvdread: Device inaccessible, "
 		     "CSS authentication not available.\n" );
 	}
 
-        free( path_copy );
+	free( path_copy );
 
         /**
          * If we've opened a drive, just use that.
@@ -415,6 +429,7 @@ dvd_reader_t *DVDOpen( const char *path )
         /**
          * Otherwise, we now open the directory tree.
          */
+	fprintf( stderr, "libdvdread: Using normal filesystem access.\n" );
         return DVDOpenPath( path );
     }
 
@@ -427,7 +442,7 @@ void DVDClose( dvd_reader_t *dvd )
 {
     if( dvd ) {
         if( dvd->dev ) dvdcss_close( dvd->dev );
-        if( dvd->fd ) close( dvd->fd );
+        if( dvd->fd >= 0 ) close( dvd->fd );
         if( dvd->path_root ) free( dvd->path_root );
         free( dvd );
         dvd = 0;
@@ -450,6 +465,7 @@ static dvd_file_t *DVDOpenFileUDF( dvd_reader_t *dvd, char *filename )
     dvd_file->dvd = dvd;
     dvd_file->lb_start = start;
     dvd_file->seek_pos = 0;
+    memset( dvd_file->title_fds, -1, sizeof( dvd_file->title_fds ) );
     dvd_file->filesize = len / DVD_VIDEO_LB_LEN;
 
     return dvd_file;
@@ -532,6 +548,10 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
     if( !dvd_file ) return 0;
     dvd_file->dvd = dvd;
     dvd_file->lb_start = 0;
+    dvd_file->seek_pos = 0;
+    memset( dvd_file->title_sizes, 0, sizeof( dvd_file->title_sizes ) );
+    memset( dvd_file->title_fds, -1, sizeof( dvd_file->title_fds ) );
+    dvd_file->filesize = 0;
 
     if( stat( full_path, &fileinfo ) < 0 ) {
         fprintf( stderr, "libdvdread: Can't stat() %s.\n", filename );
@@ -539,7 +559,6 @@ static dvd_file_t *DVDOpenFilePath( dvd_reader_t *dvd, char *filename )
         return 0;
     }
     dvd_file->title_sizes[ 0 ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
-    dvd_file->title_sizes[ 1 ] = 0;
     dvd_file->title_fds[ 0 ] = fd;
     dvd_file->filesize = dvd_file->title_sizes[ 0 ];
 
@@ -566,6 +585,8 @@ static dvd_file_t *DVDOpenVOBUDF( dvd_reader_t *dvd,
     dvd_file->dvd = dvd;
     dvd_file->lb_start = start;
     dvd_file->seek_pos = 0;
+    memset( dvd_file->title_sizes, 0, sizeof( dvd_file->title_sizes ) );
+    memset( dvd_file->title_fds, -1, sizeof( dvd_file->title_fds ) );
     dvd_file->filesize = len / DVD_VIDEO_LB_LEN;
 
     /* Calculate the complete file size for every file in the VOBS */
@@ -612,13 +633,12 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd,
     dvd_file->dvd = dvd;
     dvd_file->lb_start = 0;
     dvd_file->seek_pos = 0;
+    memset( dvd_file->title_sizes, 0, sizeof( dvd_file->title_sizes ) );
+    memset( dvd_file->title_fds, -1, sizeof( dvd_file->title_fds ) );
     dvd_file->filesize = 0;
 
     if( menu ) {
         int fd;
-
-        dvd_file->title_sizes[ 0 ] = 0;
-        dvd_file->title_fds[ 0 ] = 0;
 
         if( title == 0 ) {
             sprintf( filename, "VIDEO_TS.VOB" );
@@ -642,14 +662,11 @@ static dvd_file_t *DVDOpenVOBPath( dvd_reader_t *dvd,
             return 0;
         }
         dvd_file->title_sizes[ 0 ] = fileinfo.st_size / DVD_VIDEO_LB_LEN;
-        dvd_file->title_sizes[ 1 ] = 0;
         dvd_file->title_fds[ 0 ] = fd;
         dvd_file->filesize = dvd_file->title_sizes[ 0 ];
 
     } else {
         for( i = 0; i < 9; ++i ) {
-            dvd_file->title_sizes[ i ] = 0;
-            dvd_file->title_fds[ i ] = 0;
 
             sprintf( filename, "VTS_%02i_%i.VOB", title, i + 1 );
             if( !findDVDFile( dvd, filename, full_path ) ) {
@@ -728,8 +745,8 @@ void DVDCloseFile( dvd_file_t *dvd_file )
     if( dvd_file ) {
         if( !dvd_file->dvd->isImageFile ) {
             for( i = 0; i < 9; ++i ) {
-                if( !dvd_file->title_fds[ i ] ) break;
-                close( dvd_file->title_fds[ i ] );
+                if( dvd_file->title_fds[ i ] >= 0 )
+		    close( dvd_file->title_fds[ i ] );
             }
         }
 
@@ -763,7 +780,7 @@ int64_t DVDReadLBUDF( dvd_reader_t *device, uint32_t lb_number,
     } else {
         off64_t off;
 
-        if( !device->fd ) {
+        if( device->fd < 0) {
             fprintf( stderr, "libdvdread: Fatal error in block read.\n" );
             return 0;
         }

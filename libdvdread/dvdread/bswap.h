@@ -28,10 +28,26 @@
 #define B2N_32(x) (void)(x)
 #define B2N_64(x) (void)(x)
 
-#else /* WORDS_BIGENDIAN */
+#else 
 
-#if defined(__FreeBSD__)
-/* FreeBSD doesn't have a <byteswap.h> file or any other such functionality! */
+#if defined(__linux__)
+#include <byteswap.h>
+#define B2N_16(x) x = bswap_16(x)
+#define B2N_32(x) x = bswap_32(x)
+#define B2N_64(x) x = bswap_64(x)
+
+#elif defined(__OpenBSD__)
+#include <sys/endian.h>
+#define B2N_16(x) x = swap16(x)
+#define B2N_32(x) x = swap32(x)
+#define B2N_64(x) x = swap64(x)
+
+/* This is a slow but portable implementation */
+/* FreeBSD and Solaris don't have <byteswap.h> or any other such 
+ * functionality! 
+ */
+
+#elif defined(__FreeBSD__) || defined(__sun) 
 #define B2N_16(x) \
  x = ((((x) & 0xff00) >> 8) | \
       (((x) & 0x00ff) << 8))
@@ -50,17 +66,12 @@
       (((x) & 0x000000000000ff00) << 40) | \
       (((x) & 0x00000000000000ff) << 56))
 
-#elif defined(__OpenBSD__)
-#include <sys/endian.h>
-#define B2N_16(x) x = swap16(x)
-#define B2N_32(x) x = swap32(x)
-#define B2N_64(x) x = swap64(x)
+#else
 
-#else /* #elif defined(__linux__) */
-#include <byteswap.h>
-#define B2N_16(x) x = bswap_16(x)
-#define B2N_32(x) x = bswap_32(x)
-#define B2N_64(x) x = bswap_64(x)
+/* If there isn't a header provided with your system with this functionality
+ * add the relevant || define( ) to the portable implementation above.
+ */
+#error "You need to add endian swap macros for you're system"
 
 #endif
 
