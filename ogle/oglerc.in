@@ -8,7 +8,7 @@
       <defaults>
 	<DefaultMenuLanguage>en</DefaultMenuLanguage>
 	<DefaultAudioLanguage>en</DefaultAudioLanguage>
-	<DefaultSubpictureLanguage>en</DefaultSubpictureLanguage>
+	<DefaultSubtitleLanguage>en</DefaultSubtitleLanguage>
 	<ParentalCountry>US</ParentalCountry>
 	<ParentalLevel>15</ParentalLevel>
 	<PlayerRegion>1</PlayerRegion>
@@ -47,11 +47,6 @@
 	<b>	
 	  <action>PrevPG</action>
 	  <key>less</key>
-  	</b>
-	<b>	
-	  <action>FullScreenToggle</action>
-	  <key>f</key>
-	  <key>F</key>
   	</b>
 	<b>	
 	  <action>UpperButton</action>
@@ -95,12 +90,21 @@
 	  <key>P</key>
   	</b>
 	<b>	
-	  <action>SubpictureMenu</action>
-	  <key>s</key>
+	  <action>SubtitleMenu</action>
+	  <key>S</key>
   	</b>
 	<b>	
 	  <action>Resume</action>
 	  <key>c</key>
+  	</b>
+	<b>	
+	  <action>SubtitleToggle</action>
+	  <key>s</key>
+  	</b>
+	<b>	
+	  <action>FullScreenToggle</action>
+	  <key>f</key>
+	  <key>F</key>
   	</b>
 	<b>	
 	  <action>Quit</action>

@@ -1,11 +1,11 @@
 <!ELEMENT DefaultMenuLanguage (#PCDATA)>
 <!ELEMENT DefaultAudioLanguage (#PCDATA)>
-<!ELEMENT DefaultSubpictureLanguage (#PCDATA)>
+<!ELEMENT DefaultSubtitleLanguage (#PCDATA)>
 <!ELEMENT ParentalCountry (#PCDATA)>
 <!ELEMENT ParentalLevel (#PCDATA)>
 <!ELEMENT PlayerRegion (#PCDATA)>
 <!ELEMENT defaults (DefaultMenuLanguage|DefaultAudioLanguage |
-	DefaultSubpictureLanguage | ParentalCountry | ParentalLevel |
+	DefaultSubtitleLanguage | ParentalCountry | ParentalLevel |
 	PlayerRegion)*>
 
 <!ELEMENT nav (defaults)?>

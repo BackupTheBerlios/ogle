@@ -39,9 +39,9 @@ static void interpret_nav_defaults(xmlDocPtr doc, xmlNodePtr cur)
 	DVDDefaultAudioLanguageSelect(nav, lang);    
 	free(s);
       }
-    } else if(!strcmp("DefaultSubpictureLanguage", cur->name)) {
+    } else if(!strcmp("DefaultSubtitleLanguage", cur->name)) {
       if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	//fprintf(stderr, "DefaultSubpictureLanguage = %s\n", s);
+	//fprintf(stderr, "DefaultSubtitleLanguage = %s\n", s);
 	lang = s[0] << 8 | s[1];
 	DVDDefaultSubpictureLanguageSelect(nav, lang);    
 	free(s);
