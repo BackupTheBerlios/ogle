@@ -837,7 +837,7 @@ static void do_run(void) {
       len = get_q(msgq, &buffer[0]);
       
       if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
-	navRead_PCI(&pci, &buffer[1], len);
+	navRead_PCI(&pci, &buffer[1]);
 	/* Is this the packet we are waiting for? */
 	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
 	  //fprintf(stdout, "nav: Droped PCI packet\n");
@@ -855,7 +855,7 @@ static void do_run(void) {
 	process_pci(&pci, &state.HL_BTNN_REG);
 	  
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
-	navRead_DSI(&dsi, &buffer[1], len);
+	navRead_DSI(&dsi, &buffer[1]);
 	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
 	  //fprintf(stdout, "nav: Droped DSI packet\n");
 	  dsi.dsi_gi.nv_pck_lbn = -1;
@@ -873,5 +873,4 @@ static void do_run(void) {
     }
     
   }
-  
 }
