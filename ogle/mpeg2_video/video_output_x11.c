@@ -638,8 +638,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
 /* Fullscreen needs to be able to hide the wm decorations. */
 #define MWM_HINTS_DECORATIONS   (1L << 1)
 #define PROP_MWM_HINTS_ELEMENTS 5
-typedef struct mwmhints_s
-{
+typedef struct {
   uint32_t flags;
   uint32_t functions;
   uint32_t decorations;
@@ -648,20 +647,61 @@ typedef struct mwmhints_s
 } mwmhints_t;
 
 void display_toggle_fullscreen() {
-  XEvent xev;
-  Atom prop = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", False);
+  
+  /* Toggle the state of the fullscreen flag. */    
+  scale_fullscreen = !scale_fullscreen;
+
   
   /* Unmap window. */
   XUnmapWindow(mydisplay, window.win);
-  XSync(mydisplay, False);
+  XSync(mydisplay, True);
   
-  if(!scale_fullscreen) {
-    mwmhints_t mwmhints;
-    mwmhints.flags = MWM_HINTS_DECORATIONS;
-    mwmhints.decorations = 0;
-    XChangeProperty(mydisplay, window.win, prop, prop, 32, PropModeReplace,
-		    (unsigned char *)&mwmhints, PROP_MWM_HINTS_ELEMENTS);
-    XSetTransientForHint(mydisplay, window.win, None);
+  if(scale_fullscreen) {
+    int found_wm = 0;
+    Atom WM_HINTS;
+    
+    /* First try to set MWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", True);
+    if(WM_HINTS != None) {
+      /* Hints used by Motif compliant window managers */
+      mwmhints_t MWMHints = { MWM_HINTS_DECORATIONS, 0, 0, 0, 0 };
+      
+      XChangeProperty(mydisplay, window.win,
+		      WM_HINTS, WM_HINTS, 32,
+		      PropModeReplace,
+		      (unsigned char *)&MWMHints,
+		      sizeof(MWMHints)/sizeof(long));
+      found_wm = 1;
+    }
+    /* Now try to set KWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
+    if(WM_HINTS != None) {
+      long KWMHints = 0;
+      
+      XChangeProperty(mydisplay, window.win,
+		      WM_HINTS, WM_HINTS, 32,
+		      PropModeReplace,
+		      (unsigned char *)&KWMHints,
+		      sizeof(KWMHints)/sizeof(long));
+      found_wm = 1;
+    }
+    /* Now try to set GNOME hints */
+    WM_HINTS = XInternAtom(mydisplay, "_WIN_HINTS", True);
+    if(WM_HINTS != None) {
+      long GNOMEHints = 0;
+      
+      XChangeProperty(mydisplay, window.win,
+		      WM_HINTS, WM_HINTS, 32,
+		      PropModeReplace,
+		      (unsigned char *)&GNOMEHints,
+		      sizeof(GNOMEHints)/sizeof(long));
+      found_wm = 1;
+    }
+    /* Finally set the transient hints if necessary */
+    if(!found_wm) {
+      XSetTransientForHint(mydisplay,window.win,DefaultRootWindow(mydisplay));
+    }
+    
     XRaiseWindow(mydisplay, window.win);
     //XSetInputFocus(mydisplay, window.win, RevertToNone, CurrentTime);
     XResizeWindow(mydisplay, window.win, 
@@ -669,21 +709,46 @@ void display_toggle_fullscreen() {
 		  DisplayWidth(mydisplay, DefaultScreen(mydisplay)),
 		  DisplayHeight(mydisplay, DefaultScreen(mydisplay)));
     XMoveWindow(mydisplay, window.win, 0, 0);
-  } else {
-    XDeleteProperty(mydisplay, window.win, prop);
-  }
-  scale_fullscreen = !scale_fullscreen;
   
-  XFlush(mydisplay);
+  } else {
+    int found_wm = 0;
+    Atom WM_HINTS;
+    
+    /* First try to unset MWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "_MOTIF_WM_HINTS", True);
+    if(WM_HINTS != None) {
+      XDeleteProperty(mydisplay, window.win, WM_HINTS);
+      found_wm = 1;
+    }
+    /* Now try to unset KWM hints */
+    WM_HINTS = XInternAtom(mydisplay, "KWM_WIN_DECORATION", True);
+    if(WM_HINTS != None) {
+      XDeleteProperty(mydisplay, window.win, WM_HINTS);
+      found_wm = 1;
+    }
+    /* Now try to unset GNOME hints */
+    WM_HINTS = XInternAtom(mydisplay, "_WIN_HINTS", True);
+    if(WM_HINTS != None) {
+      XDeleteProperty(mydisplay, window.win, WM_HINTS);
+      found_wm = 1;
+    }
+    /* Finally unset the transient hints if necessary */
+    if(!found_wm) {
+      /* NOTE: Does this work? */
+      XSetTransientForHint(mydisplay, window.win, None);
+    }
+  }
   
   /* Map window. */
   XMapWindow(mydisplay, window.win);
   
-  /* Wait for map. */
-  do {
-    XNextEvent(mydisplay, &xev);
+  { /* Wait for map. */
+    XEvent xev;
+    do {
+      XNextEvent(mydisplay, &xev);
+    }
+    while (xev.type != MapNotify || xev.xmap.event != window.win);
   }
-  while (xev.type != MapNotify || xev.xmap.event != window.win);
   
   XSync(mydisplay, False);
 }
