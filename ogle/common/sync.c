@@ -37,6 +37,16 @@ int set_time_base(uint64_t PTS,
 
   clocktime_get(&curtime);
   timeadd(&modtime, &curtime, &offset);
+  
+  if(ctrl_time[scr_nr].offset_valid == OFFSET_VALID) { // DEBUG
+    clocktime_t adjtime;
+    timesub(&adjtime, &modtime, &ptstime);
+    timesub(&adjtime, &adjtime, &(ctrl_time[scr_nr].realtime_offset));
+    fprintf(stderr, "set_time_base: offset adjusted with: %ld.%09ld\n",
+	    TIME_S(adjtime),
+	    TIME_SS(adjtime));
+  }
+
   timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
   ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
 
