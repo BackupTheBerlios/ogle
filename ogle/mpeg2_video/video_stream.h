@@ -35,6 +35,8 @@
 
 /* Table 6-3. aspect_ratio_information TODO */
 /* Table 6-4 --- frame_rate_value TODO */
+/* Table 6-5. Meaning of chroma_format TODO */
+/* Table 6-10. Definition of scalable_mode TODO */
 
 typedef struct { 
 	int numberofbits;
@@ -64,7 +66,7 @@ typedef struct {
 #define VLC_ESCAPE         255
 #define VLC_END_OF_BLOCK   254 
 
-
+/* Table B-12 --- Variable length codes for dct_dc_size_luminance */
 vlc_table_t table_b12[] = { 
 	{    2,  0x000,     1 },
 	{    2,  0x001,     2 },
@@ -80,6 +82,7 @@ vlc_table_t table_b12[] = {
 	{    9,  0x1FF,    11 },
 	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
 
+/* Table B-13 --- Variable length codes for dct_dc_size_chrominance */
 vlc_table_t table_b13[] = {
 	{    2,  0x000,     0 },
 	{    2,  0x001,     1 },
@@ -96,7 +99,7 @@ vlc_table_t table_b13[] = {
 	{ VLC_FAIL, VLC_FAIL, VLC_FAIL } };
 
 
-
+/* Table B-14 --- DCT coefficients Table zero */
 vlc_rl_table table_b14[] = {
   {	    2,	       0x2,VLC_END_OF_BLOCK, VLC_END_OF_BLOCK},
   {	    2,	       0x3,         0,	    1	},// NOTE 2, 3
@@ -214,6 +217,7 @@ vlc_rl_table table_b14[] = {
   {	   VLC_FAIL, VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
+/* Table B-15 --- DCT coefficients Table one */
 vlc_rl_table table_b15[] = {
   {	    2,	       0x2,	    0,	    1	},
   {	    3,	       0x2,	    1,	    1	},
@@ -340,14 +344,14 @@ vlc_rl_table table_b15[] = {
 #define MACROBLOCK_INTRA                    0x02
 #define SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG   0x01
 
-
+/* Table B-2  Variable length codes for macroblock_type in I-pictures */
 vlc_table_t table_b2[]= {
   { 1, 1, MACROBLOCK_INTRA },
   { 2, 1, MACROBLOCK_QUANT | MACROBLOCK_INTRA },
   { VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
-
+/* Table B-3  Variable length codes for macroblock_type in P-pictures */
 vlc_table_t table_b3[]= {
   { 1, 1, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_PATTERN },
   { 2, 1, MACROBLOCK_PATTERN },
@@ -359,7 +363,7 @@ vlc_table_t table_b3[]= {
   { VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
-
+/* Table B-4  Variable length codes for macroblock_type in B-pictures */
 vlc_table_t table_b4[]= {
   { 2, 2, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_MOTION_BACKWARD },
   { 2, 3, MACROBLOCK_MOTION_FORWARD | MACROBLOCK_MOTION_BACKWARD | MACROBLOCK_PATTERN },
@@ -377,8 +381,7 @@ vlc_table_t table_b4[]= {
 
 #define VLC_MACROBLOCK_ESCAPE 255
 
-
-
+/* Table B-1 --- Variable length codes for macroblock_address_increment */
 vlc_table_t table_b1[] = {
   {	    1,	  0x1,	    1	},
   {	    3,	  0x3,	    2	},
@@ -421,13 +424,14 @@ vlc_table_t table_b1[] = {
 #define MV_FORMAT_FIELD 0
 #define MV_FORMAT_FRAME 1
 
+/* Table 6-17 Meaning of frame_motion_type */
+/* Table 6-18 Meaning of field_motion_type */
 #define PRED_TYPE_FIELD_BASED 0
 #define PRED_TYPE_FRAME_BASED 1
 #define PRED_TYPE_DUAL_PRIME 2
 #define PRED_TYPE_16x8_MC 3
 
-
-
+/* Table B-10 --- Variable length codes for motion_code */
 vlc_table_t table_b10[] = {
 	{	    1,	  0x1,	    0	},
 	{	    3,	  0x2,	    1	},
@@ -465,6 +469,7 @@ vlc_table_t table_b10[] = {
 	{ VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
+/* Table B-11  Variable length codes for dmvector[t] */
 vlc_table_t table_b11[] = {
   {	    1,	  0x0,	    0	},
   {	    2,	  0x2,	    1	},
@@ -472,6 +477,7 @@ vlc_table_t table_b11[] = {
   { VLC_FAIL, VLC_FAIL, VLC_FAIL }
 };
 
+/* Table B-9 --- Variable length codes for coded_block_pattern. */
 vlc_table_t table_b9[] = {
 	{	    3,	  0x7,	   60	},
 	{	    4,	  0xD,	    4	},
@@ -544,8 +550,8 @@ vlc_table_t table_b9[] = {
 
 
 
-
 const uint8_t scan[2][8][8] = {
+  /* Figure 7-1. Definition of scan[0][v][u] */
   {
     { 0, 1, 5, 6, 14, 15, 27, 28 },
     { 2, 4, 7, 13, 16, 26, 29, 42 },
@@ -556,6 +562,7 @@ const uint8_t scan[2][8][8] = {
     { 21, 34, 37, 47, 50, 56, 59, 61 },
     { 35, 36, 48, 49, 57, 58, 62, 63 }
   },
+  /* Figure 7-2. Definition of scan[1][v][u] */
   {
     { 0, 4, 6, 20, 22, 36, 38, 52 },
     { 1, 5, 7, 21, 23, 37, 39, 53 },
@@ -568,6 +575,7 @@ const uint8_t scan[2][8][8] = {
   }
 };
 
+/* Table 7-6. Relation between quantiser_scale and quantiser_scale_code */
 int16_t q_scale[32][2] = {
   { 255, 255 },
   { 2, 1 },
@@ -605,7 +613,7 @@ int16_t q_scale[32][2] = {
 
 
 
-
+/* 6.3.7 Quant matrix extension */
 uint8_t default_intra_inverse_quantiser_matrix[8][8] = {
   { 8, 16, 19, 22, 26, 27, 29, 34 },
   { 16, 16, 22, 24, 27, 29, 34, 37 },

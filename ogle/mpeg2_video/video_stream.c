@@ -511,7 +511,7 @@ void sequence_header(void)
       seq.header.intra_quantiser_matrix[n] = GETBITS(8, "intra_quantiser_matrix[n]");
     }
     
-    /* inverse scan for matrix download */
+    /* 7.3.1 Inverse scan for matrix download */
     {
       int v, u;
       for (v=0; v<8; v++) {
@@ -776,6 +776,7 @@ void picture_coding_extension(void)
   pic.coding_ext.picture_structure = GETBITS(2, "picture_structure");
 
 #ifdef DEBUG
+  /* Table 6-14 Meaning of picture_structure */
   DPRINTF(0, "picture_structure: ");
   switch(pic.coding_ext.picture_structure) {
   case 0x0:
@@ -872,6 +873,7 @@ void group_of_pictures_header(void)
   group_start_code = GETBITS(32, "group_start_code");
   time_code = GETBITS(25, "time_code");
 
+  /* Table 6-11 --- time_code */
   DPRINTF(1, "time_code: %02d:%02d.%02d'%02d\n",
 	  (time_code & 0x00f80000)>>19,
 	  (time_code & 0x0007e000)>>13,
@@ -896,7 +898,7 @@ void picture_header(void)
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
 
 #ifdef DEBUG
-  
+  /* Table 6-12 --- picture_coding_type */
   DPRINTF(0, "picture coding type: %01x, ", pic.header.picture_coding_type);
 
   switch(pic.header.picture_coding_type) {
@@ -1463,6 +1465,7 @@ void macroblock(void)
     
   }
 
+  /* Table 6-20 block_count as a function of chroma_format */
   if(seq.ext.chroma_format == 0x01) {
     block_count = 6;
   } else if(seq.ext.chroma_format == 0x02) {
@@ -1659,7 +1662,7 @@ void block(unsigned int i)
   int m;
 
   
-  
+  /* Table 7-1. Definition of cc, colour component index */ 
   if(i < 4) {
     cc = 0;
   } else {
@@ -1756,7 +1759,7 @@ void block(unsigned int i)
       n++;
     }
 
-
+    /* 7.2.2.4 Summary */
     eob_not_read = 1;
     while(eob_not_read) {
       //fprintf(stderr, "Subsequent dct_dc\n");
@@ -1792,7 +1795,7 @@ void block(unsigned int i)
 
     DPRINTF(3, "nr of coeffs: %d\n", n);
    
-    /* inverse scan */
+    /* 7.3 Inverse scan */
     {
       int v,u;
       
@@ -1805,6 +1808,7 @@ void block(unsigned int i)
 
 
     /* inverse quantisation  (currently only supports 4:2:0)*/
+    /* 7.4.5 Summary */
     {
       int v, u;
       int sum;
@@ -1818,7 +1822,7 @@ void block(unsigned int i)
 	for(u=0; u<8; u++) {
 	  if((u==0) && (v==0) && (mb.modes.macroblock_intra)) {
 	    /* intra dc coefficient */
-	    
+            /* Table 6-13 Intra DC precision */
 	    switch(pic.coding_ext.intra_dc_precision) {
 	    case 0x0:
 	      intra_dc_mult = 8;
@@ -1906,6 +1910,7 @@ void motion_vectors(unsigned int s)
   if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
     if(pic.coding_ext.frame_pred_frame_dct == 0) {
       
+      /* Table 6-17 Meaning of frame_motion_type */
       switch(mb.modes.frame_motion_type) {
       case 0x0:
 	fprintf(stderr, "*** reserved prediction type\n");
@@ -1952,6 +1957,7 @@ void motion_vectors(unsigned int s)
     }
     
   } else {
+    /* Table 6-18 Meaning of field_motion_type */
     switch(mb.modes.field_motion_type) {
     case 0x0:
 	fprintf(stderr, "*** reserved field prediction type\n");
@@ -2078,7 +2084,7 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
   int sign=0;
   vlc_rl_table *table;
   
-  
+  /* Table 7-3. Selection of DCT coefficient VLC tables */
   if((intra_vlc_format == 1) && (intra_block == 1)) {
     table = table_b15;
   } else {    
@@ -2149,7 +2155,8 @@ void reset_dc_dct_pred(void)
   
   DPRINTF(2, "Resetting dc_dct_pred\n");
   
-
+  /* Table 7-2. Relation between intra_dc_precision and the predictor
+     reset value */
   switch(pic.coding_ext.intra_dc_precision) {
   case 0:
     mb.dc_dct_pred[0] = 128;
@@ -2627,6 +2634,7 @@ void sequence_display_extension()
   colour_description = GETBITS(1, "colour_description");
 
 #ifdef DEBUG
+  /* Table 6-6. Meaning of video_format */
   DPRINTF(1, "video_format: ");
   switch(video_format) {
   case 0x0:
@@ -2661,6 +2669,7 @@ void sequence_display_extension()
     matrix_coefficients = GETBITS(8, "matrix_coefficients");
     
 #ifdef DEBUG
+    /* Table 6-7. Colour Primaries */
     DPRINTF(1, "colour primaries (Table 6-7): ");
     switch(colour_primaries) {
     case 0x0:
@@ -2694,6 +2703,7 @@ void sequence_display_extension()
 #endif
     
 #ifdef DEBUG
+    /* Table 6-8. Transfer Characteristics */
     DPRINTF(1, "transfer characteristics (Table 6-8): ");
     switch(transfer_characteristics) {
     case 0x0:
@@ -2730,6 +2740,7 @@ void sequence_display_extension()
 #endif
     
 #ifdef DEBUG
+    /* Table 6-9. Matrix Coefficients */
     DPRINTF(1, "matrix coefficients (Table 6-9): ");
     switch(matrix_coefficients) {
     case 0x0:
