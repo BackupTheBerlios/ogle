@@ -641,10 +641,29 @@ static void do_run(void) {
 	  break;
 	  
 	case DVDCtrlGoUp:
-	case DVDCtrlForwardScan:
 	case DVDCtrlBackwardScan:
 	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);
+	  break;
+	
+	case DVDCtrlPauseOn:
+	case DVDCtrlPauseOff:
+	case DVDCtrlForwardScan:  
+	  {
+	    MsgEvent_t send_ev;
+	    static double last_speed;
+	    send_ev.type = MsgEventQSpeed;
+	    if(ev.dvdctrl.cmd.type == DVDCtrlForwardScan) {
+	      send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
+	      last_speed = ev.dvdctrl.cmd.scan.speed;
+	    }
+	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOn)
+	      send_ev.speed.speed = 0.000000001;
+	    else if(ev.dvdctrl.cmd.type == DVDCtrlPauseOff)
+	      send_ev.speed.speed = last_speed;
+	    /* Perhaps we should remeber the speed before the pause. */
+	    MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
+          }
 	  break;
 	  
 	case DVDCtrlNextPGSearch:
@@ -662,12 +681,16 @@ static void do_run(void) {
 	case DVDCtrlTitlePlay:
 	case DVDCtrlTimeSearch:
 	case DVDCtrlTimePlay:
-	case DVDCtrlPauseOn:
-	case DVDCtrlPauseOff:
+	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
+		  ev.dvdctrl.cmd.type);
+	  break;
+	  
+	  
 	case DVDCtrlStop:
 	  fprintf(stderr, "nav: Unknown (not handled) DVDCtrlEvent %d\n",
 		  ev.dvdctrl.cmd.type);
 	  break;
+	  
 	case DVDCtrlAngleChange:
 	  state.AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
 	  break;
