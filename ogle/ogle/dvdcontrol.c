@@ -206,6 +206,7 @@ DVDResult_t DVDGetAudioAttributes(DVDNav_t *nav, DVDAudioStream_t StreamNr,
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetAudioAttributes;
+  ev.dvdctrl.cmd.audioattributes.streamnr = StreamNr;
   MsgSendEvent(nav->msgq, nav->client, &ev);
   while(1) {
     MsgNextEvent(nav->msgq, &ev);
@@ -437,6 +438,7 @@ DVDResult_t DVDGetSubpictureAttributes(DVDNav_t *nav,
   MsgEvent_t ev;
   ev.type = MsgEventQDVDCtrl;
   ev.dvdctrl.cmd.type = DVDCtrlGetSubpictureAttributes;
+  ev.dvdctrl.cmd.subpictureattributes.streamnr = StreamNr;
   MsgSendEvent(nav->msgq, nav->client, &ev);
   while(1) {
     MsgNextEvent(nav->msgq, &ev);
