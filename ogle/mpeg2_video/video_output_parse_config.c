@@ -93,6 +93,32 @@ static void parse_resolution(xmlDocPtr doc, xmlNodePtr cur,
   
 }
 
+	
+static void parse_initial_state(xmlDocPtr doc, xmlNodePtr cur,
+				cfg_display_t *display)
+{
+  xmlChar *s;
+
+  display->initial_state.fullscreen = 0;
+
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+    
+    if(!xmlIsBlankNode(cur)) {
+      if(!strcmp("fullscreen", cur->name)) {
+	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
+	  if(!strcmp("yes", s)) {
+	    display->initial_state.fullscreen = 1;
+	  }
+	  free(s);
+	}
+      }
+    }
+    cur = cur->next;
+  } 
+}
+
 
 static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 			  cfg_display_t **cur_display)
@@ -172,6 +198,8 @@ static void parse_display(xmlDocPtr doc, xmlNodePtr cur,
 	    }
 	    free(s);
 	  }
+	} else 	if(!strcmp("initial_state", cur->name)) {
+	  parse_initial_state(doc, cur, *cur_display);
 	}
       }
     }

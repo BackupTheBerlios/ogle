@@ -627,6 +627,13 @@ void init_config(Display *dpy)
 	 dpy_sar_frac_n, dpy_sar_frac_d,
 	 (double)dpy_sar_frac_n/(double)dpy_sar_frac_d);
   }
+
+  if(cfg_display->initial_state.fullscreen == 1) {
+    zoom_mode = ZoomModeFullScreen;
+  } else {
+    zoom_mode = ZoomModeResizeAllowed;
+  }
+
 }
 
 void display_reset(void)

@@ -11,10 +11,15 @@ typedef struct {
   int vertical_pixels;
 } cfg_resolution_t;
 
+typedef struct {
+  int fullscreen;
+} cfg_initial_state_t;
+
 typedef struct _cfg_display_t {
   char *name;
   cfg_geometry_t geometry;
   cfg_resolution_t resolution;
+  cfg_initial_state_t initial_state;
   char *geometry_src;
   char *resolution_src;
   int switch_resolution;
