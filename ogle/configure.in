@@ -348,13 +348,13 @@ dnl config file
 dnl ---------------------------------------------------------
 
 if test "x${prefix}" = "xNONE"; then
-  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${ac_default_prefix}/share/oglerc")
-  CONFIG_FILE="${ac_default_prefix}/share/oglerc"
-  CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle_conf.dtd"
+  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${ac_default_prefix}/share/ogle/oglerc")
+  CONFIG_FILE="${ac_default_prefix}/share/ogle/oglerc"
+  CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle/ogle_conf.dtd"
 else
-  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${prefix}/share/oglerc")
-  CONFIG_FILE="${prefix}/share/oglerc"
-  CONFIG_FILE_DTD="${prefix}/share/ogle_conf.dtd"
+  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${prefix}/share/ogle/oglerc")
+  CONFIG_FILE="${prefix}/share/ogle/oglerc"
+  CONFIG_FILE_DTD="${prefix}/share/ogle/ogle_conf.dtd"
 fi
 
 AC_SUBST(CONFIG_FILE)
@@ -370,7 +370,7 @@ linux*)
 	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 freebsd*)
-	DEFAULT_DVD_DEVICE="/dev/racd0c"
+	DEFAULT_DVD_DEVICE="/dev/acd0c"
 	DEFAULT_AUDIO_DEVICE="/dev/dsp"
 	;;
 netbsd*)
