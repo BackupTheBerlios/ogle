@@ -194,7 +194,7 @@ void screenshot_yuv_jpg(yuv_image_t *yuv_data, XImage *ximg,
 
 static char *new_file(void) {
     char *pre = "shot";
-    int i = 0;
+    static int i = 0;
     int fd;
     static char full_name[20];
 
