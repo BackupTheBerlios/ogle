@@ -5,7 +5,9 @@ INCLUDES = \
 	$(GNOME_INCLUDEDIR) \
 	$(DVD_INCLUDEDIR)
 
-bin_PROGRAMS = ogle_gui
+# To get ogle_gui installed in the ogle pkglibdir
+pkglibdir=$(datadir)/ogle
+pkglib_PROGRAMS = ogle_gui
 
 ogle_gui_SOURCES = \
 	main.c \
