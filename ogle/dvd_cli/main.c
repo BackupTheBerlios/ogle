@@ -20,8 +20,10 @@
 #  include <config.h>
 #endif
 
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <ogle/dvdcontrol.h>
 #include "xsniffer.h"
