@@ -1,3 +1,4 @@
+#include <stdio.h>
 
 #include "sync.h"
 #include "common.h"
@@ -38,11 +39,15 @@ int set_time_base(uint64_t PTS,
   timeadd(&modtime, &curtime, &offset);
   timesub(&(ctrl_time[scr_nr].realtime_offset), &modtime, &ptstime);
   ctrl_time[scr_nr].offset_valid = OFFSET_VALID;
+
   /*
-  fprintf(stderr, "ac3: setting offset[%d]: %ld.%09ld\n",
+  fprintf(stderr, "set_time_base: setting offset[%d]: rtoff: %ld.%09ld, curtime: %ld.%09ld, PTS %lld\n",
 	  scr_nr,
 	  TIME_S(ctrl_time[scr_nr].realtime_offset),
-	  TIME_SS(ctrl_time[scr_nr].realtime_offset));
+	  TIME_SS(ctrl_time[scr_nr].realtime_offset),
+	  TIME_S(curtime),
+	  TIME_SS(curtime),  
+	  PTS);
   */
   return 0;
 }
