@@ -50,7 +50,7 @@ extern void display(yuv_image_t *current_image);
 extern void display_poll(yuv_image_t *current_image);
 extern void display_exit(void);
 
-void redraw_request(void);
+
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
@@ -222,6 +222,38 @@ static int attach_picture_buffer(int shmid)
 }
 
 
+static yuv_image_t *last_image_buf = NULL;
+static int redraw_needed = 0;
+
+void redraw_request(void)
+{
+  redraw_needed = 1;
+}
+
+void redraw_done(void)
+{
+  redraw_needed = 0;
+}
+
+static void redraw_screen(void)
+{
+
+  if(flush_to_scrnr != -1) {
+    if(flush_to_scrnr != video_scr_nr) {
+      redraw_done();
+      return;
+    } else {
+      flush_to_scrnr = -1;
+    }
+  }
+
+  if(last_image_buf != NULL) {
+    display(last_image_buf);    
+  }
+  redraw_done();
+}
+
+
 static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
   switch(ev->type) {
@@ -275,36 +307,6 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 }
 
 
-static yuv_image_t *last_image_buf = NULL;
-static int redraw_needed = 0;
-
-void redraw_request(void)
-{
-  redraw_needed = 1;
-}
-
-void redraw_done(void)
-{
-  redraw_needed = 0;
-}
-
-static void redraw_screen(void)
-{
-
-  if(flush_to_scrnr != -1) {
-    if(flush_to_scrnr != video_scr_nr) {
-      redraw_done();
-      return;
-    } else {
-      flush_to_scrnr = -1;
-    }
-  }
-
-  if(last_image_buf != NULL) {
-    display(last_image_buf);    
-  }
-  redraw_done();
-}
 
 
 static int get_next_picture_buf_id()

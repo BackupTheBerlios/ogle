@@ -744,8 +744,6 @@ void sequence_header(void)
 
 int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
 {
-  int i;
-  char *baseaddr;
   int picture_size;
   int picture_bufs_size;
   int picture_ctrl_size;
@@ -761,7 +759,6 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
   char *shmaddr;
   char *qshmaddr;
   picture_data_elem_t *data_elems;
-  char *picture_data_base;
   int picture_data_offset;
   int n;
 
@@ -951,6 +948,7 @@ int get_output_buffer(int padded_width, int padded_height, int nr_of_bufs)
     break;
   }
 
+  return 0;
 }
 
 

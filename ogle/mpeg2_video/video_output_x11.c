@@ -471,11 +471,11 @@ static void display_init_xshm()
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   
   pixel_stride = window.ximage->bits_per_pixel;
-  if(pixel_stride != 32) {
-    fprintf(stderr, "vo: Only 24/32bits mode supported for now.\n");
-    exit(1);
-  }
+
   
+  fprintf(stderr, "vo: pixel_stride: %d\n", pixel_stride);
+  
+
   // If we have blue in the lowest bit then obviously RGB 
   mode = ((window.ximage->blue_mask & 0x01) != 0) ? 1 : 2;
   /*
@@ -683,6 +683,8 @@ void display_init(yuv_image_t *picture_data,
   XStoreName(mydisplay, window.win, &title[0]);
   
 }
+
+
 
 
 
@@ -919,7 +921,8 @@ static void display_toggle_fullscreen(yuv_image_t *current_image) {
   
 }
 
-static void check_x_events(yuv_image_t *current_image)
+
+void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
   static clocktime_t prev_time;
@@ -1192,6 +1195,7 @@ void display_poll(yuv_image_t *current_image)
   check_x_events(current_image);
 }
 
+
 void display_exit(void) 
 {
   // FIXME TODO $$$ X isn't async signal safe.. cant free/detach things here..
@@ -1380,8 +1384,8 @@ static void draw_win_x11(window_info *dwin)
   }  
   /*** end sun ffb2 ***/
 
-  /* We must some how guarantee that the ximage isn't used by X11.
-     Rigth now it's (almost) done by the XSync call at the bottom... */
+  /* We must some how guarantee that the ximage isn't used by X11. 
+   This is done by the XIfEvent at the bottom */
   yuv2rgb(address, dwin->image->y, dwin->image->u, dwin->image->v,
 	  dwin->image->info->picture.padded_width, 
 	  dwin->image->info->picture.padded_height, 
