@@ -79,6 +79,9 @@ int main(int argc, char *argv[])
     fprintf(stderr, "what?\n");
     exit(1);
   }
+
+  srand(getpid());
+
   {
     MsgEvent_t ev;
     
