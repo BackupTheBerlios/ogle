@@ -10,6 +10,8 @@
 #include <ogle/dvdcontrol.h>
 
 #include "menu.h"
+#include "audio.h"
+#include "subpicture.h"
 
 extern DVDNav_t *nav;
 
@@ -49,7 +51,7 @@ void
 on_root_activate_pm                    (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-  DVDMenuCall(nav, DVD_MENU_Subpicture);
+  DVDMenuCall(nav, DVD_MENU_Root);
 }
 
 
@@ -104,7 +106,13 @@ void
 on_exit_activate                      (GtkMenuItem     *menuitem,
                                         gpointer         user_data)
 {
-
+  extern DVDNav_t *nav;
+  DVDResult_t res;
+  res = DVDCloseNav(nav);
+  if(res != DVD_E_Ok ) {
+    DVDPerror("DVDCloseNav", res);
+  }
+  exit(0);
 }
 
 
@@ -335,7 +343,7 @@ void
 on_subpicture_button_clicked           (GtkButton       *button,
                                         gpointer         user_data)
 {
-
+  subpicture_menu_show(button);
 }
 
 

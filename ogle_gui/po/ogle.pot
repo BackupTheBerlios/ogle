@@ -6,7 +6,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
-"POT-Creation-Date: 2001-05-17 23:05+0200\n"
+"POT-Creation-Date: 2001-05-19 17:21+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -14,19 +14,19 @@ msgstr ""
 "Content-Type: text/plain; charset=CHARSET\n"
 "Content-Transfer-Encoding: ENCODING\n"
 
-#: src/main.c:33
+#: src/main.c:35
 msgid "Windows-id of player"
 msgstr ""
 
-#: src/main.c:34
+#: src/main.c:36
 msgid "winid"
 msgstr ""
 
-#: src/main.c:42
+#: src/main.c:44
 msgid "message queue id of player"
 msgstr ""
 
-#: src/main.c:43
+#: src/main.c:45
 msgid "msgqid"
 msgstr ""
 

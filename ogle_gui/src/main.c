@@ -14,6 +14,8 @@
 #include "xsniffer.h"
 
 #include "menu.h"
+#include "audio.h"
+#include "subpicture.h"
 
 static char* window_string = NULL;
 
@@ -80,7 +82,7 @@ main (int argc, char *argv[])
 
   if(window_string == NULL) {
     fprintf(stderr, "Inget win_id\n");
-    exit(1);
+    window_string = "-1";
   }
   win = strtol(window_string, NULL, 0);
   
@@ -109,6 +111,7 @@ main (int argc, char *argv[])
 
   
   audio_menu_new();
+  subpicture_menu_new();
   
   app = create_app ();
   gtk_widget_show (app);

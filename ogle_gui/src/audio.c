@@ -9,13 +9,12 @@
 #include <ogle/dvdcontrol.h>
 
 extern DVDNav_t *nav;
-GtkWidget *menu;
-GtkWidget *button;
 
-GnomeUIInfo *menu_items_uiinfo;
-GSList *labellist = NULL;
-
-GnomeUIInfo infoend = GNOMEUIINFO_END;
+static GtkWidget *menu;
+static GtkWidget *button;
+static GnomeUIInfo *menu_items_uiinfo;
+static GSList *labellist = NULL;
+static GnomeUIInfo infoend = GNOMEUIINFO_END;
 
 char* language_name(DVDLangID_t lang) {
   return "bepa";
@@ -78,7 +77,7 @@ void audio_menu_update() {
     
     res = DVDIsAudioStreamEnabled(nav, (DVDStream_t)stream , &Enabled);
     if(res != DVD_E_Ok) {
-      DVDPerror("audio.audio_menu_create_new: DVDIsAudioStreamEnabled", res);
+      DVDPerror("audio.audio_menu_update: DVDIsAudioStreamEnabled", res);
       return;
     }
 
@@ -89,7 +88,7 @@ void audio_menu_update() {
       
       res = DVDGetAudioAttributes(nav, (DVDStream_t)stream , &Attr);
       if(res != DVD_E_Ok) {
-	DVDPerror("audio.audio_menu_create_new: DVDGetAudioAttributes", res);
+	DVDPerror("audio.audio_menu_update: DVDGetAudioAttributes", res);
 	return;
       }
       
