@@ -1,6 +1,7 @@
 #ifndef DEBUG_PRINT_INCLUDED
 #define DEBUG_PRINT_INCLUDED
 
+#include <stdio.h>
 
 #ifdef DEBUG
 
