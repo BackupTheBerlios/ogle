@@ -1,2 +1,3 @@
 
-Never free any of the mem allocated by the ifoRead_* functions.
+The Nav module does not have any perception of time. 
+Events (buttons/highlight/commands) happen at the wrong time (to early). 
