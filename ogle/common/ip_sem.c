@@ -153,7 +153,7 @@ int ip_sem_trywait(ip_sem_t *q_head, int sem_nr) {
 #elif defined USE_SYSV_SEM
   {
     struct sembuf sops;
-    sops.sem_num = BUFS_FULL;
+    sops.sem_num = sem_nr;
     sops.sem_op = -1;
     sops.sem_flg = IPC_NOWAIT;
     if(semop(q_head->semid_bufs, &sops, 1) == -1) {
