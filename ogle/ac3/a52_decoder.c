@@ -376,12 +376,13 @@ int get_q()
 	  }
 	  
 	  
-	  fprintf(stderr, "*rt: %ld.%09ld, last_rt: %ld.%09ld\n bt: %ld.%09ld,  tmptime: %ld.%09ld\n scr: %ld.%09ld\n",
-		  TIME_S(real_time), TIME_SS(real_time),
-		  TIME_S(last_rt), TIME_SS(last_rt),
-		  TIME_S(in_outputbuf), TIME_SS(in_outputbuf),
-		  TIME_S(tmptime), TIME_SS(tmptime),
-		  TIME_S(scr_time), TIME_SS(scr_time));
+	  fprintf(stderr, "*rt: %ld.%09ld, last_rt: %ld.%09ld\n "
+		  "bt: %ld.%09ld,  tmptime: %ld.%09ld\n scr: %ld.%09ld\n",
+		  (long)TIME_S(real_time), (long)TIME_SS(real_time),
+		  (long)TIME_S(last_rt), (long)TIME_SS(last_rt),
+		  (long)TIME_S(in_outputbuf), (long)TIME_SS(in_outputbuf),
+		  (long)TIME_S(tmptime), (long)TIME_SS(tmptime),
+		  (long)TIME_S(scr_time), (long)TIME_SS(scr_time));
 	    
       	  set_sync_point(&ctrl_time[scr_nr],
 			 &tmptime,
@@ -470,17 +471,18 @@ int get_q()
 	    
 	    if((TIME_SS(t2) < -1000) || (TIME_SS(t2) > 1000)) {
 	      fprintf(stderr, "**** diff: %ld.%09ld\n",
-		      TIME_S(t2), TIME_SS(t2));
+		      (long)TIME_S(t2), (long)TIME_SS(t2));
 	    }
 	    
 	  }
 	  
-	  fprintf(stderr, "rt: %ld.%09ld, last_rt: %ld.%09ld\n bt: %ld.%09ld,  tmptime: %ld.%09ld\n calc_scr: %ld.%09ld\n",
-		  TIME_S(real_time), TIME_SS(real_time),
-		  TIME_S(last_rt), TIME_SS(last_rt),
-		  TIME_S(in_outputbuf), TIME_SS(in_outputbuf),
-		  TIME_S(tmptime), TIME_SS(tmptime),
-		  TIME_S(calc_scr_time), TIME_SS(calc_scr_time));
+	  fprintf(stderr, "rt: %ld.%09ld, last_rt: %ld.%09ld\n "
+		  "bt: %ld.%09ld,  tmptime: %ld.%09ld\n calc_scr: %ld.%09ld\n",
+		  (long)TIME_S(real_time), (long)TIME_SS(real_time),
+		  (long)TIME_S(last_rt), (long)TIME_SS(last_rt),
+		  (long)TIME_S(in_outputbuf), (long)TIME_SS(in_outputbuf),
+		  (long)TIME_S(tmptime), (long)TIME_SS(tmptime),
+		  (long)TIME_S(calc_scr_time), (long)TIME_SS(calc_scr_time));
 	  
 	  set_sync_point(&ctrl_time[scr_nr],
 			 &tmptime,
