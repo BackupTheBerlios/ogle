@@ -37,6 +37,30 @@ XWindowAttributes attribs;
 
 #define DEBUG
 
+
+#ifdef DEBUG
+#define DPRINTF(level, text...) \
+if(debug > level) \
+{ \
+    fprintf(stderr, ## text); \
+}
+#else
+#define DPRINTF(level, text...) 
+#endif
+
+#ifdef DEBUG
+#define DPRINTBITS(level, bits, value) \
+{ \
+  int n; \
+  for(n = 0; n < bits; n++) { \
+    DPRINTF(level, "%u", (value>>(bits-n-1)) & 0x1); \
+  } \
+}
+#else
+#define DPRINTBITS(level, bits, value)
+#endif
+
+
 unsigned int debug = 0;
 //prototypes
 int bytealigned(void);
@@ -143,6 +167,7 @@ mlib_u8 v_block[64];
 
 
 
+
 void fprintbits(FILE *fp, unsigned int bits, uint32_t value)
 {
   int n;
@@ -214,13 +239,9 @@ uint32_t getbits(unsigned int nr)
       bits_left = 32;
     } 
     bytealign = !(bits_left%8);
-#ifdef DEBUG
-    if(debug > 2) {
-      fprintf(stderr, "%s getbits(%u): %x, ", func, nr, result);
-      fprintbits(stderr, nr, result);
-      fprintf(stderr, "\n");
-    }
-#endif
+    DPRINTF(2, "%s getbits(%u): %x, ", func, nr, result);
+    DPRINTBITS(2, nr, result);
+    DPRINTF(2, "\n");
     return result;
   } else {
     rem = nr-bits_left;
@@ -235,13 +256,9 @@ uint32_t getbits(unsigned int nr)
       bits_left = 32;
     }
     bytealign = !(bits_left%8);
-#ifdef DEBUG
-    if(debug > 2) {
-      fprintf(stderr, "%s getbits(%u): %x ", func, nr, result);
-      fprintbits(stderr, nr, result);
-      fprintf(stderr, "\n");
-    }
-#endif
+    DPRINTF(2,"%s getbits(%u): %x ", func, nr, result);
+    DPRINTBITS(2, nr, result);
+    DPRINTF(2, "\n");
     return result;
   }
 }
@@ -251,20 +268,16 @@ uint32_t nextbits(unsigned int nr)
   uint32_t result;
   uint32_t rem;
   unsigned int t_bits_left = bits_left;
-  //fprintf(stderr, "left %d\n", t_bits_left);
+
   if(nr <= t_bits_left) {
     result = (cur_word << (32-t_bits_left)) >> (32-nr);
-    // fprintf(stderr, "c %08x\n",cur_word);
-    //fprintf(stderr, "x %08x\n",result);
   } else {
     rem = nr-t_bits_left;
     result = ((cur_word << (32-t_bits_left)) >> (32-t_bits_left)) << rem;
-    //fprintf(stderr, "y %08x\n", result);
     t_bits_left = 32;
     next_word();
     result |= ((cur_word << (32-t_bits_left)) >> (32-rem));
     back_word();
-    //fprintf(stderr, "z %08x\n", result);
   }
   return result;
 }
@@ -317,14 +330,11 @@ int main(int argc, char **argv)
 }
 
 #ifdef DEBUG
-
 #define GETBITS(a,b) getbits(a,b)
-
 #else
-
 #define GETBITS(a,b) getbits(a)
-
 #endif
+
 
 
 void next_start_code(void)
@@ -346,7 +356,7 @@ void resync(void) {
 void video_sequence(void) {
   next_start_code();
   if(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE) {
-    fprintf(stderr, "Found Sequence Header\n");
+    DPRINTF(0, "Found Sequence Header\n");
 
     sequence_header();
 
@@ -366,13 +376,12 @@ void video_sequence(void) {
 
 	  picture_data();
 
-	  //fprintf(stderr, "end of pic nextbits: %08x\n", nextbits(32));
        	} while((nextbits(32) == MPEG2_VS_PICTURE_START_CODE) ||
 		(nextbits(32) == MPEG2_VS_GROUP_START_CODE));
 	if(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE) {
 
 	  if(nextbits(32) != MPEG2_VS_SEQUENCE_HEADER_CODE) {
-	    fprintf(stderr, "*** not a sequence header\n");
+	    DPRINTF(0, "*** not a sequence header\n");
 
 	    break;
 	  }
@@ -387,10 +396,10 @@ void video_sequence(void) {
     }
     if(nextbits(32) == MPEG2_VS_SEQUENCE_END_CODE) {
       GETBITS(32, "Sequence End Code");
-      fprintf(stderr, "Found Sequence End\n");
+      DPRINTF(0, "Found Sequence End\n");
 
     } else {
-      fprintf(stderr, "*** Didn't find Sequence End\n");
+      DPRINTF(0, "*** Didn't find Sequence End\n");
 
     }
   } else {
@@ -403,7 +412,7 @@ void video_sequence(void) {
 void marker_bit(void)
 {
   if(!GETBITS(1, "markerbit")) {
-    fprintf(stderr, "*** incorrect marker_bit\n");
+    fprintf(stderr, "*** incorrect marker_bit in stream\n");
     exit(-1);
   }
 }
@@ -481,8 +490,8 @@ void sequence_header(void)
   seq.header.horizontal_size_value = GETBITS(12, "horizontal_size_value");
   seq.header.vertical_size_value = GETBITS(12, "vertical_size_value");
   seq.header.aspect_ratio_information = GETBITS(4, "aspect_ratio_information");
-  fprintf(stderr, "vertical: %u\n", seq.header.horizontal_size_value);
-  fprintf(stderr, "horisontal: %u\n", seq.header.vertical_size_value);
+  DPRINTF(0, "vertical: %u\n", seq.header.horizontal_size_value);
+  DPRINTF(0, "horisontal: %u\n", seq.header.vertical_size_value);
   seq.header.frame_rate_code = GETBITS(4, "frame_rate_code");
   seq.header.bit_rate_value = GETBITS(18, "bit_rate_value");  
   marker_bit();
@@ -541,68 +550,64 @@ void sequence_extension(void) {
   
   
   extension_start_code = GETBITS(32, "extension_start_code");
-  //fprintf(stderr, "sequence_extension: %08x\n", extension_start_code);
-
+  
   seq.ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
   seq.ext.profile_and_level_indication = GETBITS(8, "profile_and_level_indication");
 
 #ifdef DEBUG
-  if(debug > 0) {
-    fprintf(stderr, "profile_and_level_indication: ");
-    if(seq.ext.profile_and_level_indication & 0x80) {
-      fprintf(stderr, "(reserved)\n");
+  DPRINTF(1, "profile_and_level_indication: ");
+  if(seq.ext.profile_and_level_indication & 0x80) {
+    DPRINTF(1, "(reserved)\n");
     } else {
-      fprintf(stderr, "Profile: ");
+      DPRINTF(1, "Profile: ");
       switch((seq.ext.profile_and_level_indication & 0x70)>>4) {
       case 0x5:
-	fprintf(stderr, "Simple");
+	DPRINTF(1, "Simple");
 	break;
       case 0x4:
-	fprintf(stderr, "Main");
+	DPRINTF(1, "Main");
 	break;
       case 0x3:
-	fprintf(stderr, "SNR Scalable");
+	DPRINTF(1, "SNR Scalable");
       break;
       case 0x2:
-	fprintf(stderr, "Spatially Scalable");
+	DPRINTF(1, "Spatially Scalable");
 	break;
       case 0x1:
-	fprintf(stderr, "High");
+	DPRINTF(1, "High");
 	break;
       default:
-	fprintf(stderr, "(reserved)");
+	DPRINTF(1, "(reserved)");
 	break;
       }
 
-      fprintf(stderr, ", Level: ");
+      DPRINTF(1, ", Level: ");
       switch(seq.ext.profile_and_level_indication & 0x0f) {
       case 0xA:
-	fprintf(stderr, "Low");
+	DPRINTF(1, "Low");
 	break;
       case 0x8:
-	fprintf(stderr, "Main");
+	DPRINTF(1, "Main");
 	break;
       case 0x6:
-	fprintf(stderr, "High 1440");
+	DPRINTF(1, "High 1440");
       break;
       case 0x4:
-	fprintf(stderr, "High");
+	DPRINTF(1, "High");
 	break;
       default:
-	fprintf(stderr, "(reserved)");
+	DPRINTF(1, "(reserved)");
 	break;
       }
-      fprintf(stderr, "\n");
+      DPRINTF(1, "\n");
     }
-  }
+ 
 #endif
       
   seq.ext.progressive_sequence = GETBITS(1, "progressive_sequence");
-#ifdef DEBUG
-  if(debug > 0) {
-    fprintf(stderr, "progressive seq: %01x\n", seq.ext.progressive_sequence);
-  }
-#endif
+
+  DPRINTF(0, "progressive seq: %01x\n", seq.ext.progressive_sequence);
+
   seq.ext.chroma_format = GETBITS(2, "chroma_format");
   seq.ext.horizontal_size_extension = GETBITS(2, "horizontal_size_extension");
   seq.ext.vertical_size_extension = GETBITS(2, "vertical_size_extension");
@@ -621,7 +626,7 @@ void sequence_extension(void) {
     int num_pels = seq.horizontal_size * seq.vertical_size;
    
     if(ref_image1->y == NULL) {
-      fprintf(stderr, "allocateing buffers\n");
+      DPRINTF(0, "allocateing buffers\n");
       ref_image1->y = memalign(8, num_pels);
       ref_image1->u = memalign(8, num_pels/4);
       ref_image1->v = memalign(8, num_pels/4);
@@ -683,12 +688,8 @@ shmemerror:
 
 void extension_and_user_data(unsigned int i) {
   
-#ifdef DEBUG
+  DPRINTF(2, "extension_and_user_data(%u)\n", i);
 
-  if(debug > 1) {
-    fprintf(stderr, "extension_and_user_data(%u)\n", i);
-  }
-#endif
 
   while((nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) ||
 	(nextbits(32) == MPEG2_VS_USER_DATA_START_CODE)) {
@@ -755,12 +756,7 @@ void picture_coding_extension(void)
 {
   uint32_t extension_start_code;
 
-#ifdef DEBUG
-
-  if(debug > 1) {
-    fprintf(stderr, "picture_coding_extension\n");
-  }
-#endif
+  DPRINTF(2, "picture_coding_extension\n");
 
   extension_start_code = GETBITS(32, "extension_start_code");
   pic.coding_ext.extension_start_code_identifier = GETBITS(4, "extension_start_code_identifier");
@@ -769,40 +765,47 @@ void picture_coding_extension(void)
   pic.coding_ext.f_code[1][0] = GETBITS(4, "f_code[1][0]");
   pic.coding_ext.f_code[1][1] = GETBITS(4, "f_code[1][1]");
   pic.coding_ext.intra_dc_precision = GETBITS(2, "intra_dc_precision");
-  pic.coding_ext.picture_structure = GETBITS(2, "pciture_structure");
+  pic.coding_ext.picture_structure = GETBITS(2, "picture_structure");
 
-  if(debug > 0) {
-    fprintf(stderr, "picture_structure: ");
-    switch(pic.coding_ext.picture_structure) {
-    case 0x0:
-      fprintf(stderr, "reserved");
-      break;
-    case 0x1:
-      fprintf(stderr, "Top Field");
-      break;
-    case 0x2:
-      fprintf(stderr, "Bottom Field");
-      break;
-    case 0x3:
-      fprintf(stderr, "Frame Picture");
-      break;
-    }
-    fprintf(stderr, "\n");
+#ifdef DEBUG
+  DPRINTF(0, "picture_structure: ");
+  switch(pic.coding_ext.picture_structure) {
+  case 0x0:
+    DPRINTF(0, "reserved");
+    break;
+  case 0x1:
+    DPRINTF(0, "Top Field");
+    break;
+  case 0x2:
+    DPRINTF(0, "Bottom Field");
+    break;
+  case 0x3:
+    DPRINTF(0, "Frame Picture");
+    break;
   }
+  DPRINTF(0, "\n");
+#endif
 
   pic.coding_ext.top_field_first = GETBITS(1, "top_field_first");
+  DPRINTF(0, "top_field_first: %01x\n", pic.coding_ext.top_field_first);
+
   pic.coding_ext.frame_pred_frame_dct = GETBITS(1, "frame_pred_frame_dct");
+  DPRINTF(0, "frame_pred_frame_dct: %01x\n", pic.coding_ext.frame_pred_frame_dct);
   pic.coding_ext.concealment_motion_vectors = GETBITS(1, "concealment_motion_vectors");
   pic.coding_ext.q_scale_type = GETBITS(1, "q_scale_type");
   pic.coding_ext.intra_vlc_format = GETBITS(1, "intra_vlc_format");
+  DPRINTF(0, "intra_vlc_format: %01x\n", pic.coding_ext.intra_vlc_format);
   pic.coding_ext.alternate_scan = GETBITS(1, "alternate_scan");
+  DPRINTF(0, "alternate_scan: %01x\n", pic.coding_ext.alternate_scan);
   pic.coding_ext.repeat_first_field = GETBITS(1, "repeat_first_field");
+  DPRINTF(0, "repeat_first_field: %01x\n", pic.coding_ext.repeat_first_field);
   pic.coding_ext.chroma_420_type = GETBITS(1, "chroma_420_type");
   pic.coding_ext.progressive_frame = GETBITS(1, "progressive_frame");
-  if(debug > 0) {
-  fprintf(stderr, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
-  }
+
+  DPRINTF(0, "progressive_frame: %01x\n", pic.coding_ext.progressive_frame);
+  
   pic.coding_ext.composite_display_flag = GETBITS(1, "composite_display_flag");
+  DPRINTF(0, "composite_display_flag: %01x\n", pic.coding_ext.composite_display_flag);
   if(pic.coding_ext.composite_display_flag) {
     pic.coding_ext.v_axis = GETBITS(1, "v_axis");
     pic.coding_ext.field_sequence = GETBITS(3, "field_sequence");
@@ -834,12 +837,7 @@ void user_data(void)
   uint32_t user_data_start_code;
   uint8_t user_data;
   
-#ifdef DEBUG
-
-  if(debug > 1) {
-    fprintf(stderr, "user_data\n");
-  }
-#endif
+  DPRINTF(2, "user_data\n");
 
 
 
@@ -858,26 +856,18 @@ void group_of_pictures_header(void)
   uint8_t closed_gop;
   uint8_t broken_link;
   
-#ifdef DEBUG
+  DPRINTF(2, "group_of_pictures_header\n");
 
-  if(debug > 1) {
-    fprintf(stderr, "group_of_pictures_header\n");
-  }
-
-#endif
 
   group_start_code = GETBITS(32, "group_start_code");
   time_code = GETBITS(25, "time_code");
 
-#ifdef DEBUG
-  if(debug > 0) {
-    fprintf(stderr, "time_code: %02d:%02d.%02d'%02d\n",
-	    (time_code & 0x00f80000)>>19,
-	    (time_code & 0x0007e000)>>13,
-	    (time_code & 0x00000fc0)>>6,
-	    (time_code & 0x0000003f));
-  }
-#endif
+  DPRINTF(1, "time_code: %02d:%02d.%02d'%02d\n",
+	  (time_code & 0x00f80000)>>19,
+	  (time_code & 0x0007e000)>>13,
+	  (time_code & 0x00000fc0)>>6,
+	  (time_code & 0x0000003f));
+  
   closed_gop = GETBITS(1, "closed_gop");
   broken_link = GETBITS(1, "broken_link");
   next_start_code();
@@ -889,38 +879,38 @@ void picture_header(void)
 {
   uint32_t picture_start_code;
 
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "picture_header\n");
-  }
-#endif  
+  DPRINTF(2, "picture_header\n");
 
   picture_start_code = GETBITS(32, "picture_start_code");
   pic.header.temporal_reference = GETBITS(10, "temporal_reference");
   pic.header.picture_coding_type = GETBITS(3, "picture_coding_type");
-  if(debug > 0) {
-    fprintf(stderr, "picture coding type: %01x, ", pic.header.picture_coding_type);
-  }
+
+#ifdef DEBUG
+  
+  DPRINTF(0, "picture coding type: %01x, ", pic.header.picture_coding_type);
+
   switch(pic.header.picture_coding_type) {
   case 0x00:
-    fprintf(stderr, "forbidden\n");
+    DPRINTF(0, "forbidden\n");
     break;
   case 0x01:
-    fprintf(stderr, "intra-coded (I)\n");
+    DPRINTF(0, "intra-coded (I)\n");
     break;
   case 0x02:
-    fprintf(stderr, "predictive-coded (P)\n");
+    DPRINTF(0, "predictive-coded (P)\n");
     break;
   case 0x03:
-    fprintf(stderr, "bidirectionally-predictive-coded (B)\n");
+    DPRINTF(0, "bidirectionally-predictive-coded (B)\n");
     break;
   case 0x04:
-    fprintf(stderr, "shall not be used (dc intra-coded (D) in ISO/IEC11172-2)\n");
+    DPRINTF(0, "shall not be used (dc intra-coded (D) in ISO/IEC11172-2)\n");
     break;
   default:
-    fprintf(stderr, "reserved\n");
+    DPRINTF(0, "reserved\n");
     break;
   }
+#endif
+
   pic.header.vbv_delay = GETBITS(16, "vbv_delay");
 
   if((pic.header.picture_coding_type == 2) ||
@@ -946,15 +936,12 @@ void picture_header(void)
 
 void picture_data(void)
 {
-
-    yuv_image_t *tmp_img;
-    yuv_image_t *display_image;
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "picture_data\n");
-  }
-#endif
+  yuv_image_t *tmp_img;
+  yuv_image_t *display_image = NULL;
+  
+  DPRINTF(2, "picture_data\n");
+  
   
   
   
@@ -976,43 +963,18 @@ void picture_data(void)
     display_image = b_image;
     break;
   }
-  /*
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    tmp_img = ref_image1;
-    ref_image1 = ref_image2;
-    ref_image2 = tmp_img;
-    dst_image = tmp_img;
-    display_image = tmp_img;
-    break;
-  case 0x3:
-    // B-picture
-    dst_image = &dst_img;
-    //display_image = b_image;
-    break;
-  }
-  */
-  if(debug > 0) {
-    fprintf(stderr," switching buffers\n");
-  }
-  //fprintf(stderr,"
-//  dst_image = ref_image1;
-  //display_image = dst_image;
   
+  DPRINTF(1," switching buffers\n");
+    
   memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
   memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
   memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
-
+  
   do {
     slice();
   } while((nextbits(32) >= MPEG2_VS_SLICE_START_CODE_LOWEST) &&
 	  (nextbits(32) <= MPEG2_VS_SLICE_START_CODE_HIGHEST));
   
-  //  memset(dst_image->y, 0, seq.horizontal_size*seq.vertical_size);
-  //memset(dst_image->u, 0, seq.horizontal_size*seq.vertical_size/4);
-  //memset(dst_image->v, 0, seq.horizontal_size*seq.vertical_size/4);
-
   /* display screen */
   
   switch(pic.header.picture_coding_type) {
@@ -1063,28 +1025,21 @@ void slice(void)
 {
   uint32_t slice_start_code;
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "slice\n");
-  }
-#endif
+  DPRINTF(2, "slice\n");
+
   
   reset_dc_dct_pred();
   reset_PMV();
 
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "start of slice\n");
-  }
-#endif
-
+  DPRINTF(2, "start of slice\n");
+  
   slice_start_code = GETBITS(32, "slice_start_code");
   slice_data.slice_vertical_position = slice_start_code & 0xff;
   
   if(seq.vertical_size > 2800) {
     slice_data.slice_vertical_position_extension = GETBITS(3, "slice_vertical_position_extension");
   }
-
+  
   if(seq.vertical_size > 2800) {
     seq.mb_row = (slice_data.slice_vertical_position_extension << 7) +
       slice_data.slice_vertical_position - 1;
@@ -1094,6 +1049,7 @@ void slice(void)
 
   seq.previous_macroblock_address = (seq.mb_row * seq.mb_width)-1;
 
+  //TODO
   if(0) {//sequence_scalable_extension_present) {
     if(0) { //scalable_mode == DATA_PARTITIONING) {
       slice_data.priority_breakpoint = GETBITS(7, "priority_breakpoint");
@@ -1168,14 +1124,10 @@ macroblock_t mb;
 void macroblock(void)
 {
   unsigned int i;
-  unsigned int block_count;
+  unsigned int block_count = 0;
   uint16_t inc_add = 0;
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "macroblock()\n");
-  }
-#endif
+  DPRINTF(2, "macroblock()\n");
 
   while(nextbits(11) == 0x0008) {
     mb.macroblock_escape = GETBITS(11, "macroblock_escape");
@@ -1192,28 +1144,24 @@ void macroblock(void)
 
   seq.mb_column = seq.macroblock_address % seq.mb_width;
   
-#ifdef DEBUG
-  if(debug > 0) {
-    fprintf(stderr, " Macroblock: %d, row: %d, col: %d\n",
+    DPRINTF(1, " Macroblock: %d, row: %d, col: %d\n",
 	    seq.macroblock_address,
 	    seq.mb_row,
 	    seq.mb_column);
-  }
   
-  if(debug > 0) {
+#ifdef DEBUG
     if(mb.macroblock_address_increment > 1) {
-      fprintf(stderr, "Skipped %d macroblocks\n",
+      DPRINTF(2, "Skipped %d macroblocks\n",
 	      mb.macroblock_address_increment);
     }
-  }
 #endif
   
 
     if(pic.header.picture_coding_type == 0x2) {
-    /* In a P-picture when a macroblock is skipped */
-    if(mb.macroblock_address_increment > 1) {
-      reset_PMV();
-    }
+      /* In a P-picture when a macroblock is skipped */
+      if(mb.macroblock_address_increment > 1) {
+	reset_PMV();
+      }
     }
     
   if(mb.macroblock_address_increment > 1) {
@@ -1224,9 +1172,7 @@ void macroblock(void)
     case 0x2:
 
 
-      if(debug > 0) {
-	fprintf(stderr,"skipped in P-frame\n");
-      }
+      DPRINTF(2,"skipped in P-frame\n");
       for(x = (seq.mb_column-mb.macroblock_address_increment+1)*16, y = seq.mb_row*16;
 	  y < (seq.mb_row+1)*16; y++) {
 	memcpy(&dst_image->y[y*720+x], &ref_image1->y[y*720+x], (mb.macroblock_address_increment-1)*16);
@@ -1244,9 +1190,7 @@ void macroblock(void)
       
       break;
     case 0x3:
-      if(debug > 0) {
-	fprintf(stderr,"skipped in B-frame\n");
-      }
+      DPRINTF(2,"skipped in B-frame\n");
       for(seq.mb_column = seq.mb_column-mb.macroblock_address_increment+1;
 	  seq.mb_column < old_col; seq.mb_column++) {
 	motion_comp();
@@ -1267,24 +1211,16 @@ void macroblock(void)
 
   macroblock_modes();
   
-    if(mb.modes.macroblock_intra == 0) {
+  if(mb.modes.macroblock_intra == 0) {
     reset_dc_dct_pred();
-
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "non_intra macroblock\n");
-    }
-#endif
-
+    
+    DPRINTF(2, "non_intra macroblock\n");
+    
   }
 
   if(mb.macroblock_address_increment > 1) {
     reset_dc_dct_pred();
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "skipped block\n");
-    }
-#endif
+    DPRINTF(2, "skipped block\n");
   }
     
    
@@ -1315,9 +1251,7 @@ void macroblock(void)
       if(mb.modes.macroblock_intra) {
 	if(pic.coding_ext.concealment_motion_vectors == 0) {
 	  reset_PMV();
-	  if(debug > 0) {
-	    fprintf(stderr, "* 1\n");
-	  }
+	  DPRINTF(3, "* 1\n");
 	} else {
 	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
 	  pic.PMV[1][0][0] = pic.PMV[0][0][0];
@@ -1335,9 +1269,7 @@ void macroblock(void)
 	  if((mb.modes.macroblock_motion_forward == 0) &&
 	     (mb.modes.macroblock_motion_backward == 0)) {
 	    reset_PMV();
-	  if(debug > 0) {
-	    fprintf(stderr, "* 2\n");
-	  }
+	    DPRINTF(3, "* 2\n");
 	  }
 	}
       }
@@ -1360,9 +1292,7 @@ void macroblock(void)
     case PRED_TYPE_FIELD_BASED:
       if(mb.modes.macroblock_intra) {
 	if(pic.coding_ext.concealment_motion_vectors == 0) {
-	  if(debug > 0) {
-	    fprintf(stderr, "* 3\n");
-	  }
+	  DPRINTF(3, "* 3\n");
 	  reset_PMV();
 	} else {
 	  pic.PMV[1][0][1] = pic.PMV[0][0][1];
@@ -1381,9 +1311,7 @@ void macroblock(void)
 	  if((mb.modes.macroblock_motion_forward == 0) &&
 	     (mb.modes.macroblock_motion_backward == 0)) {
 	    reset_PMV();
-	  if(debug > 0) {
-	    fprintf(stderr, "* 4\n");
-	  }
+	    DPRINTF(3, "* 4\n");
 
 	  }
 	}
@@ -1410,9 +1338,7 @@ void macroblock(void)
   
   if(mb.modes.macroblock_intra) {
     if(pic.coding_ext.concealment_motion_vectors == 0) {
-      if(debug > 0) {
-	fprintf(stderr, "* 5\n");
-      }
+      DPRINTF(3, "* 5\n");
       reset_PMV();
     }
   }
@@ -1426,10 +1352,8 @@ void macroblock(void)
     if(mb.modes.macroblock_intra == 0) {
       if(mb.modes.macroblock_motion_forward == 0) {
 	reset_PMV();
-	if(debug > 0) {
-	  fprintf(stderr, "* 6\n");
-	}
-
+	DPRINTF(3, "* 6\n");
+	
       }
     }
 
@@ -1464,11 +1388,7 @@ void macroblock(void)
     if(mb.modes.macroblock_intra == 0) {
       for(i = 0; i < 6; i++) {
 	if(mb.cbp & (1<<(5-i))) {
-#ifdef DEBUG
-	  if(debug > 1) {
-	    fprintf(stderr, "cbpindex: %d set\n", i);
-	  }
-#endif
+	  DPRINTF(3, "cbpindex: %d set\n", i);
 	  mb.pattern_code[i] = 1;
 	}
       }
@@ -1510,13 +1430,9 @@ void macroblock(void)
   if(pic.header.picture_coding_type == 0x2) {
     /* P-picture */
     if((!mb.modes.macroblock_motion_forward) && (!mb.modes.macroblock_intra)) {
-      if(debug > 0) {
-	fprintf(stderr, "macroblock\n");
-	fprintf(stderr, "prediction mode shall be Frame-based\n");
-	fprintf(stderr, "The frame motion vector shall be zero (0;0)\n");
-	fprintf(stderr, "The motion vector predictors shall be reset to zero\n");
-	fprintf(stderr, "motion_type: %02x\n", mb.modes.frame_motion_type);
-      }
+      DPRINTF(2, "prediction mode Frame-base, \nresetting motion vector predictor and motion vector\n");
+      DPRINTF(2, "motion_type: %02x\n", mb.modes.frame_motion_type);
+      
       mb.modes.macroblock_motion_forward = 1;
       mb.vector[0][0][0] = 0;
       mb.vector[0][0][1] = 0;
@@ -1526,18 +1442,19 @@ void macroblock(void)
     }
 
     /* never happens */
+    /*
     if(mb.macroblock_address_increment > 1) {
-      if(debug > 0) {
-	fprintf(stderr, "prediction mode shall be Frame-based\n");
-	fprintf(stderr, "motion vector predictors shall be reset to zero\n");
-	fprintf(stderr, "motion vector shall be zero\n");
-      }
-      //**** TODO
+      
+      fprintf(stderr, "prediction mode shall be Frame-based\n");
+      fprintf(stderr, "motion vector predictors shall be reset to zero\n");
+      fprintf(stderr, "motion vector shall be zero\n");
+      
+      // *** TODO
       //mb.vector[0][0][0] = 0;
       //mb.vector[0][0][1] = 0;
 
     }
-    
+    */
     
   }
   
@@ -1551,37 +1468,20 @@ void macroblock(void)
 void macroblock_modes(void)
 {
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "macroblock_modes\n");
-  }
-#endif
+
+  DPRINTF(2, "macroblock_modes\n");
+
 
   if(pic.header.picture_coding_type == 0x01) {
     /* I-picture */
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "table_b2\n");
-    }
-#endif
     mb.modes.macroblock_type = get_vlc(table_b2, "macroblock_type (b2)");
 
   } else if(pic.header.picture_coding_type == 0x02) {
     /* P-picture */
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "table_b3\n");
-    }
-#endif
     mb.modes.macroblock_type = get_vlc(table_b3, "macroblock_type (b3)");
 
   } else if(pic.header.picture_coding_type == 0x03) {
     /* B-picture */
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "table_b4\n");
-    }
-#endif
 
     mb.modes.macroblock_type = get_vlc(table_b4, "macroblock_type (b4)");
     
@@ -1600,7 +1500,7 @@ void macroblock_modes(void)
   mb.modes.spatial_temporal_weight_code_flag =
     mb.modes.macroblock_type & SPATIAL_TEMPORAL_WEIGHT_CODE_FLAG;
   
-
+  DPRINTF(4, "spatial_temporal_weight_code_flag: %01x\n", mb.modes.spatial_temporal_weight_code_flag);
 
   if((mb.modes.spatial_temporal_weight_code_flag == 1) &&
      ( 1 /*spatial_temporal_weight_code_table_index != 0*/)) {
@@ -1624,8 +1524,13 @@ void macroblock_modes(void)
      (mb.modes.macroblock_intra || mb.modes.macroblock_pattern)) {
     
     mb.modes.dct_type = GETBITS(1, "dct_type");
+  } else {
+    /* Table 6-19. Value of dct_type if dct_type is not in the bitstream.*/
+    if(pic.coding_ext.frame_pred_frame_dct == 1) {
+      mb.modes.dct_type = 0;
+    }
+    /* else dct_type is unused, either field picture or mb not coded */
   }
-
 }
 
 
@@ -1634,11 +1539,7 @@ void coded_block_pattern(void)
   //  uint16_t coded_block_pattern_420;
   uint8_t cbp = 0;
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "coded_block_pattern\n");
-  }
-#endif
+  DPRINTF(2, "coded_block_pattern\n");
 
   cbp = get_vlc(table_b9, "cbp (b9)");
   
@@ -1648,11 +1549,8 @@ void coded_block_pattern(void)
     exit(-1);
   }
   mb.cbp = cbp;
-#ifdef DEBUG
-  if(debug > 2) {
-    fprintf(stderr, "cpb = %u\n", mb.cbp);
-  }
-#endif
+  
+  DPRINTF(3, "cpb = %u\n", mb.cbp);
 
   if(seq.ext.chroma_format == 0x02) {
     mb.coded_block_pattern_1 = GETBITS(2, "coded_block_pattern_1");
@@ -1672,11 +1570,7 @@ int get_vlc(vlc_table_t *table, char *func) {
     vlc=nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
-#ifdef DEBUG
-	if(debug > 2) {
-	  fprintf(stderr, "%s ", func);
-	}
-#endif
+	DPRINTF(2, "%s ", func);
 	GETBITS(numberofbits, "vlc");
 	return (table[pos].value);
       }
@@ -1695,7 +1589,7 @@ int get_vlc(vlc_table_t *table, char *func) {
 void block(unsigned int i)
 {
   uint16_t dct_dc_size_luminance;
-  uint16_t dct_dc_differential;
+  uint16_t dct_dc_differential = 0;
   uint16_t dct_dc_size_chrominance;
   int n = 0;
   int16_t QFS[64];
@@ -1720,69 +1614,52 @@ void block(unsigned int i)
     cc = (i%2)+1;
   }
   if(mb.pattern_code[i]) {
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "pattern_code(%d) set\n", i);
-    }
-#endif
+    
+    DPRINTF(2, "pattern_code(%d) set\n", i);
+    
     if(mb.modes.macroblock_intra) {
-      //      fprintf(stderr, "macroblock_intra\n");
+  
       if(i < 4) {
-	//fprintf(stderr, "luma\n");
-      
+	
 	dct_dc_size_luminance = get_vlc(table_b12, "dct_dc_size_luminance (b12)");
-#ifdef DEBUG
-	if(debug > 1) {
-	  fprintf(stderr, "luma_size: %d\n", dct_dc_size_luminance);
-	}
-#endif
+	DPRINTF(3, "luma_size: %d\n", dct_dc_size_luminance);
+	
 	if(dct_dc_size_luminance != 0) {
-	  //fprintf(stderr, "dct_dc_diff get\n");
+	  
 	  dct_dc_differential = GETBITS(dct_dc_size_luminance, "dct_dc_differential (luma)");
-	  //fprintf(stderr, "dc_diff: %d\n", dct_dc_differential); 
-#ifdef DEBUG
-	  if(debug > 1) {
-	    fprintf(stderr, "luma_val: %d, ", dct_dc_differential);
-	  }
-#endif
+	  
+	  DPRINTF(3, "luma_val: %d, ", dct_dc_differential);
+
 	}
 	
 	if(dct_dc_size_luminance == 0) {
-	  //fprintf(stderr, "no dct_dc_diff\n");
 	  dct_diff = 0;
 	} else {
 	  half_range = 1<<(dct_dc_size_luminance-1);
-	  //fprintf(stderr, "halfrange: %d\n", half_range);
+
 	  if(dct_dc_differential >= half_range) {
 	    dct_diff = (int16_t) dct_dc_differential;
 	  } else {
 	    dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
 	  }
-#ifdef DEBUG
-	  if(debug > 1) {
-	    fprintf(stderr, "%d\n", dct_diff);
-	  }
-#endif
+
+	  DPRINTF(3, "%d\n", dct_diff);
+
 	}
 	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
 	mb.dc_dct_pred[cc] = QFS[n];
 	
       } else {
-	//fprintf(stderr, "chroma\n");
 
 	dct_dc_size_chrominance = get_vlc(table_b13, "dct_dc_size_chrominance (b13)");
-#ifdef DEBUG
-	if(debug > 1) {
-	  fprintf(stderr, "chroma_size: %d\n", dct_dc_size_chrominance);
-	}
-#endif
+
+	DPRINTF(3, "chroma_size: %d\n", dct_dc_size_chrominance);
+
 	if(dct_dc_size_chrominance != 0) {
 	  dct_dc_differential = GETBITS(dct_dc_size_chrominance, "dct_dc_differential (chroma)");
-#ifdef DEBUG
-	  if(debug > 1) {
-	    fprintf(stderr, "chroma_val: %d, ", dct_dc_differential);
-	  }
-#endif
+
+	  DPRINTF(3, "chroma_val: %d, ", dct_dc_differential);
+
 	}
 	
 	if(dct_dc_size_chrominance == 0) {
@@ -1794,11 +1671,9 @@ void block(unsigned int i)
 	  } else {
 	    dct_diff = (int16_t)((dct_dc_differential+1)-(2*half_range));
 	  }
-#ifdef DEBUG
-	  if(debug > 1) {
-	    fprintf(stderr, "%d\n", dct_diff);
-	  }
-#endif
+
+	  DPRINTF(3, "%d\n", dct_diff);
+
 	}
 	QFS[n] = mb.dc_dct_pred[cc]+dct_diff;
 	mb.dc_dct_pred[cc] = QFS[n];
@@ -1810,19 +1685,17 @@ void block(unsigned int i)
       }
       n++;
     } else {
-      //fprintf(stderr, "First dct_dc\n");
+
       //First DCT coefficient
       get_dct(&runlevel, DCT_DC_FIRST, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_first");
+
 #ifdef DEBUG
-      if(debug > 1) {
 	if(runlevel.run != VLC_END_OF_BLOCK) {
-	  if(debug > 1) {
-	    fprintf(stderr, "coeff run: %d, level: %d\n",
-		    runlevel.run, runlevel.level);
-	  }
+	  DPRINTF(3, "coeff run: %d, level: %d\n",
+		  runlevel.run, runlevel.level);
 	}
-      }
 #endif
+
       for(m = 0; m < runlevel.run; m++) {
 	QFS[n] = 0;
 	n++;
@@ -1837,16 +1710,14 @@ void block(unsigned int i)
       //fprintf(stderr, "Subsequent dct_dc\n");
       //Subsequent DCT coefficients
       get_dct(&runlevel, DCT_DC_SUBSEQUENT, mb.modes.macroblock_intra, pic.coding_ext.intra_vlc_format, "dct_dc_subsequent");
+
 #ifdef DEBUG
-      if(debug > 1) {
 	if(runlevel.run != VLC_END_OF_BLOCK) {
-	  if(debug > 1) {
-	    fprintf(stderr, "coeff run: %d, level: %d\n",
+	    DPRINTF(3, "coeff run: %d, level: %d\n",
 		    runlevel.run, runlevel.level);
 	  }
-	}
-      }
 #endif
+
       if(runlevel.run == VLC_END_OF_BLOCK) {
 	eob_not_read = 0;
 	while(n<64) {
@@ -1866,11 +1737,8 @@ void block(unsigned int i)
 	exit(-1);
       }
     }
-#ifdef DEBUG
-    if(debug > 1) {
-      fprintf(stderr, "nr of coeffs: %d\n", n);
-    }
-#endif
+
+    DPRINTF(3, "nr of coeffs: %d\n", n);
    
     /* inverse scan */
     {
@@ -1889,7 +1757,7 @@ void block(unsigned int i)
       int v, u;
       int sum;
       int quantiser_scale;
-      int intra_dc_mult;
+      int intra_dc_mult = 0;
       
       quantiser_scale =
 	q_scale[slice_data.quantiser_scale_code][pic.coding_ext.q_scale_type];
@@ -1978,14 +1846,10 @@ void block(unsigned int i)
 void motion_vectors(unsigned int s)
 {
   
-  int8_t motion_vector_count;
+  int8_t motion_vector_count = 0;
   int8_t motion_vertical_field_select[2][2];
 
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "motion_vectors(%u)\n", s);
-  }
-#endif
+  DPRINTF(2, "motion_vectors(%u)\n", s);
 
   if(pic.coding_ext.picture_structure == 0x03 /*frame*/) {
     if(pic.coding_ext.frame_pred_frame_dct == 0) {
@@ -2092,11 +1956,7 @@ void motion_vector(int r, int s)
   int16_t prediction;
   int t;
   
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "motion_vector(%d, %d)\n", r, s);
-  }
-#endif
+  DPRINTF(2, "motion_vector(%d, %d)\n", r, s);
 
   mb.motion_code[r][s][0] = get_vlc(table_b10, "motion_code[r][s][0] (b10)");
   if((pic.coding_ext.f_code[s][0] != 1) && (mb.motion_code[r][s][0] != 0)) {
@@ -2197,18 +2057,14 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
     vlc=nextbits(numberofbits);
     while(table[pos].numberofbits == numberofbits) {
       if(table[pos].vlc == vlc) {
-#ifdef DEBUG
-	if(debug > 2) {
-	  fprintf(stderr, "%s ", func);
-	}
-#endif
+
+	DPRINTF(2, "%s ", func);
+
 	GETBITS(numberofbits, "(get_dct)");
 	if(table[pos].run==VLC_ESCAPE) {
-#ifdef DEBUG
-	  if(debug>1) {
-	    fprintf(stderr, "VLC_ESCAPE\n");
-	  }
-#endif
+
+	  DPRINTF(2, "VLC_ESCAPE\n");
+	  
 	  runlevel->run   = GETBITS(6, "(get_dct run)");
 	  runlevel->level = GETBITS(12, "(get_dct level)");
 	  if(runlevel->level > 2047) {
@@ -2238,11 +2094,9 @@ void get_dct(runlevel_t *runlevel, int first_subseq, uint8_t intra_block,
 
 void reset_dc_dct_pred(void)
 {
-#ifdef DEBUG
-  if(debug > 1) {
-    fprintf(stderr, "Resetting dc_dct_pred\n");
-  }
-#endif
+  
+  DPRINTF(2, "Resetting dc_dct_pred\n");
+  
 
   switch(pic.coding_ext.intra_dc_precision) {
   case 0:
@@ -2273,11 +2127,9 @@ void reset_dc_dct_pred(void)
 }
 
 void reset_PMV() {
-#ifdef DEBUG
-  if(debug > 0) {
-    fprintf(stderr, "Resetting PMV\n");
-  }
-#endif
+  
+  DPRINTF(2, "Resetting PMV\n");
+
   
   pic.PMV[0][0][0] = 0;
   pic.PMV[0][0][1] = 0;
@@ -2506,9 +2358,9 @@ void motion_comp()
     
     
   if(mb.modes.macroblock_motion_forward) {
-    if(debug > 0) {
-      fprintf(stderr, "forward_motion_comp\n");
-    }
+
+    DPRINTF(1, "forward_motion_comp\n");
+
     half_flag_y[0] = (mb.vector[0][0][0] & 1);
     half_flag_y[1] = (mb.vector[0][0][1] & 1);
     half_flag_uv[0] = ((mb.vector[0][0][0]/2) & 1);
@@ -2524,37 +2376,34 @@ void motion_comp()
 
 
 
-    if(debug > 0) {
-      fprintf(stderr, "start: 0, end: %d\n",
+    DPRINTF(2, "start: 0, end: %d\n",
 	      seq.horizontal_size * seq.vertical_size);
       
-      fprintf(stderr, "p_vec x: %d, y: %d\n",
+    DPRINTF(2, "p_vec x: %d, y: %d\n",
 	      (mb.vector[0][0][0] >> 1),
 	      (mb.vector[0][0][1] >> 1));
-    }
+    
     pred_y  =
       &ref_image1->y[int_vec_y[0] + int_vec_y[1] * width];
-
-    if(debug >0) {
-      fprintf(stderr, "ypos: %d\n",
-	      int_vec_y[0] + int_vec_y[1] * width);
-      
-      fprintf(stderr, "start: 0, end: %d\n",
-	      seq.horizontal_size * seq.vertical_size/4);
-    }
+    
+    DPRINTF(2, "ypos: %d\n",
+	    int_vec_y[0] + int_vec_y[1] * width);
+    
+    DPRINTF(2, "start: 0, end: %d\n",
+	    seq.horizontal_size * seq.vertical_size/4);
+    
     pred_u =
       &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * width/2];
-
-    if(debug > 0) {
-      fprintf(stderr, "uvpos: %d\n",
-	      int_vec_uv[0] + int_vec_uv[1] * width/2);
-    }
+    
+    
+    DPRINTF(2, "uvpos: %d\n",
+	    int_vec_uv[0] + int_vec_uv[1] * width/2);
+    
     pred_v =
       &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * width/2];
-
-    if(debug > 0) {
-      fprintf(stderr, "x: %d, y: %d\n", x, y);
-    }
+    
+    DPRINTF(2, "x: %d, y: %d\n", x, y);
+    
 	
     if (half_flag_y[0] && half_flag_y[1]) {
       mlib_VideoInterpXY_U8_U8_16x16(dst_y,  pred_y,  width,   width);
@@ -2582,9 +2431,8 @@ void motion_comp()
   }
       
   if(mb.modes.macroblock_motion_backward) {
-    if(debug > 0) {
-      fprintf(stderr, "backward_motion_comp\n");
-    }
+    DPRINTF(1, "backward_motion_comp\n");
+    
     half_flag_y[0]   = (mb.vector[0][1][0] & 1);
     half_flag_y[1]   = (mb.vector[0][1][1] & 1);
     half_flag_uv[0] = ((mb.vector[0][1][0]/2) & 1);
