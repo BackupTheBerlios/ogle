@@ -48,25 +48,6 @@ dnl think), but I don't know how to check for it properly
 AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.so.0",
   [Name of the libglade lib (for dlopen)])
 
-dnl Set PACKAGE_LOCALE_DIR in config.h.
-if test "x${prefix}" = "xNONE"; then
-  AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, 
-    "${ac_default_prefix}/${DATADIRNAME}/locale",
-    [Dir for the locale files])
-else
-  AC_DEFINE_UNQUOTED(PACKAGE_LOCALE_DIR, "${prefix}/${DATADIRNAME}/locale")
-fi
-
-dnl PACKAGE_PIXMAPS_DIR is where the pixmaps (and the glade file) for
-dnl the gui will reside
-if test "x${prefix}" = "xNONE"; then
-   PACKAGE_PIXMAPS_DIR="${ac_default_prefix}/share/ogle_gui/"
-else
-   PACKAGE_PIXMAPS_DIR="${prefix}/share/ogle_gui/"
-fi
-AC_SUBST(PACKAGE_PIXMAPS_DIR)
-AC_DEFINE_UNQUOTED(PACKAGE_PIXMAPS_DIR, "$PACKAGE_PIXMAPS_DIR", [Get pixmaps])
-
 AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
   [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
 
@@ -146,25 +127,6 @@ case "$host_os" in
 	*)
 		;;
 esac
-
-
-
-dnl ---------------------------------------------------------
-dnl config file
-dnl ---------------------------------------------------------
-
-if test "x${prefix}" = "xNONE"; then
-  CONFIG_FILE="${ac_default_prefix}/share/ogle/oglerc"
-  CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle/ogle_conf.dtd"
-else
-  CONFIG_FILE="${prefix}/share/ogle/oglerc"
-  CONFIG_FILE_DTD="${prefix}/share/ogle/ogle_conf.dtd"
-fi
-AC_DEFINE_UNQUOTED(CONFIG_FILE, "${CONFIG_FILE}",
-  [Location of the oglerc config file])
-
-AC_SUBST(CONFIG_FILE)
-AC_SUBST(CONFIG_FILE_DTD)
 
 dnl ---------------------------------------------------------
 dnl end config file

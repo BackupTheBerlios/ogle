@@ -7,6 +7,14 @@ INCLUDES = \
 	@XML_CFLAGS@ \
 	@LIBGLADE_CFLAGS@
 
+# define LOCALEDIR, CONFIG_FILE, CONFIG_FILE_DTD, and PACKAGE_PIXMAPS_DIR
+DEFS = \
+  -DLOCALEDIR=\"$(datadir)/locale\" \
+  -DCONFIG_FILE=\"$(datadir)/ogle/oglerc\" \
+  -DCONFIG_FILE_DTD=\"$(datadir)/ogle/ogle_conf.dtd\" \
+  -DPACKAGE_PIXMAPS_DIR=\"$(datadir)/ogle_gui\" \
+  @DEFS@
+
 # To get ogle_gui installed in the ogle pkglibdir
 pkglibdir=$(libdir)/ogle
 pkglib_PROGRAMS = ogle_gui
