@@ -88,7 +88,7 @@ fi
 dnl Both this and the libdvdread should first test and see if any flags
 dnl beside -lname are needed. Then they the suggested path (+ some standard?)
 AC_CHECK_LIB(jpeg, main, 
-  [ JPEG_LIBS="-L$jpeg_path/lib -R $jpeg_path/lib -ljpeg"
+  [ JPEG_LIBS="-L$jpeg_path/lib -R$jpeg_path/lib -ljpeg"
     JPEG_CFLAGS=-I$jpeg_path/include
   ],
   [ 
@@ -158,7 +158,7 @@ if test -z "$dvd_path"; then
   fi
 fi
 AC_CHECK_LIB(dvdread, DVDFileSize, 
-  [ DVDREAD_LIBS="-L$dvd_path/lib -R $dvd_path/lib -ldvdread" 
+  [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
     DVDREAD_CFLAGS=-I$dvd_path/include
   ],
   [
@@ -207,7 +207,7 @@ if test x$mlib_path != xno; then
   saved_CPPFLAGS=$CFLAGS
   CFLAGS="$CFLAGS -L$mlib_path/lib"
   AC_CHECK_LIB(mlib, mlib_VideoDCT8x8_S16_S16, 
-	       [ MLIB_LIBS="-L$mlib_path/lib -R $mlib_path/lib -lmlib"
+	       [ MLIB_LIBS="-L$mlib_path/lib -R$mlib_path/lib -lmlib"
                  MLIB_CFLAGS=-I$mlib_path/include
                  have_mlib=yes
                ],,)
@@ -266,7 +266,7 @@ if test -z "$a52_path"; then
 fi
 if test x$have_mlib = xyes; then
   AC_CHECK_LIB(a52, a52_init, 
-    [ A52_LIBS="-L$a52_path/lib -R $a52_path/lib -la52" 
+    [ A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
       A52_CFLAGS=-I$a52_path/include
     ],
     [
@@ -274,7 +274,7 @@ if test x$have_mlib = xyes; then
     ], -L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
 else
   AC_CHECK_LIB(a52, a52_init, 
-    [ A52_LIBS="-L$a52_path/lib -R $a52_path/lib -la52" 
+    [ A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
       A52_CFLAGS=-I$a52_path/include
     ],
     [
