@@ -21,8 +21,8 @@
 #include <unistd.h>
 #include <sys/msg.h>
 #include <string.h>
-#include <ogle/msgevents.h>
-#include <ogle/dvdcontrol.h>
+#include "msgevents.h"
+#include "dvdcontrol.h"
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>

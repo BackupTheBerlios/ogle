@@ -23,7 +23,7 @@
 #include <inttypes.h>
 #include <assert.h>
 
-#include <ogle/msgevents.h>
+#include "ogle/msgevents.h"
 
 #include <dvdread/ifo_types.h>
 #include <dvdread/ifo_read.h>

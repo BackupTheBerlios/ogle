@@ -782,7 +782,7 @@ dnl ---------------------------------------------------------
 dnl end Architecture specific stuff
 dnl ---------------------------------------------------------
 
-TOP_INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include'
+TOP_INCLUDES='-I$(top_srcdir) -I$(top_srcdir)/include'
 AC_SUBST(TOP_INCLUDES)
 
 

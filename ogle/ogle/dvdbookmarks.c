@@ -27,7 +27,7 @@
 #include <libxml/xmlmemory.h>
 #include <libxml/parser.h>
 
-#include <ogle/dvdbookmarks.h>
+#include "dvdbookmarks.h"
 
 #define OGLE_RC_DIR ".ogle"
 #define OGLE_BOOKMARK_DIR "bookmarks"

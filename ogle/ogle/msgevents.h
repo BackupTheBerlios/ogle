@@ -22,8 +22,8 @@
 #include <limits.h>
 #include <inttypes.h>
 
-#include <ogle/dvd.h>
-#include <ogle/dvdevents.h>
+#include "dvd.h"
+#include "dvdevents.h"
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>

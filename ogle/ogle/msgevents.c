@@ -23,7 +23,7 @@
 #include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
-#include <ogle/msgevents.h>
+#include "msgevents.h"
 
 #if (defined(__unix__) || defined(unix)) && !defined(USG)
 #include <sys/param.h>

@@ -19,7 +19,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
-#include <ogle/msgevents.h>
+#include "ogle/msgevents.h"
 
 typedef enum {
   PacketType_MPEG1 = 0,
