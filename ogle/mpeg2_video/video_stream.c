@@ -1601,7 +1601,15 @@ void picture_data(void)
 	
 	fprintf(stderr, "** temporal reference skipped\n");
 	
-	last_temporal_ref_to_dpy = bwd_ref_temporal_reference;
+	/* If we are in a new GOP and there is an old 
+	   undisplayed bwd_ref_temporal_reference, _don't_ use 
+	   that as the last last_temporal_ref_to_dpy (since 
+	   temporal_reference are only valid within a GOP). */
+	/* FIXME: Care will have to be taken for the time calculations,
+	   if the new image doesn't have a PTS stamp. This is not
+	   handled correctly yet. */
+	if(prev_coded_temp_ref != -2)
+	  last_temporal_ref_to_dpy = bwd_ref_temporal_reference;
 	
 	/* bwd_ref should not be in the dpy_q more than one time */
 	bwd_ref_temporal_reference = -1;
