@@ -279,6 +279,7 @@ int get_q()
   static clocktime_t time_offset = { 0, 0 };
   static clocktime_t last_rt = { -1, 0 };
   static clocktime_t in_outputbuf = { 0, 0 };
+  static clocktime_t prev_scr_time = { 0, 0 };
   MsgEvent_t ev;
   
   q_head = (q_head_t *)stream_shmaddr;
@@ -334,7 +335,6 @@ int get_q()
       flush_to_scrnr = -1;
     }
   }
-
   if(ctrl_data->speed == 1.0) {
     clocktime_t real_time, scr_time;
     
@@ -345,11 +345,12 @@ int get_q()
     }
     
     if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
+      clocktime_t tmptime;
       ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
       
       if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	if(PTS_DTS_flags & 0x2) {
-	  clocktime_t tmptime;
+	  
 
 	  
 	  // time_offset is our guess to how much is in the output q
@@ -360,18 +361,136 @@ int get_q()
 	    tmptime = real_time;
 	  }
 	  
+	  timeadd(&tmptime, &tmptime, &in_outputbuf);
 	  {
-	    clocktime_t corr = { 0, 100000000 };
-	    timeadd(&tmptime, &tmptime, &in_outputbuf);
-	    
+	    clocktime_t t1, t2;
+	    timesub(&t1, &scr_time, &prev_scr_time);
+	    timesub(&t2, &t1, &in_outputbuf);
+	    /*
+	    if((TIME_SS(t2) < -CT_FRACTION/10000) ||
+	       (TIME_SS(t2) > CT_FRACTION/10000)) {
+	      fprintf(stderr, "*** diff: %ld.%09ld\n",
+		      TIME_S(t2), TIME_SS(t2));
+	    }
+	    */
 	  }
 	  
+	  
+	  fprintf(stderr, "*rt: %ld.%09ld, last_rt: %ld.%09ld\n bt: %ld.%09ld,  tmptime: %ld.%09ld\n scr: %ld.%09ld\n",
+		  TIME_S(real_time), TIME_SS(real_time),
+		  TIME_S(last_rt), TIME_SS(last_rt),
+		  TIME_S(in_outputbuf), TIME_SS(in_outputbuf),
+		  TIME_S(tmptime), TIME_SS(tmptime),
+		  TIME_S(scr_time), TIME_SS(scr_time));
+	    
       	  set_sync_point(&ctrl_time[scr_nr],
 			 &tmptime,
 			 &scr_time,
 			 ctrl_data->speed);
+	  prev_scr_time = scr_time;
+
 	}
 	
+      } else {
+	/* offset valid */
+	if(PTS_DTS_flags & 0x2) {
+	  clocktime_t t1, t2;
+	  clocktime_t calc_scr_time;
+	  
+
+	  if(TIME_S(last_rt) != -1) {
+	    tmptime = last_rt;
+	  } else {
+	    tmptime = real_time;
+	  }
+	  
+	  timeadd(&tmptime, &tmptime, &in_outputbuf);
+	  
+	  timesub(&t1, &scr_time, &prev_scr_time);
+	  timesub(&t2, &t1, &in_outputbuf);
+	    
+	  if((TIME_SS(t2) < -CT_FRACTION/10000) ||
+	     (TIME_SS(t2) > CT_FRACTION/10000)) {
+	    /* diff */
+	    /*
+	    fprintf(stderr, "** diff: %ld.%09ld\n",
+		    TIME_S(t2), TIME_SS(t2));
+	    */
+	    /*
+	    timeadd(&calc_scr_time, &scr_time, &in_outputbuf);
+	    
+	    set_sync_point(&ctrl_time[scr_nr],
+			   &tmptime,
+			   &calc_scr_time,
+			   ctrl_data->speed);
+	    prev_scr_time = scr_time;
+	    
+	    timeadd(&last_rt, &last_rt, &in_outputbuf);
+	    */
+	  }
+	  /*
+	    else {
+	    // no diff
+	  */
+	    
+	  /*  
+	      fprintf(stderr, "rt: %ld.%09ld, last_rt: %ld.%09ld\n bt: %ld.%09ld,  tmptime: %ld.%09ld\n scr: %ld.%09ld\n",
+	      TIME_S(real_time), TIME_SS(real_time),
+	      TIME_S(last_rt), TIME_SS(last_rt),
+	      TIME_S(in_outputbuf), TIME_SS(in_outputbuf),
+	      TIME_S(tmptime), TIME_SS(tmptime),
+	      TIME_S(scr_time), TIME_SS(scr_time));
+	      
+	    set_sync_point(&ctrl_time[scr_nr],
+			   &tmptime,
+			   &scr_time,
+			   ctrl_data->speed);
+	  */
+	    prev_scr_time = scr_time;
+	  
+	    /*
+	  }
+	    */
+	} else {
+	  /* not pts set */
+	  clocktime_t calc_scr_time;
+	  
+	  timeadd(&calc_scr_time, &scr_time, &in_outputbuf);
+	  if(TIME_S(last_rt) != -1) {
+	    tmptime = last_rt;
+	  } else {
+	    tmptime = real_time;
+	  }
+	  
+	  timeadd(&tmptime, &tmptime, &in_outputbuf);
+	  {
+	    clocktime_t t1, t2;
+	    timesub(&t1, &calc_scr_time, &prev_scr_time);
+	    timesub(&t2, &t1, &in_outputbuf);
+	    
+	    if((TIME_SS(t2) < -1000) || (TIME_SS(t2) > 1000)) {
+	      fprintf(stderr, "**** diff: %ld.%09ld\n",
+		      TIME_S(t2), TIME_SS(t2));
+	    }
+	    
+	  }
+	  
+	  fprintf(stderr, "rt: %ld.%09ld, last_rt: %ld.%09ld\n bt: %ld.%09ld,  tmptime: %ld.%09ld\n calc_scr: %ld.%09ld\n",
+		  TIME_S(real_time), TIME_SS(real_time),
+		  TIME_S(last_rt), TIME_SS(last_rt),
+		  TIME_S(in_outputbuf), TIME_SS(in_outputbuf),
+		  TIME_S(tmptime), TIME_SS(tmptime),
+		  TIME_S(calc_scr_time), TIME_SS(calc_scr_time));
+	  
+	  set_sync_point(&ctrl_time[scr_nr],
+			 &tmptime,
+			 &calc_scr_time,
+			 ctrl_data->speed);
+	  prev_scr_time = scr_time;
+
+	  timeadd(&last_rt, &last_rt, &in_outputbuf);
+	  
+	}
       }
       if(PTS_DTS_flags & 0x2) {
 	calc_realtime_left_to_scrtime(&time_offset, &real_time,
@@ -391,8 +510,10 @@ int get_q()
 		       &real_time,
 		       &scr_time,
 		       ctrl_data->speed);
+	fprintf(stderr, "a52: offset reset\n");
       }
     }
+
     if(PTS_DTS_flags & 0x2) {
       calc_realtime_from_scrtime(&last_rt,
 				 &scr_time,
@@ -409,16 +530,11 @@ int get_q()
       }
     }
 
-
     if(ctrl_data->speed == 1.0) {
-      clocktime_t real_time, scr_time;
-      
-      PTS_TO_CLOCKTIME(scr_time, PTS);
-      clocktime_get(&real_time);
       
       /** TODO this is just so we don't buffer alot in the pipe **/
       
-      {
+      if(PTS_DTS_flags & 0x2) {
 #ifndef HAVE_CLOCK_GETTIME
 	struct timespec bepa;
 	clocktime_t apa = {0, 100000};
@@ -443,21 +559,15 @@ int get_q()
     }
   }
   prev_scr_nr = scr_nr;
-  
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
-#if 0  
-  if(ctrl_data->speed == 1.0) {
-    fwrite(data_buffer+off, len, 1, outfile);
-  }
-#else
   if(ctrl_data->speed == 1.0) {
     in_outputbuf = a52_decode_data(data_buffer+off, data_buffer+off+len);  
   } else {
     TIME_S(in_outputbuf) = 0;
     TIME_SS(in_outputbuf) = 0;
   }
-#endif
+
   // release elem
   data_elem->in_use = 0;
   q_elems[elem].in_use = 0;
@@ -504,6 +614,7 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	  fprintf(stderr, "a52dec: error while decoding, restarting\n");
 	  print_error = 0;
 	}
+
 	length = a52_syncinfo(buf, &flags, &sample_rate, &bit_rate);
 	if(!length) {
 	  print_skip = 1;
@@ -519,19 +630,30 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
 	  print_skip = 0;
 	  fprintf(stderr, "a52dec: Discarded data to find a valid frame\n");
 	}
-	
-	if(ao_setup(output, sample_rate, &flags, &level, &bias))
+	if(ao_setup(output, sample_rate, &flags, &level, &bias)) {
+	  fprintf(stderr, "ao_setup() error\n");
 	  goto error;
+	}
 	flags |= A52_ADJUST_LEVEL;
-	if(a52_frame(&state, buf, &flags, &level, bias))
+	memset(&state, 0, sizeof(a52_state_t));
+	if(a52_frame(&state, buf, &flags, &level, bias)) {
+	  fprintf(stderr, "a52_frame() error\n");
 	  goto error;
+	}
+
 	if(disable_dynrng)
 	  a52_dynrng(&state, NULL, NULL);
 	for(i = 0; i < 6; i++) {
-	  if(a52_block(&state, samples))
+
+	  if(a52_block(&state, samples)) {
+	    fprintf(stderr, "a52_block() error\n");
 	    goto error;
-	  if(ao_play(output, flags, samples))
+	  }
+
+	  if(ao_play(output, flags, samples)) {
+	    fprintf(stderr, "ao_play() error\n");
 	    goto error;
+	  }
 	  blocks++;
 	}
 	bufptr = buf;
@@ -546,9 +668,13 @@ static clocktime_t a52_decode_data(uint8_t *start, uint8_t *end) {
     }
   }
 
-
-  TIME_S(buf_time) = (256*blocks*CT_FRACTION/sample_rate) / CT_FRACTION;
-  TIME_SS(buf_time) = (256*blocks*CT_FRACTION/sample_rate) % CT_FRACTION;
+  if(sample_rate != 0) {
+    TIME_S(buf_time) = (int32_t)(((int64_t)(256*blocks)*(int64_t)CT_FRACTION/sample_rate) / CT_FRACTION);
+    TIME_SS(buf_time) = (int32_t)(((int64_t)(256*blocks)*(int64_t)CT_FRACTION/sample_rate) % CT_FRACTION);
+  } else {
+    TIME_S(buf_time) = 0;
+    TIME_SS(buf_time) = 0;
+  }
 
   return buf_time;
 }
