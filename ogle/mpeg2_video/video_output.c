@@ -73,7 +73,6 @@ static int color_depth, pixel_stride, mode;
 
 extern unsigned int debug;
 int show_window[3] = {1,0,0};
-int show_stat = 0;
 int run = 0;
 
 
@@ -312,6 +311,7 @@ void display_exit(void)
   shmctl(shm_info_ref2.shmid, IPC_RMID, 0);
 }
 
+
 void Display_Image(Window win, XImage *myximage,
 		   unsigned char *ImageData, yuv_image_t *image)
 {
@@ -322,11 +322,6 @@ void Display_Image(Window win, XImage *myximage,
   XSync(mydisplay, False);
 }
 
-
-
-void compute_frame(yuv_image_t *image, unsigned char *data)
-{
-}
  
 void add_grid(unsigned char *data, XImage *ximg)
 {
@@ -348,6 +343,7 @@ void add_grid(unsigned char *data, XImage *ximg)
     }
   }
 }
+
 
 void add_2_box_sides(unsigned char *data,
 		     unsigned char r,
@@ -573,9 +569,6 @@ void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
 	case 'w':
 	  window_change = 2;
 	  break;
-	case 's':
-	  show_stat = !show_stat;
-	  break;
 	case 'r':
 	  run = !run;
 	  nextframe = 1;
@@ -775,9 +768,6 @@ void user_control(macroblock_t *cur_mbs,
 	  break;
 	case 'w':
 	  window_change = 2;
-	  break;
-	case 's':
-	  show_stat = !show_stat;
 	  break;
 	case 'r':
 	  run = !run;

@@ -58,7 +58,6 @@
 #include "../include/common.h"
 #include "c_getbits.h"
 
-extern int show_stat;
 unsigned int debug = 0;
 int shm_ready = 0;
 static int shmem_flag = 1;
@@ -84,97 +83,15 @@ double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
 
 int MPEG2 = 0;
 
-
 uint8_t intra_inverse_quantiser_matrix_changed = 1;
-
 uint8_t non_intra_inverse_quantiser_matrix_changed = 1;
 
-#ifdef STATS
-uint64_t stats_bits_read = 0;
-uint8_t stats_intra_inverse_quantiser_matrix_reset = 0;
-uint8_t stats_intra_inverse_quantiser_matrix_loaded = 0;
-
-uint32_t stats_intra_inverse_quantiser_matrix_changes_possible = 0;
-uint32_t stats_intra_inverse_quantiser_matrix_loaded_nr = 0;
-uint32_t stats_intra_inverse_quantiser_matrix_reset_nr = 0;
-
-
-uint8_t stats_non_intra_inverse_quantiser_matrix_reset = 0;
-uint8_t stats_non_intra_inverse_quantiser_matrix_loaded = 0;
-
-uint32_t stats_non_intra_inverse_quantiser_matrix_changes_possible = 0;
-uint32_t stats_non_intra_inverse_quantiser_matrix_loaded_nr = 0;
-uint32_t stats_non_intra_inverse_quantiser_matrix_reset_nr = 0;
-
-uint32_t stats_quantiser_scale_possible = 0;
-uint32_t stats_quantiser_scale_nr = 0;
-
-uint32_t stats_intra_quantiser_scale_possible = 0;
-uint32_t stats_intra_quantiser_scale_nr = 0;
-
-uint32_t stats_non_intra_quantiser_scale_possible = 0;
-uint32_t stats_non_intra_quantiser_scale_nr = 0;
-
-uint32_t stats_block_non_intra_nr = 0;
-uint32_t stats_f_non_intra_compute_first_nr = 0;
-uint32_t stats_f_non_intra_compute_subseq_nr = 0;
-
-uint32_t stats_block_intra_nr = 0;
-uint32_t stats_f_intra_compute_subseq_nr = 0;
-
-uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
-uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
-
-uint8_t new_scaled = 0;
-
-
-void statistics_init()
-{  
-  stats_intra_inverse_quantiser_matrix_reset = 0;
-  stats_intra_inverse_quantiser_matrix_loaded = 0;
-
-  stats_intra_inverse_quantiser_matrix_changes_possible = 0;
-  stats_intra_inverse_quantiser_matrix_loaded_nr = 0;
-  stats_intra_inverse_quantiser_matrix_reset_nr = 0;
-
-
-  non_intra_inverse_quantiser_matrix_changed = 1;
-  stats_non_intra_inverse_quantiser_matrix_reset = 0;
-  stats_non_intra_inverse_quantiser_matrix_loaded = 0;
-
-  stats_non_intra_inverse_quantiser_matrix_changes_possible = 0;
-  stats_non_intra_inverse_quantiser_matrix_loaded_nr = 0;
-  stats_non_intra_inverse_quantiser_matrix_reset_nr = 0;
-
-  stats_quantiser_scale_possible = 0;
-  stats_quantiser_scale_nr = 0;
-
-  stats_intra_quantiser_scale_possible = 0;
-  stats_intra_quantiser_scale_nr = 0;
-
-  stats_non_intra_quantiser_scale_possible = 0;
-  stats_non_intra_quantiser_scale_nr = 0;
-
-
-  stats_block_non_intra_nr = 0;
-  stats_f_non_intra_compute_first_nr = 0;
-  stats_f_non_intra_compute_subseq_nr = 0;
-
-  stats_block_intra_nr = 0;
-  stats_f_intra_compute_subseq_nr = 0;
-
-  stats_f_non_intra_subseq_escaped_run_nr = 0;
-  stats_f_non_intra_first_escaped_run_nr = 0;
-}
-
-#endif
 
 
 #ifdef TIMESTAT
 
 void timestat_init();
 void timestat_print();
-
 
 struct timespec picture_decode_start_time;
 struct timespec picture_decode_end_time;
@@ -278,10 +195,6 @@ void reset_to_default_quantiser_matrix();
 void display_init();
 void display_exit();
 void display_process();
-void frame_done(yuv_image_t *current_image, macroblock_t *cur_mbs,
-		yuv_image_t *ref_image1, macroblock_t *ref1_mbs,
-		yuv_image_t *ref_image2, macroblock_t *ref2_mbs, 
-		uint8_t picture_coding_type);
 
 void user_control(macroblock_t *cur_mbs,
 		  macroblock_t *ref1_mbs,
@@ -362,11 +275,7 @@ void init_program()
   sig.sa_handler = sighandler;
   sigaction(SIGINT, &sig, NULL);
   
-  
-#ifdef STATS
-  statistics_init();
-#endif
- 
+
 #ifdef TIMESTAT
   timestat_init();
 #endif
@@ -518,9 +427,6 @@ void video_sequence(void) {
     do {
       extension_and_user_data(0);
       do {
-#ifdef TIMESTAT
-	clock_gettime(CLOCK_REALTIME, &picture_decode_start_time);
-#endif
 	if(nextbits(32) == MPEG2_VS_GROUP_START_CODE) {
 	  group_of_pictures_header();
 	  extension_and_user_data(1);
@@ -547,10 +453,11 @@ void video_sequence(void) {
     } while(nextbits(32) != MPEG2_VS_SEQUENCE_END_CODE);
     
   } else {
-    // fprintf(stderr, "ERROR: This is an ISO/IEC 11172-2 Stream\n");
+    /* ERROR: This is an ISO/IEC 11172-2 Stream */
     
     /* No extension code following the sequence header implies MPEG-1 */
-      
+    MPEG2 = 0;
+    
     /* Display init */
     if(!shm_ready) {
       setup_shm(seq.mb_width * 16, seq.mb_height * 16, nr_of_buffers);
@@ -581,7 +488,6 @@ void video_sequence(void) {
 	picture_data();
       } while(nextbits(32) == MPEG2_VS_PICTURE_START_CODE);
     } while(nextbits(32) == MPEG2_VS_GROUP_START_CODE);
-    // } while(nextbits(32) == MPEG2_VS_SEQUENCE_HEADER_CODE);
   }
     
   
@@ -626,9 +532,7 @@ void sequence_header(void)
   if(GETBITS(1, "load_intra_quantiser_matrix")) {
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
-#ifdef STATS
-    stats_intra_inverse_quantiser_matrix_loaded_nr++;
-#endif
+    
     for(n = 0; n < 64; n++) {
       seq.header.intra_quantiser_matrix[n] 
 	= GETBITS(8, "intra_quantiser_matrix[n]");
@@ -649,18 +553,13 @@ void sequence_header(void)
     if(intra_inverse_quantiser_matrix_changed) {
       reset_to_default_intra_quantiser_matrix();
       intra_inverse_quantiser_matrix_changed = 0;
-#ifdef STATS
-      stats_intra_inverse_quantiser_matrix_reset_nr++;
-#endif
     }
   }
   
   if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
-#ifdef STATS
-    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
-#endif
+    
     for(n = 0; n < 64; n++) {
       seq.header.non_intra_quantiser_matrix[n] 
 	= GETBITS(8, "non_intra_quantiser_matrix[n]");
@@ -681,16 +580,9 @@ void sequence_header(void)
     if(non_intra_inverse_quantiser_matrix_changed) {
       reset_to_default_non_intra_quantiser_matrix();
       non_intra_inverse_quantiser_matrix_changed = 0;
-#ifdef STATS
-      stats_non_intra_inverse_quantiser_matrix_reset_nr++;
-#endif
     }
   }
 
-#ifdef STATS
-  stats_intra_inverse_quantiser_matrix_changes_possible++;
-  stats_non_intra_inverse_quantiser_matrix_changes_possible++;
-#endif
   
   
   DPRINTF(1, "vertical: %u\n", seq.header.horizontal_size_value);
@@ -1396,6 +1288,8 @@ void picture_data(void)
 
   DPRINTF(3, "picture_data\n");
 
+  
+  gettimeofday(&tv, NULL); // End time (previous picture).
 
 
   switch(pic.header.picture_coding_type) {
@@ -1403,8 +1297,8 @@ void picture_data(void)
   case 0x2:
     //I,P picture
     
-    /* We are about to decode a new reference picture, so we no longer 
-       requier the old backwards reference picture. */
+    /* We are about to decode a new reference picture, so 
+       we no longer requier the old backwards reference picture. */
     if(old_ref_buf_id != -1) {
       buf_ctrl_head->picture_infos[old_ref_buf_id].in_use = 0;
     }
@@ -1413,8 +1307,7 @@ void picture_data(void)
     break;
   }
   
-  gettimeofday(&tv, NULL); //End time
-
+  /* Allocate a new buffer to decode into. */
   buf_id = get_picture_buf();
   reserved_image = &(buf_ctrl_head->picture_infos[buf_id].picture);
   
@@ -1497,9 +1390,7 @@ void picture_data(void)
   }
   
   
-  
-  DPRINTF(2," switching buffers\n");
-  
+  /* Switch the pictures. */
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
@@ -1523,24 +1414,12 @@ void picture_data(void)
     break;
   case 0x3:
     // B-picture
+    
     dst_image = reserved_image;
     break;
   }
   
-  
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-  case 0x2:
-    if(show_stat) {
-      memcpy(&ref1_mbs[0], &ref2_mbs[0], sizeof(mb)*45*36);
-      memcpy(&cur_mbs[0], &ref1_mbs[0], sizeof(mb)*45*36);
-    }
-    break;
-  case 0x3:
-    break;
-  }
-  
-  
+  /* The actual decoding work */
   if( MPEG2 )
     do {
       mpeg2_slice();
@@ -1572,174 +1451,6 @@ void picture_data(void)
   }
 
 
-#ifdef TIMESTAT
-  clock_gettime(CLOCK_REALTIME, &picture_decode_end_time);
-  /*
-  picture_timestat[picture_decode_num].dec_start = picture_decode_start_time;
-  picture_timestat[picture_decode_num].dec_end = picture_decode_end_time;
-  picture_timestat[picture_decode_num].type = pic.header.picture_coding_type;
-
-  timesub(&picture_decode_time,
-	  &picture_decode_end_time, &picture_decode_start_time);
-
-  picture_timestat[picture_decode_num].type = pic.header.picture_coding_type;
-  */
-  /*
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-    fprintf(stderr, "I ");
-    break;
-  case 0x2:
-    fprintf(stderr, "P ");
-    break;
-  case 0x3:
-    fprintf(stderr, "B ");
-    break;
-  default:
-  }
-  */
-  /*
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-    timeadd(&picture_decode_time_tot[0],
-	    &picture_decode_time_tot[0], &picture_decode_time);
-
-    if(timecompare(&picture_decode_time, &picture_decode_time_max[0]) > 0) {
-      picture_decode_time_max[0] = picture_decode_time;
-    }
-    if(timecompare(&picture_decode_time_min[0], &picture_decode_time) > 0) {
-      picture_decode_time_min[0] = picture_decode_time;
-    }
-    picture_decode_nr[0]++;
-    break;
-  case 0x2:
-    timeadd(&picture_decode_time_tot[1],
-	    &picture_decode_time_tot[1], &picture_decode_time);
-    if(timecompare(&picture_decode_time, &picture_decode_time_max[1]) > 0) {
-      picture_decode_time_max[1] = picture_decode_time;
-    }
-    if(timecompare(&picture_decode_time_min[1], &picture_decode_time) > 0) {
-      picture_decode_time_min[1] = picture_decode_time;
-    }
-    picture_decode_nr[1]++;
-    break;
-  case 0x3:
-    timeadd(&picture_decode_time_tot[2],
-	    &picture_decode_time_tot[2], &picture_decode_time);
-    if(timecompare(&picture_decode_time, &picture_decode_time_max[2]) > 0) {
-      picture_decode_time_max[2] = picture_decode_time;
-    }
-    if(timecompare(&picture_decode_time_min[2], &picture_decode_time) > 0) {
-      picture_decode_time_min[2] = picture_decode_time;
-    }
-    picture_decode_nr[2]++;
-    break;
-  }
-  */
-  /*
-  if(picture_decode_num < TIMESTAT_NOF) {
-    picture_decode_num++;
-  }
-  */
-  
-  clock_gettime(CLOCK_REALTIME, &picture_display_start_time);
-
-#if 0
-  frame_done(current_image, cur_mbs, 
-	     ref_image1, ref1_mbs, 
-	     ref_image2, ref2_mbs,
-	     pic.header.picture_coding_type);
-#endif
-
-  clock_gettime(CLOCK_REALTIME, &picture_display_end_time);
-
-  /*
-  fprintf(stderr, "decodetime: %d.%09d  %.3f\n",
-	  picture_decode_time.tv_sec,
-	  picture_decode_time.tv_nsec,
-	  (double)picture_decode_time.tv_sec+
-	  (double)picture_decode_time.tv_nsec/1000000000.0);
-  */
-  /*
-  picture_timestat[picture_decode_num-1].disp_start = picture_display_start_time;
-  picture_timestat[picture_decode_num-1].disp_end = picture_display_end_time;
-
-
-  timesub(&picture_display_time,
-	  &picture_display_end_time, &picture_display_start_time);
-  */
-  /*
-  fprintf(stderr, "displaytime: %d.%09d\n",
-	  picture_display_time.tv_sec,
-	  picture_display_time.tv_nsec);
-  */
-  /*
-  switch(pic.header.picture_coding_type) {
-  case 0x1:
-    timeadd(&picture_display_time_tot[0],
-	    &picture_display_time_tot[0], &picture_display_time);
-    if(timecompare(&picture_display_time, &picture_display_time_max[0]) > 0) {
-      picture_display_time_max[0] = picture_display_time;
-    }
-    if(timecompare(&picture_display_time_min[0], &picture_display_time) > 0) {
-      picture_display_time_min[0].tv_sec = picture_display_time.tv_sec;
-      picture_display_time_min[0].tv_nsec = picture_display_time.tv_nsec;
-    }
-    picture_display_nr[0]++;
-    break;
-  case 0x2:
-    timeadd(&picture_display_time_tot[1],
-	    &picture_display_time_tot[1], &picture_display_time);
-    if(timecompare(&picture_display_time, &picture_display_time_max[1]) > 0) {
-      picture_display_time_max[1] = picture_display_time;
-    }
-    if(timecompare(&picture_display_time_min[1], &picture_display_time) > 0) {
-      picture_display_time_min[1] = picture_display_time;
-    }
-    picture_display_nr[1]++;
-    break;
-  case 0x3:
-    timeadd(&picture_display_time_tot[2],
-	    &picture_display_time_tot[2], &picture_display_time);
-    if(timecompare(&picture_display_time, &picture_display_time_max[2]) > 0) {
-      picture_display_time_max[2] = picture_display_time;
-    }
-    if(timecompare(&picture_display_time_min[2], &picture_display_time) > 0) {
-      picture_display_time_min[2] = picture_display_time;
-    }
-    picture_display_nr[2]++;
-    break;
-  }
-  */
-  /*
-  if(picture_display_num < TIMESTAT_NOF) {
-    picture_display_num++;
-  }
-
-  
-  picture_time0 = picture_time1;
-  picture_time1 = picture_time;
-  timesub(&picture_time,
-	  &picture_display_end_time, &picture_decode_start_time);
-  picture_time2 = picture_time;
-  */
-  /*
-  fprintf(stderr, "picturetime: %d.%09d\n",
-	  picture_time.tv_sec,
-	  picture_time.tv_nsec);
-
-  fprintf(stderr, "picturetime avg 3frames: %.4f\n",
-	  (((double)picture_time0.tv_sec+
-	    (double)picture_time0.tv_nsec/1000000000.0) +
-	   ((double)picture_time1.tv_sec+
-	    (double)picture_time1.tv_nsec/1000000000.0) +
-	   ((double)picture_time2.tv_sec+
-	    (double)picture_time2.tv_nsec/1000000000.0)) /
-	  3.0);
-  */  
-#endif
-
-
   next_start_code();
 }
 
@@ -1747,14 +1458,12 @@ void picture_data(void)
 /* 6.2.2.2.1 Extension data */
 void extension_data(unsigned int i)
 {
-
   DPRINTF(3, "extension_data(%d)", i);
   
   while(nextbits(32) == MPEG2_VS_EXTENSION_START_CODE) {
     GETBITS(32, "extension_start_code");
     
-    if(i == 0) {
-      /* follows sequence_extension() */
+    if(i == 0) { /* follows sequence_extension() */
       
       if(nextbits(4) == MPEG2_VS_SEQUENCE_DISPLAY_EXTENSION_ID) {
 	sequence_display_extension();
@@ -1766,8 +1475,7 @@ void extension_data(unsigned int i)
 
     /* extension never follows a group_of_picture_header() */
     
-    if(i == 2) {
-      /* follows picture_coding_extension() */
+    if(i == 2) { /* follows picture_coding_extension() */
 
       if(nextbits(4) == MPEG2_VS_QUANT_MATRIX_EXTENSION_ID) {
 	quant_matrix_extension();
@@ -1814,7 +1522,7 @@ void reset_to_default_non_intra_quantiser_matrix()
 }
 
 
-
+/* This should be moved into a separate file. (And cleand up) */
 void motion_comp()
 {
   int padded_width,x,y;
@@ -1831,13 +1539,12 @@ void motion_comp()
   uint8_t *pred_v;
   int field;
 
+  DPRINTF(2, "dct_type: %d\n", mb.modes.dct_type);
 
   padded_width = seq.mb_width * 16;
-
   
-  DPRINTF(2, "dct_type: %d\n", mb.modes.dct_type);
-  //handle interlaced blocks
-  if (mb.modes.dct_type) { // skicka med dct_type som argument
+  // handle interlaced blocks
+  if (mb.modes.dct_type) {
     d = 1;
     stride = padded_width * 2;
   } else {
@@ -1852,42 +1559,39 @@ void motion_comp()
   dst_u = &dst_image->u[x * 8 + y * padded_width/2 * 8];
   dst_v = &dst_image->v[x * 8 + y * padded_width/2 * 8];
 
-  //  fprintf(stderr, "*DEST_Y: %u\n", dst_y);
-  //mb.prediction_type = PRED_TYPE_FIELD_BASED;
-    
+  
   if(mb.modes.macroblock_motion_forward) {
-
-    int apa, i;
-
-
+    int vcount, i;
+    
+    DPRINTF(2, "forward_motion_comp\n");
+    DPRINTF(3, "x: %d, y: %d\n", x, y);
+    
     if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
       fprintf(stderr, "**** DP remove this and check if working\n");
       //exit(-1);
     }
 
-
     if(mb.prediction_type == PRED_TYPE_FIELD_BASED) {
-      apa = mb.motion_vector_count;
+      vcount = mb.motion_vector_count;
     } else { 
-      apa = 1;
+      vcount = 1;
     }
 
 
-    for(i = 0; i < apa; i++) {
+    for(i = 0; i < vcount; i++) {
       
       field = mb.motion_vertical_field_select[i][0];
-      
-      DPRINTF(2, "forward_motion_comp\n");
 
       half_flag_y[0]  = (mb.vector[i][0][0] & 1);
       half_flag_y[1]  = (mb.vector[i][0][1] & 1);
       half_flag_uv[0] = ((mb.vector[i][0][0]/2) & 1);
       half_flag_uv[1] = ((mb.vector[i][0][1]/2) & 1);
-      int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + (signed int)x * 16;
-      int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*apa + (signed int)y * 16;
-      int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + (signed int)x * 8;
-      int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*apa + (signed int)y * 8;
+      int_vec_y[0]  = (mb.vector[i][0][0] >> 1) + x * 16;
+      int_vec_y[1]  = (mb.vector[i][0][1] >> 1)*vcount + y * 16;
+      int_vec_uv[0] = ((mb.vector[i][0][0]/2) >> 1)  + x * 8;
+      int_vec_uv[1] = ((mb.vector[i][0][1]/2) >> 1)*vcount + y * 8;
       
+      /* Check for vectors pointing outside the reference frames */
       if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
 	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
 	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
@@ -1896,18 +1600,13 @@ void motion_comp()
 		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
       
-      pred_y  =
-	&ref_image1->y[int_vec_y[0] + int_vec_y[1] * padded_width];
-      pred_u =
-	&ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
-      pred_v =
-	&ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
-      
-      DPRINTF(3, "x: %d, y: %d\n", x, y);
+      pred_y = &ref_image1->y[int_vec_y[0] + int_vec_y[1] * padded_width];
+      pred_u = &ref_image1->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      pred_v = &ref_image1->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
       
       
       if (half_flag_y[0] && half_flag_y[1]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*padded_width,
 					pred_y+field*padded_width,
 					padded_width*2, padded_width*2);
@@ -1916,7 +1615,7 @@ void motion_comp()
 					 padded_width, padded_width);
 	}
       } else if (half_flag_y[0]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpX_U8_U8_16x8(dst_y + i*padded_width,
 				       pred_y+field*padded_width,
 				       padded_width*2, padded_width*2);
@@ -1925,7 +1624,7 @@ void motion_comp()
 					padded_width, padded_width);
 	}
       } else if (half_flag_y[1]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpY_U8_U8_16x8(dst_y + i*padded_width,
 				       pred_y+field*padded_width,
 				       padded_width*2, padded_width*2);
@@ -1934,7 +1633,7 @@ void motion_comp()
 					padded_width, padded_width);
 	}
       } else {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*padded_width,
 				       pred_y+field*padded_width,
 				       padded_width*2);
@@ -1945,7 +1644,7 @@ void motion_comp()
       }
 
       if (half_flag_uv[0] && half_flag_uv[1]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*padded_width/2, 
 				       pred_u+field*padded_width/2,
 				       padded_width*2/2, padded_width*2/2);
@@ -1960,7 +1659,7 @@ void motion_comp()
 					 padded_width/2, padded_width/2);
 	}
       } else if (half_flag_uv[0]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpX_U8_U8_8x4(dst_u + i*padded_width/2,
 				      pred_u+field*padded_width/2,
 				      padded_width*2/2, padded_width*2/2);
@@ -1975,7 +1674,7 @@ void motion_comp()
 					padded_width/2, padded_width/2);
 	}
       } else if (half_flag_uv[1]) {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoInterpY_U8_U8_8x4(dst_u + i*padded_width/2,
 				      pred_u+field*padded_width/2,
 				      padded_width*2/2, padded_width*2/2);
@@ -1991,7 +1690,7 @@ void motion_comp()
 					padded_width/2, padded_width/2);
 	}
       } else {
-	if(apa == 2) {
+	if(vcount == 2) {
 	  mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*padded_width/2,
 				      pred_u+field*padded_width/2,
 				      padded_width*2/2);
@@ -2005,19 +1704,26 @@ void motion_comp()
 	}
       }
     }
-  }   
+  }
+  
   if(mb.modes.macroblock_motion_backward) {
-    int apa, i;
+    int vcount, i;
     
     DPRINTF(2, "backward_motion_comp\n");
+    DPRINTF(3, "x: %d, y: %d\n", x, y);
     
+    if(mb.prediction_type == PRED_TYPE_DUAL_PRIME) {
+      fprintf(stderr, "**** DP remove this and check if working\n");
+      //exit(-1);
+    }
+
     if(mb.prediction_type == PRED_TYPE_FIELD_BASED) {
-      apa = mb.motion_vector_count;
+      vcount = mb.motion_vector_count;
     } else { 
-      apa = 1;
+      vcount = 1;
     }
     
-    for(i = 0; i < apa; i++) {
+    for(i = 0; i < vcount; i++) {
       
       field = mb.motion_vertical_field_select[i][1];
 
@@ -2026,23 +1732,11 @@ void motion_comp()
       half_flag_uv[0] = ((mb.vector[i][1][0]/2) & 1);
       half_flag_uv[1] = ((mb.vector[i][1][1]/2) & 1);
       int_vec_y[0]  = (mb.vector[i][1][0] >> 1) + (signed int)x * 16;
-      int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*apa + (signed int)y * 16;
+      int_vec_y[1]  = (mb.vector[i][1][1] >> 1)*vcount + (signed int)y * 16;
       int_vec_uv[0] = ((mb.vector[i][1][0]/2) >> 1) + (signed int)x * 8;
-      int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*apa + (signed int)y * 8;
-
-      DPRINTF(3, "p_vec x: %d, y: %d\n",
-	      (mb.vector[i][1][0] >> 1),
-	      (mb.vector[i][1][1] >> 1));
-    
-      DPRINTF(3, "x: %d, y: %d\n", x, y);
-
-      pred_y  =
-	&ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
-      pred_u =
-	&ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
-      pred_v =
-	&ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      int_vec_uv[1] = ((mb.vector[i][1][1]/2) >> 1)*vcount + (signed int)y * 8;
       
+      /* Check for vectors pointing outside the reference frames */
       if( (int_vec_y[0] < 0) || (int_vec_y[0] > (seq.mb_width - 1) * 16) ||
 	  (int_vec_y[1] < 0) || (int_vec_y[1] > (seq.mb_height - 1) * 16) ||
 	  (int_vec_uv[0] < 0) || (int_vec_uv[0] > (seq.mb_width - 1) * 8) ||
@@ -2050,11 +1744,15 @@ void motion_comp()
 	fprintf(stderr, "Y (%i,%i), UV (%i,%i)\n", 
 		int_vec_y[0], int_vec_y[1], int_vec_uv[0], int_vec_uv[1]);
       }
-     
+
+      pred_y = &ref_image2->y[int_vec_y[0] + int_vec_y[1] * padded_width];
+      pred_u = &ref_image2->u[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      pred_v = &ref_image2->v[int_vec_uv[0] + int_vec_uv[1] * padded_width/2];
+      
       
       if(mb.modes.macroblock_motion_forward) {
 	if (half_flag_y[0] && half_flag_y[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveXY_U8_U8_16x8(dst_y + i*padded_width,
 					     pred_y+field*padded_width,
 					     padded_width*2, padded_width*2);
@@ -2063,7 +1761,7 @@ void motion_comp()
 					      padded_width,   padded_width);
 	  }
 	} else if (half_flag_y[0]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveX_U8_U8_16x8(dst_y + i*padded_width,
 					    pred_y+field*padded_width,
 					    padded_width*2, padded_width*2);
@@ -2072,7 +1770,7 @@ void motion_comp()
 					     padded_width, padded_width);
 	  }
 	} else if (half_flag_y[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveY_U8_U8_16x8(dst_y + i*padded_width,
 					    pred_y+field*padded_width,
 					    padded_width*2, padded_width*2);
@@ -2081,7 +1779,7 @@ void motion_comp()
 					     padded_width, padded_width);
 	  }
 	} else {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoCopyRefAve_U8_U8_16x8(dst_y + i*padded_width,
 					    pred_y+field*padded_width,
 					    padded_width*2);
@@ -2090,7 +1788,7 @@ void motion_comp()
 	  }
 	}
 	if (half_flag_uv[0] && half_flag_uv[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveXY_U8_U8_8x4(dst_u + i*padded_width/2,
 					    pred_u+field*padded_width/2,
 					    padded_width*2/2, padded_width*2/2);
@@ -2105,7 +1803,7 @@ void motion_comp()
 					    padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[0]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveX_U8_U8_8x4(dst_u + i*padded_width/2,
 					   pred_u+field*padded_width/2,
 					   padded_width*2/2, padded_width*2/2);
@@ -2121,7 +1819,7 @@ void motion_comp()
 					   padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpAveY_U8_U8_8x4(dst_u + i*padded_width/2,
 					   pred_u+field*padded_width/2,
 					   padded_width*2/2, padded_width*2/2);
@@ -2137,7 +1835,7 @@ void motion_comp()
 					   padded_width/2, padded_width/2);
 	  }
 	} else {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoCopyRefAve_U8_U8_8x4(dst_u + i*padded_width/2,
 					   pred_u+field*padded_width/2,
 					   padded_width*2/2);
@@ -2152,7 +1850,7 @@ void motion_comp()
 	}
       } else {
 	if (half_flag_y[0] && half_flag_y[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpXY_U8_U8_16x8(dst_y + i*padded_width,
 					  pred_y+field*padded_width,
 					  padded_width*2, padded_width*2);
@@ -2161,7 +1859,7 @@ void motion_comp()
 					   padded_width, padded_width);
 	  }
 	} else if (half_flag_y[0]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpX_U8_U8_16x8(dst_y + i*padded_width,
 					 pred_y+field*padded_width,
 					 padded_width*2, padded_width*2);
@@ -2170,7 +1868,7 @@ void motion_comp()
 					  padded_width, padded_width);
 	  }
 	} else if (half_flag_y[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpY_U8_U8_16x8(dst_y + i*padded_width,
 					 pred_y+field*padded_width,
 					 padded_width*2, padded_width*2);
@@ -2179,7 +1877,7 @@ void motion_comp()
 					  padded_width, padded_width);
 	  }
 	} else {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoCopyRef_U8_U8_16x8(dst_y + i*padded_width,
 					 pred_y+field*padded_width,
 					 padded_width*2);
@@ -2188,7 +1886,7 @@ void motion_comp()
 	  }
 	}
 	if (half_flag_uv[0] && half_flag_uv[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpXY_U8_U8_8x4(dst_u + i*padded_width/2,
 					 pred_u+field*padded_width/2,
 					 padded_width*2/2, padded_width*2/2);
@@ -2204,7 +1902,7 @@ void motion_comp()
 					   padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[0]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpX_U8_U8_8x4(dst_u + i*padded_width/2,
 					pred_u+field*padded_width/2,
 					padded_width*2/2, padded_width*2/2);
@@ -2220,7 +1918,7 @@ void motion_comp()
 					  padded_width/2, padded_width/2);
 	  }
 	} else if (half_flag_uv[1]) {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoInterpY_U8_U8_8x4(dst_u + i*padded_width/2,
 					pred_u+field*padded_width/2,
 					padded_width*2/2, padded_width*2/2);
@@ -2236,7 +1934,7 @@ void motion_comp()
 					  padded_width/2, padded_width/2);
 	  }
 	} else {
-	  if(apa == 2) {
+	  if(vcount == 2) {
 	    mlib_VideoCopyRef_U8_U8_8x4(dst_u + i*padded_width/2,
 					pred_u+field*padded_width/2,
 					padded_width*2/2);
@@ -2255,9 +1953,9 @@ void motion_comp()
   
 }
 
+
 void motion_comp_add_coeff(unsigned int i)
 {
-
   int padded_width,x,y;
   int stride;
   int d;
@@ -2265,8 +1963,7 @@ void motion_comp_add_coeff(unsigned int i)
 
   padded_width = seq.mb_width * 16; //seq.horizontal_size;
 
-
-  if (mb.modes.dct_type) { // skicka med dct_type som argument
+  if (mb.modes.dct_type) {
     d = 1;
     stride = padded_width * 2;
   } else {
@@ -2313,9 +2010,7 @@ void quant_matrix_extension()
   if(GETBITS(1, "load_intra_quantiser_matrix")) {
     int n;
     intra_inverse_quantiser_matrix_changed = 1;
-#ifdef STATS
-    stats_intra_inverse_quantiser_matrix_loaded_nr++;
-#endif
+
     for(n = 0; n < 64; n++) {
       seq.header.intra_quantiser_matrix[n] 
 	= GETBITS(8, "intra_quantiser_matrix[n]");
@@ -2336,9 +2031,7 @@ void quant_matrix_extension()
   if(GETBITS(1, "load_non_intra_quantiser_matrix")) {
     int n;
     non_intra_inverse_quantiser_matrix_changed = 1;
-#ifdef STATS
-    stats_non_intra_inverse_quantiser_matrix_loaded_nr++;
-#endif
+    
     for(n = 0; n < 64; n++) {
       seq.header.non_intra_quantiser_matrix[n] 
 	= GETBITS(8, "non_intra_quantiser_matrix[n]");
@@ -2592,8 +2285,7 @@ void sequence_display_extension()
 
 void exit_program(int exitcode)
 {
-  // Detach the shared memory segments from this process
-  
+  // Detach the shared memory segments from this process  
   shmdt(picture_buffers_shmaddr);
   shmdt(buf_ctrl_shmaddr);
   
@@ -2603,7 +2295,8 @@ void exit_program(int exitcode)
 #ifdef HAVE_MMX
   emms();
 #endif
-  {
+  
+  { /* Print some frame rate info. */
     int n;
     for(n=0; n<4; n++) {
       fprintf(stderr,"frames: %.0f\n", num_pic[n]);
@@ -2617,55 +2310,6 @@ void exit_program(int exitcode)
   timestat_print();
 #endif
 
-#ifdef STATS 
-  fprintf(stderr, "intra_mtrx_chg_possible: %d\n",
-	  stats_intra_inverse_quantiser_matrix_changes_possible);
-  fprintf(stderr, "intra_mtrx_loaded: %d\n",
-	  stats_intra_inverse_quantiser_matrix_loaded_nr);
-  fprintf(stderr, "intra_mtrx_reset: %d\n",
-	  stats_intra_inverse_quantiser_matrix_reset_nr);
-
-  fprintf(stderr, "non_intra_mtrx_chg_possible: %d\n",
-	  stats_non_intra_inverse_quantiser_matrix_changes_possible);
-  fprintf(stderr, "non_intra_mtrx_loaded: %d\n",
-	  stats_non_intra_inverse_quantiser_matrix_loaded_nr);
-  fprintf(stderr, "non_intra_mtrx_reset: %d\n",
-	  stats_non_intra_inverse_quantiser_matrix_reset_nr);
-  
-
-  fprintf(stderr, "stats_quantiser_scale_possible: %d\n",
-	  stats_quantiser_scale_possible);
-  fprintf(stderr, "stats_quantiser_scale_nr: %d\n",
-	  stats_quantiser_scale_nr);
-
-  fprintf(stderr, "stats_intra_quantiser_scale_possible: %d\n",
-	  stats_intra_quantiser_scale_possible);
-  fprintf(stderr, "stats_intra_quantiser_scale_nr: %d\n",
-	  stats_intra_quantiser_scale_nr);
-
-  fprintf(stderr, "stats_non_intra_quantiser_scale_possible: %d\n",
-	  stats_non_intra_quantiser_scale_possible);
-  fprintf(stderr, "stats_non_intra_quantiser_scale_nr: %d\n",
-	  stats_non_intra_quantiser_scale_nr);
-
-  fprintf(stderr, "stats_block_non_intra_nr: %d\n",
-	  stats_block_non_intra_nr);
-  fprintf(stderr, "stats_f_non_intra_compute_first_nr: %d\n",
-	  stats_f_non_intra_compute_first_nr);
-  fprintf(stderr, "stats_f_non_intra_compute_subseq_nr: %d\n",
-	  stats_f_non_intra_compute_subseq_nr);
-  fprintf(stderr, "stats_f_non_intra_first_escaped_run_nr: %d\n",
-	  stats_f_non_intra_first_escaped_run_nr);
-  fprintf(stderr, "stats_f_non_intra_subseq_escaped_run_nr: %d\n",
-	  stats_f_non_intra_subseq_escaped_run_nr);
-  
-
-  fprintf(stderr, "stats_block_intra_nr: %d\n",
-	  stats_block_intra_nr);
-  fprintf(stderr, "stats_f_intra_compute_subseq_nr: %d\n",
-	  stats_f_intra_compute_subseq_nr);
-#endif
-  
   fprintf(stderr, "\nCompiled with:\n");
 #ifdef DCFLAGS
   fprintf(stderr, "\tCFLAGS = %s\n", DCFLAGS);
@@ -2676,6 +2320,15 @@ void exit_program(int exitcode)
 
   exit(exitcode);
 }
+
+
+
+
+
+
+
+
+
 
 
 

@@ -53,12 +53,7 @@
 
 
 
-extern int show_stat;
 extern yuv_image_t *dst_image;
-
-extern macroblock_t *cur_mbs;
-//extern macroblock_t *ref1_mbs;
-extern macroblock_t *ref2_mbs;
 
 extern void next_start_code(void);
 extern void exit_program(int exitcode) __attribute__ ((noreturn));
@@ -66,28 +61,6 @@ extern void motion_comp();
 extern void motion_comp_add_coeff(unsigned int i);
 extern int get_vlc(const vlc_table_t *table, char *func);
 
-#ifdef STATS
-extern uint32_t stats_quantiser_scale_possible;
-extern uint32_t stats_quantiser_scale_nr;
-
-extern uint32_t stats_intra_quantiser_scale_possible;
-extern uint32_t stats_intra_quantiser_scale_nr;
-
-extern uint32_t stats_non_intra_quantiser_scale_possible;
-extern uint32_t stats_non_intra_quantiser_scale_nr;
-
-extern uint32_t stats_block_non_intra_nr;
-extern uint32_t stats_f_non_intra_compute_first_nr;
-extern uint32_t stats_f_non_intra_compute_subseq_nr;
-
-extern uint32_t stats_block_intra_nr;
-extern uint32_t stats_f_intra_compute_subseq_nr;
-
-extern uint32_t stats_f_non_intra_subseq_escaped_run_nr;
-extern uint32_t stats_f_non_intra_first_escaped_run_nr;
-
-extern uint8_t new_scaled;
-#endif
 
 
 /*
@@ -402,10 +375,6 @@ void block_non_intra(unsigned int b)
 	run = (tmp >> 8) & 0x3f;
 	sgn = tmp & 0x80;
 
-#ifdef STATS
-	stats_f_non_intra_subseq_escaped_run_nr++;
-#endif
-	
 	if ((tmp&0x7f) == 0) { // ???
 	  val = GETBITS(8, "(get_dct escape - extended level)");
 	  val = sgn ? (0x100 - val) : val;
@@ -688,43 +657,19 @@ void macroblock(void)
   }
   
   
-  if(mb.macroblock_address_increment > 1) {
-    
+  if(mb.macroblock_address_increment > 1) {    
     int i;
-    int new_address = seq.macroblock_address;
-    
-    mb.skipped = 1;
-    
-    if(show_stat) {
-      i = mb.macroblock_address_increment;
-      while( --i > 0 ) {
-	seq.macroblock_address = new_address - i;
-	
-	switch(pic.header.picture_coding_type) {
-	case 0x1:
-	case 0x2:
-	  memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
-	  break;
-	case 0x3:
-	  memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
-	  break;
-	}
-      }
-      seq.macroblock_address = new_address;
-    }
-
     
     /* Skipped blocks never have any DCT-coefficients */
     // mb.cbp = 0;
     
+    /* There is plenty of room to optimize this */
     switch(pic.header.picture_coding_type) {
     
     case 0x2:
       DPRINTF(3,"skipped in P-picture\n");
       
-      /* There is plenty of room to optimize this */
-      
-      /* Asume prediction is forward with a zero vector */
+      /* Assume prediction is forward with a zero vector */
       mb.modes.macroblock_motion_forward = 1;
       reset_vectors();
       
@@ -740,8 +685,6 @@ void macroblock(void)
     
     case 0x3:
       DPRINTF(3,"skipped in B-frame\n");
-      
-      /* There is some room to optimize this */
       
       i = mb.macroblock_address_increment;
       while( --i > 0 ) {
@@ -759,8 +702,6 @@ void macroblock(void)
     }
   }
 
-  mb.skipped = 0;
-  
 
   macroblock_modes();
 
@@ -778,30 +719,7 @@ void macroblock(void)
 
   if(mb.modes.macroblock_quant) {
     mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
-#ifdef STATS
-    new_scaled = 1;
-#endif
   }
-  
-#ifdef STATS
-  stats_quantiser_scale_possible++;
-  if(new_scaled) {
-    stats_quantiser_scale_nr++;
-  }
-  if(mb.modes.macroblock_intra) {
-    stats_intra_quantiser_scale_possible++;
-    if(new_scaled) {
-      stats_intra_quantiser_scale_nr++;
-      new_scaled = 0;
-    }
-  } else {
-    stats_non_intra_quantiser_scale_possible++;
-    if(new_scaled) {
-      stats_non_intra_quantiser_scale_nr++;
-      new_scaled = 0;
-    }
-  }    
-#endif
   
   if(mb.modes.macroblock_motion_forward)
     motion_vectors(0);
@@ -809,8 +727,7 @@ void macroblock(void)
     motion_vectors(1);
   
   
-  /* All motion vectors for the block has been
-     decoded. Update predictors. */
+  /* All motion vectors for the block has been decoded. Update predictors. */
   
   // Is this correct?
   if ((mb.modes.macroblock_motion_forward == 0) &&
@@ -819,8 +736,10 @@ void macroblock(void)
   }
  
   switch (pic.header.picture_coding_type) {
+  
   case 0x01: /* I-picture */
     break;
+  
   case 0x02: /* P-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV();
@@ -833,6 +752,7 @@ void macroblock(void)
       reset_vectors ();
     }
     break;
+  
   case 0x03: /* B-picture */
     if(mb.modes.macroblock_intra) {
       reset_PMV ();
@@ -851,9 +771,10 @@ void macroblock(void)
      - combine the data with motion compensated pels */
   
   if(mb.modes.macroblock_intra) {
-    /* Intra blocks always have all sub block and are writen directly 
-       to the output buffers by block() */
-    int i;
+    unsigned int i;
+    
+    /* Intra blocks always have pattern coded for all sub blocks and 
+       are writen directly to the output buffers by this code. */
     
     for(i = 0; i < 6; i++) {  
       DPRINTF(4, "cbpindex: %d assumed\n", i);
@@ -863,7 +784,7 @@ void macroblock(void)
       {
 	const int x = seq.mb_column;
 	const int y = seq.mb_row;
-	const int width = seq.horizontal_size;
+	const int width = seq.mb_width * 16; //seq.horizontal_size;
 	int d, stride;
 	uint8_t *dst;
 	
@@ -892,7 +813,7 @@ void macroblock(void)
       }
     }
   } 
-  else {
+  else { /* Non-intra block */
     
     motion_comp(); // Only motion compensate don't add coefficients   
 
@@ -906,26 +827,13 @@ void macroblock(void)
 	  DPRINTF(4, "cbpindex: %d set\n", i);
 	  block_non_intra(i);
 	  mlib_VideoIDCT8x8_S16_S16((int16_t *)mb.QFS, (int16_t *)mb.QFS);
-	  motion_comp_add_coeff(i);
+	  motion_comp_add_coeff(i); // Add coefficients here
 	}
       }
     }
   
   }
     
-
-  if(show_stat) {
-    switch(pic.header.picture_coding_type) {
-    case 0x1:
-    case 0x2:
-      memcpy(&ref2_mbs[seq.macroblock_address], &mb, sizeof(mb));
-      break;
-    case 0x3:
-      memcpy(&cur_mbs[seq.macroblock_address], &mb, sizeof(mb));
-      break;
-    } 
-  }
-  
 }
 
 
@@ -935,7 +843,6 @@ void mpeg1_slice(void)
   uint32_t slice_start_code;
   
   DPRINTF(3, "slice\n");
-
   
   reset_dc_dct_pred();
   reset_PMV();
@@ -951,9 +858,6 @@ void mpeg1_slice(void)
   seq.previous_macroblock_address = (seq.mb_row * seq.mb_width) - 1;
 
   mb.quantiser_scale = GETBITS(5, "quantiser_scale_code");
-#ifdef STATS
-  new_scaled = 1;
-#endif
 
   if(nextbits(1) == 1) {
     slice_data.intra_slice_flag = GETBITS(1, "intra_slice_flag");
@@ -961,7 +865,8 @@ void mpeg1_slice(void)
     slice_data.reserved_bits = GETBITS(7, "reserved_bits");
     while(nextbits(1) == 1) {
       slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
-      slice_data.extra_information_slice = GETBITS(8, "extra_information_slice");
+      slice_data.extra_information_slice 
+	= GETBITS(8, "extra_information_slice");
     }
   }
   slice_data.extra_bit_slice = GETBITS(1, "extra_bit_slice");
