@@ -174,7 +174,7 @@ void actionFastForward(void)
 
   if((speed >= 1.0) && (speed < 8.0)) {
     speed +=0.5;
-  } else {
+  } else if(speed < 1.0) {
     speed = 1.5;
   }
   DVDForwardScan(nav, speed);
