@@ -777,7 +777,7 @@ void ifoPrint_PGC(pgc_t *pgc) {
   int i;
   
   if(pgc == NULL) {
-    printf("No PGC present\n");
+    printf("Error: No PGC present\n");
     return;
   }
 
@@ -1068,7 +1068,11 @@ void ifoPrint(dvd_reader_t *dvd, int title) {
     ifoPrint_VMGI_MAT(ifohandle->vmgi_mat);
 
     printf("\nFirst Play PGC\n--------------\n");
-    ifoPrint_PGC(ifohandle->first_play_pgc);
+    if(ifohandle->first_play_pgc) {
+      ifoPrint_PGC(ifohandle->first_play_pgc);
+    } else {
+      printf("No First Play PGC present\n");
+    }
 
     printf("\nTitle Track search pointer table\n");
     printf(  "------------------------------------------------\n");
