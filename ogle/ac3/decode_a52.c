@@ -133,6 +133,7 @@ int config_to_a52flags(audio_config_t *conf)
     return A52_3F2R | hasLFE;
   case ChannelType_AC3:
   default:
+    break;
   }
   return A52_3F2R | hasLFE; // Some strange sound configuration...
 }
