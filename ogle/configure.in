@@ -94,7 +94,7 @@ AC_CHECK_LIB(jpeg, main,
   ], -L$jpeg_path/lib)
 
 AC_ARG_WITH(libjpeg-includes, 
-  [  --with-libjpeg-includes=path specify location of libjpeg headers ], 
+  [  --with-libjpeg-includes=path  specify location of libjpeg headers ], 
   JPEG_CFLAGS=-I$with_libjpeg_includes)
 
 
@@ -168,7 +168,7 @@ AC_CHECK_LIB(dvdread, DVDFileSize,
   ], -L$dvd_path/lib)
 
 AC_ARG_WITH(dvdread-includes, 
-  [  --with-dvdread-includes=path specify location of libdvdread headers ], 
+  [  --with-dvdread-includes=path  specify location of libdvdread headers ], 
   DVDREAD_CFLAGS=-I$with_dvdread_includes)
 
 dnl Linux and Solaris needs this to prototype lseek64 and others
@@ -241,7 +241,7 @@ dnl ---------------------------------------------------------
 
 a52_path=""
 AC_ARG_WITH(liba52, 
-  [  --with-liba52=path     specify the install prefix to liba52 (a52dec) ], 
+  [  --with-liba52=path      specify the install prefix to liba52 (a52dec) ], 
   if test x$with_liba52 = xno; then
     AC_MSG_ERROR([You must have/use a52dec])
   fi
@@ -280,7 +280,7 @@ AC_CHECK_LIB(ao, ao_drivers,
     -L$a52_path/lib)
 
 AC_ARG_WITH(liba52-includes, 
-  [  --with-liba52-includes=path specify location of liba52 headers ], 
+  [  --with-liba52-includes=path  specify location of liba52 headers ], 
   A52_CFLAGS=-I$with_liba52_includes)
 
 saved_CPPFLAGS=$CPPFLAGS
@@ -339,22 +339,15 @@ USE_MMX=
 USE_SPARCASM=
 case "$host_cpu" in
 i?86)
-	case "$host_cpu" in
-	i386 | i486)
-		;;
-	i686)
-		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
-		USE_MMX=yes
-		if test x"$GCC" = x"yes"; then
-		  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
-		fi
-		;;
-	*)
-		AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
-		USE_MMX=yes
-		;;
-	esac
-	CFLAGS="$CFLAGS -march=$host_cpu"
+	if test x"$GCC" = x"yes"; then
+	  CFLAGS="$CFLAGS -fomit-frame-pointer -funroll-loops"
+dnl Do we need this ? should we hard code it to pentium/pentiumpro?
+dnl what about k6 / athlon
+dnl will it still assemble the mmx instructions when -march=i386
+dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
+	  CFLAGS="$CFLAGS -march=i586 -mcpu=pentiumpro"
+	fi
+	USE_MMX=yes
 	;;
 sparc)
 	if test x"$GCC" = x"yes"; then
@@ -363,6 +356,16 @@ sparc)
 	  USE_SPARCASM=yes
 	fi
 esac
+
+AC_ARG_ENABLE(mmx, 
+  [  --disable-mmx           disable the use of MMX ],
+  if test x$enableval != xyes; then
+    USE_MMX=
+  fi)
+if test x$USE_MMX = xyes; then
+  AC_DEFINE([HAVE_MMX],1,[Processor support MMX])
+fi
+
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 AC_SUBST(USE_SPARCASM)
