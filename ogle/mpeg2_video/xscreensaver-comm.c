@@ -37,6 +37,7 @@ look_for_good_xscreensaver()
   char response[500];
   pid_t pid;
   int mypipe[2];
+  int br;
 
   if(pipe(mypipe) == -1)
     {
@@ -75,8 +76,12 @@ look_for_good_xscreensaver()
   /* Don't care about status, parse output instead. */
   waitpid(pid, NULL, 0);
 
-  read(mypipe[0], response+i, 500-i);
-
+  if((br = read(mypipe[0], response+i, 500-i)) < 0) {
+    br = 0;
+  }
+  
+  response[br] = '\0';
+  
   close(mypipe[0]);
 
   if(!strncmp(response, "xscreensaver-command: no screensaver is running", 46))
