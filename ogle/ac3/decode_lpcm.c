@@ -131,7 +131,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     case 1:
       new_quantization_word_length = 20;
       new_sample_size = 3; // ? 20bit contained in ? bytes
-      ERROR("REPORT BUG lpcm: 20bit format not supported\n");
+      ERROR("%s", "REPORT BUG lpcm: 20bit format not supported\n");
       handle->super_frame_size = new_ch * new_sample_size;
       break;
     case 2:
