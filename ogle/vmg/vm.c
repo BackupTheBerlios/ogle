@@ -1992,3 +1992,15 @@ static pgcit_t* get_PGCIT(void) {
   
   return pgcit;
 }
+
+int vm_get_udf_volids(char *volid, unsigned int volidlen,
+		      char *volsetid, unsigned int volsetidlen)
+{
+  return DVDUDFVolumeInfo(dvd, volid, volidlen, volsetid, volsetidlen);
+}
+
+int vm_get_iso_volids(char *volid, unsigned int volidlen,
+		      char *volsetid, unsigned int volsetidlen)
+{
+  return DVDISOVolumeInfo(dvd, volid, volidlen, volsetid, volsetidlen);
+}

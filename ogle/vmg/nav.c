@@ -955,6 +955,44 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
     break;
+  case DVDCtrlGetVolIds:
+    {
+      MsgEvent_t send_ev;
+      int voltype;
+      DVDCtrlLongVolIdsEvent_t *ids;
+
+      send_ev.type = MsgEventQDVDCtrlLong;
+      send_ev.dvdctrllong.cmd.type = DVDCtrlLongVolIds;
+      
+      ids = &(send_ev.dvdctrllong.cmd.volids);
+      
+      voltype = ev.dvdctrl.cmd.volids.voltype;
+
+      ids->voltype = 0;
+      if(voltype == 0) {
+	if(vm_get_udf_volids(ids->volid, sizeof(ids->volid),
+			     ids->volsetid, sizeof(ids->volsetid)) == 0) {
+	  ids->voltype = 1;
+	} else if(vm_get_iso_volids(ids->volid, sizeof(ids->volid),
+				    ids->volsetid, 
+				    sizeof(ids->volsetid)) == 0) {
+	  ids->voltype = 2;
+	}
+      } else if(voltype == 1) {
+	if(vm_get_udf_volids(ids->volid, sizeof(ids->volid),
+			     ids->volsetid, sizeof(ids->volsetid)) == 0) {
+	  ids->voltype = 1;
+	}
+      } else if(voltype == 2) {
+	if(vm_get_iso_volids(ids->volid, sizeof(ids->volid),
+			     ids->volsetid, sizeof(ids->volsetid)) == 0) {
+	  ids->voltype = 2;
+	}
+      } 
+	
+      MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
+    }
+    break;
   default:
     DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
 	  ev.dvdctrl.cmd.type);

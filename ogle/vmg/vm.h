@@ -127,4 +127,9 @@ unsigned int int2bcd(unsigned int number);
 char *vm_get_state_str(int blockN);
 int vm_set_state_str(char *state_str);
 
+int vm_get_udf_volids(char *volid, unsigned int volidlen,
+		      char *volsetid, unsigned int volsetidlen);
+int vm_get_iso_volids(char *volid, unsigned int volidlen,
+		      char *volsetid, unsigned int volsetidlen);
+
 #endif /* VM_H_INCLUDED */
