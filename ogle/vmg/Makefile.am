@@ -44,7 +44,7 @@ ogle_nav_LDADD = $(top_builddir)/common/libcommon.a \
 	$(top_builddir)/ogle/libmsgevents.la \
 	@DVDREAD_LIBS@ @XML_LIBS@
 ogle_nav_SOURCES = nav.c \
-	vm.c vm.h \
+	vm.c vm.h vm_serialize.c vm_serialize.h \
 	decoder.c decoder.h \
 	vmcmd.c vmcmd.h \
 	com.c \
