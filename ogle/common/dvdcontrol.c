@@ -7,7 +7,7 @@
 
 
 
-int send_msg(int msgqid, mq_msg_t *msg, int mtext_size)
+static int send_msg(int msgqid, mq_msg_t *msg, int mtext_size)
 {
   if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
     perror("dvd: msgsnd1");
@@ -17,7 +17,7 @@ int send_msg(int msgqid, mq_msg_t *msg, int mtext_size)
 }
 
 
-int send_cmd(int msgqid, mq_msg_t *msg)
+static int send_cmd(int msgqid, mq_msg_t *msg)
 {
   int msize;
   mq_cmd_t *cmd;
@@ -109,7 +109,7 @@ DVDResult_t DVDButtonActivate(int msgqid)
   return DVD_E_OK;
 }
 
-DVDResult_t DVDButtonSelect(int msgqid, int button)
+DVDResult_t DVDButtonSelect(int msgqid, int Button)
 {
   mq_msg_t msg;
   mq_cmd_t *cmd;
@@ -124,7 +124,7 @@ DVDResult_t DVDButtonSelect(int msgqid, int button)
   return DVD_E_OK;
 }
 
-DVDResult_t DVDButtonSelectAndActivate(int msgqid, int button)
+DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button)
 {
   mq_msg_t msg;
   mq_cmd_t *cmd;
@@ -149,7 +149,7 @@ DVDResult_t DVDMouseActivate(int msgqid, int x, int y)
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t menuid)
+DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t MenuId)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
@@ -164,7 +164,7 @@ DVDResult_t DVDGoUP(int msgqid)
   return DVD_E_NOT_IMPLEMENTED;
 }
 
-DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t lang)
+DVDResult_t DVDDefaultMenuLanguageSelect(int msgqid, DVDLangID_t Lang)
 {
   return DVD_E_NOT_IMPLEMENTED;
 }
@@ -174,7 +174,7 @@ const static char DVD_E_OK_STR[] = "OK";
 const static char DVD_E_NOT_IMPLEMENTED_STR[] = "Not Implemented";
 const static char DVD_E_NO_SUCH_ERROR_STR[] = "No such error code";
 
-void DVDPerror(const char *str, DVDResult_t errcode)
+void DVDPerror(const char *str, DVDResult_t ErrCode)
 {
   const char *errstr;
 

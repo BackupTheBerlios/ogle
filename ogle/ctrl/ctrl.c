@@ -153,9 +153,18 @@ int main(int argc, char *argv[])
   
 
   sprintf(msgqid_str, "%d", msgqid);
-
+  
   fprintf(stderr, "msgid: %d\n", msgqid);
+  
+  {
+    struct msqid_ds msgqinfo;
+    
+    msgctl(msgqid, IPC_STAT, &msgqinfo);
+    
+    fprintf(stderr, "max_bytes: %ld\n", msgqinfo.msg_qbytes);
 
+  }
+  
   init_ctrl(msgqid_str);
 
   demux_pid = init_demux(msgqid_str);

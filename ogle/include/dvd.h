@@ -21,4 +21,24 @@ typedef enum {
 
 typedef uint16_t DVDLangID_t;
 
+typedef uint16_t DVDRegister;
+
+typedef DVDRegister DVDGPRMArray_t[16];
+typedef DVDRegister DVDSPRMArray_t[24];
+
+typedef int DVDStream_t;
+
+typedef struct {
+  DVDAudioAppMode_t     AppMode;
+  DVDAudioFormat_t      AudioFormat;
+  DVDLangID_t           Language;
+  DVDAudioLangExt_t     LanguageExtension;
+  DVDBool_t             HasMultichannelInfo;
+  DVDAudioSampleFreq_t  SampleFrequency;
+  DVDAudioSampleQuant_t SampleQuantization;
+  DVDChannelNumber_t    NumberOfChannels;
+  
+} DVDAudioAttributes_t;
+
+
 #endif /* DVD_H */
