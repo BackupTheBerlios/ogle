@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
   while((c = getopt(argc, argv, "d:h?")) != EOF) {
     switch (c) {
     case 'd':
-      verbose = atoi(argv[optind]);
+      verbose = atoi(optarg);
       break;
     case 'h':
     case '?':
@@ -155,6 +155,13 @@ static void print_ifo(char *path, int title) {
       printf("No Menu PGCI Unit table present\n");
       
     if(verbose) {
+      
+      printf("\nTime Map table\n");
+      printf(  "-----------------\n");
+      if(h->vtsi_mat->vts_tmapt != 0) {
+	ifoPrint_VTS_TMAPT(h->vts_tmapt);
+      } else
+	printf("No Time Map table present\n");
       
       printf("\nMenu Cell Address table\n");
       printf(  "-----------------\n");
