@@ -2,7 +2,7 @@ AC_INIT(dvdread/dvd_reader.c)
 
 AC_CANONICAL_SYSTEM
 
-AM_INIT_AUTOMAKE(libdvdread, 0.9.3-cvs)
+AM_INIT_AUTOMAKE(libdvdread, 0.9.3)
 AM_CONFIG_HEADER(config.h)
 
 AC_PROG_CC
@@ -23,13 +23,13 @@ esac
 dnl
 dnl non-gcc flags - we probably need exact configuration triplets here.
 dnl
-if test x"$GCC" = x"yes"; then
+if test x"$GCC" != x"yes"; then
     case x"$target_alias" in
     xsparc-sun-solaris*)
         dnl OPT_CFLAGS="$CFLAGS -xCC -xmemalign"
         dnl AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS]);;
 dnl Dueto assumption on how bitfields are packing (see nav_types.h)
-	AC_MSG_ERROR(Only GCC can be used to compile this code)
+	AC_MSG_ERROR(You must use GCC to compile this code)
     esac
 fi
 
@@ -83,7 +83,7 @@ AC_ARG_ENABLE([pedantic],
     [  --enable-pedantic       enable various extra warnings for gcc])
 if test x"$enable_pedantic" = xyes; then
     if test x"$GCC" = xyes; then
-dnl  -Wtraditional is not included here!
+	dnl  -Wtraditional is not included here!
 	CFLAGS="-pedantic -W -Wall -Waggregate-return -Wbad-function-cast -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wconversion -Wformat -Wid-clash-30 -Wimplicit -Wimplicit-function-delcaration -Wimplicit-int -Wlong-long -Wmain -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wno-import -Wno-parentheses -Wparentheses -Wpointer-arith -Wredundant-decls -Wreturn-type -Wshadow -Wsign-compare -Wstrict-prototypes -Wswitch -Wtrigraphs -Wunused -Wwrite-strings $CFLAGS"
     fi
 fi
