@@ -484,10 +484,10 @@ int get_q()
   int len;
   static int have_buf = 0;
 
-#ifdef SYNCMASTER
+  //#ifdef SYNCMASTER
   static int prev_scr_nr = 0;
   static clocktime_t time_offset = { 0, 0 };
-#endif
+  //#endif
 
   //fprintf(stderr, "video_dec: get_q()\n");
   
@@ -541,23 +541,27 @@ int get_q()
     DTS = data_elem->DTS;
   }
   
-#ifdef SYNCMASTER
-
-  //TODO release scr_nr when done
-  if(prev_scr_nr != scr_nr) {
-    ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
-  }
+  //#ifdef SYNCMASTER
   
-  if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
-    if(PTS_DTS_flags & 0x2) {
-      set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+  if(ctrl_data->sync_master <= SYNC_VIDEO) {
+    ctrl_data->sync_master = SYNC_VIDEO;
+    
+    //TODO release scr_nr when done
+    if(prev_scr_nr != scr_nr) {
+      ctrl_time[scr_nr].offset_valid = OFFSET_NOT_VALID;
     }
+    
+    if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
+      if(PTS_DTS_flags & 0x2) {
+	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
+      }
+    }
+    if(PTS_DTS_flags & 0x2) {
+      time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
+    }
+    prev_scr_nr = scr_nr;
   }
-  if(PTS_DTS_flags & 0x2) {
-    time_offset = get_time_base_offset(PTS, ctrl_time, scr_nr);
-  }
-  prev_scr_nr = scr_nr;
-#endif
+  //#endif
   
   off = data_elem->off;
   len = data_elem->len;

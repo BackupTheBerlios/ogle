@@ -109,7 +109,7 @@ static int scalemode_change = 0;
 static double sar;
 static double xscale_factor;
 
-
+extern int msgqid;
 
 extern void display_process_exit(void);
 
@@ -138,7 +138,9 @@ void display_init(int padded_width, int padded_height,
 
 
 #ifdef SPU
-  init_spu();
+  if(msgqid != -1) {
+    init_spu();
+  }
 #endif
 
   /* Check for availability of shared memory */
@@ -767,9 +769,11 @@ void draw_win(debug_win *dwin)
 	  dwin->image->padded_width, dwin->image->padded_width/2 );
 
 #ifdef SPU
-  mix_subpicture(address,
-		 dwin->image->padded_width,
-		 dwin->image->padded_height);
+  if(msgqid != -1) {
+    mix_subpicture(address,
+		   dwin->image->padded_width,
+		   dwin->image->padded_height);
+  }
 #endif
 
   if(dwin->grid) {

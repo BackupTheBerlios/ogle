@@ -762,9 +762,10 @@ void decode_display_data(spu_t *spu_info, char *data, int width, int height) {
     static unsigned int colorid;
     unsigned char pixel_data;
     
+    /*
     DPRINTF(6, "fieldoffset[0]: %d, fieldoffset[1]: %d, DCSQT_offset: %d\n",
 	    fieldoffset[0], fieldoffset[1], DCSQT_offset);
-    
+    */
     
     /*
       llcc

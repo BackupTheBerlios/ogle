@@ -75,7 +75,7 @@ int prev_scr_nr;
 int picture_has_pts;
 uint64_t last_pts_to_dpy;
 int last_scr_nr_to_dpy;
-
+static int prev_coded_temp_ref = -2;
 
 int dctstat[128];
 int total_pos = 0;
@@ -756,6 +756,7 @@ void sequence_header(void)
     break;
   default:
     DPRINTF(2, "Reserved\n");
+    fprintf(stderr, "reserved framerate\n");
     break;
   }
   
@@ -1146,6 +1147,7 @@ void sequence_extension(void) {
 	    ((double)(seq.ext.frame_rate_extension_n)+1.0)/
 	    ((double)(seq.ext.frame_rate_extension_d)+1.0));
     //TODO: frame_interval_nsec = ?
+    fprintf(stderr, "fixme computed framerate\n");
     break;
   }
 
@@ -1347,6 +1349,8 @@ void group_of_pictures_header(void)
   broken_link = GETBITS(1, "broken_link");
 
   last_temporal_ref_to_dpy = -1;
+  prev_coded_temp_ref = -2;
+  
   DINDENT(-2);
   next_start_code();
 }
@@ -1581,7 +1585,7 @@ void picture_data(void)
   picture_info_t *pinfos;
   static int bepa = FPS_FRAMES;
   static int bwd_ref_temporal_reference = -1;
-  static int prev_coded_temp_ref = -2;
+
   static int last_timestamped_temp_ref = -1;
   static int drop_frame = 0;
   int temporal_reference_error = 0;
@@ -1758,6 +1762,7 @@ void picture_data(void)
        the same scr as the picure we predict from.
     */
     if(picture_has_pts) {
+
       last_timestamped_temp_ref = pic.header.temporal_reference;
       pinfos[buf_id].PTS = last_pts;
       pinfos[buf_id].realtime_offset = ctrl_time[last_scr_nr].realtime_offset;
@@ -1771,6 +1776,7 @@ void picture_data(void)
     } else {
       /* Predict if we don't already have a pts for the frame. */
       uint64_t calc_pts;
+
       switch(pic.header.picture_coding_type) {
       case PIC_CODING_TYPE_I:
       case PIC_CODING_TYPE_P:
@@ -1794,19 +1800,51 @@ void picture_data(void)
 	/* Second case: We use the temporal_reference
 	 * In this case we can look at the previous temporal ref
 	 */
+	if(last_timestamped_temp_ref != -1) {
+	  calc_pts = last_pts +
+	    (pic.header.temporal_reference - last_timestamped_temp_ref) *
+	    90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
+	  /*
+	    calc_pts = last_pts_to_dpy +
+	    90000/(1000000000/buf_ctrl_head->frame_interval);
+	  */
+	} else {
+	  if(last_temporal_ref_to_dpy == -1) {
+	    calc_pts = last_pts_to_dpy +
+	      (pic.header.temporal_reference - last_timestamped_temp_ref) *
+	    90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
+	  } else {
+	    calc_pts = last_pts_to_dpy +
+	      (pic.header.temporal_reference - last_temporal_ref_to_dpy) *
+	      90000/(CT_FRACTION/buf_ctrl_head->frame_interval);	    
+	  }   
+	}
 	
-	calc_pts = last_pts +
-	  (pic.header.temporal_reference - last_timestamped_temp_ref) *
-	  90000/(CT_FRACTION/buf_ctrl_head->frame_interval);
-	/*
-	  calc_pts = last_pts_to_dpy +
-	  90000/(1000000000/buf_ctrl_head->frame_interval);
-	*/
 	pinfos[buf_id].PTS = calc_pts;
 	pinfos[buf_id].realtime_offset = 
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
 	PTS_TO_CLOCKTIME(pinfos[buf_id].pts_time, calc_pts);
+
+	/*
+	fprintf(stderr, "last_timestamped: %d\n",
+		last_timestamped_temp_ref);
+
+	fprintf(stderr, "last_pts: %lld\n",
+		last_pts);
+
+	fprintf(stderr, "last_pts_to_dpy: %lld\n",
+		last_pts_to_dpy);
+	
+	fprintf(stderr, "pts_time %ld.%09ld\n",
+		TIME_S (pinfos[buf_id].pts_time),
+		TIME_SS(pinfos[buf_id].pts_time));
+	
+	fprintf(stderr, "realtime_offset %ld.%09ld\n",
+		TIME_S (ctrl_time[last_scr_nr].realtime_offset),
+		TIME_SS(ctrl_time[last_scr_nr].realtime_offset));
+	*/
+
 	
 	break;
       case PIC_CODING_TYPE_B:
