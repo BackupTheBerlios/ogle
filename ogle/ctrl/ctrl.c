@@ -120,10 +120,11 @@ typedef enum {
  * Running: the client has registered itself and is ready.
  */
 
+
 typedef struct _capability_t {
   struct _capability_t *next;
   int capability;
-  int instances;
+  int nr_of_instances;
   int instances_in_use;
 } capability_t;
 
