@@ -40,7 +40,8 @@ static cmd_t cmd;
 static registers_t *state;
 
 /* Get count bits of command from byte and bit position. */
-static uint32_t bits(int byte, int bit, int count) {
+static uint32_t bits(int byte, int bit, int count)
+{
   uint32_t val = 0;
   int bit_mask;
   
@@ -62,7 +63,8 @@ static uint32_t bits(int byte, int bit, int count) {
 
 /* Eval register code, can either be system or general register.
    SXXX_XXXX, where S is 1 if it is system register. */
-static uint16_t eval_reg(uint8_t reg) {
+static uint16_t eval_reg(uint8_t reg)
+{
   if(reg & 0x80) {
     return state->SPRM[reg & 0x1f]; // FIXME max 24 not 32
   } else {
@@ -73,7 +75,8 @@ static uint16_t eval_reg(uint8_t reg) {
 /* Eval register or immediate data.
    AAAA_AAAA BBBB_BBBB, if immediate use all 16 bits for data else use
    lower eight bits for the system or general purpose register. */
-static uint16_t eval_reg_or_data(int imm, int byte) {
+static uint16_t eval_reg_or_data(int imm, int byte)
+{
   if(imm) { // immediate
     return bits(byte, 0, 16);
   } else {
@@ -85,7 +88,8 @@ static uint16_t eval_reg_or_data(int imm, int byte) {
    xBBB_BBBB, if immediate use all 7 bits for data else use
    lower four bits for the general purpose register number. */
 /* Evaluates gprm or data depending on bit, data is in byte n */
-uint16_t eval_reg_or_data_2(int imm, int byte) {
+uint16_t eval_reg_or_data_2(int imm, int byte)
+{
   if(imm) /* immediate */
     return bits(byte, 1, 7);
   else
@@ -95,7 +99,8 @@ uint16_t eval_reg_or_data_2(int imm, int byte) {
 
 /* Compare data using operation, return result from comparison. 
    Helper function for the different if functions. */
-static bool eval_compare(uint8_t operation, uint16_t data1, uint16_t data2) {
+static bool eval_compare(uint8_t operation, uint16_t data1, uint16_t data2)
+{
   switch(operation) {
     case 1:
       return data1 & data2;
@@ -118,8 +123,12 @@ static bool eval_compare(uint8_t operation, uint16_t data1, uint16_t data2) {
 
 
 /* Evaluate if version 1.
-   Has comparison data in byte 3 and 4-5 (immediate or register) */
-static bool eval_if_version_1(void) {
+ * PPP0**** 0CCC**** ******** AAAAAAAA ******** BBBBBBBB ******** ******** 
+ * PPP0**** 1CCC**** ******** AAAAAAAA DDDDDDDD DDDDDDDD ******** ********
+ * where PPP is 000, 001 or 101, 110
+ * "if (r[A] `C` r[B]) then .." resp "if (r[A] `C` D) then .." */
+static bool eval_if_version_1(void)
+{
   uint8_t op = bits(1, 1, 3);
   if(op) {
     return eval_compare(op, eval_reg(bits(3, 0, 8)), 
@@ -129,19 +138,25 @@ static bool eval_if_version_1(void) {
 }
 
 /* Evaluate if version 2.
-   This version only compares register which are in byte 6 and 7 */
-static bool eval_if_version_2(void) {
+ * PPPQ**** 0CCC**** ******** ******** ******** ******** AAAAAAAA BBBBBBBB
+ * where PPP is 001 & Q=1 or PPP is 010 & Q=*
+ * "if(r[A] `C` r[B]) then .." */
+static bool eval_if_version_2(void)
+{
   uint8_t op = bits(1, 1, 3);
   if(op) {
-    return eval_compare(op, eval_reg(bits(6, 0, 8)), 
-                            eval_reg(bits(7, 0, 8)));
+    return eval_compare(op, eval_reg(bits(6, 0, 8)), eval_reg(bits(7, 0, 8)));
   }
   return 1;
 }
 
 /* Evaluate if version 3.
-   Has comparison data in byte 2 and 6-7 (immediate or register) */
-static bool eval_if_version_3(void) {
+ * PPP***** 0CCC**** AAAAAAAA ******** ******** ******** ******** BBBBBBBB
+ * PPP***** 1CCC**** AAAAAAAA ******** ******** ******** DDDDDDDD DDDDDDDD
+ * where PPP is 011
+ * "if (r[A] `C` r[B]) then .." resp. "if (r[A] `C` D) then .." */
+static bool eval_if_version_3(void)
+{
   uint8_t op = bits(1, 1, 3);
   if(op) {
     return eval_compare(op, eval_reg(bits(2, 0, 8)), 
@@ -151,9 +166,12 @@ static bool eval_if_version_3(void) {
 }
 
 /* Evaluate if version 4.
-   Has comparison data in byte 1 and 4-5 (immediate or register) 
-   The register in byte 1 is only the lowe nibble (4bits) */
-static bool eval_if_version_4(void) {
+ * PPP***** 0CCCAAAA ******** ******** ******** BBBBBBBB ******** ********
+ * PPP***** 1CCCAAAA ******** ******** DDDDDDDD DDDDDDDD ******** ********
+ * where PPP is 100
+ * "if (g[A] `C` r[B]) then .." resp "if (g[A] `C` D) then .." */
+static bool eval_if_version_4(void)
+{
   uint8_t op = bits(1, 1, 3);
   if(op) {
     return eval_compare(op, eval_reg(bits(1, 4, 4)), 
@@ -162,9 +180,23 @@ static bool eval_if_version_4(void) {
   return 1;
 }
 
+/* Evaluate if version 5.
+ * PPP1**** 0CCC**** ******** ******** AAAAAAAA BBBBBBBB ******** ********
+ * where PPP is 101, 110
+ * "if (g[A] `C` r[B]) .." */
+static bool eval_if_version_5(void)
+{
+  uint8_t op = bits(1, 1, 3);
+  if(op) {
+    return eval_compare(op, eval_reg(bits(4, 0, 8)), eval_reg(bits(5, 0, 8)));
+  }
+  return 1;
+}
+
 /* Evaluate special instruction.... returns the new row/line number,
    0 if no new row and 256 if Break. */
-static int eval_special_instruction(bool cond) {
+static int eval_special_instruction(bool cond)
+{
   int line, level;
   
   switch(bits(1, 4, 4)) {
@@ -194,7 +226,8 @@ static int eval_special_instruction(bool cond) {
 /* Evaluate link by subinstruction.
    Return 1 if link, or 0 if no link
    Actual link instruction is in return_values parameter */
-static bool eval_link_subins(bool cond, link_t *return_values) {
+static bool eval_link_subins(bool cond, link_t *return_values)
+{
   uint16_t button = bits(6, 0, 6);
   uint8_t  linkop = bits(7, 3, 5);
   
@@ -211,7 +244,8 @@ static bool eval_link_subins(bool cond, link_t *return_values) {
 /* Evaluate link instruction.
    Return 1 if link, or 0 if no link
    Actual link instruction is in return_values parameter */
-static bool eval_link_instruction(bool cond, link_t *return_values) {
+static bool eval_link_instruction(bool cond, link_t *return_values)
+{
   uint8_t op = bits(1, 4, 4);
   
   switch(op) {
@@ -244,7 +278,8 @@ static bool eval_link_instruction(bool cond, link_t *return_values) {
 /* Evaluate a jump instruction.
    returns 1 if jump or 0 if no jump
    actual jump instruction is in return_values parameter */
-static bool eval_jump_instruction(bool cond, link_t *return_values) {
+static bool eval_jump_instruction(bool cond, link_t *return_values)
+{
   
   switch(bits(1, 4, 4)) {
     case 1:
@@ -313,7 +348,8 @@ static bool eval_jump_instruction(bool cond, link_t *return_values) {
 
 /* Evaluate a set sytem register instruction 
    May contain a link so return the same as eval_link */
-static bool eval_system_set(int cond, link_t *return_values) {
+static bool eval_system_set(int cond, link_t *return_values)
+{
   int i;
   uint16_t data, data2;
   
@@ -367,39 +403,41 @@ static bool eval_system_set(int cond, link_t *return_values) {
    Sets the register given to the value indicated by op and data.
    For the swap case the contents of reg is stored in reg2.
 */
-static void eval_set_op(int op, int reg, int reg2, int data) {
+static void eval_set_op(int op, int reg, int reg2, int data)
+{
   const int shortmax = (2 << 16) - 1;
   int tmp;
   switch(op) {
-    case 1:
+    case 1: /* = (assignment) */
       state->GPRM[reg] = data;
       break;
-    case 2: /* SPECIAL CASE - SWAP! */
-      state->GPRM[reg2] = state->GPRM[reg];
-      state->GPRM[reg]  = data;
+    case 2: /* Swap */
+      tmp = state->GPRM[reg];
+      state->GPRM[reg] = state->GPRM[reg2];
+      state->GPRM[reg2] = tmp;
       break;
-    case 3:
+    case 3: /* += (addition) */
       tmp = state->GPRM[reg] + data;
       if(tmp >= shortmax) tmp = shortmax;
       state->GPRM[reg] = (uint16_t)tmp;
       break;
-    case 4:
+    case 4: /* -= (subtraction) */
       tmp = state->GPRM[reg] - data;
       if(tmp < 0) tmp = 0;
       state->GPRM[reg] = (uint16_t)tmp;      
       break;
-    case 5:
+    case 5: /* *= (multiplication) */
       tmp = state->GPRM[reg] * data;
       if(tmp >= shortmax) tmp = shortmax;
       state->GPRM[reg] = (uint16_t)tmp;
       break;
-    case 6:
+    case 6: /* /= (division) */
       if(data != 0)
 	state->GPRM[reg] /= data;
       else
 	state->GPRM[reg] = 65535;
       break;
-    case 7:
+    case 7: /* %= (modulo) */
       if(data != 0)
 	state->GPRM[reg] %= data;
       else
@@ -413,24 +451,30 @@ static void eval_set_op(int op, int reg, int reg2, int data) {
       else
 	state->GPRM[reg] = 0; /* really an error I guess */
       break;
-    case 9:
+    case 9: /* &= (bitwise and) */
       state->GPRM[reg] &= data;
       break;
-    case 10:
+    case 10: /* |= (bitwise or) */
       state->GPRM[reg] |= data;
       break;
-    case 11:
+    case 11: /* ^= (bitwise xor) */
       state->GPRM[reg] ^= data;
       break;
   }
 }
 
-/* Evaluate set instruction, combined with either Link or Compare. */
-static void eval_set_version_1(int cond) {
+/* Evaluate set instruction, combined with either Link or Compare. 
+ * PPP0SSSS ******** ******** 0AAAAAAA ******** BBBBBBBB ******** ********
+ * PPP1SSSS ******** ******** 0AAAAAAA DDDDDDDD DDDDDDDD ******** ********
+ * where PPP is 011
+ * "r[A] `S` r[B]" resp "r[A] `S` D"
+ */
+static void eval_set_version_1(int cond)
+{
   uint8_t  op   = bits(0, 4, 4);
-  uint8_t  reg  = bits(3, 4, 4); // Erhumm..
-  uint8_t  reg2 = bits(5, 4, 4);
-  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 4);
+  uint8_t  reg  = bits(3, 0, 8); // GPRM
+  uint8_t  reg2 = bits(5, 4, 4); // GPRM or SPRM
+  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 4); // or Imm
 
   if(cond) {
     eval_set_op(op, reg, reg2, data);
@@ -438,12 +482,36 @@ static void eval_set_version_1(int cond) {
 }
 
 
-/* Evaluate set instruction, combined with both Link and Compare. */
-static void eval_set_version_2(int cond) {
+/* Evaluate set instruction for Set Compare Link.
+ * PPP0SSSS ****AAAA ******** BBBBBBBB ******** ******** ******** ********
+ * PPP1SSSS ****AAAA DDDDDDDD DDDDDDDD ******** ******** ******** ********
+ * when PPP is 101
+ * "g[A] `S` r[B]" resp "g[A] `S` D"
+ */
+static void eval_set_version_2(int cond)
+{
   uint8_t  op   = bits(0, 4, 4);
-  uint8_t  reg  = bits(1, 4, 4);
-  uint8_t  reg2 = bits(3, 4, 4); // Erhumm..
-  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 2);
+  uint8_t  reg  = bits(1, 4, 4); // GPRM
+  uint8_t  reg2 = bits(3, 0, 8); // GPRM or SPRM
+  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 2); // or Imm
+
+  if(cond) {
+    eval_set_op(op, reg, reg2, data);
+  }
+}
+
+/* Evaluate set instruction for, Compare & Set-Link, Compare-Set & Link. 
+ * PPP0SSSS ****AAAA BBBBBBBB ******** ******** ******** ******** ********
+ * PPP1SSSS 0***AAAA DDDDDDDD DDDDDDDD ******** ******** ******** ********
+ * when PPP is 100 or 110
+ * "g[A] `S` r[B]" resp "g[A] `S` D"
+ */
+static void eval_set_version_3(int cond)
+{
+  uint8_t  op   = bits(0, 4, 4);
+  uint8_t  reg  = bits(1, 4, 4); // GPRM
+  uint8_t  reg2 = bits(2, 0, 8); // GPRM or SPRM
+  uint16_t data = eval_reg_or_data(bits(0, 3, 1), 2); // or IMM
 
   if(cond) {
     eval_set_op(op, reg, reg2, data);
@@ -454,7 +522,8 @@ static void eval_set_version_2(int cond) {
 /* Evaluate a command
    returns row number of goto, 0 if no goto, -1 if link.
    Link command in return_values */
-static int eval_command(uint8_t *bytes, link_t *return_values) {
+static int eval_command(uint8_t *bytes, link_t *return_values)
+{
   int i, extra_bits;
   int cond, res = 0;
 
@@ -507,15 +576,21 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
 	res = -1;
       break;
     case 5: // Compare -> (Set and Link Sub-Instruction)
-      cond = eval_if_version_4();
-      eval_set_version_2(cond);
+      if(bits(0, 3, 1))
+	cond = eval_if_version_5();
+      else
+	cond = eval_if_version_1();
+      eval_set_version_3(cond);
       res = eval_link_subins(cond, return_values);
       if(res)
 	res = -1;
       break;
-    case 6: // Compare -> Set, allways Link Sub-Instruction
-      cond = eval_if_version_4();
-      eval_set_version_2(cond);
+    case 6: // Compare -> Set, always Link Sub-Instruction
+      if(bits(0, 3, 1))
+	cond = eval_if_version_5();
+      else
+	cond = eval_if_version_1();
+      eval_set_version_3(cond);
       res = eval_link_subins(/*True*/ 1, return_values);
       if(res)
 	res = -1;
@@ -542,7 +617,8 @@ static int eval_command(uint8_t *bytes, link_t *return_values) {
 /* Evaluate a set of commands in the given register set (which is
  * modified */
 int vmEval_CMD(vm_cmd_t commands[], int num_commands, 
-	       registers_t *registers, link_t *return_values) {
+	       registers_t *registers, link_t *return_values)
+{
   int i = 0;
   int total = 0;
   
@@ -597,7 +673,8 @@ int vmEval_CMD(vm_cmd_t commands[], int num_commands,
 }
 
 
-static char *linkcmd2str(link_cmd_t cmd) {
+static char *linkcmd2str(link_cmd_t cmd)
+{
   switch(cmd) {
   case LinkNoLink:
     return "LinkNoLink";
@@ -663,7 +740,8 @@ static char *linkcmd2str(link_cmd_t cmd) {
   return "*** (bug)";
 }
 
-void vmPrint_LINK(link_t value) {
+void vmPrint_LINK(link_t value)
+{
   char *cmd = linkcmd2str(value.command);
     
   switch(value.command) {
