@@ -179,13 +179,13 @@ fi
 TMPCFLAGS=$CFLAGS
 CFLAGS="-L$dvd_path/lib"
 
-AC_CHECK_LIB(dvdread, DVDFileSize, 
+AC_CHECK_LIB(dvdread, DVDDiscID, 
   [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
     DVDREAD_CFLAGS=-I$dvd_path/include
   ],
   [
     AC_CHECK_LIB(dvdread, DVDOpen, 
-      [ AC_MSG_ERROR([Upgrade libdvdread to 0.9.0 or later]) ],
+      [ AC_MSG_ERROR([Upgrade libdvdread to 0.9.4 or later]) ],
       [ AC_MSG_ERROR([Need libdvdread, install it or specify it's location])],
       -L$dvd_path/lib)
   ], -L$dvd_path/lib)
