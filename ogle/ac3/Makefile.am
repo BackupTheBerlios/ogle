@@ -25,4 +25,5 @@ ogle_ac3_p_LDADD = $(top_builddir)/common/libcommon.a \
 
 ogle_a52_SOURCES = a52_decoder.c
 ogle_a52_LDADD = $(top_builddir)/common/libcommon.a \
-	$(top_builddir)/ogle/libmsgevents.la @A52_LIBS@
+	$(top_builddir)/ogle/libmsgevents.la \
+	$(top_builddir)/libao/libao.la @A52_LIBS@
