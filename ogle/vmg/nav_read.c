@@ -180,6 +180,13 @@ void read_dsi_packet(dsi_t *dsi, char *buffer, int len) {
     B2N_16(dsi->sml_agli.dsta[i].size);
   }
   
+  /* dsi vobu sri */
+  //TODO add swaps for rest of stuff in vobu_sri
+  B2N_32(dsi->vobu_sri.next_vobu);
+
+  /* dsi synci */
+  //TODO add swaps here
+
   /* -- asserts ------------------------------------------------------------ */
   
 #ifndef NDEBUG
