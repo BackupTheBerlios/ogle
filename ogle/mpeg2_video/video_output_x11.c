@@ -587,6 +587,11 @@ void add_color_grid(debug_win *win)
 }
 
 
+Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
+{
+    return True;
+}
+
 void display(yuv_image_t *current_image)
 {
   XEvent ev;
@@ -603,6 +608,9 @@ void display(yuv_image_t *current_image)
     if(run) {
       nextframe = 1;
       if(XCheckMaskEvent(mydisplay, 0xFFFFFFFF, &ev) == False) {
+	if(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) == True) {
+	  fprintf(stderr, "**Snarfed xevent type: %ld\n", ev.type);
+	}
 	continue;
       }
     } else {
