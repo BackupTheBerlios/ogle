@@ -316,13 +316,16 @@ dnl config file
 dnl ---------------------------------------------------------
 
 if test "x${prefix}" = "xNONE"; then
-  AC_DEFINE_UNQUOTED(CONFIG_FILE_NAME, "${ac_default_prefix}/share/oglerc")
+  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${ac_default_prefix}/share/oglerc")
+  CONFIG_FILE="${ac_default_prefix}/share/oglerc"
   CONFIG_FILE_DTD="${ac_default_prefix}/share/ogle_conf.dtd"
 else
-  AC_DEFINE_UNQUOTED(CONFIG_FILE_NAME, "${prefix}/share/oglerc")
+  AC_DEFINE_UNQUOTED(CONFIG_FILE, "${prefix}/share/oglerc")
+  CONFIG_FILE="${prefix}/share/oglerc"
   CONFIG_FILE_DTD="${prefix}/share/ogle_conf.dtd"
 fi
 
+AC_SUBST(CONFIG_FILE)
 AC_SUBST(CONFIG_FILE_DTD)
 
 case $host_os in
@@ -446,5 +449,9 @@ mpeg_audio/Makefile
 mpeg2_program/Makefile 
 scripts/Makefile
 scripts/ogle
+doc/Makefile
+doc/man/Makefile
+doc/man/oglerc.5
+doc/man/ogle.1
 dvd_cli/Makefile
 oglerc)

@@ -9,6 +9,7 @@ SUBDIRS= ogle \
 	ac3 \
 	vmg \
 	dvd_cli \
-	scripts
+	scripts \
+	doc
 
 EXTRA_DIST = autogen.sh ogle_conf.dtd

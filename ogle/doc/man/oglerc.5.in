@@ -1,0 +1,30 @@
+.TH OGLERC 5
+.SH NAME
+oglerc \- ogle configuration file
+.SH DESCRIPTION
+The oglerc file is a configuration file for ogle.
+There is one system-wide file in ${prefix}/share/oglerc and an
+optional user file $HOME/.oglerc which overrides system settings.
+.br
+The file is written in XML, with a DTD in an external file.
+.br
+Look in the system-wide oglerc for available settings.
+.SH FILES
+$HOME/.oglerc
+.br
+@CONFIG_FILE@
+.br
+@CONFIG_FILE_DTD@
+.SH AUTHORS
+Björn Englund <d4bjorn@dtek.chalmers.se>
+.br
+Håkan Hjort <d95hjort@dtek.chalmers.se>
+.br
+Vilhelm Bergman <d96v@dtek.chalmers.se>
+.br
+Martin Norbäck <d95mback@dtek.chalmers.se>
+.br
+.SH COPYRIGHT
+This is free software; see the source for copying conditions.  There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
