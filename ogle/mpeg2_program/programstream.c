@@ -328,6 +328,35 @@ void dprintf_stream_id (int debuglevel, int stream_id)
 #endif
 }
 
+static cmd_ctrl_cmd_t demux_q[5];
+static int demux_q_start = 0;
+static int demux_q_len = 0;
+
+void get_next_demux_q(void)
+{
+  while(!demux_q_len) {
+    wait_for_msg(CMD_CTRL_CMD);
+  }
+  off_from = demux_q[demux_q_start].off_from;
+  off_to = demux_q[demux_q_start].off_to;
+  demux_q_start = (demux_q_start+1)%5;
+  demux_q_len--;
+
+}
+
+void add_to_demux_q(cmd_ctrl_cmd_t *ctrl_cmd)
+{
+  int pos;
+  
+  if(demux_q_len < 5) {
+    pos = (demux_q_start + demux_q_len)%5;
+    demux_q[pos] = *ctrl_cmd;
+    demux_q_len++;
+  } else {
+    fprintf(stderr, "add_to_demux_q: q full\n");
+  }
+
+}
 
 /* demuxer state */
 
@@ -1005,7 +1034,8 @@ void pack()
       if(off_to <= offs-(bits_left/8)) {
 	fprintf(stderr, "demux: off_to %d offs %d pack\n", off_to, offs);
 	off_to = -1;
-	wait_for_msg(CMD_CTRL_CMD);
+	get_next_demux_q();
+	//wait_for_msg(CMD_CTRL_CMD);
       }
     }
     if(off_from != -1) {
@@ -1030,7 +1060,8 @@ void pack()
 	if(off_to <= offs-(bits_left/8)) {
 	  fprintf(stderr, "demux: off_to %d offs %d mpeg1\n", off_to, offs);
 	  off_to = -1;
-	  wait_for_msg(CMD_CTRL_CMD);
+	  get_next_demux_q();
+	  //wait_for_msg(CMD_CTRL_CMD);
 	}
       }
       if(off_from != -1) {
@@ -1054,7 +1085,8 @@ void pack()
 	  if(off_to <= offs-(bits_left/8)) {
 	    fprintf(stderr, "demux: off_to %d offs %d packet\n", off_to, offs);
 	    off_to = -1;
-	    wait_for_msg(CMD_CTRL_CMD);
+	    get_next_demux_q();
+	    //wait_for_msg(CMD_CTRL_CMD);
 	  }
 	}
 	if(off_from != -1) {
@@ -1121,7 +1153,8 @@ void pack()
 	  if(off_to <= offs-(bits_left/8)) {
 	    fprintf(stderr, "demux: off_to %d offs %d mpeg2\n", off_to, offs);
 	    off_to = -1;
-	    wait_for_msg(CMD_CTRL_CMD);
+	    get_next_demux_q();
+	    //wait_for_msg(CMD_CTRL_CMD);
 	  }
 	}
 	if(off_from != -1) {
@@ -1690,8 +1723,7 @@ int eval_msg(cmd_t *cmd)
 	off_to = cmd->cmd.ctrl_cmd.off_to;
 	break;
       case CTRLCMD_PLAY_FROM_TO:
-	off_from = cmd->cmd.ctrl_cmd.off_from;
-	off_to = cmd->cmd.ctrl_cmd.off_to;
+	add_to_demux_q(&cmd->cmd.ctrl_cmd);
 	break;
       default:
 	break;
