@@ -972,6 +972,161 @@ DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr)
   return DVD_E_NotImplemented;
 }
 
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDDefaultAudioLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
+{
+  return DVD_E_NotImplemented;
+}
+
+/** 
+ * @todo Implement function.
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask_t DownmixMode)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr)
+{
+return DVD_E_NotImplemented;
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDStillOff(DVDNav_t *nav)
+{
+return DVD_E_NotImplemented;
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDVideoPresentationModeChange(DVDNav_t *nav,
+					   DVDDisplayMode_t mode)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
+				      DVDSubpictureStream_t SubpictureNr,
+				      DVDBool_t display)
+{
+  return DVD_E_NotImplemented;
+}
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country)
+{
+  return DVD_E_NotImplemented;
+}
+
+
+/**
+ * @todo Implement function
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ *
+ * @return If successful DVD_E_Ok is returned. Otherwise an error code
+ * is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_NotImplemented The function is not implemented.
+ */
+DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level)
+{
+  return DVD_E_NotImplemented;
+}
+
+  
 /** @} end of dvdctrl */
 
 /** @} end of dvdnav */

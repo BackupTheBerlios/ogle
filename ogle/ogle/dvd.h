@@ -68,10 +68,31 @@ typedef enum {
   UOP_FLAG_VideoPresModeChange        = 0x01000000 
 } DVDUOP_t;
 
+
 /**
- * Language ID
+ * Parental Level
+ */
+typedef enum {
+  DVD_PARENTAL_LEVEL_1 = 1,
+  DVD_PARENTAL_LEVEL_2 = 2,
+  DVD_PARENTAL_LEVEL_3 = 3,
+  DVD_PARENTAL_LEVEL_4 = 4,
+  DVD_PARENTAL_LEVEL_5 = 5,
+  DVD_PARENTAL_LEVEL_6 = 6,
+  DVD_PARENTAL_LEVEL_7 = 7,
+  DVD_PARENTAL_LEVEL_8 = 8,
+  DVD_PARENTAL_LEVEL_None = 15
+} DVDParentalLevel_t;
+
+/**
+ * Language ID (ISO-639 language code)
  */
 typedef uint16_t DVDLangID_t;
+
+/**
+ * Country ID (ISO-3166 country code)
+ */
+typedef uint16_t DVDCountryID_t;
 
 /**
  * Register
@@ -87,6 +108,10 @@ typedef DVDRegister_t DVDGPRMArray_t[16];
 typedef DVDRegister_t DVDSPRMArray_t[24];
 
 typedef int DVDStream_t;
+
+/**
+ * Angle number (1-9 or default?)
+ */
 typedef int DVDAngle_t;
 
 typedef int DVDPTT_t;
@@ -99,9 +124,15 @@ typedef struct {
 } DVDTimecode_t;
 
 /** 
+ * Subpicture stream number (0-31,63)
+ */
+typedef int DVDSubpictureStream_t;  
+
+/** 
  * Audio stream number (0-7)
  */
 typedef int DVDAudioStream_t;  
+
 
 /**
  * The audio application mode
@@ -138,6 +169,35 @@ typedef enum {
   DVD_AUDIO_LANG_EXT_DirectorsComments1 = 3, /**< TBD */
   DVD_AUDIO_LANG_EXT_DirectorsComments2 = 4  /**< TBD */
 } DVDAudioLangExt_t;
+
+/**
+ * Karaoke Downmix mode
+ */
+typedef enum {
+  DVD_KARAOKE_DOWNMIX_0to0 = 0x0001,
+  DVD_KARAOKE_DOWNMIX_1to0 = 0x0002,
+  DVD_KARAOKE_DOWNMIX_2to0 = 0x0004,
+  DVD_KARAOKE_DOWNMIX_3to0 = 0x0008,
+  DVD_KARAOKE_DOWNMIX_4to0 = 0x0010,
+  DVD_KARAOKE_DOWNMIX_Lto0 = 0x0020,
+  DVD_KARAOKE_DOWNMIX_Rto0 = 0x0040,
+  DVD_KARAOKE_DOWNMIX_0to1 = 0x0100,
+  DVD_KARAOKE_DOWNMIX_1to1 = 0x0200,
+  DVD_KARAOKE_DOWNMIX_2to1 = 0x0400,
+  DVD_KARAOKE_DOWNMIX_3to1 = 0x0800,
+  DVD_KARAOKE_DOWNMIX_4to1 = 0x1000,
+  DVD_KARAOKE_DOWNMIX_Lto1 = 0x2000,
+  DVD_KARAOKE_DOWNMIX_Rto1 = 0x4000
+} DVDKaraokeDownmix_t;
+
+typedef int DVDKaraokeDownmixMask_t;
+
+typedef enum {
+  DVD_DISPLAY_MODE_ContentDefault = 0,
+  DVD_DISPLAY_MODE_16x9 = 1,
+  DVD_DISPLAY_MODE_4x3PanScan = 2,
+  DVD_DISPLAY_MODE_4x3Letterboxed = 3  
+} DVDDisplayMode_t;
 
 typedef int DVDAudioSampleFreq_t;  /**< TBD */
 typedef int DVDAudioSampleQuant_t; /**< TBD */

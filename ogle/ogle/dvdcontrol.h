@@ -71,14 +71,29 @@ DVDResult_t DVDTimePlay(DVDNav_t *nav, DVDTitle_t Title, DVDTimecode_t time);
 DVDResult_t DVDPauseOn(DVDNav_t *nav);
 DVDResult_t DVDPauseOff(DVDNav_t *nav);
 DVDResult_t DVDStop(DVDNav_t *nav);
-
+DVDResult_t DVDStillOff(DVDNav_t *nav);
 
 
 DVDResult_t DVDDefaultMenuLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang);
 
+
 DVDResult_t DVDAudioStreamChange(DVDNav_t *nav, DVDAudioStream_t StreamNr);
+DVDResult_t DVDDefaultAudioLanguageSelect(DVDNav_t *nav, DVDLangID_t Lang);
+DVDResult_t DVDKaraokeAudioPresentationMode(DVDNav_t *nav, DVDKaraokeDownmixMask_t DownmixMode);
 
+DVDResult_t DVDAngleChange(DVDNav_t *nav, DVDAngle_t AngleNr);
 
+DVDResult_t DVDVideoPresentationModeChange(DVDNav_t *nav,
+					   DVDDisplayMode_t mode);
+
+DVDResult_t DVDSubpictureStreamChange(DVDNav_t *nav,
+				      DVDSubpictureStream_t SubpictureNr,
+				      DVDBool_t display);
+DVDResult_t DVDDefaultSubpictureLanguageSelect(DVDNav_t *nav,
+					       DVDLangID_t Lang);
+
+DVDResult_t DVDParentalCountrySelect(DVDNav_t *nav, DVDCountryID_t country);
+DVDResult_t DVDParentalLevelSelect(DVDNav_t *nav, DVDParentalLevel_t level);
 
 /* end control commands */
 
