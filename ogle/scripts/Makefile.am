@@ -1,4 +1,5 @@
 
-bin_SCRIPTS = ogle
+EXTRA_DIST = ogle
 
+bin_SCRIPTS = ogle
 
