@@ -21,6 +21,8 @@
 #include "parse_config.h"
 #include "audio_config.h"
 
+#include "sync.h"
+
 audio_config_t *audio_config_init(void)
 {
   audio_config_t *conf;
@@ -31,6 +33,12 @@ audio_config_t *audio_config_init(void)
   conf->format.ch_array = NULL;
   conf->adev_handle = NULL;
   conf->ainfo = NULL;
+  
+  conf->sync.delay_resolution = 0;
+  conf->sync.delay_resolution_set = 0;
+  conf->sync.max_sync_diff = 0;
+  conf->sync.prev_delay = -1;
+  conf->sync.samples_added = 0;
   return conf;
 }
 
@@ -88,5 +96,13 @@ int audio_config(audio_config_t *aconf,
   // check return value
   ogle_ao_init(aconf->adev_handle, aconf->ainfo);
   fprintf(stderr, "ogle_ao_init passed\n");
+
+  aconf->sync.delay_resolution = aconf->ainfo->sample_rate / 10;
+  aconf->sync.delay_resolution_set = 0;
+  aconf->sync.max_sync_diff = 2 * aconf->sync.delay_resolution *
+    (CT_FRACTION / aconf->ainfo->sample_rate);
+  aconf->sync.prev_delay = -1;
+  aconf->sync.samples_added = 0;
+
   return 0;
 }

@@ -172,14 +172,15 @@ int parse_oglerc(char *filename)
 
 int parse_config(void)
 {
-  int r = 0;
+  int config_read = 0;
   char *home;
+  
 
-
-  if((r += parse_oglerc(CONFIG_FILE)) == -1) {
-    WARNING("parse_config(): Couldn't read "CONFIG_FILE"\n");
+  if(parse_oglerc(CONFIG_FILE) != -1) {
+    config_read |= 1;
   }
 
+  
   home = getenv("HOME");
   if(home == NULL) {
     WARNING("No $HOME\n");
@@ -192,14 +193,22 @@ int parse_config(void)
     strcat(rcpath, "/");
     strcat(rcpath, rcfile);
     
-    if((r += parse_oglerc(rcpath)) == -1) {
-      NOTE("parse_config(): Couldn't read '%s'\n", rcpath);
+    if(parse_oglerc(rcpath) != -1) {
+      config_read |= 2;
     }
-    
+    if(!config_read) {
+      ERROR("parse_config(): Couldn't read '%s'\n", rcpath);
+    }
     free(rcpath);
   }
   
-  return r;
+  if(!config_read) {
+    ERROR("parse_config(): Couldn't read "CONFIG_FILE"\n");
+    return -1;
+  }
+
+  
+  return 0;
 }
 
 

@@ -33,7 +33,15 @@ typedef enum {
   ChannelType_LFE = 64
 } ChannelType_t;
 
+typedef enum {
+  SampleFormat_Unsigned,
+  SampleFormat_Signed,
+  SampleFormat_A52float,
+  SampleFormat_MadFixed
+} SampleFormat_t;
+
 typedef struct {
+  SampleFormat_t sample_format;
   int nr_channels;
   ChannelType_t *ch_array;
   int interleaved; //the samples for the different channels are interleaved
@@ -42,9 +50,18 @@ typedef struct {
 } audio_format_t;
 
 typedef struct {
-  audio_format_t format;
+  int delay_resolution;
+  int delay_resolution_set;
+  int max_sync_diff;
+  int prev_delay;
+  int samples_added;
+} audio_sync_t;
+
+typedef struct {
+  audio_format_t format;  //the audio format we have
   ogle_ao_instance_t *adev_handle;
-  ogle_ao_audio_info_t *ainfo;
+  ogle_ao_audio_info_t *ainfo; //the audio format of the sound driver
+  audio_sync_t sync;
 } audio_config_t;
 
 

@@ -29,30 +29,90 @@ extern ctrl_time_t *ctrl_time;
 
 int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 {
+  static clocktime_t last_sync = { 0, 0 };
+  static int samples_written;
+  static int old_delay = 0;
+
+  int bytes_to_write;
   int delay;
+  int srate;
+  static int frqlck_cnt = 0;
+  static int frqlck = 0;
+  static double frq_correction = 1.0;
+  audio_sync_t *s = &(h->config->sync);
+
   //sync code ...
   if(!ogle_ao_odelay(h->config->adev_handle, &delay)) {
     //odelay failed
+  }
+  //fprintf(stderr, "(%d)", delay);
+
+  if(!s->delay_resolution_set) {
+    int delay_diff;
+    int delay_step;
+    
+    delay_diff = delay - s->prev_delay;
+
+    if(s->prev_delay != -1) {
+      delay_step = s->samples_added - delay_diff;
+      
+      if((delay_step > 0) && (delay_step < s->delay_resolution)) {
+	if(delay_step < h->config->ainfo->sample_rate/200) {
+	  s->delay_resolution = h->config->ainfo->sample_rate/200;
+	  s->max_sync_diff = 2 * s->delay_resolution *
+	    (CT_FRACTION / h->config->ainfo->sample_rate);
+	  fprintf(stderr, "delay resolution better than: 0.%09d, %d samples, rate: %d\n",
+		  s->max_sync_diff/2, s->delay_resolution,
+		  h->config->ainfo->sample_rate);
+	  s->delay_resolution_set = 1;
+	} else {
+	  s->delay_resolution = delay_step;
+	  s->max_sync_diff = 2 * s->delay_resolution *
+	    (CT_FRACTION / h->config->ainfo->sample_rate);
+	  
+	  fprintf(stderr, "delay resolution: 0.%09d, %d samples, rate: %d\n",
+		  s->max_sync_diff/2, s->delay_resolution,
+		  h->config->ainfo->sample_rate);
+	}
+      }
+    }
+    s->prev_delay = delay;
   }
   
   if(ctrl_data->speed == 1.0) {
     clocktime_t real_time, scr_time, delay_time;
     clocktime_t t1, t2;
+    clocktime_t drift, delta_sync_time;
+    clocktime_t sleep_time = { 0, 0 };
     
     if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
       
       ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
       
       if(pts_valid) {
+	int delta_samples;
+	static double prev_df = 1.0;
+	double drift_factor, diff;
+	const clocktime_t buf_time = { 0, CT_FRACTION/5 };
+
+	srate = h->config->ainfo->sample_rate * frq_correction;
+        //fprintf(stderr, "(%d)", srate);
+
+        TIME_S(delay_time) =
+	  ((int64_t)delay * (int64_t)CT_FRACTION/srate) /
+          CT_FRACTION;
 	
+	TIME_SS(delay_time) = 
+	  ((int64_t)delay*(int64_t)CT_FRACTION/srate) %
+          CT_FRACTION;
+	
+	if(TIME_S(delay_time) > 0 || TIME_SS(delay_time) > TIME_SS(buf_time)) {
+	  timesub(&sleep_time, &delay_time, &buf_time); 
+	}
+
 	clocktime_get(&real_time);
 	PTS_TO_CLOCKTIME(scr_time, PTS);
-	
-	TIME_S(delay_time) = ((int64_t)delay*(int64_t)CT_FRACTION/48000) /
-	  CT_FRACTION;
-	TIME_SS(delay_time) = ((int64_t)delay*(int64_t)CT_FRACTION/48000) %
-	  CT_FRACTION;
-	
+
 	calc_realtime_left_to_scrtime(&t1,
 				      &real_time,
 				      &scr_time,
@@ -63,17 +123,28 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 	*/
 	
 	timesub(&t2, &delay_time, &t1);
-	if(TIME_S(t2) > 0 || TIME_SS(t2) > (CT_FRACTION/100) ||
-	   TIME_S(t2) < 0 || TIME_SS(t2) < -(CT_FRACTION/100)) {
-
-	  if(TIME_S(t2) > 0 || TIME_SS(t2) > (CT_FRACTION/50) ||
-	     TIME_S(t2) < 0 || TIME_SS(t2) < -(CT_FRACTION/50)) {
+	if(TIME_S(t2) > 0 || TIME_SS(t2) > s->max_sync_diff ||
+	   TIME_S(t2) < 0 || TIME_SS(t2) < -s->max_sync_diff) {
+ 
+	  if(TIME_S(t2) > 0 || TIME_SS(t2) > 2*s->max_sync_diff ||
+	     TIME_S(t2) < 0 || TIME_SS(t2) < -2*s->max_sync_diff) {
 	    DNOTE("%ld.%+010ld s off, resyncing\n",
 		  TIME_S(t2), TIME_SS(t2));
-	  } else if(TIME_S(t2) == 0 || TIME_SS(t2) > 0) {
-	    fprintf(stderr, "+");
-	  } else {
-	    fprintf(stderr, "-");
+	  } else { 
+            //fprintf(stderr, "(%d)", delay);
+	    if(TIME_S(t2) == 0 || TIME_SS(t2) > 0) {
+	      fprintf(stderr, "+");
+	    } else {
+	      fprintf(stderr, "-");
+	    }
+	    /*
+	      timesub(&drift, &real_time, &last_sync);
+	      {
+	      fprintf(stderr, "[%+07ld / %+07ld]",
+	      TIME_SS(t2), TIME_SS(drift));
+	      
+	      }
+ 	    */
 	  }
 	  timeadd(&delay_time, &delay_time, &real_time);
 	  
@@ -81,134 +152,96 @@ int play_samples(adec_handle_t *h, int scr_nr, uint64_t PTS, int pts_valid)
 			 &delay_time,
 			 &scr_time,
 			 ctrl_data->speed);
+          
+	}
+
+	timesub(&delta_sync_time, &real_time, &last_sync);
+
+	
+	if(TIME_S(delta_sync_time) > 9) {
+	  
+          delta_samples = samples_written - (delay - old_delay);
+	  
+          samples_written = 0;
+          last_sync = real_time;
+          old_delay = delay;
+          drift_factor = (double)delta_samples /
+            (((double)(TIME_S(delta_sync_time)) +
+              (double)(TIME_SS(delta_sync_time)) / CT_FRACTION) *
+             srate);
+	  fprintf(stderr, "<%ld.%+010ld>",
+		  TIME_S(delta_sync_time),
+		  TIME_SS(delta_sync_time));
+          fprintf(stderr, "[%.6f]", drift_factor);
+          
+          diff = drift_factor/prev_df;
+          if(diff > 0.998 && diff < 1.001) {
+            frqlck_cnt++;
+          } else {
+            frqlck_cnt = 0;
+          }
+         
+          {
+            static int avg_cnt = 0;
+            static double avg_drift = 0.0;
+            
+            if(frqlck_cnt > 3) {
+              
+              if(avg_cnt < 8) {
+                avg_cnt++;
+                avg_drift += drift_factor;
+                
+              } else if(avg_cnt == 8) {
+                avg_drift /= avg_cnt;
+                avg_cnt++;
+
+                diff = frq_correction / avg_drift;
+		fprintf(stderr, "diff: %.6f\n", diff);
+                if(diff < 0.999 || diff > 1.001) {
+                  frq_correction = avg_drift;
+                  fprintf(stderr, "frq_corr: %.6f\n", frq_correction);
+		  fprintf(stderr, "srate: %d\n", 
+			  (int)(h->config->ainfo->sample_rate
+				* frq_correction));
+		  
+                }
+              }
+            } else {
+              avg_drift = 0.0;
+              avg_cnt = 0;
+            }
+            
+          }
+
+          prev_df = drift_factor;
+
+
 	}
       }
     }
-    
-    ogle_ao_play(h->config->adev_handle, h->output_samples,
-		 h->output_samples_size);
+
+    bytes_to_write = h->output_buf_ptr - h->output_buf;
+
+    if(TIME_S(sleep_time) > 0 || TIME_SS(sleep_time) > 0) {
+      //sleep so we don't buffer more than buf_time of output
+      // needed mostly on solaris which can buffer huge amounts
+      
+      nanosleep(&sleep_time, NULL);
+    }
+
+    ogle_ao_play(h->config->adev_handle, h->output_buf,
+		 bytes_to_write);
+
+    s->samples_added = bytes_to_write / h->config->ainfo->sample_frame_size;
+    samples_written += s->samples_added;
+   
   }
+  
+
+
+
+
   
   return 0;
 }
   
-#if 0
-  if(ctrl_data->speed == 1.0) {
-    clocktime_t real_time, scr_time;
-    
-    clocktime_get(&real_time);
-    
-    if(PTS_DTS_flags & 0x2) {
-      PTS_TO_CLOCKTIME(scr_time, PTS);
-    }
-    
-    if(ctrl_time[scr_nr].sync_master <= SYNC_AUDIO) {
-      clocktime_t tmptime;
-      ctrl_time[scr_nr].sync_master = SYNC_AUDIO;
-      
-      if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
-	if(PTS_DTS_flags & 0x2) {
-	  int delay = 0;
-	  
-	  //	  if(!ogle_ao_odelay(ao_handle, &delay)) {
-	  //  WARNING("ao_odelay failed\n");
-	  // }
-	  
-	  TIME_S(tmptime) = 0;
-	  TIME_SS(tmptime) = delay*1000000/48;
-	  
-	  timeadd(&tmptime, &tmptime, &real_time);
-	    
-      	  set_sync_point(&ctrl_time[scr_nr],
-			 &tmptime,
-			 &scr_time,
-			 ctrl_data->speed);
-	  
-	}
-	
-      } else {
-	/* offset valid */
-	if(PTS_DTS_flags & 0x2) {
-	  clocktime_t t1, t2;
-	  int delay = 0;
-	  
-	  //	  if(!ogle_ao_odelay(ao_handle, &delay)) {
-	  //  WARNING("ao_odelay failed\n");
-	  // }
-
-	  TIME_S(tmptime) = 0;
-	  TIME_SS(tmptime) = (int64_t)delay*(int64_t)1000000/48;
-
-	  calc_realtime_left_to_scrtime(&t1,
-					&real_time,
-					&scr_time,
-					&(ctrl_time[scr_nr].sync_point));
-	  /*
-	  DNOTE("time left %ld.%+010ld\n", TIME_S(t1), TIME_SS(t1));
-	  DNOTE("delay %ld.%+010ld\n", TIME_S(tmptime), TIME_SS(tmptime));
-	  */
-	  timesub(&t2, &tmptime, &t1);
-	  if(TIME_S(t2) > 0 || TIME_SS(t2) > 70000000 ||
-	     TIME_S(t2) < 0 || TIME_SS(t2) < -70000000) {
-	    DNOTE("%ld.%+010ld s off, resyncing\n",
-		  TIME_S(t2), TIME_SS(t2));
-
-	    timeadd(&tmptime, &tmptime, &real_time);
-	    
-	    set_sync_point(&ctrl_time[scr_nr],
-			   &tmptime,
-			   &scr_time,
-			   ctrl_data->speed);
-	  }
-	  
-	}
-      }
-
-    }
-    
-
-  }
-#endif
-
-#if 0
-  if(pts_valid) {
-    if(PTS != scr+delay) {
-      
-      scr = pts-delay;
-    }
-    clocktime_t real_time, scr_time, delay_time;
-    clocktime_t t1, t2;
-    
-    clocktime_get(&real_time);
-    PTS_TO_CLOCKTIME(scr_time, PTS);
-    
-    TIME_S(delay_time) = 0;
-    TIME_SS(delay_time) = (int64_t)delay*(int64_t)CT_FRACTION/48000;
-    
-    calc_realtime_left_to_scrtime(&t1,
-				  &real_time,
-				  &scr_time,
-				  &(ctrl_time[scr_nr].sync_point));
-    /*
-      DNOTE("time left %ld.%+010ld\n", TIME_S(t1), TIME_SS(t1));
-      DNOTE("delay %ld.%+010ld\n", TIME_S(delay_time), TIME_SS(delay_time));
-    */
-    timesub(&t2, &delay_time, &t1);
-    if(TIME_S(t2) > 0 || TIME_SS(t2) > 100000000 ||
-       TIME_S(t2) < 0 || TIME_SS(t2) < -10000000) {
-      DNOTE("%ld.%+010ld s off, resyncing\n",
-	    TIME_S(t2), TIME_SS(t2));
-      
-      timeadd(&delay_time, &delay_time, &real_time);
-      
-      set_sync_point(&ctrl_time[scr_nr],
-		     &delay_time,
-		     &scr_time,
-		     ctrl_data->speed);
-    }
-    
-    
-  }
-#endif
-  
-

@@ -29,16 +29,20 @@ typedef int (*audio_decode_t)(adec_handle_t *handle, uint8_t *start, int len,
 
 typedef int (*audio_flush_t)(adec_handle_t *handle);
 
+typedef int (*audio_drain_t)(adec_handle_t *handle);
+
 typedef void (*audio_free_t)(adec_handle_t *handle);
 
 struct adec_handle_s {
+  AudioType_t type;
   audio_decode_t decode;
   audio_flush_t  flush;
+  audio_drain_t  drain;
   audio_free_t   free;
   audio_config_t *config;
-  uint8_t *output_samples;
-  int output_samples_size;
-  uint8_t *output_samples_ptr;
+  uint8_t *output_buf;
+  int output_buf_size;
+  uint8_t *output_buf_ptr; //output_buf_ptr - output_buf = bytes to play
 };
 
 #endif /* DECODE_PRIVATE_H */

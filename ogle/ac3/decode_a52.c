@@ -33,6 +33,7 @@
 #include "conversion.h"
 #include "audio_play.h"
 
+#include "debug_print.h"
 
 typedef struct {
   adec_handle_t handle;
@@ -217,18 +218,25 @@ int decode_a52(adec_a52_handle_t *handle, uint8_t *start, int len,
     if(handle->buf_ptr - handle->coded_buf == 7) {
       // 7 bytes header data to test
       int new_availflags;
-      
+      static int has_sync = 0;
       frame_len = a52_syncinfo(handle->coded_buf,
 			       &new_availflags, &new_sample_rate, &bit_rate);
       if(frame_len == 0) {
 	//this is not the start of a frame
-	fprintf(stderr, "*** a52 lost sync\n");
+	if(has_sync) {
+	  DNOTE("decode_a52: lost sync\n");
+	  has_sync = 0;
+	}
 	for(n = 0; n < 6; n++) {
 	  handle->coded_buf[n] = handle->coded_buf[n+1];
 	}
 	handle->buf_ptr--;
 	handle->bytes_needed = 1;
       } else {
+	if(!has_sync) {
+	  DNOTE("decode_a52: found sync\n");
+	  has_sync = 1;
+	}
 
 	// we have the start of a frame
 	if((int)(indata_ptr-7-start) == pts_offset) {
@@ -363,9 +371,9 @@ adec_handle_t *init_a52(void)
   handle->handle.decode = (audio_decode_t) decode_a52;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_a52;
   handle->handle.free   = (audio_free_t)   free_a52;
-  handle->handle.output_samples = NULL;
-  handle->handle.output_samples_size = 0;
-  handle->handle.output_samples_ptr = handle->handle.output_samples;
+  handle->handle.output_buf = NULL;
+  handle->handle.output_buf_size = 0;
+  handle->handle.output_buf_ptr = handle->handle.output_buf;
 
   handle->PTS = 0;
   handle->pts_valid = 0;

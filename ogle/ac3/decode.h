@@ -26,9 +26,9 @@
 
 typedef enum {
   AudioType_None,
-  AudioType_A52,
-  AudioType_PCM,
+  AudioType_LPCM,
   AudioType_MPEG,
+  AudioType_AC3,
   AudioType_DTS,
   AudioType_SDDS
 } AudioType_t;
@@ -38,10 +38,14 @@ typedef struct adec_handle_s adec_handle_t;
 
 adec_handle_t *adec_init(AudioType_t audio_type);
 
+AudioType_t adec_type(adec_handle_t *handle);
+
 int adec_decode(adec_handle_t *handle, uint8_t *start, int len,
 		int pts_offset, uint64_t PTS, int scr_nr);
 
 int adec_flush(adec_handle_t *handle);
+
+int adec_drain(adec_handle_t *handle);
 
 void adec_free(adec_handle_t *handle);
 

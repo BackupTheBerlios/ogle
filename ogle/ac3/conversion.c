@@ -59,20 +59,25 @@ int init_sample_conversion(adec_handle_t *h, audio_format_t *format,
   // between each play
   int size = h->config->format.nr_channels * h->config->format.sample_resolution;
   fprintf(stderr, "size: %u\n", size);
-  if(h->output_samples_size < nr_samples * size) {
-    h->output_samples_size = nr_samples * size;
-    h->output_samples = realloc(h->output_samples, h->output_samples_size);
-    if(h->output_samples == NULL) {
+  if(h->output_buf_size < nr_samples * size) {
+    h->output_buf_size = nr_samples * size;
+    h->output_buf = realloc(h->output_buf, h->output_buf_size);
+    if(h->output_buf == NULL) {
       fprintf(stderr, "realloc failed\n");
     }
   }
-  fprintf(stderr, "output_samples: %ld\n", (long)h->output_samples);
-  fprintf(stderr, "output_samples_size: %d\n", h->output_samples_size);
-  h->output_samples_ptr = h->output_samples;
+  fprintf(stderr, "output_buf: %ld\n", (long)h->output_buf);
+  fprintf(stderr, "output_buf_size: %d\n", h->output_buf_size);
+  h->output_buf_ptr = h->output_buf;
   
   // setup the conversion functions
   // from the sample buffer format to the output buffer format
-
+  switch(format->sample_format) {
+  case SampleFormat_A52float:
+  case SampleFormat_MadFixed:
+  case SampleFormat_Unsigned:
+  case SampleFormat_Signed:
+  }
   return 0;
 }
 
@@ -109,21 +114,21 @@ static int convert_a52_float_to_s16(float * _f, int16_t *s16, int nr_samples,
 
 int convert_samples(adec_handle_t *h, void *samples, int nr_samples)
 {
-  //convert from samples to output_samples_ptr
+  //convert from samples to output_buf_ptr
   /*
-  fprintf(stderr, "samples: %d, output_samples_ptr: %d\n",
-	  samples, h->output_samples_ptr);
+  fprintf(stderr, "samples: %d, output_buf_ptr: %d\n",
+	  samples, h->output_buf_ptr);
   */
-  convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_samples_ptr, 
+  convert_a52_float_to_s16((float *)samples, (int16_t *)h->output_buf_ptr, 
 			   nr_samples, 2, NULL);
-  h->output_samples_ptr += 2*2*nr_samples; // 2ch 2byte
+  h->output_buf_ptr += 2*2*nr_samples; // 2ch 2byte
   return 0;
 }
 
 
 void convert_samples_start(adec_handle_t *h)
 {
-  h->output_samples_ptr = h->output_samples;
+  h->output_buf_ptr = h->output_buf;
 }
 
 

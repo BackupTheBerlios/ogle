@@ -287,8 +287,8 @@ int get_q()
     p[1]<<8 | p[2] is the starting index of the frame which 
       the PTS value belong to
   */
-  off = data_elem->off + 3;
-  len = data_elem->len - 3;
+  off = data_elem->packet_data_offset + 4;
+  len = data_elem->packet_data_len - 4;
 
   if(flush_to_scrid != -1) {
     if(ctrl_time[scr_nr].scr_id < flush_to_scrid) {

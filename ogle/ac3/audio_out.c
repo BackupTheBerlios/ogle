@@ -38,9 +38,12 @@
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
+#include "mpeg.h"
 
 #include "parse_config.h"
 #include "decode.h"
+
+
 /* temporary */
 int flush_audio(void);
 
@@ -74,7 +77,7 @@ void usage()
   fprintf(stderr, "Usage: %s  [-m <msgid>]\n", program_name);
 }
 
-adec_handle_t *ahandle;
+adec_handle_t *ahandle = NULL;
 
 int main(int argc, char *argv[])
 {
@@ -103,7 +106,7 @@ int main(int argc, char *argv[])
     }
   }
   
-  if(parse_config() == -2) {
+  if(parse_config() == -1) {
     FATAL("Couldn't read config files\n");
     exit(1);
   }
@@ -130,8 +133,6 @@ int main(int argc, char *argv[])
     FATAL("what? need a msgid\n");
   }
 
-
-  ahandle = adec_init(AudioType_A52);
 
   while(1) {
     get_q();
@@ -252,11 +253,19 @@ int get_q()
   uint64_t PTS;
   uint64_t DTS;
   int scr_nr;
-  int off;
-  int len;
-  int pts_offset;
+  int packet_data_offset;
+  int packet_data_len;
+  PacketType_t packet_type;
+  uint32_t packet_offset;
+  int pts_offset = 0;
+  int decode_offset = 0;
+  int decode_len = 0;
   MsgEvent_t ev;
-  
+  uint8_t stream_id;
+  uint8_t subtype;
+  AudioType_t new_audio_type;
+
+
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
@@ -296,9 +305,9 @@ int get_q()
     uint8_t *lbuf;  
     uint8_t *cbuf;  
     int toff, tlen, pts_off;
-    toff = data_elem->off;
+    toff = data_elem->packet_data_offset;
     tbuf = data_buffer;
-    tlen = data_elem->len-3;
+    tlen = data_elem->packet_data_len-3;
     lbuf = tbuf+toff+3;
     cbuf = data_buffer+toff;
     
@@ -342,11 +351,71 @@ int get_q()
     }
   }
 #endif
+  packet_type = data_elem->packet_type;
+  packet_offset = data_elem->packet_offset;
+
+  packet_data_offset = data_elem->packet_data_offset;
+  packet_data_len = data_elem->packet_data_len;
   
-  off = data_elem->off + 3;
-  len = data_elem->len - 3;
+  new_audio_type = AudioType_None;
+  
+  if(packet_type == PacketType_MPEG1 || packet_type == PacketType_PES) {
+    stream_id = (data_buffer+packet_offset)[3];
+    
+    if(stream_id == MPEG2_PRIVATE_STREAM_1) {
+      subtype = (data_buffer+packet_data_offset)[0];
+      
+      if((subtype >= 0x80) && (subtype < 0x88)) {
+	//ac-3
+	new_audio_type = AudioType_AC3;
+	decode_offset = packet_data_offset+4;
+	decode_len = packet_data_len-4;
+
+	pts_offset = (data_buffer+packet_data_offset)[2]<<8 |
+	  (data_buffer+packet_data_offset)[3];
+#if 0
+	fprintf(stderr, "subid: %02x, ", 
+		(data_buffer+packet_data_offset)[0]);
+#endif
+#if 0
+	fprintf(stderr, "*nr_frames: %d\n", 
+		(data_buffer+packet_data_offset)[1]);
+	fprintf(stderr, "pts_offset: %d\n", pts_offset);
+#endif
+      } else if((subtype >= 0x88) && (subtype < 0x90)) {
+	//dts
+	new_audio_type = AudioType_DTS;
+	WARNING("DTS Audio not implemented\n");
+      } else if((subtype >= 0xA0) && (subtype < 0xA8)) {
+	//lpcm
+	new_audio_type = AudioType_LPCM;
+	WARNING("LPCM Audio not implemented\n");
+      } else {
+	ERROR("Unhandled PrivateStream1 subtype: %02x\n", subtype);
+      }
+
+    } else if((stream_id & MPEG_AUDIO_STREAM_MASK) == MPEG_AUDIO_STREAM) {
+      new_audio_type = AudioType_MPEG;
+      WARNING("MPEG Audio not implemented\n");
+    } else {
+      ERROR("Unhandled stream_id: %02x\n", stream_id);
+    }
+  } else {
+    ERROR("Unhandled packet type: %d\n", packet_type);
+  }
+  
+  //if there is an old adec handle, close/drain/flush
+  if(ahandle) {
+    if(adec_type(ahandle) != new_audio_type) {
+      adec_free(ahandle);
+      ahandle = adec_init(new_audio_type);
+    }
+  } else {
+    ahandle = adec_init(new_audio_type);
+  }
+
+
 	  
-  pts_offset = (data_buffer+off)[-2]<<8 | (data_buffer+off)[-1];
   //  fprintf(stderr, "pts_offset: %d\n", pts_offset);
   if(pts_offset ==  0) {
     fprintf(stderr, "**pts_offset: 0, report bug\n");
@@ -384,10 +453,9 @@ int get_q()
   prev_scr_nr = scr_nr;
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
   
-  if(ctrl_data->speed == 1.0) {
-    adec_decode(ahandle, data_buffer+off, len, pts_offset, PTS, scr_nr);
-    //decode_a52_data(data_buffer+off, len, pts_offset, PTS, scr_nr);
-    //a52_decode_data(data_buffer+off, data_buffer+off+len);  
+  if(ahandle && ctrl_data->speed == 1.0) {
+    adec_decode(ahandle, data_buffer+decode_offset, decode_len, 
+		pts_offset, PTS, scr_nr);
   }
 
   // release elem
@@ -409,87 +477,8 @@ int get_q()
 int flush_audio(void)
 {
   //flush sound_card
-  adec_flush(ahandle);
-#if 0
-  //reset decoder
-  audio_decoder_flush();
-  
-  //reset output_buffer
-  audio_play_flush();
-  output_samples_ptr = output_buffer;
-#endif
+  if(ahandle)
+    adec_flush(ahandle);
+
   return 0;
 }
-#if 0
-play_samples(samples)
-{
- if(samples_in_buf > 200 ms)
-   wait(40 ms)
- play_time = cur_time+time_in_buf
- if(play_time != pts)
-   cur_time = play_time;
- ao_play(samples);
-
-}
-#endif
-/*
-  decode one ac3 frame, convert from float to int, ao_play
-
-  a52_init(mm_accel)
-     - inits and returns sample output buffer
-  a52_syncinfo(*buf, *flags, *sample_rate, *bit_rate)
-     - buf must be at least 7 bytes
-     - returns the size of the frame or 0
-     - fills flags, sample_rate, bit_rate.
-     - size is 128 - 3840
-  a52_frame(*state, *buf, *flags, *level, bias)
-     - buf shall point to the beginning of the full coded frame
-     - flags input is the supported speaker config, returns what will be used
-     -  level, bias strange things
-  a52_block(*state, *sample)
-     - shall be called 6 times per frame
-     - return data to sample each time
-
-
-  samples = a52_init
-  card_nr_channels
-  card_channels[card_nr_channels] = { FL, FR, FC, SL, SR, LFE }
-  codebuf[3840]
-  buf_ptr = code_buf
-
-  get_data => start, len
-  
-  cp(start, len, buf_ptr)
-  buf_ptr+=len;
-
-  while(buf_ptr-code_buf >= 7) {
-   // we have enough bytes for header
-   len = a52_syncinfo(code_buf, &chnls_in_stream, &sample_rate, &bit_rate);
-   if(len == 0) {
-    //shift 1 byte to left
-    for(n = buf_code; n < buf_ptr; n++) {
-     *n = *(n+1);
-    }
-    buf_ptr--;
-    continue;
-   } else {
-     cur_len = buf_ptr-code_buf
-     total_len = len;
-     needed_len = total_len - cur_len;
-     if(needed_len > 0) {
-       return needed_len;
-     }
-     chnls = wanted_chnls;
-     a52_frame(&state, code_buf, &chnls, level, bias);
-     for(i = 0; i < 6; i++) {
-       a52_block(&state, samples);
-       float_to_int(samples, ac3_chnls, int_samples, card_chnls);
-       play_sample(int_samples);
-     }
-
-  }
-  return 0;  // less than 7 bytes input data
-}
-
-
- */

@@ -23,7 +23,12 @@
 #include "decode.h"
 #include "decode_private.h"
 
-extern adec_handle_t *init_a52(void);
+#include "debug_print.h"
+
+#include "decode_a52.h"
+#include "decode_mpeg.h"
+
+//extern adec_handle_t *init_a52(void);
 
 
 static
@@ -35,6 +40,12 @@ int decode_none(adec_handle_t *handle, uint8_t *start, int len,
 
 static
 int flush_none(adec_handle_t *handle)
+{
+  return 0;
+}
+
+static
+int drain_none(adec_handle_t *handle)
 {
   return 0;
 }
@@ -60,32 +71,51 @@ int adec_flush(adec_handle_t *handle)
   return (handle->flush)(handle);
 }
 
+int adec_drain(adec_handle_t *handle)
+{
+  return (handle->drain)(handle);
+}
+
 void adec_free(adec_handle_t *handle)
 {
   (handle->free)(handle);
 }
 
+AudioType_t adec_type(adec_handle_t *handle)
+{
+  return handle->type;
+}
 
 adec_handle_t *adec_init(AudioType_t audio_type)
 {
-  static adec_handle_t none_handle;
-
-  adec_handle_t *handle;
+  static adec_handle_t none_handle;  
+  adec_handle_t *handle = NULL;
   
   switch(audio_type) {
-  case AudioType_A52:
+  case AudioType_MPEG:
+    //    handle = init_mpeg();
+    break;
+  case AudioType_AC3:
     handle = init_a52();
     break;
   case AudioType_None:
-  default:
     handle = &none_handle;
     handle->decode = decode_none;
     handle->flush  = flush_none;
+    handle->drain  = drain_none;
     handle->free   = free_none;
     break;
+  default:
+    ERROR("adec_init() illegal audio type: %d\n", audio_type);
+    return NULL;
+  }
+  
+  if(handle) {
+
+    handle->type = audio_type;
+    
+    handle->config = audio_config_init();
   }
 
-  handle->config = audio_config_init();
-  
   return handle;
 }
