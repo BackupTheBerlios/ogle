@@ -331,6 +331,9 @@ void display_init(int padded_width, int padded_height,
 
 }
 
+
+/* TODO display_change_size needs to be fixed */
+
 void display_change_size(int new_width, int new_height) {
   int padded_width = windows[0].image->padded_width;
   int padded_height = windows[0].image->padded_height;
@@ -350,6 +353,8 @@ void display_change_size(int new_width, int new_height) {
   
   /* Stop events temporarily, while creating new display_image */
   XSelectInput(mydisplay, windows[0].win, NoEventMask);
+
+#ifndef HAVE_XV
   
   XSync(mydisplay,True);
   
@@ -407,7 +412,7 @@ void display_change_size(int new_width, int new_height) {
   
   XSync(mydisplay, 0);
   
-  
+#endif  
   /* Force a change of the widow size. */
   XResizeWindow(mydisplay, windows[0].win, 
 		scaled_image_width, scaled_image_height);
