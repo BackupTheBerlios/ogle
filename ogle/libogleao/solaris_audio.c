@@ -20,15 +20,17 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/ioctl.h>
 #include <unistd.h>
 #include <inttypes.h>
 
+#include <sys/ioctl.h>
 #include <fcntl.h>
 #include <sys/audioio.h>
 
 #include <sys/types.h>
+#ifdef HAVE_STROPTS_H
 #include <stropts.h>
+#endif
 #include <sys/conf.h>
 
 #include "ogle_ao.h"
@@ -114,7 +116,7 @@ int solaris_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
   int res;
   int odelay;
   static int e = 0;
-  uint_t samples_played;
+  unsigned int samples_played;
 
   res = ioctl(instance->fd, AUDIO_GETINFO, &info);
   if(res == -1) {
