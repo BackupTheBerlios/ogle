@@ -249,6 +249,9 @@ static void ifoPrint_audio_attributes(audio_attr_t *attr) {
   case 1:
     printf("%c%c (%c) ", attr->lang_code>>8, attr->lang_code & 0xff,
            attr->lang_extension ? attr->lang_extension : ' ');
+    if(attr->lang_extension) {
+      printf("(please send a bug report) lang_extension != 0");
+    }
     break;
   default:
     printf("(please send a bug report) ");
@@ -268,29 +271,61 @@ static void ifoPrint_audio_attributes(audio_attr_t *attr) {
     printf("(please send a bug report) ");
   }
   
-  switch(attr->quantization) {
-  case 0:
-    printf("16bit ");
+  switch(attr->audio_format) {
+  case 0: //ac3
+    if(attr->quantization != 3) {
+      printf("(please send a bug report) ac3 quant/drc not 3 (%d)",
+	     attr->quantization);
+    }
     break;
-  case 1:
-    printf("20bit ");
+  case 2: //mpeg 1 or mpeg 2 without extension stream
+  case 3: //mpeg 2 with extension stream
+    switch(attr->quantization) {
+    case 0: //no drc
+      printf("no drc ");
+      break;
+    case 1:
+      printf("drc ");
+      break;
+    default:
+      printf("(please send a bug report) mpeg reserved quant/drc  (%d)",
+	     attr->quantization);
+      break;
+    }
     break;
-  case 2:
-    printf("24bit ");
+  case 4:
+    switch(attr->quantization) {
+    case 0:
+      printf("16bit ");
+      break;
+    case 1:
+      printf("20bit ");
+      break;
+    case 2:
+      printf("24bit ");
+      break;
+    case 3:
+      printf("(please send a bug report) lpcm reserved quant/drc  (%d)",
+	     attr->quantization);
+      break;
+    }
     break;
-  case 3:
-    printf("drc ");
+  case 6: //dts
+    if(attr->quantization != 3) {
+      printf("(please send a bug report) dts quant/drc not 3 (%d)",
+	     attr->quantization);
+    }
     break;
   default:
-    printf("(please send a bug report) ");
+    break;
   }
-  
+
   switch(attr->sample_frequency) {
   case 0:
     printf("48kHz ");
     break;
   case 1:
-    printf("??kHz ");
+    printf("96kHz ");
     break;
   default:
     printf("sample_frequency %i (please send a bug report) ", 
@@ -375,10 +410,9 @@ static void ifoPrint_subp_attributes(subp_attr_t *attr) {
   
   printf("%d ", attr->zero1);
   printf("%d ", attr->zero2);
-  printf("%d ", attr->code_extension);
+  printf("%d ", attr->lang_extension);
   
-  /* Is this correct?  should it not be subp_code_ext here instead? */
-  switch(attr->lang_extension) {
+  switch(attr->code_extension) {
   case 0:
     printf("Not specified ");
     break;
