@@ -779,7 +779,12 @@ void ifoPrint_PGC(pgc_t *pgc) {
   printf("GoUp PGC number: %i\n", pgc->goup_pgc_nr);
   if(pgc->nr_of_programs != 0) {
     printf("Still time: %i seconds (255=inf)\n", pgc->still_time);
-    printf("PG Playback mode %02x\n", pgc->pg_playback_mode);
+    if(pgc->pg_playback_mode == 0)
+      printf("PG Playback mode: Sequential\n");
+    else if(!(pgc->pg_playback_mode & 0x80))
+      printf("PG Playback mode: Random %i\n", pgc->pg_playback_mode);
+    else
+      printf("PG Playback mode: Shuffle %i\n", pgc->pg_playback_mode & 0x7f );
   }
   
   if(pgc->nr_of_programs != 0) {
@@ -809,8 +814,23 @@ void ifoPrint_TT_SRPT(tt_srpt_t *tt_srpt) {
     printf("\tNumber of PTTs: %i\n", tt_srpt->title[i].nr_of_ptts);
     printf("\tNumber of angles: %i\n", 
 	   tt_srpt->title[i].nr_of_angles);
-    printf("\tTitle playback type: %02x\n",     /* XXX: TODO FIXME */
-	   *(uint8_t *)&(tt_srpt->title[i].pb_ty));
+    printf("\tTitle playback type: %s%s%s%s%s%s%s\n",
+	   tt_srpt->title[i].pb_ty.multi_or_random_pgc_title ? 
+	   " One Random PGC Title or Multi PGC Title" : 
+	   " One Sequential PGC Title",
+	   tt_srpt->title[i].pb_ty.jlc_exists_in_cell_cmd ?
+	   "" : ", No Link/Jump/Call exists in Cell command",
+	   tt_srpt->title[i].pb_ty.jlc_exists_in_prepost_cmd ?
+	   "" : ", No Link/Jump/Call exists in Pre- and/or Post-command",
+	   tt_srpt->title[i].pb_ty.jlc_exists_in_button_cmd ?
+	   "" : ", No Link/Jump/Call exists in Button command",
+	   tt_srpt->title[i].pb_ty.jlc_exists_in_tt_dom ?
+	   "" : ", No Link/Jump/Call exists in TT_DOM",
+	   tt_srpt->title[i].pb_ty.chapter_search_or_play ?
+	   ", UOP1 (TT_Play and PTT_Search) prohibited" : "",
+	   tt_srpt->title[i].pb_ty.title_or_time_play ?
+	   ", UOP0 (Time_Play and Time_Search) prohibited" : ""
+	   );    
     printf("\tParental ID field: %04x\n",
 	   tt_srpt->title[i].parental_id);
     printf("\tTitle set starting sector %08x\n", 
