@@ -1,11 +1,9 @@
 #include <inttypes.h>
 
-/* NOT YET
-mlib_VideoIDCT_S16_S16
-mlib_VideoIDCT_U8_S16
-*/
 
-static inline uint8_t
+#define INLINE inline
+
+INLINE static uint8_t
 clip_to_u8 (int16_t value)
 {
   return value < 0 ? 0 : (value > 255 ? 255 : value);
@@ -492,7 +490,7 @@ mlib_VideoColorYUV2ABGR420(uint8_t* image, const uint8_t* py,
   
   int32_t crv,cbu,cgu,cgv;
   
-  /* matrix coefficients */
+  // matrix coefficients
   crv = Inverse_Table_6_9[matrix_coefficients][0];
   cbu = Inverse_Table_6_9[matrix_coefficients][1];
   cgu = Inverse_Table_6_9[matrix_coefficients][2];
@@ -562,5 +560,257 @@ mlib_VideoColorYUV2ABGR420(uint8_t* image, const uint8_t* py,
 
 
 
+
+
+#define W1 2841 /* 2048*sqrt(2)*cos(1*pi/16) */
+#define W2 2676 /* 2048*sqrt(2)*cos(2*pi/16) */
+#define W3 2408 /* 2048*sqrt(2)*cos(3*pi/16) */
+#define W5 1609 /* 2048*sqrt(2)*cos(5*pi/16) */
+#define W6 1108 /* 2048*sqrt(2)*cos(6*pi/16) */
+#define W7 565  /* 2048*sqrt(2)*cos(7*pi/16) */
+
+
+
+/* row (horizontal) IDCT
+ *
+ *           7                       pi         1
+ * dst[k] = sum c[l] * src[l] * cos( -- * ( k + - ) * l )
+ *          l=0                      8          2
+ *
+ * where: c[0]    = 128
+ *        c[1..7] = 128*sqrt(2)
+ */
+
+INLINE static void 
+idct_row(int16_t *blk, int16_t *coeffs)
+{
+  int x0, x1, x2, x3, x4, x5, x6, x7, x8;
+
+  x1 = coeffs[4]<<11; 
+  x2 = coeffs[6]; 
+  x3 = coeffs[2];
+  x4 = coeffs[1]; 
+  x5 = coeffs[7]; 
+  x6 = coeffs[5]; 
+  x7 = coeffs[3];
+
+#if 0
+  /* shortcut */
+  if (!(x1 | x2 | x3 | x4 | x5 | x6 | x7 ))
+  {
+    blk[0]=blk[1]=blk[2]=blk[3]=blk[4]=blk[5]=blk[6]=blk[7]=coeffs[0]<<3;
+    return;
+  }
+#endif
+
+  x0 = (coeffs[0]<<11) + 128; /* for proper rounding in the fourth stage */
+
+  /* first stage */
+  x8 = W7*(x4+x5);
+  x4 = x8 + (W1-W7)*x4;
+  x5 = x8 - (W1+W7)*x5;
+  x8 = W3*(x6+x7);
+  x6 = x8 - (W3-W5)*x6;
+  x7 = x8 - (W3+W5)*x7;
+  
+  /* second stage */
+  x8 = x0 + x1;
+  x0 -= x1;
+  x1 = W6*(x3+x2);
+  x2 = x1 - (W2+W6)*x2;
+  x3 = x1 + (W2-W6)*x3;
+  x1 = x4 + x6;
+  x4 -= x6;
+  x6 = x5 + x7;
+  x5 -= x7;
+  
+  /* third stage */
+  x7 = x8 + x3;
+  x8 -= x3;
+  x3 = x0 + x2;
+  x0 -= x2;
+  x2 = (181*(x4+x5)+128)>>8;
+  x4 = (181*(x4-x5)+128)>>8;
+  
+  /* fourth stage */
+  blk[0] = (x7+x1)>>8;
+  blk[1] = (x3+x2)>>8;
+  blk[2] = (x0+x4)>>8;
+  blk[3] = (x8+x6)>>8;
+  blk[4] = (x8-x6)>>8;
+  blk[5] = (x0-x4)>>8;
+  blk[6] = (x3-x2)>>8;
+  blk[7] = (x7-x1)>>8;
+}
+
+
+/* column (vertical) IDCT
+ *
+ *             7                         pi         1
+ * dst[8*k] = sum c[l] * src[8*l] * cos( -- * ( k + - ) * l )
+ *            l=0                        8          2
+ *
+ * where: c[0]    = 1/1024
+ *        c[1..7] = (1/1024)*sqrt(2)
+ */
+
+/* FIXME something odd is going on with inlining this 
+ * procedure. Things break if it isn't inlined */
+INLINE static void 
+idct_col(int16_t *blk, int16_t *coeffs)
+{
+  int x0, x1, x2, x3, x4, x5, x6, x7, x8;
+
+  /* shortcut */
+  x1 = (coeffs[8*4]<<8); 
+  x2 = coeffs[8*6]; 
+  x3 = coeffs[8*2];
+  x4 = coeffs[8*1];
+  x5 = coeffs[8*7]; 
+  x6 = coeffs[8*5];
+  x7 = coeffs[8*3];
+
+#if 0
+  if (!(x1  | x2 | x3 | x4 | x5 | x6 | x7 ))
+  {
+    blk[8*0] = blk[8*1] = blk[8*2] = blk[8*3] 
+      = blk[8*4] = blk[8*5] = blk[8*6] = blk[8*7] 
+      = (coeffs[8*0]+32)>>6;
+    return;
+  }
+#endif
+
+  x0 = (coeffs[8*0]<<8) + 8192;
+
+  /* first stage */
+  x8 = W7*(x4+x5) + 4;
+  x4 = (x8+(W1-W7)*x4)>>3;
+  x5 = (x8-(W1+W7)*x5)>>3;
+  x8 = W3*(x6+x7) + 4;
+  x6 = (x8-(W3-W5)*x6)>>3;
+  x7 = (x8-(W3+W5)*x7)>>3;
+  
+  /* second stage */
+  x8 = x0 + x1;
+  x0 -= x1;
+  x1 = W6*(x3+x2) + 4;
+  x2 = (x1-(W2+W6)*x2)>>3;
+  x3 = (x1+(W2-W6)*x3)>>3;
+  x1 = x4 + x6;
+  x4 -= x6;
+  x6 = x5 + x7;
+  x5 -= x7;
+  
+  /* third stage */
+  x7 = x8 + x3;
+  x8 -= x3;
+  x3 = x0 + x2;
+  x0 -= x2;
+  x2 = (181*(x4+x5)+128)>>8;
+  x4 = (181*(x4-x5)+128)>>8;
+  
+  /* fourth stage */
+  blk[8*0] = (x7+x1)>>14;
+  blk[8*1] = (x3+x2)>>14;
+  blk[8*2] = (x0+x4)>>14;
+  blk[8*3] = (x8+x6)>>14;
+  blk[8*4] = (x8-x6)>>14;
+  blk[8*5] = (x0-x4)>>14;
+  blk[8*6] = (x3-x2)>>14;
+  blk[8*7] = (x7-x1)>>14;
+}
+
+INLINE static void 
+idct_col_u8(uint8_t *blk, int16_t *coeffs, int stride)
+{
+  int x0, x1, x2, x3, x4, x5, x6, x7, x8;
+
+  /* shortcut */
+  x1 = (coeffs[8*4]<<8); 
+  x2 = coeffs[8*6]; 
+  x3 = coeffs[8*2];
+  x4 = coeffs[8*1];
+  x5 = coeffs[8*7]; 
+  x6 = coeffs[8*5];
+  x7 = coeffs[8*3];
+
+#if 0
+  if (!(x1  | x2 | x3 | x4 | x5 | x6 | x7 ))
+  {
+    blk[stride*0] = blk[stride*1] = blk[stride*2] = blk[stride*3]
+      = blk[stride*4] = blk[stride*5] = blk[stride*6] = blk[stride*7]
+      = clip_to_u8(coeffs[stride*0]+32)>>6;
+    return;
+  }
+#endif
+
+  x0 = (coeffs[8*0]<<8) + 8192;
+
+  /* first stage */
+  x8 = W7*(x4+x5) + 4;
+  x4 = (x8+(W1-W7)*x4)>>3;
+  x5 = (x8-(W1+W7)*x5)>>3;
+  x8 = W3*(x6+x7) + 4;
+  x6 = (x8-(W3-W5)*x6)>>3;
+  x7 = (x8-(W3+W5)*x7)>>3;
+  
+  /* second stage */
+  x8 = x0 + x1;
+  x0 -= x1;
+  x1 = W6*(x3+x2) + 4;
+  x2 = (x1-(W2+W6)*x2)>>3;
+  x3 = (x1+(W2-W6)*x3)>>3;
+  x1 = x4 + x6;
+  x4 -= x6;
+  x6 = x5 + x7;
+  x5 -= x7;
+  
+  /* third stage */
+  x7 = x8 + x3;
+  x8 -= x3;
+  x3 = x0 + x2;
+  x0 -= x2;
+  x2 = (181*(x4+x5)+128)>>8;
+  x4 = (181*(x4-x5)+128)>>8;
+  
+  /* fourth stage */
+  blk[stride*0] = clip_to_u8((x7+x1)>>14);
+  blk[stride*1] = clip_to_u8((x3+x2)>>14);
+  blk[stride*2] = clip_to_u8((x0+x4)>>14);
+  blk[stride*3] = clip_to_u8((x8+x6)>>14);
+  blk[stride*4] = clip_to_u8((x8-x6)>>14);
+  blk[stride*5] = clip_to_u8((x0-x4)>>14);
+  blk[stride*6] = clip_to_u8((x3-x2)>>14);
+  blk[stride*7] = clip_to_u8((x7-x1)>>14);
+}
+
+
+
+void
+mlib_VideoIDCT8x8_S16_S16(int16_t *block,
+			  int16_t *coeffs)
+{
+  int i;
+  
+  for (i=0; i<8; i++)
+    idct_row(block + 8*i, coeffs + 8*i);
+  for (i=0; i<8; i++)
+    idct_col(block + i, block + i);
+}
+
+
+void
+mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
+			 int16_t *coeffs,
+			 int32_t stride)
+{
+  int16_t temp[64];
+  int i;
+  
+  for (i=0; i<8; i++)
+    idct_row(temp + 8*i, coeffs + 8*i);
+  for (i=0; i<8; i++)
+    idct_col_u8(block + i, temp + i, stride);
+}
 
 

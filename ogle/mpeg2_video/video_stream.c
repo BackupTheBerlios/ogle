@@ -3108,7 +3108,7 @@ void block_intra(unsigned int i)
       else
 	dst = &dst_image->v[x * 8 + y * width/2 * 8];
     }
-    mlib_VideoIDCT_U8_S16(dst, (mlib_s16 *)mb.QFS, stride);
+    mlib_VideoIDCT8x8_U8_S16(dst, (mlib_s16 *)mb.QFS, stride);
   }
 }
 
@@ -3276,7 +3276,7 @@ void block_non_intra(unsigned int b)
     
     DPRINTF(4, "nr of coeffs: %d\n", n);
   }
-  mlib_VideoIDCT_S16_S16(mb.f[b], (mlib_s16 *)mb.QFS);
+  mlib_VideoIDCT8x8_S16_S16(mb.f[b], (mlib_s16 *)mb.QFS);
 }
 
 /* 6.2.5.2 Motion vectors */
