@@ -396,16 +396,6 @@ static void release_picture_buf(int id)
 
 }
 
-static void send_windowid(Window win)
-{
-  MsgEvent_t ev;
-  ev.type = MsgEventQXWindowID;
-  ev.xwindowid.window = (unsigned long)win;
-  if(MsgSendEvent(msgq, gui_client, &ev, 0) == -1) {
-    fprintf(stderr, "vo: failed to send XWindowID\n");
-    exit(-1);
-  }
-}
 
 /* Erhum test... */
 clocktime_t first_time;
@@ -496,7 +486,7 @@ static void display_process()
       win = display_init(&image_bufs[buf_id],
 			 picture_ctrl_head,
 			 picture_buf_base);
-      send_windowid(win);
+
       //display(&(buf_ctrl_head->picture_infos[buf_id].picture));
       /* Erhum test... */
       clocktime_get(&first_time);      

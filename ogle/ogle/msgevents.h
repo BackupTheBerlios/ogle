@@ -88,7 +88,6 @@ typedef enum {
   MsgEventQDVDCtrlLong,
   MsgEventQDemuxDVD,
   MsgEventQDemuxDVDRoot,
-  MsgEventQXWindowID,
   MsgEventQSetAspectModeSrc,
   MsgEventQSetSrcAspect,
   MsgEventQSetZoomMode,
@@ -337,13 +336,6 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
-  unsigned long window;
-} MsgQXWindowIDEvent_t;
-
-typedef struct {
-  MsgEventType_t type;
-  MsgEventQ_t *q;
-  MsgEventClient_t client;
   char filename[PATH_MAX+1];
 } MsgQChangefileEvent_t;
 
@@ -435,7 +427,6 @@ typedef union {
   MsgQDVDCtrlLongEvent_t dvdctrllong;
   MsgQDemuxDVDEvent_t demuxdvd;
   MsgQDemuxDVDRootEvent_t demuxdvdroot;
-  MsgQXWindowIDEvent_t xwindowid;
   MsgQSetAspectModeSrcEvent_t setaspectmodesrc;
   MsgQSetSrcAspectEvent_t setsrcaspect;
   MsgQSetZoomModeEvent_t setzoommode;

@@ -59,7 +59,6 @@ static char *MsgEventType_str[] = {
   "MsgEventQDVDCtrlLong",
   "MsgEventQDemuxDVD", // 29
   "MsgEventQDemuxDVDRoot",
-  "MsgEventQXWindowID",
   "MsgEventQSetAspectModeSrc",
   "MsgEventQSetSrcAspect",
   "MsgEventQSetZoom",
@@ -290,9 +289,6 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDemuxDVDRoot:
     size = sizeof(MsgQAnyEvent_t)+strlen(event_send->demuxdvdroot.path)+1;
-    break;
-  case MsgEventQXWindowID:
-    size = sizeof(MsgQXWindowIDEvent_t);
     break;
   case MsgEventQSetAspectModeSrc:
     size = sizeof(MsgQSetAspectModeSrcEvent_t);
