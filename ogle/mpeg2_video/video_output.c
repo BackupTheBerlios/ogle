@@ -25,6 +25,11 @@
 #include <time.h>
 #include <errno.h>
 
+#ifdef __bsdi__
+#include <sys/param.h>
+#include <sys/sysctl.h>
+#endif
+
 #ifndef HAVE_CLOCK_GETTIME
 #include <sys/time.h>
 #endif
@@ -1020,10 +1025,22 @@ void display_process_exit(void) {
 }
 
 
+#ifdef __bsdi__
 
-
-
-
+static int bsdi_getticks(void)
+{
+  int mib[2];
+  struct clockinfo ci;
+  
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_CLOCKRATE;
+  if (sysctl(mib, 2, NULL, 0, &ci, sizeof (ci)) < 0) {
+    perror("sysctl kern.clockrate");
+    return(100);
+  }
+  return ci.hz;
+}
+#endif
 
 
 static void usage()
@@ -1060,8 +1077,14 @@ int main(int argc, char **argv)
   }
   
   errno = 0;
+
+#ifdef __bsdi__
+  clk_tck = bsdi_getticks();
+#else
+  clk_tck = sysconf(_SC_CLK_TCK);
+#endif
   
-  if((clk_tck = sysconf(_SC_CLK_TCK)) <= 0) {
+  if(clk_tck <= 0) {
     // linux returns 0 as error also
     if(errno != 0 && clk_tck == -1) {
       perror("sysconf(_SC_CLK_TCK)");
