@@ -31,7 +31,7 @@ Non configurable keys:
   'i', saves a screen shoot (as screenshoot.jpg in pwd)
   'I', saves a screen shoot with the subpicture overlay intact
 
-In addition to the above the arrow buttons and mouse can be used to move around in the DVD menues. Return, the keypad enter and ledt mouse button may be used to activate a DVD button.
+In addition to the above the arrow buttons and mouse can be used to move around in the DVD menues. Return, the keypad enter and left mouse button may be used to activate a DVD button.
 .SH FILES
 $HOME/.oglerc
 .br
