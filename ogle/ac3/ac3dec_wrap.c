@@ -371,6 +371,7 @@ int get_q()
     
     if(ctrl_time[scr_nr].offset_valid == OFFSET_NOT_VALID) {
       if(PTS_DTS_flags & 0x2) {
+	// time_offset is our guess to how much is in the output q
 	set_time_base(PTS, ctrl_time, scr_nr, time_offset);
       }
     }
