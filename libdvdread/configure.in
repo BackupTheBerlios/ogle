@@ -1,9 +1,10 @@
 AC_INIT(dvdread/dvd_reader.c)
+
+AC_CANONICAL_SYSTEM
+
 AM_INIT_AUTOMAKE(libdvdread, 0.9.3-cvs)
 AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
-
-AC_CANONICAL_SYSTEM
 
 AC_PROG_CC
 AC_STDC_HEADERS
@@ -129,7 +130,7 @@ dnl It's nice to have clean code...
 dnl
 AC_ARG_ENABLE([warnings],
     [  --enable-warnings       enable -Wall and treat warnings as errors])
-if test x"$enable_warnings" != xno; then
+if test x"$enable_warnings" = xyes; then
     if test x"$GCC" = xyes; then
 	OPT_CFLAGS="-Wall -Werror $CFLAGS"
 	AC_TRY_CFLAGS([$OPT_CFLAGS],[CFLAGS=$OPT_CFLAGS])
