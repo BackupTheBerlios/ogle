@@ -107,6 +107,7 @@ static double xscale_factor;
 extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
+void display_change_size(int new_width, int new_height);
 
 void display_init(int padded_width, int padded_height,
 		  int horizontal_size, int vertical_size,
@@ -136,16 +137,28 @@ void display_init(int padded_width, int padded_height,
   screen = DefaultScreen(mydisplay);
 
   sar = ((double)DisplayHeightMM(mydisplay, screen)*(double)DisplayWidth(mydisplay, screen))/((double)DisplayWidthMM(mydisplay, screen)*(double)DisplayHeight(mydisplay, screen));
-  xscale_factor = buf_ctrl_head->picture_infos[0].picture.sar/sar;
-  hint.x = 0;
-  hint.y = 0;
-  hint.width = horizontal_size*xscale_factor;
-  hint.height = vertical_size;
-  hint.flags = PPosition | PSize;
+  xscale_factor = sar/buf_ctrl_head->picture_infos[0].picture.sar;
+  fprintf(stderr, "*** h: %d, w: %d, hp: %d, wp: %d\n",
+	  DisplayHeightMM(mydisplay, screen),
+	  DisplayWidthMM(mydisplay, screen),
+	  DisplayHeight(mydisplay, screen),
+	  DisplayWidth(mydisplay, screen));
+  fprintf(stderr, "*** src_sar: %f, dst_sar: %f, xscale: %f\n",
+	  buf_ctrl_head->picture_infos[0].picture.sar,
+	  sar, xscale_factor);
+
 
   /* Scale init. */
-  scaled_image_width = horizontal_size*xscale_factor;
+  scaled_image_width = (int)(((double)horizontal_size)*xscale_factor);
   scaled_image_height = vertical_size;
+
+  hint.x = 0;
+  hint.y = 0;
+  hint.width = scaled_image_width;
+  hint.height = scaled_image_height;
+  hint.flags = PPosition | PSize;
+
+
   
   /* Make the window */
   XGetWindowAttributes(mydisplay, DefaultRootWindow(mydisplay), &attribs);
@@ -295,8 +308,8 @@ void display_init(int padded_width, int padded_height,
   /* Create shared memory image */
   windows[0].ximage = XShmCreateImage(mydisplay, vinfo.visual, color_depth,
 				      ZPixmap, NULL, &shm_info,
-				      padded_width,
-				      padded_height);
+				      scaled_image_width,
+				      scaled_image_height);
   
   if (windows[0].ximage == NULL) {
     fprintf(stderr, "Shared memory: couldn't create Shm image\n");
@@ -343,6 +356,7 @@ void display_init(int padded_width, int padded_height,
   }
   */
   yuv2rgb_init(pixel_stride, mode);
+  
   
   return;
   
