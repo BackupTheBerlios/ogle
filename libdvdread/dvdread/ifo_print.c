@@ -30,6 +30,7 @@
 #include "ifo_types.h"
 #include "ifo_read.h"
 #include "ifo_print.h"
+#include "cmd_print.h"
 #include "dvdread_internal.h"
 
 /* Put this in some other file / package?  It's used in nav_print too. */
@@ -61,20 +62,6 @@ static void ifoPrint_time(dvd_time_t *dtime) {
     break;
   } 
   printf(" @ %s fps", rate);
-}
-
-/* Put this in some other file / package?  It's used in nav_print too.
-   Possibly also by the vm / navigator. */
-static void ifoPrint_CMD(int row, vm_cmd_t *command) {
-  int i;
-
-  printf("(%03d) ", row + 1);
-  for(i=0;i<8;i++)
-    printf("%02x ", command->bytes[i]);
-  printf("| ");
-
-  //vmcmd(command);
-  printf("\n");
 }
 
 static void ifoPrint_video_attributes(video_attr_t *attr) {
@@ -636,17 +623,17 @@ static void ifoPrint_PGC_COMMAND_TBL(pgc_command_tbl_t *cmd_tbl) {
   
   printf("Number of Pre commands: %i\n", cmd_tbl->nr_of_pre);
   for(i = 0; i < cmd_tbl->nr_of_pre; i++) {
-    ifoPrint_CMD(i, &cmd_tbl->pre_cmds[i]);
+    cmdPrint_CMD(i, &cmd_tbl->pre_cmds[i]);
   }
 
   printf("Number of Post commands: %i\n", cmd_tbl->nr_of_post);
   for(i = 0; i < cmd_tbl->nr_of_post; i++) {
-    ifoPrint_CMD(i, &cmd_tbl->post_cmds[i]);
+    cmdPrint_CMD(i, &cmd_tbl->post_cmds[i]);
   }
 
   printf("Number of Cell commands: %i\n", cmd_tbl->nr_of_cell);
   for(i = 0; i < cmd_tbl->nr_of_cell; i++) {
-    ifoPrint_CMD(i, &cmd_tbl->cell_cmds[i]);
+    cmdPrint_CMD(i, &cmd_tbl->cell_cmds[i]);
   }
 }
 

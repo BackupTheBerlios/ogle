@@ -30,6 +30,7 @@
 
 #include "nav_types.h"
 #include "nav_print.h"
+#include "cmd_print.h"
 #include "dvdread_internal.h"
 
 static void print_time(dvd_time_t *dtime) {
@@ -167,7 +168,7 @@ static void navPrint_BTNIT(btni_t *btni_table, int btngr_ns, int btn_ns) {
 	printf("left %d, ", btni->left);
 	printf("right %d\n", btni->right);
 	
-	// ifoPrint_COMMAND(&btni->cmd);
+	cmdPrint_CMD(0, &btni->cmd);
 	printf("\n");
       }
     }
