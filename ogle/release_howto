@@ -20,6 +20,7 @@
 6.  Make rpms
 
 6.1 update the version number (and package description)
+    and change log
     in ogle.spec, ogle-alsa.spec
 
 6.2 chroot to your build environment if neccesary
