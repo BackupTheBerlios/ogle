@@ -152,6 +152,33 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
 	region = ev->dvdctrl.cmd.playerregionselect.region;
 	set_sprm(20, region);
 	break;
+      case DVDCtrlGetCurrentDomain:
+      case DVDCtrlGetCurrentLocation:
+      case DVDCtrlGetDVDVolumeInfo:
+      case DVDCtrlGetTitles:
+      case DVDCtrlGetNumberOfPTTs:
+      case DVDCtrlGetCurrentAudio:
+      case DVDCtrlIsAudioStreamEnabled:
+      case DVDCtrlGetCurrentUOPS:
+      case DVDCtrlGetAudioAttributes:
+      case DVDCtrlGetCurrentSubpicture:
+      case DVDCtrlIsSubpictureStreamEnabled:
+      case DVDCtrlGetSubpictureAttributes:
+      case DVDCtrlGetCurrentAngle:
+      case DVDCtrlGetState:
+      case DVDCtrlGetDiscID:
+      case DVDCtrlGetVolIds:
+	{
+	  MsgEvent_t send_ev;
+	  
+	  send_ev.type = MsgEventQDVDCtrl;
+	  send_ev.dvdctrl.cmd.type = DVDCtrlRetVal;
+	  send_ev.dvdctrl.cmd.retval.serial =
+	    ev->dvdctrl.cmd.any.serial;
+	  send_ev.dvdctrl.cmd.retval.val = DVD_E_RootNotSet;
+	  MsgSendEvent(msgq, ev->any.client, &send_ev, 0);
+	}
+	break;
       default:
 	DNOTE("unhandled dvdctrl event type (%d)\n", ev->dvdctrl.cmd.type);
 	break;
