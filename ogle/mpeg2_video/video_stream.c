@@ -5,8 +5,9 @@
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <unistd.h>
 #include <inttypes.h>
+#include <signal.h>
 
 #include "video_stream.h"
 
@@ -36,7 +37,10 @@ static XVisualInfo vinfo;
 XShmSegmentInfo shm_info;
 XShmSegmentInfo shm_info_ref1;
 XShmSegmentInfo shm_info_ref2;
-
+int   ring_shmid;
+int   ring_c_shmid;
+int   ring_buffers = 4;
+char *ring_shmaddr;
 unsigned char *ImageData;
 unsigned char *imagedata_ref1;
 unsigned char *imagedata_ref2;
@@ -53,7 +57,7 @@ Window window_stat;
 double time_pic[4] = { 0.0, 0.0, 0.0, 0.0};
 double time_max[4] = { 0.0, 0.0, 0.0, 0.0};
 double time_min[4] = { 1.0, 1.0, 1.0, 1.0};
-double num_pic[4] = { 0.0, 0.0, 0.0, 0.0};
+double num_pic[4]  = { 0.0, 0.0, 0.0, 0.0};
 
 
 GC mygc;
@@ -112,8 +116,7 @@ uint32_t stats_f_non_intra_subseq_escaped_run_nr = 0;
 uint32_t stats_f_non_intra_first_escaped_run_nr = 0;
 
 void statistics_init()
-{
-  
+{  
   stats_intra_inverse_quantiser_matrix_reset = 0;
   stats_intra_inverse_quantiser_matrix_loaded = 0;
 
@@ -224,8 +227,13 @@ void motion_comp();
 void extension_data(unsigned int i);
 
 void frame_done();
-
 void exit_program(int exitcode) __attribute__ ((noreturn));
+
+int  writer_alloc(void);
+void writer_free(int);
+int  reader_alloc(void);
+void reader_free(int);
+
 
 // Not implemented
 void quant_matrix_extension();
@@ -247,14 +255,11 @@ uint32_t buf_size;
 uint8_t *mmap_base;
 struct off_len_packet packet;
 #endif
-unsigned int buf_len = 0;
-unsigned int buf_start = 0;
-unsigned int buf_fill = 0;
+unsigned int buf_len    = 0;
+unsigned int buf_start  = 0;
+unsigned int buf_fill   = 0;
 unsigned int bytes_read = 0;
-unsigned int bit_start = 0;
-
-
-
+unsigned int bit_start  = 0;
 
 FILE *infile;
 
@@ -343,6 +348,10 @@ typedef struct {
   mlib_u8 *y; //[480][720];  //y-component image
   mlib_u8 *u; //[480/2][720/2]; //u-component
   mlib_u8 *v; //[480/2][720/2]; //v-component
+  
+  //timecode_t time;
+
+  uint8_t lock;
 } yuv_image_t;
 
 
@@ -357,9 +366,7 @@ yuv_image_t *ref_image2;
 yuv_image_t *dst_image;
 yuv_image_t *b_image;
 yuv_image_t *current_image;
-
-
-
+yuv_image_t *ring;
 
 
 /*macroblock*/
@@ -764,9 +771,16 @@ int get_vlc(const vlc_table_t *table, char *func) {
 }
 
 
-void program_init()
+void sighandler(void)
 {
-  
+  exit_program(0);
+}
+
+
+void init_program()
+{
+  struct sigaction sig;
+
   cur_mbs = malloc(36*45*sizeof(macroblock_t));
   ref1_mbs = malloc(36*45*sizeof(macroblock_t));
   ref2_mbs = malloc(36*45*sizeof(macroblock_t));
@@ -775,31 +789,47 @@ void program_init()
   ref_image1 = &r1_img;
   ref_image2 = &r2_img;
   b_image = &b_img;
+
   display_init();
+
+
+  // Setup signal handler.
+
+  
+  sig.sa_handler = sighandler;
+  sigaction(SIGINT, &sig, NULL);
+  
+
+
 
 #ifdef STATS
   statistics_init();
 #endif
   return;
 }
+
 int main(int argc, char **argv)
 {
   int c;
 
   /* Parse command line options */
-  while ((c = getopt(argc, argv, "d:hs")) != EOF) {
+  while ((c = getopt(argc, argv, "d:r:hs")) != EOF) {
     switch (c) {
     case 'd':
       debug = atoi(optarg);
+      break;
+    case 'r':
+      ring_buffers = atoi(optarg);
       break;
     case 's':
       shmem_flag = 0;
       break;
     case 'h':
     case '?':
-      printf ("Usage: %s [-d <level] [-s]\n\n"
-	      "  -d <level> set debug level (default 0)\n"
-	      "  -s         disable shared memory\n", 
+      printf ("Usage: %s [-d <level] [-s <buffers>] [-s]\n\n"
+	      "  -d <level>   set debug level (default 0)\n"
+	      "  -r <buffers> set ringbuffer size (default 4)\n"
+	      "  -s           disable shared memory\n", 
 	      argv[0]);
       return 1;
     }
@@ -810,7 +840,7 @@ int main(int argc, char **argv)
     infile = stdin;
   }
 
-  program_init();
+  init_program();
   
 #ifdef GETBITSMMAP
   get_next_packet(); // Realy, open and mmap the FILE
@@ -1124,12 +1154,100 @@ void sequence_header(void)
 
 }
 
-void setup_shm(int num_pels)
+#define BUFFER_FREE 0
+#define BUFFER_FULL 1
+
+int writer_alloc(void)
+{
+  int i;
+  for(i=0 ; i<ring_buffers ; i++) {
+    if (ring[i].lock == BUFFER_FREE)
+      break;
+  }
+  return i;
+}
+
+void writer_free(int buffer)
+{
+  ring[buffer].lock = BUFFER_FULL;
+}
+
+int  reader_alloc(void)
+{
+  int i;
+  for(i=0 ; i<ring_buffers ; i++) {
+    if (ring[i].lock == BUFFER_FULL)
+      break;
+  }
+  return i;
+}
+
+void reader_free(int buffer)
+{
+  ring[buffer].lock = BUFFER_FREE;
+}
+
+#define INC_8b_ALIGNMENT(a) ((a) + (a)%8)
+
+void setup_shm(int horiz_size, int vert_size)
 { 
-  //  int num_pels = seq.horizontal_size * seq.vertical_size;
+  int num_pels     = horiz_size * vert_size;
+  int key          = 740828;
+  int pagesize     = sysconf(_SC_PAGESIZE);
+  int yuv_size     = INC_8b_ALIGNMENT(num_pels) + INC_8b_ALIGNMENT(num_pels/4) * 2; 
+  int segment_size = ring_buffers * (yuv_size + yuv_size % pagesize);
+  int ring_c_size  = ring_buffers * sizeof(yuv_image_t);
+  int i;
+  char *baseaddr;
+
+  // Get the ringbuffer shared memory.
   
+  if ((ring_shmid = shmget(key, segment_size, IPC_CREAT | 0666)) < 0) {
+    perror("shmget ringbuffer");
+    exit_program(1);
+  }
+
+  // Get the control part.
+
+  if ((ring_c_shmid = shmget(key+1, ring_c_size, IPC_CREAT | 0666)) < 0) {
+    perror("shmget ringbuffer control");
+    exit_program(1);
+  }
+  
+  /*
+   * Now we attach the segments to our data space.
+   */
+  ring_shmaddr = shmat(ring_shmid, NULL, 0); // Add SHM_SHARE_MMU?
+  if(ring_shmaddr == (char *) -1) {
+    perror("shmat ringbuffer");
+    exit_program(1);
+  }
+  
+  ring = (yuv_image_t *)shmat(ring_c_shmid, NULL, 0); // Add SHM_SHARE_MMU?
+  if(ring == (yuv_image_t *) -1) {
+    perror("shmat ringbuffer control");
+    exit_program(1);
+  }
+
+  // Setup the ring buffer.
+  //  ring = (yuv_image_t[])malloc(ring_buffers*sizeof(yuv_image_t));
+  
+  baseaddr = ring_shmaddr;
+  for(i=0 ; i<ring_buffers ; i++) {
+    ring[i].y = baseaddr;
+    ring[i].u = num_pels   + (char *)INC_8b_ALIGNMENT((long)ring[i].y);
+    ring[i].v = num_pels/4 + (char *)INC_8b_ALIGNMENT((long)ring[i].u);
+    ring[i].lock = BUFFER_FREE;
+    baseaddr += yuv_size + yuv_size % pagesize;
+  }
+
+  // Fork off the CC/sync stage here.
+  
+  {}  
+
   if(ref_image1->y == NULL) {
-    DPRINTF(1, "allocateing buffers\n");
+    DPRINTF(1, "Allocating buffers\n");
+#if 0
     ref_image1->y = memalign(8, num_pels);
     ref_image1->u = memalign(8, num_pels/4);
     ref_image1->v = memalign(8, num_pels/4);
@@ -1141,7 +1259,11 @@ void setup_shm(int num_pels)
     b_image->y = memalign(8, num_pels);
     b_image->u = memalign(8, num_pels/4);
     b_image->v = memalign(8, num_pels/4);
-    
+#else    
+    ref_image1 = &ring[0];
+    ref_image2 = &ring[1];
+    b_image    = &ring[2];
+#endif
     if (shmem_flag) {
       /* Create shared memory image */
       myximage = XShmCreateImage(mydisplay, vinfo.visual, bpp,
@@ -1213,15 +1335,16 @@ void setup_shm(int num_pels)
     ImageData = myximage->data;
     imagedata_ref1 = ximage_ref1->data;
     imagedata_ref2 = ximage_ref2->data;
+
+
   } 
 }
 
 
 /* 6.2.2.3 Sequence extension */
 void sequence_extension(void) {
-
+  static int shm_ready = 0;
   uint32_t extension_start_code;
-  
   
   extension_start_code = GETBITS(32, "extension_start_code");
   
@@ -1296,7 +1419,10 @@ void sequence_extension(void) {
   seq.horizontal_size |= (seq.ext.horizontal_size_extension << 12);
   seq.vertical_size |= (seq.ext.vertical_size_extension << 12);
 
-  setup_shm(seq.horizontal_size * seq.vertical_size);
+  if(!shm_ready) {
+    setup_shm(seq.horizontal_size, seq.vertical_size);
+    shm_ready = 1;
+  }
 }
 
 /* 6.2.2.2 Extension and user data */
@@ -1575,15 +1701,9 @@ void picture_data(void)
 {
   
   yuv_image_t *tmp_img;
-  
  
-  
   DPRINTF(3, "picture_data\n");
   
-  
-  
-  
-
   switch(pic.header.picture_coding_type) {
   case 0x1:
   case 0x2:
@@ -4737,7 +4857,6 @@ void frame_done()
 
 void draw_win(debug_win *dwin)
 {
-  
   compute_frame(dwin->image, dwin->data);
   if(dwin->grid) {
     if(dwin->color_grid) {
@@ -4766,6 +4885,11 @@ void exit_program(int exitcode)
   shmctl (shm_info.shmid, IPC_RMID, 0);
   shmctl (shm_info_ref1.shmid, IPC_RMID, 0);
   shmctl (shm_info_ref2.shmid, IPC_RMID, 0);
+
+  shmdt ( ring_shmaddr);
+  shmdt ( (char *)ring);
+  shmctl (ring_shmid, IPC_RMID, 0);
+  shmctl (ring_c_shmid, IPC_RMID, 0);
 
   {
     int n;
