@@ -34,6 +34,8 @@ void init_interpret_config(char *pgm_name,
   program_name = pgm_name;
   add_keybinding = keybinding_cb;
   set_dvd_path = dvd_path_cb;
+
+  LIBXML_TEST_VERSION
 }
 
 static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
