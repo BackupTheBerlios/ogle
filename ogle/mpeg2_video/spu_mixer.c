@@ -74,7 +74,7 @@ typedef struct {
   int has_highlight;
   uint8_t color[4];
   uint8_t contrast[4];
-} spu_t;
+} spu_handle_t;
 
 typedef struct {
   uint8_t color[4];
@@ -99,7 +99,7 @@ static int aligned;
 static uint16_t fieldoffset[2];
 static uint16_t field = 0;
 
-static spu_t spu_info = { 0 };
+static spu_handle_t spu_info = { 0 };
 
 static int initialized = 0;
 
@@ -518,7 +518,7 @@ static inline uint8_t get_nibble (void)
 
 
 
-static void decode_dcsqt(spu_t *spu_info)
+static void decode_dcsqt(spu_handle_t *spu_info)
 {
   // init start position
   set_byte(spu_info->buffer);
@@ -543,7 +543,7 @@ static void decode_dcsqt(spu_t *spu_info)
 }
 
 
-static void decode_dcsq(spu_t *spu_info)
+static void decode_dcsq(spu_handle_t *spu_info)
 { 
   uint8_t command;
   uint32_t dummy;
@@ -890,7 +890,7 @@ static void display_mix_function_yuv(uint32_t color, uint32_t contrast,
 }
 
 
-static void decode_display_data(spu_t *spu_info, char *data, 
+static void decode_display_data(spu_handle_t *spu_info, char *data, 
 				int pixel_stride, int line_stride,
 				int blendyuv, int image_stride) 
 {
@@ -1048,7 +1048,7 @@ static void decode_display_data(spu_t *spu_info, char *data,
  *
  *
  */
-static int next_spu_cmd_pending(spu_t *spu_info)
+static int next_spu_cmd_pending(spu_handle_t *spu_info)
 {
   int start_time, offset;
   clocktime_t realtime, errtime, next_time;
