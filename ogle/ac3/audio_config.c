@@ -32,6 +32,7 @@ audio_config_t *audio_config_init(void)
   int ms_offset;
   
   conf = malloc(sizeof(audio_config_t));
+  memset(conf, 0, sizeof(audio_config_t));
   
   conf->format.nr_channels = 0;
   conf->format.ch_array = NULL;

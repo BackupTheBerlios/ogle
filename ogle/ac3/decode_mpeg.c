@@ -220,7 +220,8 @@ int flush_mpeg(adec_mpeg_handle_t *handle)
   handle->bytes_needed = 7;
   
   // Fix this.. not the right way to do things I belive.
-  ogle_ao_flush(handle->handle.config->adev_handle);
+  if(handle->handle.config && handle->handle.config->adev_handle)
+    ogle_ao_flush(handle->handle.config->adev_handle);
   return 0;
 }
 
@@ -247,6 +248,8 @@ adec_handle_t *init_mpeg(void)
     return NULL;
   }
   
+  memset(&handle->handle, 0, sizeof(struct adec_handle_s));
+  // not set: drain
   handle->handle.decode = (audio_decode_t) decode_mpeg;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_mpeg;
   handle->handle.free   = (audio_free_t)   free_mpeg;

@@ -178,7 +178,8 @@ int flush_lpcm(adec_lpcm_handle_t *handle)
   handle->pts_valid = 0;
   
   // Fix this.. not the right way to do things I belive.
-  ogle_ao_flush(handle->handle.config->adev_handle);
+  if(handle->handle.config && handle->handle.config->adev_handle)
+    ogle_ao_flush(handle->handle.config->adev_handle);
   return 0;
 }
 
@@ -200,6 +201,8 @@ adec_handle_t *init_lpcm(void)
     return NULL;
   }
   
+  memset(&handle->handle, 0, sizeof(struct adec_handle_s));
+  // not set: drain
   handle->handle.decode = (audio_decode_t) decode_lpcm;  // function pointers
   handle->handle.flush  = (audio_flush_t)  flush_lpcm;
   handle->handle.free   = (audio_free_t)   free_lpcm;
