@@ -50,7 +50,7 @@ The -u options are (of course) mutually exclusive.
 .TP
 USE_FFB2_YUV2RGB
 If you run Ogle on Solaris and have a FFB2 frame buffer (a Creator 3D) 
-then you can use it's hardware yuv2rgb to gain faster playback speed.  This 
+then you can use its hardware yuv2rgb to gain faster playback speed.  This 
 is still experimental code, so be warned.  It is enabled by setting the 
 environment variable USE_FFB2_YUV2RGB.
 .TP
