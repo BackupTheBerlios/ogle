@@ -289,10 +289,20 @@ static int get_next_picture_buf_id()
     //fprintf(stderr, "vo: elem in use, setting notification req\n");
 
     while(!picture_q_elems[elem].in_use) {
+      if(process_interrupted) {
+	display_exit();
+      }
       //fprintf(stderr, "vo: waiting for notification\n");
       if(MsgNextEvent(msgq, &ev) == -1) {
-	perror("vo: waiting for notification");
-	display_exit(); //clean up and exit
+	switch(errno) {
+	case EINTR:
+	  continue;
+	  break;
+	default:
+	  perror("vo: waiting for notification");
+	  display_exit(); //clean up and exit
+	  break;
+	}
       }
       event_handler(msgq, &ev);
       if(redraw_needed) {
@@ -315,6 +325,9 @@ static void release_picture_buf(int id)
     picture_q_head->writer_requests_notification = 0;
     ev.type = MsgEventQNotify;
     do {
+      if(process_interrupted) {
+	display_exit();
+      }
       if(MsgSendEvent(msgq, picture_q_head->writer, &ev, IPC_NOWAIT) == -1) {
 	MsgEvent_t c_ev;
 	switch(errno) {
@@ -669,8 +682,15 @@ int main(int argc, char **argv)
     
     while(ev.type != MsgEventQAttachQ) {
       if(MsgNextEvent(msgq, &ev) == -1) {
-	perror("vo: waiting for q attach");
-	exit(-1);
+	switch(errno) {
+	case EINTR:
+	  continue;
+	  break;
+	default:
+	  perror("vo: waiting for q attach");
+	  exit(-1);
+	  break;
+	}
       }
       event_handler(msgq, &ev);
     }
