@@ -25,7 +25,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
-
+#include <errno.h>
 
 #include <X11/Xlib.h>
 
@@ -39,6 +39,8 @@
 
 DVDNav_t *nav;
 char *dvd_path;
+int bookmarks_autosave = 0;
+int bookmarks_autoload = 0;
 
 int msgqid;
 extern int win;
@@ -50,6 +52,55 @@ void usage()
 {
   fprintf(stderr, "Usage: %s [-m <msgid>] path\n", 
           program_name);
+}
+
+void autoload_bookmark(void) {
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char *state = NULL;
+  int n;
+
+  if(!bookmarks_autoload) {
+    return;
+  }
+
+  if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+    NOTE("%s", "GetDiscID failed\n");
+    return;
+  }
+  
+  if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+    if(errno != ENOENT) {
+      NOTE("%s", "BookmarkOpen failed: ");
+      perror("");
+    }
+    return;
+  }
+  
+  n = DVDBookmarkGetNr(bm);
+  
+  if(n == -1) {
+    NOTE("%s", "DVDBookmarkGetNr failed\n");
+  } else if(n > 0) {
+    char *appinfo;
+    if(DVDBookmarkGet(bm, n-1, &state, NULL,
+		      "common", &appinfo) != -1) {
+      if(state) {
+	if(appinfo && !strcmp(appinfo, "autobookmark")) {
+	  if(DVDSetState(nav, state) != DVD_E_Ok) {
+	    NOTE("%s", "DVDSetState failed\n");
+	  }
+	}
+	free(state);
+      }
+      if(appinfo) {
+	free(appinfo);
+      }
+    } else {
+      NOTE("%s", "BookmarkGet failed\n");
+    }
+  }
+  DVDBookmarkClose(bm);
 }
 
 
@@ -113,6 +164,8 @@ int main (int argc, char *argv[])
   DVDRequestInput(nav,
 		  INPUT_MASK_KeyPress | INPUT_MASK_ButtonPress |
 		  INPUT_MASK_PointerMotion);
+  
+  autoload_bookmark();
   
   xsniff_mouse(NULL);
   exit(0);

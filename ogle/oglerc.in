@@ -84,6 +84,10 @@
     </display>
   </video>
   <user_interface>
+    <bookmarks>
+      <autosave>yes</autosave>
+      <autoload>no</autoload>
+    </bookmarks>
     <bindings>
       <!-- Each binding contains an action and one or more keys.
            The keys are given as X11 keysyms -->

@@ -15,6 +15,7 @@
 
 
 extern DVDNav_t *nav;
+extern int bookmarks_autosave;
 
 static int fs = 0;
 static int isPaused = 0;
@@ -154,6 +155,88 @@ void actionPrevPG(void *data)
 void actionQuit(void *data)
 {
   DVDResult_t res;
+  DVDBookmark_t *bm;
+  unsigned char id[16];
+  char volid[33];
+  int volid_type;
+  char *state = NULL;
+  int n;
+  
+  if(bookmarks_autosave) {
+    if(DVDGetDiscID(nav, id) != DVD_E_Ok) {
+      NOTE("%s", "GetDiscID failed\n");
+      return;
+    }
+    
+    if(DVDGetVolumeIdentifiers(nav, 0, &volid_type, volid, NULL) != DVD_E_Ok) {
+      DNOTE("%s", "GetVolumeIdentifiers failed\n");
+      volid_type = 0;
+    }
+    
+    if(DVDGetState(nav, &state) == DVD_E_Ok) {
+      
+      if((bm = DVDBookmarkOpen(id, NULL, 0)) == NULL) {
+	if(errno != ENOENT) {
+	  NOTE("%s", "BookmarkOpen failed: ");
+	  perror("");
+	}
+	free(state);
+	return;
+      }
+    
+      n = DVDBookmarkGetNr(bm);
+      
+      if(n == -1) {
+	NOTE("%s", "DVDBookmarkGetNr failed\n");
+      } else if(n > 0) {
+	for(n--; n >= 0; n--) {
+	  char *appinfo;
+	  if(DVDBookmarkGet(bm, n, NULL, NULL,
+			    "common", &appinfo) != -1) {
+	    if(appinfo) {
+	      if(!strcmp(appinfo, "autobookmark")) {
+		if(DVDBookmarkRemove(bm, n) == -1) {
+		  NOTE("%s", "DVDBookmarkRemove failed\n");
+		}
+	      }
+	      free(appinfo);
+	    }
+	  } else {
+	    NOTE("%s", "DVDBookmarkGet failed\n");
+	  }
+	}
+      }
+      
+      
+      
+      if(DVDBookmarkAdd(bm, state, NULL, "common", "autobookmark") == -1) {
+	DNOTE("%s", "BookmarkAdd failed\n");
+	DVDBookmarkClose(bm);
+	free(state);
+	return;
+      }
+      free(state);
+      
+      if(volid_type != 0) {
+	char *disccomment = NULL;
+	if(DVDBookmarkGetDiscComment(bm, &disccomment) != -1) {
+	  if((disccomment == NULL) || (disccomment[0] == '\0')) {
+	    if(DVDBookmarkSetDiscComment(bm, volid) == -1) {
+	      DNOTE("%s", "SetDiscComment failed\n");
+	    }
+	  }
+	  if(disccomment) {
+	    free(disccomment);
+	  }
+	}
+      }
+      if(DVDBookmarkSave(bm, 0) == -1) {
+	NOTE("%s", "BookmarkSave failed\n");
+      }
+      DVDBookmarkClose(bm);
+    }
+  }
+  
   res = DVDCloseNav(nav);
   if(res != DVD_E_Ok ) {
     DVDPerror("DVDCloseNav", res);
