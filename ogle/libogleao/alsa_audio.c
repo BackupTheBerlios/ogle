@@ -304,12 +304,10 @@ int alsa_drain(ogle_ao_instance_t *_instance)
 }
 
 static
-ogle_ao_instance_t *alsa_open(char *dev)
+ogle_ao_instance_t *alsa_open(char *device)
 {
     alsa_instance_t *instance;
     int err = 0;
-	// default alsa device
-    char device[7] = "hw:0,0";
 	
     instance = malloc(sizeof(alsa_instance_t));
     
@@ -337,7 +335,7 @@ ogle_ao_instance_t *alsa_open(char *dev)
 	
     if ((err = snd_pcm_open(&(instance->alsa_pcm), device, 
 			SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
-        perror("[ogle_alse]: error while opening alsa.\n");
+        perror("[ogle_alsa]: error while opening alsa.\n");
 		return NULL;
     }    
 
