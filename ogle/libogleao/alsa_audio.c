@@ -49,9 +49,9 @@ static snd_output_t *logs = NULL;
 /* ring buffer length in us */
 #define BUFFER_TIME 500000
 /* period time in us */ 
-#define PERIOD_TIME 100000
+#define PERIOD_TIME 10000
 /* minimum samples before play */
-#define MINIMUM_SAMPLES 1536
+#define MINIMUM_SAMPLES 5000
 
 static int set_hwparams(alsa_instance_t *instance)
 {
@@ -115,9 +115,9 @@ static int set_swparams(alsa_instance_t *instance)
 		printf("Unable to determine current swparams for playback: %s\n", snd_strerror(err));
 	}
 	/* start transfer when the buffer is full */
-	if ((err = snd_pcm_sw_params_set_start_threshold(instance->alsa_pcm, instance->swparams, MINIMUM_SAMPLES)) < 0) {
+/*	if ((err = snd_pcm_sw_params_set_start_threshold(instance->alsa_pcm, instance->swparams, MINIMUM_SAMPLES)) < 0) {
 		printf("Unable to set start threshold mode for playback: %s\n", snd_strerror(err));
-	}	
+	}*/	
 	/* allow transfer when at least period_size samples can be processed */
 	if ((err = snd_pcm_sw_params_set_avail_min(instance->alsa_pcm, instance->swparams, MINIMUM_SAMPLES)) < 0) {
 		printf("Unable to set avail min for playback: %s\n", snd_strerror(err));
@@ -222,9 +222,13 @@ int alsa_play(ogle_ao_instance_t *_instance, void *samples, size_t nbytes)
 	ptr = samples;
 	while (nsamples > 0) {
 		written = snd_pcm_writei(instance->alsa_pcm, ptr, nsamples);
-		if (written == -EAGAIN)
+		if (written == -EAGAIN) {
+			//printf("buffer overrun, retrying..\n");
+			snd_pcm_wait(instance->alsa_pcm, 1000);
 			continue;
+		}
 		if (written < 0) {
+			//printf("buffer underrun, retrying..\n");
 			if (xrun_recovery(instance->alsa_pcm, written) < 0) {
 				printf("Write error: %s\n", snd_strerror(written));
 				exit(EXIT_FAILURE);
@@ -245,9 +249,10 @@ int  alsa_odelay(ogle_ao_instance_t *_instance, uint32_t *samples_return)
 {
 	alsa_instance_t *instance = (alsa_instance_t *)_instance;
 	snd_pcm_sframes_t avail;
+	int err;
     
-  	if ((avail = snd_pcm_avail_update(instance->alsa_pcm)) < 0) {
-		printf("Write error: %s\n", snd_strerror(avail));	  
+  	if ((err = snd_pcm_delay(instance->alsa_pcm, &avail)) < 0) {
+		printf("odelay error: %s\n", snd_strerror(err));	  
 	}
   
   	*samples_return = avail;
