@@ -948,8 +948,8 @@ create_app (void)
   //gtk_widget_set_sensitive(GTK_WIDGET(pause_button), FALSE);
   gtk_widget_set_sensitive(GTK_WIDGET(step_forwards_button), FALSE);
 
-  gtk_widget_set_sensitive(GTK_WIDGET(fast_button), FALSE);
-  gtk_widget_set_sensitive(GTK_WIDGET(slow_button), FALSE);
+  //gtk_widget_set_sensitive(GTK_WIDGET(fast_button), FALSE);
+  //gtk_widget_set_sensitive(GTK_WIDGET(slow_button), FALSE);
 
   gtk_widget_set_sensitive(GTK_WIDGET(cursor_go_up_button), FALSE);
   /* End of disabled buttons */
