@@ -27,6 +27,7 @@
 #include <X11/extensions/Xvlib.h>
 
 #include <gtk/gtk.h>
+#include <gdk/gdkx.h>
 
 struct property_info {
   XvPortID port;
@@ -34,13 +35,11 @@ struct property_info {
   int      standard;
 };
 
-static Display *dpy;
-
 static void set_port_attribute (GtkAdjustment *adjustment, 
                                struct property_info *property)
 {
-  XvSetPortAttribute(dpy, property->port, property->atom, adjustment->value);
-  XFlush(dpy);
+  XvSetPortAttribute(GDK_DISPLAY (), property->port, property->atom, adjustment->value);
+  XFlush(GDK_DISPLAY ());
 }
 
 static void set_color_attribute (GtkColorSelection *color_selection,
@@ -53,8 +52,8 @@ static void set_color_attribute (GtkColorSelection *color_selection,
   color_value = (((int)(color[0]*255)) << 16) + 
                 (((int)(color[1]*255)) << 8) + 
 		(((int)(color[2]*255)));
-  XvSetPortAttribute(dpy, property->port, property->atom, color_value);
-  XFlush(dpy);
+  XvSetPortAttribute(GDK_DISPLAY (), property->port, property->atom, color_value);
+  XFlush(GDK_DISPLAY ());
 }
 
 static void set_bool_attribute (GtkToggleButton *toggle, 
@@ -63,15 +62,24 @@ static void set_bool_attribute (GtkToggleButton *toggle,
   gboolean active;
 
   active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(toggle));
-  XvSetPortAttribute(dpy, property->port, property->atom, active?1:0);
-  XFlush(dpy);
+  XvSetPortAttribute(GDK_DISPLAY (), property->port, property->atom, active?1:0);
+  XFlush(GDK_DISPLAY ());
 }
 
 static void set_only_attribute (GtkWidget *widget, 
                                 struct property_info *property)
 {
-  XvSetPortAttribute(dpy, property->port, property->atom, property->standard);
-  XFlush(dpy);
+  XvSetPortAttribute(GDK_DISPLAY (), property->port, property->atom, property->standard);
+  XFlush(GDK_DISPLAY ());
+}
+
+static GdkFilterReturn
+xv_filter (XEvent *xevent, GdkEvent *event, gpointer user_data)
+{
+	if (xevent->type == XvPortNotify)
+		g_print ("woo, something happened: %d!\n", xevent->type);
+
+	return GDK_FILTER_CONTINUE;
 }
 
 int main(int argc, char **argv)
@@ -85,27 +93,24 @@ int main(int argc, char **argv)
   GtkWidget *win;
   GtkWidget *notebook;
 
-  dpy = XOpenDisplay(NULL);
-  if(dpy == NULL) {
-    fprintf(stderr, "Couldn't open display\n");
-    exit(1);
-  }
-  
+  gtk_init(&argc, &argv);
 
-  if(XvQueryExtension(dpy, &xv_version, &xv_release, &xv_request_base,
+  if(XvQueryExtension(GDK_DISPLAY (), &xv_version, &xv_release, &xv_request_base,
 		      &xv_event_base, &xv_error_base) != Success) {
     fprintf(stderr, "Xv not found\n");
     exit(1);
   }
 
-  XvQueryAdaptors(dpy, DefaultRootWindow(dpy),
+  XvQueryAdaptors(GDK_DISPLAY (), DefaultRootWindow(GDK_DISPLAY ()),
 		  &num_adaptors, &adaptor_info);  
   
   
   gtk_init(&argc, &argv);
 
+  gdk_window_add_filter (NULL, xv_filter, NULL);
+  
   win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-
+  
   gtk_signal_connect(GTK_OBJECT(win), "destroy", gtk_main_quit, NULL);
   notebook = gtk_notebook_new ();
   gtk_container_add(GTK_CONTAINER(win), notebook);
@@ -133,9 +138,9 @@ int main(int argc, char **argv)
       XvAttribute *xvattr;
 
       // this should be used to get events, but gtk won't see them anyway
-      // XvSelectPortNotify(dpy, m, True);
+      XvSelectPortNotify(GDK_DISPLAY (), m, True);
 
-      xvattr = XvQueryPortAttributes(dpy, m, &num);
+      xvattr = XvQueryPortAttributes(GDK_DISPLAY (), m, &num);
       for(k = 0; k < num; k++) {
         GtkWidget *hbox;
         GtkWidget *label;
@@ -143,9 +148,9 @@ int main(int argc, char **argv)
         struct property_info *property;
 
         hbox = gtk_hbox_new(FALSE, 0);
-        val_atom = XInternAtom(dpy, xvattr[k].name, False);
+        val_atom = XInternAtom(GDK_DISPLAY (), xvattr[k].name, False);
         if(xvattr[k].flags & XvGettable) {
-          if(XvGetPortAttribute(dpy, m, val_atom, &cur_val) != Success) {
+          if(XvGetPortAttribute(GDK_DISPLAY (), m, val_atom, &cur_val) != Success) {
             fprintf(stderr, "Couldn't get attribute\n");
             exit(1);
           }
