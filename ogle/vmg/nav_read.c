@@ -173,17 +173,25 @@ void read_dsi_packet(dsi_t *dsi, char *buffer, int len) {
   B2N_32(dsi->sml_pbi.ilvu_ea);
   B2N_32(dsi->sml_pbi.ilvu_sa);
   B2N_16(dsi->sml_pbi.size);
+  B2N_32(dsi->sml_pbi.unknown_s_ptm);
+  B2N_32(dsi->sml_pbi.unknown_e_ptm);
     
   /* dsi sml agl */
-  for(i = 0; i <= 9; i++) {
+  for(i = 0; i < 9; i++) {
     B2N_32(dsi->sml_agli.dsta[i].address);
     B2N_16(dsi->sml_agli.dsta[i].size);
   }
   
   /* dsi vobu sri */
-  //TODO add swaps for rest of stuff in vobu_sri
-  B2N_32(dsi->vobu_sri.next_vobu);
-
+  B2N_32(dsi->vobu_sri.next_video);
+  for(i = 0; i < 19; i++)
+    B2N_32(dsi->vobu_sri.FWDA[i]);
+  B2N_32(dsi->vobu_sri.next);
+  B2N_32(dsi->vobu_sri.prev);
+  for(i = 0; i < 19; i++)
+    B2N_32(dsi->vobu_sri.BWDA[i]);  
+  B2N_32(dsi->vobu_sri.prev_video);
+  
   /* dsi synci */
   //TODO add swaps here
 

@@ -203,9 +203,7 @@ typedef struct { /* VOBUnit SeaRch Information */
     if address = 3fff ffff -> vobu does not exist
   */
   
-  // 1     FWDI Video     VOBU start address with video data
-  uint32_t FWDI;     // Next (nv_pck_lbn+this value -> next vobu lbn)
-  /*
+  /* 1     FWDI Video     VOBU start address with video data
      n = 0.5 seconds after presentationtime of current VOBU
      2 n=240
      3 120
@@ -226,13 +224,14 @@ typedef struct { /* VOBUnit SeaRch Information */
      39 60
      40 120
      41 240
+     42 .....
   */
+  uint32_t next_video;   // Next (nv_pck_lbn+this value -> next vobu lbn)
   uint32_t FWDA[19]; // Forwards, time
-  uint32_t next_vobu;
-  uint32_t prev_vobu;
+  uint32_t next;
+  uint32_t prev;
   uint32_t BWDA[19]; // Backwars, time
-  // 42 previous VOBU start address with video data.
-  uint32_t BWDI;     // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
+  uint32_t prev_video; // Previous (nv_pck_lbn-this value -> prev. vobu lbn)
 } __attribute__ ((packed)) vobu_sri_t;
 
 typedef struct { /* SYNChronous Information */ 

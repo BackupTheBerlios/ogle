@@ -259,23 +259,22 @@ void print_sml_agli(FILE *out, sml_agli_t *sml_agli) {
 
 void print_vobu_sri(FILE *out, vobu_sri_t *vobu_sri) {
   int i;
+  int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+		    10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
   fprintf(out, "vobu_sri:\n");
-  /* $$$ more code needed here */
-#if 0
-  fprintf(stdout, "%08x\n", vobu_sri->unknown1);
-  for(i = 0; i < 20; i++) {
-    fprintf(stdout, "%08x ", vobu_sri->unknown2[i]);
-    if(i % 5 == 4)
-      fprintf(stdout, "\n");
+  fprintf(stdout, "Next VOBU with Video %08x\n", vobu_sri->next_video);
+  for(i = 0; i < 19; i++) {
+    fprintf(stdout, "%3.1f %08x ", time[i]/2.0, vobu_sri->FWDA[i]);
   }
+  fprintf(stdout, "\n");
+  fprintf(stdout, "Next VOBU %08x\n", vobu_sri->next);
   fprintf(stdout, "--\n");
-  for(i = 0; i < 20; i++) {
-    fprintf(stdout, "%08x ", vobu_sri->unknown3[i]);
-    if(i % 5 == 4)
-      fprintf(stdout, "\n");
+  fprintf(stdout, "Prev VOBU %08x\n", vobu_sri->prev);
+  for(i = 0; i < 19; i++) {
+    fprintf(stdout, "%3.1f %08x ", time[18 - i]/2.0, vobu_sri->BWDA[i]);
   }
-  fprintf(stdout, "%08x\n", vobu_sri->unknown4);
-#endif
+  fprintf(stdout, "\n");
+  fprintf(stdout, "Prev VOBU with Video %08x\n", vobu_sri->prev_video);
 }
 
 void print_synci(FILE *out, synci_t *synci) {
