@@ -31,6 +31,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQAttachQ",
   "MsgEventQSPUPalette",
   "MsgEventQSPUHighlight",
+  "MsgEventQUserInput",
   "MsgEventQSpeed",
   NULL
 };
@@ -195,6 +196,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQSPUHighlight:
     size = sizeof(MsgQSPUHighlightEvent_t);
     break;
+  case MsgEventQUserInput:
+    size = sizeof(MsgQUserInputEvent_t);
+    break;
   case MsgEventQSpeed:
     size = sizeof(MsgQSpeedEvent_t);
     break;
@@ -202,7 +206,6 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     fprintf(stderr, "MsgSendEvent: Unknown event\n");
     return -1;
   }
-  //  size+=4; //struct is 64bit aligned
 
   memcpy(msg.event_data, event_send, size);
 

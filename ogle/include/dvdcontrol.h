@@ -4,17 +4,19 @@
 #include "dvd.h"
 
 
-DVDResult_t DVDLeftButtonSelect(int msgqid);
-DVDResult_t DVDRightButtonSelect(int msgqid);
-DVDResult_t DVDUpperButtonSelect(int msgqid);
-DVDResult_t DVDLowerButtonSelect(int msgqid);
+DVDResult_t DVDOpen(int msgqid);
 
-DVDResult_t DVDButtonActivate(int msgqid);
-DVDResult_t DVDButtonSelect(int msgqid, int Button);
-DVDResult_t DVDButtonSelectAndActivate(int msgqid, int Button);
+DVDResult_t DVDLeftButtonSelect(void);
+DVDResult_t DVDRightButtonSelect(void);
+DVDResult_t DVDUpperButtonSelect(void);
+DVDResult_t DVDLowerButtonSelect(void);
 
-DVDResult_t DVDMouseSelect(int msgqid, int x, int y);
-DVDResult_t DVDMouseActivate(int msgqid, int x, int y);
+DVDResult_t DVDButtonActivate(void);
+DVDResult_t DVDButtonSelect(int Button);
+DVDResult_t DVDButtonSelectAndActivate(int Button);
+
+DVDResult_t DVDMouseSelect(int x, int y);
+DVDResult_t DVDMouseActivate(int x, int y);
 
 DVDResult_t DVDMenuCall(int msgqid, DVDMenuID_t MenuId);
 DVDResult_t DVDResume(int msgqid);
