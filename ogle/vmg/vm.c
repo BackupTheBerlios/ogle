@@ -86,7 +86,8 @@ int main(int argc, char *argv[])
 	  pgc->pgc_command_tbl->nr_of_pre, state.registers, &link_values)) {
     goto process_jump;
   }
-  state.pgN = 1; //??
+  if(state.pgN == 0)
+    state.pgN = 1; //??
   goto play_PG;
   
     
@@ -95,7 +96,8 @@ int main(int argc, char *argv[])
     assert(state.pgN == pgc->nr_of_programs + 1);
     goto play_PGC_post; //?
   } else {
-    state.cellN = pgc->pgc_program_map[State.pgN];
+    if(state.cellN == 0)
+      state.cellN = pgc->pgc_program_map[State.pgN];
     goto play_Cell;
   }
   
@@ -154,7 +156,22 @@ int main(int argc, char *argv[])
   link_values = {LinkNextPGC, 0, 0, 0};
   goto process_jump;
   
-
+ new_PGC:
+  if(state.VTSN != 0 && !state.loaded[state.VTSN])
+    ifoRead_VTSI(...??);
+  if(state.domain & MENU_DOMAIN)
+    if(state.domain == VMGM_DOMAIN)
+      getPGC_LU(vmgm.menu_lu, lang, state.pgcN, 0);
+    else
+      getPGC_LU(vtsm[state.VTSN].menu_lu, lang, state.pgcN, 0);
+  else
+    if(state.domain == FP_DOMAIN)
+      getPGC(vmgm.first_play_pgc);
+    else
+      getPGC_IT(state.pgcN, 0);
+  goto play_PGC;
+    
+  
  process_jump:
   switch(link_values.command) {
   case LinkNoLink: // Vill inte ha det här här..
@@ -176,15 +193,23 @@ int main(int argc, char *argv[])
     state.PGN -= 1; //?
     goto play_PG;
   case LinkTopPGC:
-    goto play_PGC:
+    state.PGN = 0;
+    state.CellN = 0;
+    goto play_PGC; // Or PGN = 1; goto play_PG; ???
   case LinkNextPGC:
     state.PGCN = pgc->next_pgc_nr;
+    state.PGN = 0;
+    state.CellN = 0;
     goto new_PGC;
   case LinkPrevPGC:
     state.PGCN = pgc->prev_pgc_nr;
+    state.PGN = 0;
+    state.CellN = 0;
     goto new_PGC;
   case LinkGoUpPGC:
     state.PGCN = pgc->goup_pgc_nr;
+    state.PGN = 0;
+    state.CellN = 0;
     goto new_PGC;
   case LinkTailPGC:
     goto play_PGC_post;
@@ -204,8 +229,33 @@ int main(int argc, char *argv[])
     state.CellN = link_values.data1; // ??
     goto play_Cell;
     
+  case Exit:
+    break; // ????
+  case JumpTT:
+    get_TT(link_values.data1);
+    goto new_PGC;
+  case JumpVTS_TT:
+    get_VTS_TT(link_values.data1, link_values.data2);
+    goto new_PGC;
+  case JumpVTS_PTT:
+    get_VTS_PTT(link_values.data1, link_values.data2, link_values.data3);
+    //readPGC();
+    goto playPG;
     
     
+  case JumpSS_FP:
+  case JumpSS_VMGM_MENU:
+  case JumpSS_VTSM:
+  case JumpSS_VMGM_PGC:
+    
+  case CallSS_FP:
+  case CallSS_VMGM_MENU:
+  case CallSS_VTSM:
+  case CallSS_VMGM_PGC:
+
+  case default:
+    break;
+  }
     
     
     
