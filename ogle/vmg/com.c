@@ -22,20 +22,15 @@
 #include "queue.h"
 #include "ip_sem.h"
 #include "timemath.h"
+#include "msgevents.h"
 //#include "sync.h"
 
-int send_msg(mq_msg_t *msg, int mtext_size);
-int wait_init_msg(void);
-int wait_for_msg(mq_cmdtype_t cmdtype);
-mq_cmd_t *chk_for_msg(mq_msg_t *msg);
-int eval_msg(mq_cmd_t *cmd);
 int get_q();
 
-int file_open(char *infile);
 int attach_ctrl_shm(int shmid);
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
 
-
+static void change_file(char *new_filename);
 
 static char *mmap_base;
 
@@ -51,110 +46,39 @@ static char *data_buf_shmaddr;
 
 int msgqid = -1;
 
+static MsgEventQ_t *msgq;
 
 
-int send_msg(mq_msg_t *msg, int mtext_size)
+void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 {
-  if(msgsnd(msgqid, msg, mtext_size, 0) == -1) {
-    perror("vmg: msgsnd1");
-    return -1;
-  }
-  return 0;
-}
-
-int wait_init_msg(void) 
-{
-  if(msgqid ==  -1) {
-    fprintf(stderr, "vmg: no msgqid!!!\n");
-    exit(1);
-  }
-  wait_for_msg(CMD_DECODE_STREAM_BUFFER);
-  return 0;
-}
-
-int wait_for_msg(mq_cmdtype_t cmdtype)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
   
-  while(cmd->cmdtype != cmdtype) {
-    if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
-	      MTYPE_DECODE_MPEG_PRIVATE_STREAM_2, 0) == -1) {
-      perror("vmg: msgrcv");
-      return -1;
-    } else {
-      fprintf(stderr, "vmg: got msg\n");
-      eval_msg(cmd);
-    }
-    if(cmdtype == CMD_ALL) {
-      break;
-    }
-  }
-  return 0;
-}
-
-mq_cmd_t *chk_for_msg(mq_msg_t *msg)
-{
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(&msg->mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  if(msgrcv(msgqid, msg, sizeof(msg->mtext),
-	    MTYPE_DECODE_MPEG_PRIVATE_STREAM_2, IPC_NOWAIT) == -1) {
-    if(errno != ENOMSG) {
-      perror("vmg: msgrcv");
-    }
-    return NULL;
-  } 
-  return cmd;
-}
-
-
-int eval_msg(mq_cmd_t *cmd)
-{
-  mq_msg_t sendmsg;
-  mq_cmd_t *sendcmd;
-  
-  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
-  
-  switch(cmd->cmdtype) {
-  case CMD_FILE_OPEN:
-    file_open(cmd->cmd.file_open.file);
+  switch(ev->type) {
+  case MsgEventQNotify:
+    //DPRINTF(1, "nav: got notification\n");
     break;
-  case CMD_CTRL_DATA:
-    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
+  case MsgEventQChangeFile:
+   change_file(ev->changefile.filename);
     break;
-  case CMD_DECODE_STREAM_BUFFER:
-    fprintf(stderr, "vmg: got stream %x, %x buffer \n",
-	    cmd->cmd.stream_buffer.stream_id,
-	    cmd->cmd.stream_buffer.subtype);
-    attach_stream_buffer(cmd->cmd.stream_buffer.stream_id,
-			  cmd->cmd.stream_buffer.subtype,
-			  cmd->cmd.stream_buffer.q_shmid);
+  case MsgEventQDecodeStreamBuf:
+    /*
+      DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
+	    ev->decodestreambuf.stream_id,
+	    ev->decodestreambuf.subtype);
+    */
+    attach_stream_buffer(ev->decodestreambuf.stream_id,
+			 ev->decodestreambuf.subtype,
+			 ev->decodestreambuf.q_shmid);
+    
+    break;
+  case MsgEventQCtrlData:
+    attach_ctrl_shm(ev->ctrldata.shmid);
     break;
   default:
-    fprintf(stderr, "vmg: unrecognized command cmdtype: %x\n",
-	    cmd->cmdtype);
-    return -1;
+    fprintf(stderr, "*vmg: unrecognized event type\n");
     break;
   }
-  
-  return 0;
 }
 
-int file_open(char *infile)
-{
-  int filefd;
-  struct stat statbuf;
-
-  filefd = open(infile, O_RDONLY);
-  fstat(filefd, &statbuf);
-  mmap_base = (char *)mmap(NULL, statbuf.st_size, 
-			   PROT_READ, MAP_SHARED, filefd,0);
-  return 0;
-}
 
 static void change_file(char *new_filename)
 {
@@ -277,14 +201,20 @@ int get_q(char *buffer)
   static int prev_scr_nr = 0;
   static int packnr = 0;
   static clocktime_t time_offset = { 0, 0 };
+  MsgEvent_t ev;
   
   q_head = (q_head_t *)stream_shmaddr;
   q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
   elem = q_head->read_nr;
   
-  if(ip_sem_wait(&q_head->queue, BUFS_FULL) == -1) {
-    perror("vmg: get_q(), sem_wait()");
-    exit(1); // XXX 
+  if(!q_elems[elem].in_use) {
+    q_head->reader_requests_notification = 1;
+    
+    while(!q_elems[elem].in_use) {
+      //DPRINTF(1, "vmg: waiting for notification1\n");
+      MsgNextEvent(msgq, &ev);
+      handle_events(msgq, &ev);
+    }
   }
 
 
@@ -353,11 +283,16 @@ int get_q(char *buffer)
   
   // release elem
   data_elem->in_use = 0;
+  q_elems[elem].in_use = 0;
+
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
 
-  if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
-    perror("vmg: get_q(), sem_post()");
-    exit(1);
+  if(q_head->writer_requests_notification) {
+    q_head->writer_requests_notification = 0;
+    ev.type = MsgEventQNotify;
+    if(MsgSendEvent(msgq, q_head->writer, &ev) == -1) {
+      fprintf(stderr, "vmg: couldn't send notification\n");
+    }
   }
 
   return len;
