@@ -384,7 +384,9 @@ static void release_picture_buf(int id)
 	    event_handler(msgq, &c_ev);
 	  }
 	  break;
+#ifdef EIDRM
 	case EIDRM:
+#endif
 	case EINVAL:
 	  fprintf(stderr, "vo: couldn't send notification no msgq\n");
 	  display_exit(); //TODO clean up and exit

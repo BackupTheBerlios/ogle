@@ -956,7 +956,9 @@ void check_x_events(yuv_image_t *current_image)
 	  case EAGAIN:
 	    // msgq full, drop message
 	    break;
+#ifdef EIDRM
 	  case EIDRM:
+#endif
 	  case EINVAL:
 	    fprintf(stderr, "vo: keypress: no msgq\n");
 	    display_exit(); //TODO clean up and exit
@@ -998,7 +1000,9 @@ void check_x_events(yuv_image_t *current_image)
 	  case EAGAIN:
 	    // msgq full, drop message
 	    break;
+#ifdef EIDRM
 	  case EIDRM:
+#endif
 	  case EINVAL:
 	    fprintf(stderr, "vo: buttonpress: no msgq\n");
 	    display_exit(); //TODO clean up and exit
@@ -1042,7 +1046,9 @@ void check_x_events(yuv_image_t *current_image)
 	    case EAGAIN:
 	      // msgq full, drop message
 	      break;
+#ifdef EIDRM
 	    case EIDRM:
+#endif
 	    case EINVAL:
 	      fprintf(stderr, "vo: pointermotion: no msgq\n");
 	      display_exit(); //TODO clean up and exit

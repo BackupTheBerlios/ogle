@@ -19,10 +19,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/ipc.h>
 #include <sys/msg.h>
 #include <errno.h>
 #include <ogle/msgevents.h>
-
 
 //#define DEBUG
 #ifdef DEBUG
@@ -167,8 +167,10 @@ int MsgCheckEvent(MsgEventQ_t *q, MsgEvent_t *event_return)
     if(msgrcv(q->msqid, (void *)&msg, sizeof(MsgEvent_t),
 	      q->mtype, IPC_NOWAIT) == -1) {
       switch(errno) {
+#ifdef ENOMSG
       case ENOMSG:
 	break;
+#endif
       case EINTR:     // interrupted by system call, try again
 	continue;
 	break;
