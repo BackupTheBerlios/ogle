@@ -118,7 +118,7 @@ static struct {
   int preserve_aspect;     /* Lock aspect. */
   int lock_window_size;    /* Never change the size of the window. */
   int image_width;         /* Current destination size. */
-  int image_height;        /* (set in display_change_size) */
+  int image_height;        /* (set in display_change_size */
 } scale = { 1, 1, 1, 0, 720, 480 };
 
 #ifdef HAVE_MLIB
@@ -394,7 +394,6 @@ void display_init_xshm()
   
   CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   
-  
   pixel_stride = window.ximage->bits_per_pixel;
   if(pixel_stride != 32) {
     fprintf(stderr, "vo: Only 24/32bits mode supported for now.\n");
@@ -443,12 +442,12 @@ Window display_init(yuv_image_t *picture_data,
   } dpy_size;
 
   mydisplay = XOpenDisplay(NULL);
-
+  
   if(mydisplay == NULL) {
     fprintf(stderr, "vo: Can not open display\n");
     exit(1);
   }
-    
+  
   screen = DefaultScreen(mydisplay);
   scr = XDefaultScreenOfDisplay(mydisplay);
   
@@ -582,8 +581,8 @@ static void display_change_size(yuv_image_t *img, int new_width,
 				int new_height, int resize_window) {
   int padded_width = img->info->picture.padded_width;
   int padded_height = img->info->picture.padded_height;
-  int alloc_width, alloc_height;
-  
+  //int alloc_width, alloc_height;
+  int alloc_size;
   fprintf(stderr, "vo resize: %d, %d\n", new_width, new_height);
   
   
@@ -603,14 +602,6 @@ static void display_change_size(yuv_image_t *img, int new_width,
     return;
   }
   
-  // or that we allocate less than the minimum size...
-  if(new_width * new_height < padded_width * padded_height) {
-    alloc_width = padded_width;
-    alloc_height = padded_height;
-  } else {
-    alloc_width = new_width;
-    alloc_height = new_height;
-  }
   
   if(!use_xv) {
     
@@ -638,20 +629,28 @@ static void display_change_size(yuv_image_t *img, int new_width,
     window.ximage = XShmCreateImage(mydisplay, vinfo.visual, 
 				    color_depth, ZPixmap, 
 				    NULL, &shm_info,
-				    alloc_width,
-				    alloc_height);
-    
+				    new_width,
+				    new_height);
+
     if(window.ximage == NULL) {
       fprintf(stderr, "vo: Shared memory: couldn't create Shm image\n");
       exit(1);
     }
+
+    // or that we allocate less than the minimum size...
+    if(window.ximage->bytes_per_line *  window.ximage->height
+       < padded_width * padded_height * 4) {
+      alloc_size = padded_width * padded_height * 4;
+    } else {
+      alloc_size = window.ximage->bytes_per_line * window.ximage->height;
+    }
     
     /* Get a shared memory segment */
     shm_info.shmid = shmget(IPC_PRIVATE,
-			    window.ximage->bytes_per_line * 
-			    window.ximage->height, 
+			    alloc_size,
 			    IPC_CREAT | 0777);
-    
+
+
     if(shm_info.shmid < 0) {
       fprintf(stderr, "vo: Shared memory: Couldn't get segment\n");
       exit(1);
@@ -677,7 +676,7 @@ static void display_change_size(yuv_image_t *img, int new_width,
   scale.image_width = new_width;
   scale.image_height = new_height;
   
-  /* Force a change of the widow size. */
+  /* Force a change of the window size. */
   if(resize_window == True) {
     XResizeWindow(mydisplay, window.win, 
 		  scale.image_width, scale.image_height);
@@ -839,14 +838,17 @@ void check_x_events(yuv_image_t *current_image)
     switch(ev.type) {
     case KeyPress:
       // send keypress to whoever wants it
-      fprintf(stderr, "vo: key event, %d\n", input_mask);
       if(input_mask & INPUT_MASK_KeyPress) {
 	MsgEvent_t m_ev;
 	KeySym keysym;
 	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
 	m_ev.type = MsgEventQInputKeyPress;
-	m_ev.input.x = ev.xkey.x;
-	m_ev.input.y = ev.xkey.y;
+	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
+	  current_image->info->picture.horizontal_size /
+	  window.video_area.width;
+	m_ev.input.y = (ev.xkey.y - window.video_area.y) *
+	  current_image->info->picture.vertical_size /
+	  window.video_area.height;
 	m_ev.input.x_root = ev.xkey.x_root;
 	m_ev.input.y_root = ev.xkey.y_root;
 	m_ev.input.mod_mask = ev.xkey.state;
@@ -868,7 +870,6 @@ void check_x_events(yuv_image_t *current_image)
 	    break;
 	  }
 	}
-	fprintf(stderr, "vo: sent event to %d\n", input_client);
       }
       break;
     case ButtonPress:
@@ -877,8 +878,12 @@ void check_x_events(yuv_image_t *current_image)
 	MsgEvent_t m_ev;
 	
 	m_ev.type = MsgEventQInputButtonPress;
-	m_ev.input.x = ev.xbutton.x;
-	m_ev.input.y = ev.xbutton.y;
+	m_ev.input.x = (ev.xbutton.x - window.video_area.x)*
+	  current_image->info->picture.horizontal_size /
+	  window.video_area.width;
+	m_ev.input.y = (ev.xbutton.y - window.video_area.y) *
+	  current_image->info->picture.vertical_size /
+	  window.video_area.height;
 	m_ev.input.x_root = ev.xbutton.x_root;
 	m_ev.input.y_root = ev.xbutton.y_root;
 	m_ev.input.mod_mask = ev.xbutton.state;
@@ -917,8 +922,12 @@ void check_x_events(yuv_image_t *current_image)
 	  MsgEvent_t m_ev;
 	  
 	  m_ev.type = MsgEventQInputPointerMotion;
-	  m_ev.input.x = ev.xmotion.x;
-	  m_ev.input.y = ev.xmotion.y;
+	  m_ev.input.x = (ev.xmotion.x - window.video_area.x) *
+	    current_image->info->picture.horizontal_size /
+	    window.video_area.width;
+	  m_ev.input.y = (ev.xmotion.y - window.video_area.y) *
+	    current_image->info->picture.vertical_size /
+	    window.video_area.height;
 	  m_ev.input.x_root = ev.xmotion.x_root;
 	  m_ev.input.y_root = ev.xmotion.y_root;
 	  m_ev.input.mod_mask = ev.xmotion.state;
@@ -953,6 +962,7 @@ void check_x_events(yuv_image_t *current_image)
       while(XCheckTypedEvent(mydisplay, Expose, &ev) == True);
       
       if(ev.xexpose.window == window.win) {
+
 	if(use_xv) {
 	  draw_win_xv(&window);
  	} else {
@@ -971,6 +981,51 @@ void check_x_events(yuv_image_t *current_image)
 	display_adjust_size(current_image, 
 			    ev.xconfigure.width, 
 			    ev.xconfigure.height);
+	
+	window.video_area.width = scale.image_width;
+	window.video_area.height = scale.image_height;
+	window.video_area.x = (window.window_area.width - 
+			       window.video_area.width) / 2;
+	window.video_area.y = (window.window_area.height -
+			       window.video_area.height) / 2;
+	
+	// top border
+	if(window.video_area.y > 0) {
+	  XClearArea(mydisplay, window.win,
+		     0, 0,
+		     window.window_area.width,
+		     window.video_area.y - 0,
+		     False);
+	}
+	// bottom border
+	if((window.video_area.y + window.video_area.height) <
+	   window.window_area.height) {
+	  XClearArea(mydisplay, window.win,
+		     0, (window.video_area.y + window.video_area.height),
+		     window.window_area.width,
+		     window.window_area.height -
+		     (window.video_area.y + window.video_area.height),
+		     False);
+	}
+	// left border
+	if(window.video_area.x > 0) {
+	  XClearArea(mydisplay, window.win,
+		     0, 0,
+		     window.video_area.x - 0,
+		     window.window_area.height,
+		     False);
+	}
+	// right border
+	if((window.video_area.x + window.video_area.width) <
+	   window.window_area.width) {
+	  XClearArea(mydisplay, window.win,
+		     (window.video_area.x + window.video_area.width), 0,
+		     window.window_area.width -
+		     (window.video_area.x + window.video_area.width),
+		     window.window_area.height,
+		     False);
+	}
+	
       }
       break;    
     default:
@@ -1026,6 +1081,15 @@ void display(yuv_image_t *current_image)
 
 
 
+
+static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
+{
+  if(ev->type == CompletionType) {
+    return True;
+  } else {
+    return False;
+  }
+}
 
 
 static void draw_win_x11(window_info *dwin)
@@ -1105,33 +1169,53 @@ static void draw_win_x11(window_info *dwin)
     screenshot_jpg(dwin->ximage->data, dwin->ximage);
   }
   
-  //XGetWindowAttributes(mydisplay, window.win, &xattr);
+  window.video_area.width = scale.image_width;
+  window.video_area.height = scale.image_height;
+  window.video_area.x = (window.window_area.width - 
+			 window.video_area.width) / 2;
+  window.video_area.y = (window.window_area.height -
+			 window.video_area.height) / 2;
   
+  /*
+  fprintf(stderr, "dwin->win: %d, mygc: %d, dwin->ximage: %d, 0, 0,\n",
+	  dwin->win, mygc, dwin->ximage);
+  fprintf(stderr, "x: %d %x,  y: %d %x, w: %d %x, h: %d %x\n",
+	   window.video_area.x,
+	   window.video_area.x,
+	  window.video_area.y, 
+	  window.video_area.y, 
+	  window.video_area.width,
+	  window.video_area.width,
+	  window.video_area.height,
+	  window.video_area.height);
+  */
   if(use_xshm) {
     XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 
-		 (window.window_area.width  - scale.image_width )/2,
-		 (window.window_area.height - scale.image_height)/2, 
-		 scale.image_width, scale.image_height, True);
+		 window.video_area.x,
+		 window.video_area.y, 
+		 window.video_area.width,
+		 window.video_area.height,
+		 True);
+
+    
+    {
+      XEvent ev;
+      
+      /* this is to make sure that we are free to use the image again
+	 It waits for an XShmCompletionEvent */
+      XIfEvent(mydisplay, &ev, predicate, NULL);
+    }
   } else {
     XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0,
-	      (window.window_area.width  - scale.image_width )/2,
-	      (window.window_area.height - scale.image_height)/2, 
-	      scale.image_width, scale.image_height);
+	      window.video_area.x,
+	      window.video_area.y, 
+	      window.video_area.width,
+	      window.video_area.height);
+    XSync(mydisplay, False);
   }
   
-  //TEST
-  XSync(mydisplay, False);
-  // XFlush(mydisplay);
 }
 
-static Bool predicate(Display *dpy, XEvent *ev, XPointer arg)
-{
-  if(ev->type == CompletionType) {
-    return True;
-  } else {
-    return False;
-  }
-}
 
 static void draw_win_xv(window_info *dwin)
 {

@@ -347,8 +347,8 @@ static int process_button(DVDCtrlEvent_t *ce, pci_t *pci, uint16_t *btn_reg) {
       unsigned int x, y;
       
       vm_get_video_res(&width, &height);
-      x = (ce->mouse.x * width) / 65536;
-      y = (ce->mouse.y * height) / 65536;
+      x = ce->mouse.x;
+      y = ce->mouse.y;
       button = mouse_over_hl(pci, x, y);
       if(button)
 	button_nr = button;
