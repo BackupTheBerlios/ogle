@@ -54,4 +54,4 @@ static inline uint32_t FROM_BE_32(uint32_t x)
 
 #endif /* WORDS_BIGENDIAN */
 
-#endif /* COMMON_H_INCLUDED */
+#endif /* ENDIAN_H_INCLUDED */
