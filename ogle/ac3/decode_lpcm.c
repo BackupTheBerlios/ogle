@@ -121,8 +121,7 @@ int decode_lpcm(adec_lpcm_handle_t *handle, uint8_t *start, int len,
     //change into config format
 
     
-    new_format.ch_array = realloc(new_format.ch_array,
-				  handle->channels * sizeof(ChannelType_t));
+    new_format.ch_array = malloc(handle->channels * sizeof(ChannelType_t));
     new_format.ch_array[0] = ChannelType_Left;
     new_format.ch_array[1] = ChannelType_Right;
     if(handle->channels > 2) {

@@ -132,7 +132,9 @@ static int convert_s16be_to_s16ne(int16_t *s16be, int16_t *s16ne,
   memcpy(s16ne, s16be, nr_samples * nr_channels * sizeof(int16_t));
 #else
   for (i = 0; i < nr_samples * nr_channels; i++) {
-    s16ne[i] = (s16be[i] >> 8) | ((s16be[i] << 8) & 0xff00);
+    ((uint16_t *)s16ne)[i] =
+      ((((uint16_t *)s16be)[i] >> 8) & 0xff) | 
+      ((((uint16_t *)s16be)[i] << 8) & 0xff00);
   }
 
 #endif
