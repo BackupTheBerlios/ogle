@@ -2,6 +2,7 @@
 #define MSGTYPE_H
 
 #include <limits.h>
+#include <inttypes.h>
 
 typedef enum {
   MTYPE_CTL = 1,
