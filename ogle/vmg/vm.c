@@ -54,10 +54,6 @@ static link_t play_PGC_post(void);
 static link_t process_command(link_t link_values);
 
 static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN);
-
-static pgcit_t* get_VTS_PGCIT();
-static pgcit_t* get_VTSM_PGCIT(uint16_t lang);
-static pgcit_t* get_VMGM_PGCIT(uint16_t lang);
 static pgcit_t* get_PGCIT(void);
 static int get_video_aspect(void);
 
@@ -117,7 +113,7 @@ int vm_reset(char *dvdroot) // , register_t regs)
   vmgi = ifoOpenVMGI(dvd); // Check for error?
   ifoRead_FP_PGC(vmgi);
   ifoRead_TT_SRPT(vmgi);
-  ifoRead_MENU_PGCI_UT(vmgi);
+  ifoRead_PGCI_UT(vmgi);
   ifoRead_PTL_MAIT(vmgi);
   ifoRead_VTS_ATRT(vmgi);
   //ifoRead_TXTDT_MGI(vmgi);
@@ -386,7 +382,7 @@ void vm_get_angle_info(int *num_avail, int *current)
     title_info_t *title;
     if(state.TTN_REG > vmgi->tt_srpt->nr_of_srpts)
       return;
-    title = &vmgi->tt_srpt->title_info[state.TTN_REG - 1];
+    title = &vmgi->tt_srpt->title[state.TTN_REG - 1];
     if(title->title_set_nr != state.vtsN || 
        title->vts_ttn != state.VTS_TTN_REG)
       return; 
@@ -431,11 +427,11 @@ subp_attr_t vm_get_subp_attr(int streamN)
   subp_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
-    attr = vtsi->vtsi_mat->vts_subp_attributes[streamN];
+    attr = vtsi->vtsi_mat->vts_subp_attr[streamN];
   } else if(state.domain == VTSM_DOMAIN) {
-    attr = vtsi->vtsi_mat->vtsm_subp_attributes[0];
+    attr = vtsi->vtsi_mat->vtsm_subp_attr;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    attr = vmgi->vmgi_mat->vmgm_subp_attributes[0];
+    attr = vmgi->vmgi_mat->vmgm_subp_attr;
   }
   return attr;
 }
@@ -445,11 +441,11 @@ audio_attr_t vm_get_audio_attr(int streamN)
   audio_attr_t attr;
   
   if(state.domain == VTS_DOMAIN) {
-    attr = vtsi->vtsi_mat->vts_audio_attributes[streamN];
+    attr = vtsi->vtsi_mat->vts_audio_attr[streamN];
   } else if(state.domain == VTSM_DOMAIN) {
-    attr = vtsi->vtsi_mat->vtsm_audio_attributes[0];
+    attr = vtsi->vtsi_mat->vtsm_audio_attr;
   } else if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN) {
-    attr = vmgi->vmgi_mat->vmgm_audio_attributes[0];
+    attr = vmgi->vmgi_mat->vmgm_audio_attr;
   }
   return attr;
 }
@@ -486,7 +482,7 @@ static int set_PGN(void) {
   int new_pgN = 0;
   
   while(new_pgN < state.pgc->nr_of_programs 
-	&& state.cellN >= state.pgc->pgc_program_map[new_pgN])
+	&& state.cellN >= state.pgc->program_map[new_pgN])
     new_pgN++;
   
   if(new_pgN == state.pgc->nr_of_programs) /* We are at the last program */
@@ -497,12 +493,12 @@ static int set_PGN(void) {
   
   if(state.domain == VTS_DOMAIN) {
     playback_type_t *pb_ty;
-    pb_ty = &vmgi->tt_srpt->title_info[state.TTN_REG].pb_ty;
+    pb_ty = &vmgi->tt_srpt->title[state.TTN_REG].pb_ty;
     if(pb_ty->multi_or_random_pgc_title == /* One_Sequential_PGC_Title */ 0) {
 #if 0 /* TTN_REG can't be trusted to have a correct value here... */
       assert(state.VTS_TTN_REG <= vtsi->vts_ptt_srpt->nr_of_srpts);
-      assert(get_PGCN() == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgcn);
-      assert(1 == vtsi->vts_ptt_srpt->title_info[state.VTS_TTN_REG - 1].ptt_info[0].pgn);
+      assert(get_PGCN() == vtsi->vts_ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgcn);
+      assert(1 == vtsi->vts_ptt_srpt->title[state.VTS_TTN_REG - 1].ptt[0].pgn);
 #endif
       state.PTTN_REG = state.pgN;
     }
@@ -528,12 +524,12 @@ static link_t play_PGC(void)
 
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
-     - just play video i.e first PG1 (also a kind of jump/link)
-       (This is what happens if you fall of the end of the pre_commands)
+     - just play video i.e first PG
+       (This is what happens if you fall of the end of the pre_cmds)
      - or a error (are there more cases?) */
-  if(state.pgc->pgc_command_tbl && state.pgc->pgc_command_tbl->nr_of_pre) {
-    if(vmEval_CMD(state.pgc->pgc_command_tbl->pre_commands, 
-		  state.pgc->pgc_command_tbl->nr_of_pre, 
+  if(state.pgc->command_tbl && state.pgc->command_tbl->nr_of_pre) {
+    if(vmEval_CMD(state.pgc->command_tbl->pre_cmds, 
+		  state.pgc->command_tbl->nr_of_pre, 
 		  &state.registers, &link_values)) {
       // link_values contains the 'jump' return value
       return link_values;
@@ -557,7 +553,7 @@ static link_t play_PG(void)
     return play_PGC_post();
   }
   
-  state.cellN = state.pgc->pgc_program_map[state.pgN - 1];
+  state.cellN = state.pgc->program_map[state.pgN - 1];
   
   return play_Cell();
 }
@@ -577,27 +573,27 @@ static link_t play_Cell(void)
   
 
   /* Multi angle/Interleaved */
-  switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode) {
+  switch(state.pgc->cell_playback[state.cellN - 1].block_mode) {
   case 0: // Normal
-    assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 0);
+    assert(state.pgc->cell_playback[state.cellN - 1].block_type == 0);
     break;
   case 1: // The first cell in the block
-    switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_type) {
+    switch(state.pgc->cell_playback[state.cellN - 1].block_type) {
     case 0: // Not part of a block
       assert(0);
     case 1: // Angle block
       /* Loop and check each cell instead? So we don't get outsid the block. */
       state.cellN += state.AGL_REG - 1;
       assert(state.cellN <= state.pgc->nr_of_cells);
-      assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode != 0);
-      assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 1);
+      assert(state.pgc->cell_playback[state.cellN - 1].block_mode != 0);
+      assert(state.pgc->cell_playback[state.cellN - 1].block_type == 1);
       break;
     case 2: // ??
     case 3: // ??
     default:
       fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
-	      state.pgc->cell_playback_tbl[state.cellN - 1].block_mode,
-	      state.pgc->cell_playback_tbl[state.cellN - 1].block_type);
+	      state.pgc->cell_playback[state.cellN - 1].block_mode,
+	      state.pgc->cell_playback[state.cellN - 1].block_type);
     }
     break;
   case 2: // Cell in the block
@@ -628,19 +624,18 @@ static link_t play_Cell_post(void)
   
   fprintf(stderr, "play_Cell_post: state.cellN (%i)\n", state.cellN);
   
-  cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
+  cell = &state.pgc->cell_playback[state.cellN - 1];
   
   /* Still time is already taken care of before we get called. */
   
   /* Deal with a Cell command, if any */
   if(cell->cell_cmd_nr != 0) {
-    pgc_command_tbl_t *cmd_tbl = state.pgc->pgc_command_tbl; 
     link_t link_values;
     
-    assert(cmd_tbl != NULL);
-    assert(cmd_tbl->nr_of_cell >= cell->cell_cmd_nr);
+    assert(state.pgc->command_tbl != NULL);
+    assert(state.pgc->command_tbl->nr_of_cell >= cell->cell_cmd_nr);
     fprintf(stderr, "Cell command pressent, executing\n");
-    if(vmEval_CMD(&cmd_tbl->cell_commands[cell->cell_cmd_nr - 1], 1,
+    if(vmEval_CMD(&state.pgc->command_tbl->cell_cmds[cell->cell_cmd_nr - 1], 1,
 		  &state.registers, &link_values)) {
       return link_values;
     } else {
@@ -652,23 +647,23 @@ static link_t play_Cell_post(void)
   
   /* Where to continue after playing the cell... */
   /* Multi angle/Interleaved */
-  switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_mode) {
+  switch(state.pgc->cell_playback[state.cellN - 1].block_mode) {
   case 0: // Normal
-    assert(state.pgc->cell_playback_tbl[state.cellN - 1].block_type == 0);
+    assert(state.pgc->cell_playback[state.cellN - 1].block_type == 0);
     state.cellN++;
     break;
   case 1: // The first cell in the block
   case 2: // A cell in the block
   case 3: // The last cell in the block
   default:
-    switch(state.pgc->cell_playback_tbl[state.cellN - 1].block_type) {
+    switch(state.pgc->cell_playback[state.cellN - 1].block_type) {
     case 0: // Not part of a block
       assert(0);
     case 1: // Angle block
       /* Skip the 'other' angles */
       state.cellN++;
       while(state.cellN <= state.pgc->nr_of_cells 
-	    && state.pgc->cell_playback_tbl[state.cellN - 1].block_mode >= 2) {
+	    && state.pgc->cell_playback[state.cellN - 1].block_mode >= 2) {
 	state.cellN++;
       }
       break;
@@ -676,8 +671,8 @@ static link_t play_Cell_post(void)
     case 3: // ??
     default:
       fprintf(stderr, "Invalid? Cell block_mode (%d), block_type (%d)\n",
-	      state.pgc->cell_playback_tbl[state.cellN - 1].block_mode,
-	      state.pgc->cell_playback_tbl[state.cellN - 1].block_type);
+	      state.pgc->cell_playback[state.cellN - 1].block_mode,
+	      state.pgc->cell_playback[state.cellN - 1].block_type);
     }
     break;
   }
@@ -704,10 +699,10 @@ static link_t play_PGC_post(void)
   /* eval -> updates the state and returns either 
      - some kind of jump (Jump(TT/SS/VTS_TTN/CallSS/link C/PG/PGC/PTTN)
      - or a error (are there more cases?)
-     - if you got to the end of the post_commands, then what ?? */
-  if(state.pgc->pgc_command_tbl &&
-     vmEval_CMD(state.pgc->pgc_command_tbl->post_commands,
-		state.pgc->pgc_command_tbl->nr_of_post, 
+     - if you got to the end of the post_cmds, then what ?? */
+  if(state.pgc->command_tbl &&
+     vmEval_CMD(state.pgc->command_tbl->post_cmds,
+		state.pgc->command_tbl->nr_of_post, 
 		&state.registers, &link_values)) {
     return link_values;
   }
@@ -911,8 +906,7 @@ static link_t process_command(link_t link_values)
       if(link_values.data1 !=0) {
 	assert(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN); //??
 	state.domain = VTSM_DOMAIN;
-	ifoOpenNewVTSI(dvd, link_values.data1); 
-	//state.vtsN = link_values.data1;
+	ifoOpenNewVTSI(dvd, link_values.data1);  // Also sets state.vtsN
       } else {
 	// This happens on 'The Fifth Element' region 2.
 	assert(state.domain == VTSM_DOMAIN);
@@ -991,8 +985,8 @@ static int get_TT(int tt)
   
   state.TTN_REG = tt;
   
-  return get_VTS_TT(vmgi->tt_srpt->title_info[tt - 1].title_set_nr,
-		    vmgi->tt_srpt->title_info[tt - 1].vts_ttn);
+  return get_VTS_TT(vmgi->tt_srpt->title[tt - 1].title_set_nr,
+		    vmgi->tt_srpt->title[tt - 1].vts_ttn);
 }
 
 
@@ -1024,10 +1018,10 @@ static int get_VTS_PTT(int vtsN, int /* is this really */ vts_ttn, int part)
     ifoOpenNewVTSI(dvd, vtsN); // Also sets state.vtsN
   
   assert(vts_ttn <= vtsi->vts_ptt_srpt->nr_of_srpts);
-  assert(part <= vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].nr_of_ptts);
+  assert(part <= vtsi->vts_ptt_srpt->title[vts_ttn - 1].nr_of_ptts);
   
-  pgcN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgcn;
-  pgN = vtsi->vts_ptt_srpt->title_info[vts_ttn - 1].ptt_info[part - 1].pgn;
+  pgcN = vtsi->vts_ptt_srpt->title[vts_ttn - 1].ptt[part - 1].pgcn;
+  pgN = vtsi->vts_ptt_srpt->title[vts_ttn - 1].ptt[part - 1].pgn;
   
   //state.TTN_REG = ?? Must search tt_srpt for a matchhing entry...
   state.VTS_TTN_REG = vts_ttn;
@@ -1122,11 +1116,11 @@ static int get_video_aspect(void)
   int aspect = 0;
   
   if(state.domain == VTS_DOMAIN) {
-    aspect = vtsi->vtsi_mat->vts_video_attributes.display_aspect_ratio;  
+    aspect = vtsi->vtsi_mat->vts_video_attr.display_aspect_ratio;  
   } else if(state.domain == VTSM_DOMAIN) {
-    aspect = vtsi->vtsi_mat->vtsm_video_attributes.display_aspect_ratio;
+    aspect = vtsi->vtsi_mat->vtsm_video_attr.display_aspect_ratio;
   } else if(state.domain == VMGM_DOMAIN) {
-    aspect = vmgi->vmgi_mat->vmgm_video_attributes.display_aspect_ratio;
+    aspect = vmgi->vmgi_mat->vmgm_video_attr.display_aspect_ratio;
   }
   assert(aspect == 0 || aspect == 3);
   state.registers.SPRM[14] &= ~(0x3 << 10);
@@ -1142,13 +1136,18 @@ static int get_video_aspect(void)
 
 static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN) 
 {
+  if(state.vtsN == vtsN) {
+    fprintf(stderr, "*** APA ***\n");
+    return; // We alread have it
+  }
+  
   if(vtsi != NULL)
     ifoClose(vtsi);
   
   vtsi = ifoOpenVTSI(dvd, vtsN);
   ifoRead_VTS_PTT_SRPT(vtsi);
   ifoRead_PGCIT(vtsi);
-  ifoRead_MENU_PGCI_UT(vtsi);
+  ifoRead_PGCI_UT(vtsi);
 
   state.vtsN = vtsN;
 }
@@ -1156,47 +1155,25 @@ static void ifoOpenNewVTSI(dvd_reader_t *dvd, int vtsN)
 
 
 
-static pgcit_t* get_VTS_PGCIT()
-{
-  return vtsi->vts_pgcit;
-}
-
-static pgcit_t* get_VTSM_PGCIT(uint16_t lang)
+static pgcit_t* get_MENU_PGCIT(ifo_handle_t *h, uint16_t lang)
 {
   int i;
   
-  if(vtsi->vtsm_pgci_ut == NULL)
+  if(h == NULL || h->pgci_ut == NULL) {
+    fprintf(stderr, "*** BEPA ***\n");
     return NULL; // error?
+  }
   
   i = 0;
-  while(i < vtsi->vtsm_pgci_ut->nr_of_lang_units
-	&& vtsi->vtsm_pgci_ut->menu_lu[i].lang_code != lang)
+  while(i < h->pgci_ut->nr_of_lus
+	&& h->pgci_ut->lu[i].lang_code != lang)
     i++;
-  if(i == vtsi->vtsm_pgci_ut->nr_of_lang_units) {
+  if(i == h->pgci_ut->nr_of_lus) {
     fprintf(stderr, "** Wrong language **\n");
     i = 0; // error?
   }
   
-  return vtsi->vtsm_pgci_ut->menu_lu[i].menu_pgcit;
-}
-
-static pgcit_t* get_VMGM_PGCIT(uint16_t lang)
-{
-  int i;
-  
-  if(vmgi->vmgm_pgci_ut == NULL)
-    return NULL; // error?
- 
-  i = 0;
-  while(i < vmgi->vmgm_pgci_ut->nr_of_lang_units
-	&& vmgi->vmgm_pgci_ut->menu_lu[i].lang_code != lang)
-    i++;
-  if(i == vmgi->vmgm_pgci_ut->nr_of_lang_units) {
-    fprintf(stderr, "** Wrong language **\n");
-    i = 0; // error?
-  }
-  
-  return vmgi->vmgm_pgci_ut->menu_lu[i].menu_pgcit;
+  return h->pgci_ut->lu[i].pgcit;
 }
 
 /* Uses state to decide what to return */
@@ -1204,11 +1181,11 @@ static pgcit_t* get_PGCIT(void) {
   pgcit_t *pgcit;
   
   if(state.domain == VTS_DOMAIN) {
-    pgcit = get_VTS_PGCIT();
+    pgcit = vtsi->vts_pgcit;
   } else if(state.domain == VTSM_DOMAIN) {
-    pgcit = get_VTSM_PGCIT(state.registers.SPRM[0]);
+    pgcit = get_MENU_PGCIT(vtsi, state.registers.SPRM[0]);
   } else if(state.domain == VMGM_DOMAIN) {
-    pgcit = get_VMGM_PGCIT(state.registers.SPRM[0]);
+    pgcit = get_MENU_PGCIT(vmgi, state.registers.SPRM[0]);
   } else {
     pgcit = NULL;    /* Should never hapen */
   }

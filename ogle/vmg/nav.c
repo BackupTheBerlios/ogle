@@ -439,7 +439,7 @@ static cell_playback_t *cell;
 
 static void do_init_cell(int flush) {
   
-  cell = &state.pgc->cell_playback_tbl[state.cellN - 1];
+  cell = &state.pgc->cell_playback[state.cellN - 1];
   still_time = 10 * cell->still_time;
 
   block = state.blockN;
@@ -729,7 +729,7 @@ static void do_run(void) {
 	      send_ev.dvdctrl.cmd.audioattributes.attr.AppMode 
 		= attr.application_mode;
 	      send_ev.dvdctrl.cmd.audioattributes.attr.LanguageExtension
-		= attr.audio_type;
+		= attr.lang_extension;
 	      send_ev.dvdctrl.cmd.audioattributes.attr.Language 
 		= attr.lang_code;
 	    }

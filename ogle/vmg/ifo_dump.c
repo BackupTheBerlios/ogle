@@ -92,7 +92,7 @@ static void print_ifo(char *path, int title) {
     printf("\nMenu PGCI Unit table\n");
     printf(  "--------------------\n");
     if(h->vmgi_mat->vmgm_pgci_ut != 0) {
-      ifoPrint_MENU_PGCI_UT(h->vmgm_pgci_ut);
+      ifoPrint_PGCI_UT(h->pgci_ut);
     } else 
       printf("No Menu PGCI Unit table present\n");
       
@@ -121,14 +121,14 @@ static void print_ifo(char *path, int title) {
       printf("\nCell Adress table\n");
       printf(  "-----------------\n");
       if(h->vmgi_mat->vmgm_c_adt != 0) {
-	ifoPrint_C_ADT(h->vmgm_c_adt);
+	ifoPrint_C_ADT(h->menu_c_adt);
       } else
 	printf("No Cell Adress table present\n");
       
       printf("\nVideo Title set Menu VOBU address map\n");
       printf(  "-----------------\n");
       if(h->vmgi_mat->vmgm_vobu_admap != 0) {
-	ifoPrint_VOBU_ADMAP(h->vmgm_vobu_admap);
+	ifoPrint_VOBU_ADMAP(h->menu_vobu_admap);
       } else
 	printf("No Menu VOBU address map present\n");
     }
@@ -150,7 +150,7 @@ static void print_ifo(char *path, int title) {
     printf("\nMenu PGCI Unit table\n");
     printf(  "--------------------\n");
     if(h->vtsi_mat->vtsm_pgci_ut != 0) {
-      ifoPrint_MENU_PGCI_UT(h->vtsm_pgci_ut);
+      ifoPrint_PGCI_UT(h->pgci_ut);
     } else
       printf("No Menu PGCI Unit table present\n");
       
@@ -159,14 +159,14 @@ static void print_ifo(char *path, int title) {
       printf("\nMenu Cell Adress table\n");
       printf(  "-----------------\n");
       if(h->vtsi_mat->vtsm_c_adt != 0) {
-	ifoPrint_C_ADT(h->vtsm_c_adt);
+	ifoPrint_C_ADT(h->menu_c_adt);
       } else
 	printf("No Cell Adress table present\n");
       
       printf("\nVideo Title Set Menu VOBU address map\n");
       printf(  "-----------------\n");
       if(h->vtsi_mat->vtsm_vobu_admap != 0) {
-	ifoPrint_VOBU_ADMAP(h->vtsm_vobu_admap);
+	ifoPrint_VOBU_ADMAP(h->menu_vobu_admap);
       } else
 	printf("No Menu VOBU address map present\n");
       

@@ -533,10 +533,10 @@ static void display_process()
       clocktime_get(&avg_time);
       
       fprintf(stderr, "display: frame rate: %.3f fps\n",
-	      24.0/(((double)TIME_S(avg_time)+
-		     (double)TIME_SS(avg_time)/CT_FRACTION)-
-		    ((double)TIME_S(oavg_time)+
-		     (double)TIME_SS(oavg_time)/CT_FRACTION))
+	      200.0/(((double)TIME_S(avg_time)+
+		      (double)TIME_SS(avg_time)/CT_FRACTION)-
+		     ((double)TIME_S(oavg_time)+
+		      (double)TIME_SS(oavg_time)/CT_FRACTION))
 	      );
 
     }
