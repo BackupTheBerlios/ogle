@@ -5,7 +5,7 @@ Installation
      Type `./configure' to configure the package for your system.
 
      There are three package specific configure options.
-       --with-libdvdread=path  specify where libdvdread is installed
+       --with-dvdread=path  specify where libdvdread is installed
        --with-libmlib=path     specify where mediaLib is installed
        --with-libjpeg=path     specify where libjpeg is installed
 
