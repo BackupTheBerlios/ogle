@@ -56,7 +56,14 @@ sparc)
 esac
 AC_SUBST(USE_MMX)
 
-AC_DEFINE(USE_POSIX_SEM)
+case "$host_os" in
+linux-gnu)
+        AC_DEFINE(USE_SYSV_SEM)
+        ;;
+*)
+        AC_DEFINE(USE_POSIX_SEM)
+        ;;
+esac
 
 AC_CHECK_FUNCS(clock_gettime madvise)
 dnl XV XV_NO_CP 
