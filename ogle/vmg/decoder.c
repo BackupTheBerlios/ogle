@@ -397,17 +397,21 @@ static void eval_set_op(int op, int reg, int reg2, int data) {
       if(data != 0)
 	state->GPRM[reg] /= data;
       else
-	state->GPRM[reg] = 0; /* realy an error I guess */
+	state->GPRM[reg] = 65535;
       break;
     case 7:
-      state->GPRM[reg] %= data;
+      if(data != 0)
+	state->GPRM[reg] %= data;
+      else
+	state->GPRM[reg] = 0; /* really an error I guess */
+      break;
       break;
     case 8: /* SPECIAL CASE - RANDOM! */
       if(data != 0)
 	/* TODO rand() might only return 0-32768  */
 	state->GPRM[reg] = (rand() % data) + 1;
       else
-	state->GPRM[reg] = 0; /* realy an error I guess */
+	state->GPRM[reg] = 0; /* really an error I guess */
       break;
     case 9:
       state->GPRM[reg] &= data;
