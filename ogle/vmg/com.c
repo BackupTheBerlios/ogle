@@ -77,7 +77,7 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
     //DPRINTF(1, "nav: got notification\n");
     break;
   case MsgEventQChangeFile:
-   change_file(ev->changefile.filename);
+    change_file(ev->changefile.filename);
     break;
   case MsgEventQDecodeStreamBuf:
     /*
@@ -116,6 +116,15 @@ static void change_file(char *new_filename)
   static struct stat statbuf;
   int rv;
   static char *cur_filename = NULL;
+  
+  // maybe close file when null ?
+  if(new_filename == NULL) {
+    return;
+  }
+
+  if(new_filename[0] == '\0') {
+    return;
+  }
   
   // if same filename do nothing
   if(cur_filename != NULL && strcmp(cur_filename, new_filename) == 0) {
