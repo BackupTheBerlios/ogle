@@ -25,20 +25,26 @@
 #  include <config.h>
 #endif
 
-#ifdef HAVE_BYTESWAP_H
-#  include <byteswap.h>
+#ifdef WORDS_BIGENDIAN
+#  define FROM_BE_32(x) (x)
 #else
-#  define bswap_32(x) \
+
+
+#if defined(HAVE_BYTESWAP_H)
+#  include <byteswap.h>
+#  define FROM_BE_32(x) (bswap_32(x))
+#elif defined(HAVE_SYS_BSWAP_H)
+#  include <sys/bswap.h>
+#  define FROM_BE_32(x) (bswap32(x))
+#else
+#  define FROM_BE_32(x) \
      ((((x) & 0xff000000) >> 24) | \
       (((x) & 0x00ff0000) >>  8) | \
       (((x) & 0x0000ff00) <<  8) | \
       (((x) & 0x000000ff) << 24))
 #endif
 
-#ifdef WORDS_BIGENDIAN
-#  define FROM_BE_32(x) (x)
-#else
-#  define FROM_BE_32(x) (bswap_32((x)))
-#endif
+
+#endif /* WORDS_BIGENDIAN */
 
 #endif /* COMMON_H_INCLUDED */
