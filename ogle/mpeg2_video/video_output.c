@@ -349,7 +349,12 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 
     calc_realtime_left_to_scrtime(&time_left, &real_time,
 				  scr, sp);
-    
+    /*
+    fprintf(stderr, "rt: %ld.%09ld, scr: %ld.%09ld, left: %ld.%09ld\n",
+	    real_time.tv_sec, real_time.tv_nsec,
+	    scr->tv_sec, scr->tv_nsec,
+	    time_left.tv_sec, time_left.tv_nsec);
+    */
 
     if((TIME_S(time_left) > 0) || (TIME_SS(time_left) > (CT_FRACTION/10))) {
       // more then 100 ms left, lets wait and check x events every 100ms
@@ -364,6 +369,9 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
 
     } else if(TIME_SS(time_left) > (15*(CT_FRACTION/1000))) {
       // less than 100ms but more than 15 ms left, lets wait
+      struct timespec sleeptime;
+ 
+#if 0
       timer.it_value.tv_sec = 0;
       timer.it_value.tv_usec = TIME_SS(time_left)/(CT_FRACTION/1000000);
       
@@ -372,7 +380,14 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
       
       sigaction(SIGALRM, &act, &oact);
       setitimer(ITIMER_REAL, &timer, NULL);
-      
+#endif
+      sleeptime.tv_sec = TIME_S(time_left);
+      sleeptime.tv_nsec = TIME_SS(time_left)*(1000000000/CT_FRACTION);
+      nanosleep(&sleeptime, NULL);
+      clocktime_get(&real_time);
+      calc_realtime_left_to_scrtime(&time_left, &real_time,
+				    scr, sp);
+      return time_left;
     } else {
       // less than 15 ms left or negative time left, we cant sleep
       // a shorter period than 10 ms so we return
@@ -638,8 +653,10 @@ static void display_process()
 	
       }
     }
-
-    
+    /*
+    fprintf(stderr, "*vo: waittime: %ld.%+010ld\n",
+	    wait_time.tv_sec, wait_time.tv_nsec);
+    */
 #if 0
 #ifndef HAVE_CLOCK_GETTIME
     timesub(&waittmp, &prefered_time, &real_time);
