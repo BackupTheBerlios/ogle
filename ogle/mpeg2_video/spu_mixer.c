@@ -66,7 +66,7 @@ typedef struct {
   uint16_t fieldoffset[2];
 
   unsigned char *buffer;
-  char *next_buffer;
+  unsigned char *next_buffer;
   int scr_nr;
   clocktime_t base_time;
   clocktime_t next_time;
@@ -226,7 +226,13 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   
   switch(ev->type) {
   case MsgEventQNotify:
-    DPRINTF(1, "spu_mixer: got notification\n");
+    if((stream_shmaddr != NULL) &&
+       (ev->notify.qid == ((q_head_t *)stream_shmaddr)->qid)) {
+      DPRINTF(1, "spu_mixer: got notification\n");
+      redraw_request();
+    } else {
+      return 0;
+    }
     break;
   case MsgEventQDecodeStreamBuf:
     DPRINTF(1, "video_decode: got stream %x, %x buffer \n",
@@ -246,6 +252,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 	palette_yuv[n] = ev->spupalette.colors[n];
 	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
       }
+      redraw_request();
     }
     break;
   case MsgEventQSPUHighlight:
@@ -263,6 +270,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       for(n = 0; n < 4; n++) {
 	highlight.contrast[n] = ev->spuhighlight.contrast[n];
       }
+      redraw_request();
     }
     break;
   default:
@@ -440,90 +448,11 @@ static int get_q(char *dst, int readlen, clocktime_t *display_base_time, int *ne
   }
   
   q_head->read_nr = (q_head->read_nr+1)%q_head->nr_of_qelems;
-  elem = q_head->read_nr;
+
 
   return cpy_len;
 }
 
-
-/*
-static int eval_msg(mq_cmd_t *cmd)
-{
-  mq_msg_t sendmsg;
-  mq_cmd_t *sendcmd;
-  
-  sendcmd = (mq_cmd_t *)&sendmsg.mtext;
-  
-  switch(cmd->cmdtype) {
-  case CMD_CTRL_DATA:
-    fprintf(stderr, "spu_mixer: CMD_CTRL_DATA\n");
-    attach_ctrl_shm(cmd->cmd.ctrl_data.shmid);
-    break;
-  case CMD_DECODE_STREAM_BUFFER:
-    fprintf(stderr, "spu_mixer: got stream %x, %x buffer \n",
-	    cmd->cmd.stream_buffer.stream_id,
-	    cmd->cmd.stream_buffer.subtype);
-    attach_stream_buffer(cmd->cmd.stream_buffer.stream_id,
-			  cmd->cmd.stream_buffer.subtype,
-			  cmd->cmd.stream_buffer.q_shmid);
-    break;
-  case CMD_SPU_SET_PALETTE:
-    {
-      int n;
-      for(n = 0; n < 16; n++) {
-	palette_yuv[n] = cmd->cmd.spu_palette.colors[n];
-	palette_rgb[n] = yuv2rgb(palette_yuv[n]);
-      }
-    }
-    break;
-  case CMD_SPU_SET_HIGHLIGHT:
-    {
-      int n;
-      
-      highlight.x_start = cmd->cmd.spu_highlight.x_start;
-      highlight.y_start = cmd->cmd.spu_highlight.y_start;
-      highlight.x_end = cmd->cmd.spu_highlight.x_end;
-      highlight.y_end = cmd->cmd.spu_highlight.y_end;
-
-      for(n = 0; n < 4; n++) {
-	highlight.color[n] = cmd->cmd.spu_highlight.color[n];
-      }
-      for(n = 0; n < 4; n++) {
-	highlight.contrast[n] = cmd->cmd.spu_highlight.contrast[n];
-      }
-    }
-    break;
-  default:
-    fprintf(stderr, "spu_mixer: unrecognized command cmdtype: %x\n",
-	    cmd->cmdtype);
-    return -1;
-    break;
-  }
-  
-  return 0;
-}
-
-
-static int chk_for_msg(void)
-{
-  mq_msg_t msg;
-  mq_cmd_t *cmd;
-  cmd = (mq_cmd_t *)(msg.mtext);
-  cmd->cmdtype = CMD_NONE;
-  
-  if(msgrcv(msgqid, &msg, sizeof(msg.mtext),
-	    MTYPE_SPU_DECODE, IPC_NOWAIT) == -1) {
-    if(errno != ENOMSG) {
-      perror("msgrcv");
-    }
-    return -1;
-  } else {
-    fprintf(stderr, "spu_mixer: got msg\n");
-    eval_msg(cmd);
-  }
-  return 0;
-}
-*/
 
 int init_spu(void)
 {
@@ -1039,7 +968,7 @@ int next_spu_cmd_pending(spu_t *spu_info) {
   int start_time, offset;
   clocktime_t realtime, errtime;
 
-  /* I next_time haven't been set, try to set it. */
+  /* If next_time haven't been set, try to set it. */
   if(TIME_S(spu_info->next_time) == 0) {
     
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
@@ -1058,11 +987,12 @@ int next_spu_cmd_pending(spu_t *spu_info) {
       start_time = ((spu_info->buffer[spu_info->next_DCSQ_offset] << 8) 
 		    | spu_info->buffer[spu_info->next_DCSQ_offset + 1]);
     }
-    
+
     TIME_S(spu_info->next_time)  = start_time/100;
     TIME_SS(spu_info->next_time) = (start_time%100) * CT_FRACTION/100;  
     timeadd(&spu_info->next_time, &spu_info->base_time, &spu_info->next_time);
   }
+
 
   clocktime_get(&realtime);
   timesub(&errtime, &spu_info->next_time, &realtime);

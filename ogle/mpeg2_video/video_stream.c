@@ -1608,6 +1608,7 @@ void dpy_q_put(int id)
 
     picture_q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
+    ev.notify.qid = picture_q_head->qid;
     if(MsgSendEvent(msgq, picture_q_head->reader, &ev) == -1) {
       fprintf(stderr, "video_decode: couldn't send notification\n");
     }

@@ -205,7 +205,12 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   
   switch(ev->type) {
   case MsgEventQNotify:
-    //DPRINTF(1, "vo: got notify\n");
+    if((picture_q_head != NULL) &&
+       (ev->notify.qid == picture_q_head->qid)) {
+      //DPRINTF(1, "vo: got notify\n");
+    } else {
+      return 0;
+    }
     break;
   case MsgEventQAttachQ:
     attach_picture_buffer(ev->attachq.q_shmid);
@@ -222,8 +227,26 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 }
 
 
+static yuv_image_t *last_image_buf = NULL;
+static int redraw_needed = 0;
 
+void redraw_request(void)
+{
+  redraw_needed = 1;
+}
 
+void redraw_done(void)
+{
+  redraw_needed = 0;
+}
+
+static void redraw_screen(void)
+{
+  if(last_image_buf != NULL) {
+    display(last_image_buf);    
+  }
+  redraw_done();
+}
 
 static int get_next_picture_buf_id()
 {
@@ -241,6 +264,9 @@ static int get_next_picture_buf_id()
       //fprintf(stderr, "vo: waiting for notification\n");
       MsgNextEvent(msgq, &ev);
       event_handler(msgq, &ev);
+      if(redraw_needed) {
+	redraw_screen();
+      }
     }
   }
   /*
@@ -319,6 +345,7 @@ static void display_process()
   while(1) {
 
     buf_id = get_next_picture_buf_id();
+    last_image_buf = &image_bufs[buf_id];
     video_scr_nr = pinfos[buf_id].scr_nr;
     prev_buf_id = buf_id;
     
@@ -479,7 +506,8 @@ static void display_process()
       drop = 0;
     }
 #else
-      display(&image_bufs[buf_id]);
+    display(&image_bufs[buf_id]);
+    redraw_done();
 #endif
 
       //timeadd(&prefered_time, &prefered_time, &frame_interval);
