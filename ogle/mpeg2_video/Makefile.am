@@ -65,6 +65,7 @@ ogle_vout_SOURCES = \
 	wm_state.c wm_state.h \
 	display.c display.h \
 	video_output.h \
+        xscreensaver-comm.c xscreensaver-comm.h \
 	video_output_parse_config.c video_output_parse_config.h \
 	$(MLIBSOURCES) $(ALTIVECSOURCES) $(SPARCASM) $(MMXSOURCES) $(CSOURCES)
 ogle_vout_LDADD = \

@@ -39,8 +39,8 @@
 #include "timemath.h"
 #include "sync.h"
 #include "spu_mixer.h"
-
 #include "video_output.h"
+#include "xscreensaver-comm.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0
@@ -63,6 +63,8 @@ char *program_name;
 int video_scr_nr;
 
 int process_interrupted = 0;
+
+Bool talk_to_xscreensaver;
 
 static int end_of_wait;
 
@@ -495,15 +497,29 @@ static clocktime_t wait_until(clocktime_t *scr, sync_point_t *sp)
   clocktime_t real_time;
   struct sigaction act;
   struct sigaction oact;
-  
+
+  static clocktime_t last_ss_disable = {0,0};
+
   timer.it_interval.tv_sec = 0;
   timer.it_interval.tv_usec = 0;
   
   while(1) {
     
     end_of_wait = 0;
-   
+    
     clocktime_get(&real_time);
+
+    if(talk_to_xscreensaver) {
+       if(TIME_S(real_time) - TIME_S(last_ss_disable) > 50) {
+           clocktime_t prof_time;
+           nudge_xscreensaver();
+           clocktime_get(&prof_time);
+           timesub(&prof_time, &prof_time, &real_time);
+           fprintf(stderr, "ss disable took %ld.%09ld s\n",
+                  TIME_S(prof_time), TIME_SS(prof_time));
+           TIME_S(last_ss_disable) = TIME_S(real_time);
+       }
+    }
 
     calc_realtime_left_to_scrtime(&time_left, &real_time,
 				  scr, sp);
@@ -782,6 +798,8 @@ static void display_process()
   sig.sa_handler = alarm_handler;
   sig.sa_flags = 0;
   sigaction(SIGALRM, &sig, NULL);
+
+  talk_to_xscreensaver = look_for_good_xscreensaver();
 
   while(1) {
     //DNOTE("old_q_id: %d\n", old_q_id);
