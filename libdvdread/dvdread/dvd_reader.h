@@ -1,7 +1,7 @@
 #ifndef DVD_READER_H_INCLUDED
 #define DVD_READER_H_INCLUDED
 
-/**
+/*
  * Copyright (C) 2001, 2002 Billy Biggs <vektor@dumbterm.net>,
  *                          Håkan Hjort <d95hjort@dtek.chalmers.se>
  *

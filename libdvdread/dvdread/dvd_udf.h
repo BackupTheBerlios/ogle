@@ -1,7 +1,7 @@
 #ifndef DVD_UDF_H_INCLUDED
 #define DVD_UDF_H_INCLUDED
 
-/**
+/*
  * This code is based on dvdudf by:
  *   Christian Wolff <scarabaeus@convergence.de>.
  *

@@ -1,7 +1,7 @@
 #ifndef NAV_TYPES_H_INCLUDED
 #define NAV_TYPES_H_INCLUDED
 
-/**
+/*
  * Copyright (C) 2000, 2001 Håkan Hjort <d95hjort@dtek.chalmers.se>
  *
  * The data structures in this file should represent the layout of the

@@ -1,7 +1,7 @@
 #ifndef NAV_PRINT_H_INCLUDED
 #define NAV_PRINT_H_INCLUDED
 
-/**
+/*
  * Copyright (C) 2001 Billy Biggs <vektor@dumbterm.net>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
  *

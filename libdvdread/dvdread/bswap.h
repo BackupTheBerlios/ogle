@@ -1,7 +1,7 @@
 #ifndef BSWAP_H_INCLUDED
 #define BSWAP_H_INCLUDED
 
-/**
+/*
  * Copyright (C) 2000, 2001 Billy Biggs <vektor@dumbterm.net>,
  *                          Håkan Hjort <d95hjort@dtek.chalmers.se>
  *

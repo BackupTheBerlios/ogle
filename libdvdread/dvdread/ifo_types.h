@@ -1,7 +1,7 @@
 #ifndef IFO_TYPES_H_INCLUDED
 #define IFO_TYPES_H_INCLUDED
 
-/**
+/*
  * Copyright (C) 2000, 2001 Björn Englund <d4bjorn@dtek.chalmers.se>,
  *                          Håkan Hjort <d95hjort@dtek.chalmers.se>
  *

@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright (C) 2001 Billy Biggs <vektor@dumbterm.net>.
  *
  * This program is free software; you can redistribute it and/or modify

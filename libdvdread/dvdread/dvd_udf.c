@@ -1,4 +1,4 @@
-/**
+/*
  * This code is based on dvdudf by:
  *   Christian Wolff <scarabaeus@convergence.de>.
  *
