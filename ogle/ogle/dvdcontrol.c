@@ -899,6 +899,52 @@ DVDResult_t DVDGetState(DVDNav_t *nav, char **state)
   } 
 }
 
+/**
+ * Get the DVDDiscID
+ *
+ * @param nav Specifies the connection to the DVD navigator.
+ * @param dvdid should point to a 16 bytes array where the discid will be
+ * returned.
+ * 
+ * @return If successful DVD_E_Ok is returned and the char pointer pointed
+ * to by state will be updated. Otherwise an error code  is returned.
+ *
+ * @retval DVD_E_Ok Success.
+ * @retval DVD_E_Unspecified Failure. 
+ */
+DVDResult_t DVDGetDiscID(DVDNav_t *nav, unsigned char *dvdid)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQDVDCtrl;
+  ev.dvdctrl.cmd.type = DVDCtrlGetDiscID;
+
+  if(MsgSendEvent(nav->msgq, nav->client, &ev, 0) == -1) {
+    return DVD_E_Unspecified;
+  }
+  
+  while(1) {
+    if(MsgNextEvent(nav->msgq, &ev) == -1) {
+      return DVD_E_Unspecified;
+    }
+    if((ev.type == MsgEventQDVDCtrl) &&
+       (ev.dvdctrl.cmd.type == DVDCtrlDiscID)) {
+      int n;
+      memcpy(dvdid, ev.dvdctrl.cmd.discid.id,
+	     sizeof(ev.dvdctrl.cmd.discid.id));
+      for(n = 0; n < sizeof(ev.dvdctrl.cmd.discid.id); n++) {
+	if(dvdid[n] != 0) {
+	  break;
+	}
+      }
+      if(n != sizeof(ev.dvdctrl.cmd.discid.id)) {
+	return DVD_E_Ok;
+      } else {
+	return DVD_E_Unspecified;
+      }
+    }
+  } 
+}
+
 /** @} end of dvdinfo */
 
 /** 

@@ -121,8 +121,11 @@ typedef enum {
   DVDCtrlGetCurrentLocation,
   DVDCtrlCurrentLocation,
   
-  DVDCtrlGetState
+  DVDCtrlGetState,
 
+  DVDCtrlGetDiscID,
+  DVDCtrlDiscID
+  
 } DVDCtrlEventType_t;
 
 typedef enum {
@@ -401,6 +404,11 @@ typedef struct {
 
 typedef struct {
   DVDCtrlEventType_t type;
+  unsigned char id[16];
+} DVDCtrlDiscIDEvent_t;
+
+typedef struct {
+  DVDCtrlEventType_t type;
 } DVDCtrlAnyEvent_t;
 
 typedef union {
@@ -493,6 +501,8 @@ typedef union {
   
   DVDCtrlCurrentDomainEvent_t domain;
   DVDCtrlCurrentLocationEvent_t location;
+
+  DVDCtrlDiscIDEvent_t discid;
   /* end infocmd */
 
 } DVDCtrlEvent_t;
