@@ -29,7 +29,6 @@ int get_num_rear_speakers(void);
 int get_num_front_speakers(void);
 
 double get_a52_level(void);
-int get_a52_adjust_level(void);
 int get_a52_drc(void);
 
 char *get_sync_type(void);

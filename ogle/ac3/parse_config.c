@@ -40,7 +40,6 @@ static int sub = 0;
 
 /* liba52 specific config */
 static double a52_level = 1;
-static int a52_adjust_level = 0;
 static int a52_drc = 0;
 
 static char *audio_driver = NULL;
@@ -145,11 +144,6 @@ double get_a52_level(void)
   return a52_level;
 }
 
-int get_a52_adjust_level(void)
-{
-  return a52_adjust_level;
-}
-
 int get_a52_drc(void)
 {
   return a52_drc;
@@ -164,17 +158,9 @@ static void parse_liba52(xmlDocPtr doc, xmlNodePtr cur)
   while(cur != NULL) {
     
     if(!xmlIsBlankNode(cur)) {
-      if(!strcmp("level", cur->name)) {
+      if(!strcmp("downmix_level", cur->name)) {
 	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
           a52_level = atof(s);
-	}
-      } else if(!strcmp("adjust_level", cur->name)) {
-	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {
-	  if(!strcmp("yes", s)) {
-	    a52_adjust_level = 1;
-	  } else {
-	    a52_adjust_level = 0;
-	  }
 	}
       } else if(!strcmp("drc", cur->name)) {
 	if((s = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1))) {

@@ -28,8 +28,7 @@
       <sub>0</sub>
     </speakers>
     <liba52>
-      <level>0.6</level>
-      <adjust_level>no</adjust_level>
+      <downmix_level>1.5</downmix_level>
       <drc>no</drc>
     </liba52>
     <sync>

@@ -440,7 +440,7 @@ adec_handle_t *init_a52(void)
   }
   handle->disable_dynrng = !get_a52_drc();
   handle->level = (sample_t)get_a52_level();
-  handle->adjust_level = get_a52_adjust_level();
+  handle->adjust_level = 1;
   
   return (adec_handle_t *)handle;
 }

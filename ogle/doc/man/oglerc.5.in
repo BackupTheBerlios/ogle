@@ -64,8 +64,7 @@ DVD-ROM drive.
       <sub>0</sub>
     </speakers>
     <liba52>
-      <level>1.0</level>
-      <adjust_level>yes</adjust_level>
+      <downmix_level>1.5</downmix_level>
       <drc>no</drc>
     </liba52>
     <sync>
@@ -85,17 +84,14 @@ DVD-ROM drive.
 <liba52>
 .RS 2
 Contains liba52 specific settings (for ac3 audio)
-<level>
+.br
+<downmix_level>
 .RS 4
-Is used to multiply the samples when downmixing from multichannel sound to stereo and <adjust_level> is set to no. For a full 5.1 track the value should be somewhere around 0.6 if you wan't to increase the volume a bit. Be aware that using this setting can result in clipping if to large values are used. This has no effect on stereo tracks.
-.RE
-<adjust_level>
-.RS 4
-If set to 'yes' this will automatically adjust the <level> so that no clipping will occur. This might result in a too low volume on 5.1 tracks. By setting this to 'no' you can use <level> to increase the volume slightly.
+Is used to multiply the samples when downmixing from multichannel sound to stereo. For a full 5.1 track the value should be somewhere around 1.5 if you want to increase the volume a bit. Be aware that using this setting can result in clipping if values larger than 1.0 are used. This has no effect on stereo tracks. Values lower than 1.0 will decrease the volume.
 .RE
 <drc>
 .RS 4
-This will turn on dynamic range compression if set to 'yes'. DRC will lower the volume of loud sound and raise the volume for soft sound.
+This will turn on dynamic range compression if set to 'yes'. DRC will lower the volume of loud sounds and raise the volume for soft sounds.
 .RE
 .RE
 <sync>
