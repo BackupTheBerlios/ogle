@@ -32,6 +32,8 @@ typedef struct {
   uint16_t display_start_y;
   uint16_t display_width;
   uint16_t display_height;
+  int sar_x;
+  int sar_y;
   float sar;
 } yuv_picture_t;
 
