@@ -824,9 +824,17 @@ void draw_win_x11(debug_win *dwin)
     screenshot_jpg(dwin->data, dwin->ximage);
   }
 
-  XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
-	       0, 0, 0, 0, 
-               dwin->image->info->horizontal_size, dwin->image->info->vertical_size, 1);
+  if(use_xshm) {
+    XShmPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 
+		 0, 0, 0, 0, 
+		 dwin->image->info->horizontal_size, dwin->image->info->vertical_size, 1);
+    
+  } else {
+    XPutImage(mydisplay, dwin->win, mygc, dwin->ximage, 0, 0, 0, 0,
+	      dwin->image->info->horizontal_size,
+	      dwin->image->info->vertical_size);
+  }
+
   // XSync(mydisplay, False); or
   // XFlushmydisplay);
 }
