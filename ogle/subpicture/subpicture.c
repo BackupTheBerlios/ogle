@@ -19,12 +19,17 @@
  *                                                     
  */
 
+
+#define DEBUG
+
 #ifndef NDEBUG
 #ifndef DEBUG
 #define NDEBUG
 #endif
 #endif
 
+#include <stdlib.h>
+#include <stdio.h>
 #include <inttypes.h>
 #include <assert.h>
 #include <stdio.h>
@@ -59,11 +64,27 @@ unsigned int y;
 uint16_t spu_size;
 
 /* Variables pertaining to the x window */
-XImage *picture_data = NULL;
-char *data;
-Display* display;
+XImage *subpicture_image = NULL;
+uint8_t *data;
 Visual* visual;
 unsigned int depth = 8;
+
+
+
+		
+Display *display;
+Window win;
+int screen_num;
+Colormap cmap;
+GC gc;
+Pixmap shape_pixmap;
+
+int InitWindow(int x, int y, int w, int h, char *display_name);
+void draw_subpicture(int x, int y, int w, int h);
+
+#ifdef DEBUG
+int debug;
+#endif
 
 #ifdef DEBUG
 #define DPRINTF(level, text...) \
@@ -105,6 +126,9 @@ uint32_t getbytes(unsigned int num, char *func)
 static inline uint32_t getbytes(unsigned int num)
 #endif
 {
+#ifdef DEBUG
+  int tmpnum = num;
+#endif
   uint32_t result = 0;
 
   assert(num <= 4);
@@ -115,16 +139,19 @@ static inline uint32_t getbytes(unsigned int num)
     byte_pos++;
     num--;
   }
-  DPRINTF(5, "%s getbytes(%u): %i, 0x%0*x, ", 
-          func, num, result, num*2, result);
-  DPRINTBITS(6, num*8, result);
+
+  DPRINTF(5, "\n%s getbytes(%u): %i, 0x%0*x, ", 
+          func, tmpnum, result, tmpnum*2, result);
+  DPRINTBITS(5, tmpnum*8, result);
+  DPRINTF(5, "\n");
   return result;
 }
 
 static inline uint8_t get_nibble (void)
 {
-  uint8_t next = 0;
+  static uint8_t next = 0;
   if (aligned) {
+    fieldoffset[field]++;
     next = GETBYTES(1, "get_nibble (aligned)");
     aligned = 0;
     return next >> 4;
@@ -137,19 +164,24 @@ static inline uint8_t get_nibble (void)
 
 /* Start of a new picture */
 void initialize() {
-  if (picture_data != NULL) {
-    XDestroyImage(picture_data);
+  
+  if (subpicture_image != NULL) {
+    XDestroyImage(subpicture_image);
   } 
   /* Create an XImage to draw in very 8-bitish */
-  uint8_t *data = malloc(width*height);
-  picture_data = XCreateImage(display, visual, depth, XYPixmap, 0, data,
+  
+  data = malloc((width+7)/8*8*height);
+  subpicture_image = XCreateImage(display, visual, depth, XYPixmap, 0, data,
                               width, height, 8, 0);
+
+
 }
 
 void send_rle (unsigned int vlc) {
   unsigned int length;
   static unsigned int colorid;
-
+  static uint8_t apa = 0;
+  DPRINTF(3, "send_rle: %08x\n", vlc)
   if(vlc==0) { // new line
     if (y >= height)
       return;
@@ -162,7 +194,8 @@ void send_rle (unsigned int vlc) {
     colorid = vlc & 3;
   }
   while (length-- && (x < width)) {
-    data[y*width + x] = color[colorid];
+    DPRINTF(6, "pos: %d, %d, col: %d\n", x, y, color[colorid]);
+    XPutPixel(subpicture_image, x, y, color[colorid]);
     x++;
   }
 
@@ -170,36 +203,76 @@ void send_rle (unsigned int vlc) {
     x=0;
     y++;
     field = 1-field;
+    set_byte(&buffer[fieldoffset[field]]);
     if(!aligned)
       get_nibble();
   }
 }
+char *program_name;
 
+void usage()
+{
+#ifdef DEBUG
+  fprintf(stderr, "Usage: %s [-d <level>] <infile>\n", program_name);
+#else
+  fprintf(stderr, "Usage: %s <infile>\n", program_name);
+#endif
+}
 int main (int argc, char *argv[]) {
-  uint8_t dummy;
-
+  uint32_t dummy;
+  int c;
   uint8_t command;
   uint16_t DCSQT_offset;
 
-  if (argc != 2)
-    {
-      printf("usage: %s file\n", argv[0]);
-      exit (1);
-    }
+  program_name = argv[0];
 
-  fd = open (argv[1], 0);
+  /* Parse command line options */
+#ifdef DEBUG
+  while ((c = getopt(argc, argv, "d:h?")) != EOF) {
+#else
+  while ((c = getopt(argc, argv, "h?")) != EOF) {
+#endif
+    
+    switch (c) {
+#ifdef DEBUG
+    case 'd':
+      debug = atoi(optarg);
+      break;
+#endif
+    case 'h':
+    case '?':
+      usage();
+      return 1;
+    }
+  }
+  
+  if(argc - optind != 1){
+    usage();
+    return 1;
+  }
+  
+
+  fd = open (argv[optind], 0);
   if(fd < 0) {
     fprintf(stderr,"file not found\n");
     exit(1);
   }
 
+  InitWindow(0,0,100,100,NULL);
+  
   buffer = malloc(65536);
 
   for(;;) {
+    
     set_byte(buffer);
-
+    if(!read(fd, buffer, 2)) {
+      fprintf(stderr, "EOF\n");
+      exit(0);
+    }
     spu_size = GETBYTES(2, "spu_size");
     DPRINTF(3, "SPU size: 0x%04x\n", spu_size);
+    read(fd, &buffer[2], spu_size-2);
+    
 
     DCSQT_offset = GETBYTES(2, "DCSQT_offset");
     DPRINTF(3, "DCSQT offset: 0x%04x\n", DCSQT_offset);
@@ -212,13 +285,13 @@ int main (int argc, char *argv[]) {
       {
 	/* DCSQ */
 	int start_time;
-	int next_DCSQ_offset;
+	static int next_DCSQ_offset = 0;
 	int last_DCSQ = 0;
 	DPRINTF(3, "\tDisplay Control Sequence:\n");
 	
 	start_time = GETBYTES(2, "start_time");
 	DPRINTF(3, "\t\tStart time: 0x%04x\n", start_time);
-
+	last_DCSQ = next_DCSQ_offset;
 	next_DCSQ_offset = GETBYTES(2, "next_DCSQ_offset");
 	DPRINTF(3, "\t\tNext DCSQ offset: 0x%04x\n", next_DCSQ_offset);
 	
@@ -292,22 +365,23 @@ int main (int argc, char *argv[]) {
 	}
 	DPRINTF(3, "\t\tEnd of Command Sequence\n");
 	
-	if(last_DCSQ) {
+	if(last_DCSQ == next_DCSQ_offset) {
 	  DPRINTF(3, "End of Display Control Sequence Table\n");
           break; // out of while loop
 	}
+	
       }
 
     field=0;
     aligned = 1;
-    set_byte(buffer+4);
+    set_byte(&buffer[fieldoffset[field]]);
 
     fprintf(stderr, "\nReading picture data\n");
 	 
     initialize();
     x=0;
     y=0;
-    while(fieldoffset[1] < (unsigned int)DCSQT_offset) {
+    while(fieldoffset[1] < DCSQT_offset) {
       unsigned int vlc;
       vlc = get_nibble();
       if(vlc < 0x4) {   //  vlc!= 0xN
@@ -323,17 +397,238 @@ int main (int argc, char *argv[]) {
     }
     while (y < height )  // fill
       send_rle(0);
+    
+    draw_subpicture(x_start, y_start, width, height);
   }
-
   free(buffer);
   return 0;
 }
 
 	
-					
-					
-
-		
-
-		
+void draw_subpicture(int x, int y, int w, int h)
+{
+  DPRINTF(3, "w,h: %d, %d\n", w, h);
+  XMoveResizeWindow(display, win, x, y, w, h);
+  XSync(display, True);
+  XPutImage(display, win, gc, subpicture_image, 0, 0, 0, 0, w, h);
+  XFlush(display);
+  sleep(3);
     
+}
+					
+		
+
+
+int InitWindow(int x, int y, int w, int h, char *display_name)
+{
+  XGCValues gcvalues;
+  unsigned long gcvaluemask;
+  unsigned long plane_masks[8];
+  unsigned long pixels[16];
+  XSetWindowAttributes attr;
+  XColor colblue, hwcol;
+  XColor colarr[16] = {
+    {
+      0,
+      65535, 65535, 65535,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      1,
+      0, 65535, 0,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      2,
+      0, 65535, 0,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      3,
+      0, 0, 10000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      4,
+      0, 6000, 0,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      5,
+      10000, 10000, 0,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      6,
+      3000, 25000, 5000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      7,
+      30000, 0, 6000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      8,
+      0, 30000, 14000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      9,
+      65535, 0, 1000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      10,
+      6000, 600, 6000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      11,
+      140, 14000, 140,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      12,
+      255, 255, 25500,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      13,
+      2505, 0, 6000,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+    {
+      14,
+      2505, 4440, 140,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+    {
+      15,
+      255, 65000, 255,
+      (DoRed | DoGreen | DoBlue),
+      0
+    },
+
+  };
+#if 0
+typedef struct {
+        unsigned long pixel;
+        unsigned short red, green, blue;
+        char flags;  /* do_red, do_green, do_blue */
+        char pad;
+} XColor;
+#endif
+ 
+ 
+  if ((display = XOpenDisplay(display_name)) == NULL) {
+    fprintf(stderr, "Couldn't open display\n");
+    exit(-1);
+  }
+  
+  screen_num = DefaultScreen(display);
+  
+
+  visual = DefaultVisual(display, screen_num);
+  XFlush(display);
+  XSync(display, False);
+  //    cmap = XCopyColormapAndFree(display, DefaultColormap(display, screen_num));
+  cmap = XCreateColormap(display, RootWindow(display, screen_num), visual, AllocAll);
+    //  cmap = DefaultColormap(display, screen_num);
+  //XAllocColorCells(display, cmap, True, plane_masks, 8, pixels, 16);
+  XFlush(display);
+  XSync(display, False);
+  {
+    int n;
+    for(n = 0; n < 16; n++) {
+      fprintf(stderr, "%lu, ", pixels[n]);
+    }
+  }
+  XSync(display, False);
+  
+  XStoreColors(display, cmap, colarr, 16);
+  XInstallColormap(display, cmap);
+  XAllocNamedColor(display, cmap, "Blue", &colblue, &hwcol);
+  fprintf(stderr, "pix: %d\n", colblue.pixel);
+  colblue.pixel = 9;
+  XAllocNamedColor(display, cmap, "Red", &colblue, &hwcol);
+  fprintf(stderr, "pix: %d\n", colblue.pixel);
+  XFlush(display);
+ 
+  
+  attr.colormap = cmap;
+  win = XCreateWindow(display,
+		      RootWindow(display, screen_num),
+		      x,y,w,h, 0, 8, InputOutput,
+		      visual,
+		      CWColormap,
+		      &attr);
+
+  
+  gcvalues.foreground = 0;
+  gcvalues.background = 0;
+  gcvalues.function = GXcopy;
+  gcvaluemask = GCForeground | GCBackground |GCFunction;
+  gc = XCreateGC(display, win, gcvaluemask, &gcvalues);
+  
+  XMapWindow(display, win);
+  XSync(display,True);
+ XFlush(display);
+  sleep(1);
+ XFlush(display);
+  sleep(1);
+  
+  XDrawLine(display, win,gc, 0,0,100,100);
+  XFlush(display);
+  sleep(1);
+  return 0;
+
+}
+
+void apa()
+{
+  //  XShapeCombineMask(display, win, ShapeBounding, 0, 0, shape_pixmap, ShapeSet);
+  
+}
+
+int create_shape(int w, int h)
+{
+  shape_pixmap = XCreatePixmap(display, screen_num, w, h, 1);
+
+}
+
+void free_shape()
+{
+  XFreePixmap(display, shape_pixmap);
+  return;
+}
+
