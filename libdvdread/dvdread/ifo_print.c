@@ -87,6 +87,7 @@ static void ifoPrint_video_attributes(int level, video_attr_t *attr) {
      && attr->unknown1 == 0 
      && attr->line21_cc_1 == 0 
      && attr->line21_cc_2 == 0 
+     && attr->bit_rate == 0 
      && attr->video_format == 0 
      && attr->letterboxed == 0 
      && attr->film_mode == 0) {
@@ -154,6 +155,17 @@ static void ifoPrint_video_attributes(int level, video_attr_t *attr) {
       printf("1 ");
     if(attr->line21_cc_2)
       printf("2 ");
+  }
+
+  switch(attr->bit_rate) {
+    case 0:
+      printf("Variable Bit Rate ");
+      break;
+    case 1:
+      printf("Constant Bit Rate ");
+      break;
+    default:
+      printf("(please send a bug report)");
   }
   
   {
@@ -322,23 +334,37 @@ static void ifoPrint_subp_attributes(int level, subp_attr_t *attr) {
      && attr->lang_code == 0
      && attr->zero1 == 0
      && attr->zero2 == 0
+     && attr->subp_code_ext == 0
      && attr->lang_extension== 0) {
     printf("-- Unspecified --");
     return;
   }
   
-  printf("type %02x ", attr->type);
-  
-  if(isalpha((int)(attr->lang_code >> 8))
-     && isalpha((int)(attr->lang_code & 0xff))) {
-    printf("%c%c ", attr->lang_code >> 8, attr->lang_code & 0xff);
+  switch(attr->code_mode) {
+  case 0:
+    printf("Coding Mode RLE ");
+    break;
+  case 1:
+    printf("Coding Mode Extended ");
+    break;
+  default:
+    printf("(please send a bug report) ");
+  }    
+ 
+  if(attr->type == 1) {
+    if(isalpha((int)(attr->lang_code >> 8))
+       && isalpha((int)(attr->lang_code & 0xff))) {
+      printf("%c%c ", attr->lang_code >> 8, attr->lang_code & 0xff);
+    } else {
+      printf("%02x%02x ", attr->lang_code >> 8, attr->lang_code & 0xff);
+    }
   } else {
-    printf("%02x%02x ", 0xff & (unsigned)(attr->lang_code >> 8), 
-	   0xff & (unsigned)(attr->lang_code & 0xff));
+      printf("lang not specified ");
   }
   
   printf("%d ", attr->zero1);
   printf("%d ", attr->zero2);
+  printf("%d ", attr->subp_code_ext);
 
   switch(attr->lang_extension) {
   case 0:
@@ -888,9 +914,10 @@ void ifoPrint_PGCI_UT(pgci_ut_t *pgci_ut) {
   
   printf("Number of Menu Language Units (PGCI_LU): %3i\n", pgci_ut->nr_of_lus);
   for(i = 0; i < pgci_ut->nr_of_lus; i++) {
-    printf("\nMenu Language Code: %c%c\n",
+    printf("\nMenu Language Code: %c%c (%c)\n",
 	   pgci_ut->lu[i].lang_code >> 8,
-	   pgci_ut->lu[i].lang_code & 0xff);
+	   pgci_ut->lu[i].lang_code & 0xff,
+	   pgci_ut->lu[i].lang_ext ? pgci_ut->lu[i].lang_ext : ' ');
     printf("Menu Existence: %02x\n", pgci_ut->lu[i].exists);
     ifoPrint_PGCIT(pgci_ut->lu[i].pgcit);
   }

@@ -83,7 +83,8 @@ typedef struct {
   
   unsigned int line21_cc_1          : 1;
   unsigned int line21_cc_2          : 1;
-  unsigned int unknown1             : 2;
+  unsigned int unknown1             : 1;
+  unsigned int bit_rate             : 1;
   
   unsigned int picture_size         : 2;
   unsigned int letterboxed          : 1;
@@ -98,7 +99,8 @@ typedef struct {
   unsigned int letterboxed          : 1;
   unsigned int picture_size         : 2;
   
-  unsigned int unknown1             : 2;
+  unsigned int bit_rate             : 1;
+  unsigned int unknown1             : 1;
   unsigned int line21_cc_2          : 1;
   unsigned int line21_cc_1          : 1;
 #endif
@@ -149,11 +151,19 @@ typedef struct {
    * language: indicates language if type == 1
    * lang extension: if type == 1 contains the lang extension
    */
-  uint8_t type;
-  uint8_t zero1;
+#ifdef WORDS_BIGENDIAN
+  unsigned int code_mode : 3;
+  unsigned int zero1     : 3;
+  unsigned int type      : 2;
+#else
+  unsigned int type      : 2;
+  unsigned int zero1     : 3;
+  unsigned int code_mode : 3;
+#endif
+  uint8_t  zero2;
   uint16_t lang_code;
-  uint8_t lang_extension;
-  uint8_t zero2;
+  uint8_t  lang_extension;
+  uint8_t  subp_code_ext;
 } ATTRIBUTE_PACKED subp_attr_t;
 
 
@@ -267,7 +277,7 @@ typedef struct {
 #else
   unsigned int video_pres_mode_change         : 1; /* 24 */
   unsigned int zero                           : 7; /* 25-31 */
-  						  
+  
   unsigned int resume                         : 1; /* 16 */
   unsigned int button_select_or_activate      : 1;
   unsigned int still_off                      : 1;
@@ -276,7 +286,7 @@ typedef struct {
   unsigned int subpic_stream_change           : 1;
   unsigned int angle_change                   : 1;
   unsigned int karaoke_audio_pres_mode_change : 1; /* 23 */
-  						  
+  
   unsigned int forward_scan                   : 1; /* 8 */
   unsigned int backward_scan                  : 1;
   unsigned int title_menu_call                : 1;
@@ -285,7 +295,7 @@ typedef struct {
   unsigned int audio_menu_call                : 1;
   unsigned int angle_menu_call                : 1;
   unsigned int chapter_menu_call              : 1; /* 15 */
-  						  
+  
   unsigned int title_or_time_play             : 1; /* 0 */
   unsigned int chapter_search_or_play         : 1;
   unsigned int title_play                     : 1;
@@ -361,7 +371,7 @@ typedef struct {
  */
 typedef struct {
   uint16_t lang_code;
-  uint8_t  zero_1;
+  uint8_t  lang_ext;
   uint8_t  exists;
   uint32_t lang_start_byte;
   pgcit_t *pgcit;

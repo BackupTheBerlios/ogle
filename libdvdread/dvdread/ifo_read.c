@@ -1673,7 +1673,6 @@ int ifoRead_PGCI_UT(ifo_handle_t *ifofile) {
   free(data);
   
   for(i = 0; i < pgci_ut->nr_of_lus; i++) {
-    CHECK_ZERO(pgci_ut->lu[i].zero_1);
     // Maybe this is only defined for v1.1 and later titles?
     /* If the bits in 'lu[i].exists' are enumerated abcd efgh then:
             VTS_x_yy.IFO        VIDEO_TS.IFO
