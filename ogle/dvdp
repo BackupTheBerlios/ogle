@@ -1,5 +1,27 @@
 #!/bin/sh
 
+
+mknod /tmp/ac3 p
+chgrp dvd /tmp/ac3
+chmod 666 /tmp/ac3
+
+mknod /tmp/audio p
+chgrp dvd /tmp/audio
+chmod 666 /tmp/audio
+
+mknod /tmp/vmg p
+chgrp dvd /tmp/vmg
+chmod 666 /tmp/vmg
+
+mknod /tmp/spu p
+chgrp dvd /tmp/spu
+chmod 666 /tmp/spu
+
+mknod /tmp/cmd p
+chgrp dvd /tmp/cmd
+chmod 666 /tmp/cmd
+
+
 DVDP_ROOT=/users/dtek/d94/d4bjorn/src/dvd
 export DVDP_ROOT
 DVDP_CTRL=$DVDP_ROOT/ctrl/ctrl
