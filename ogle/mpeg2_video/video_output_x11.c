@@ -90,6 +90,7 @@ int fb_fd;
 
 extern int XShmGetEventBase(Display *dpy);
 static int CompletionType;
+static int xshmeventbase;
 
 typedef struct {
   int x;
@@ -197,10 +198,14 @@ static int (*prev_xerrhandler)(Display *dpy, XErrorEvent *ev);
 static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
 {
   if(ev->serial == req_serial) {
-    /* this is an error to the xshmattach request 
+    /* this could be an error to the xshmattach request 
      * we assume that xshm doesn't work,
      * eg we are using a remote display
      */
+    fprintf(stderr, "req_code: %d\n", ev->request_code);
+    fprintf(stderr, "minor_code: %d\n", ev->minor_code);
+    fprintf(stderr, "error_code: %d\n", ev->error_code);
+    
     use_xshm = 0;
     fprintf(stderr, "*vo: Disabling Xshm\n");
     return 0;
@@ -208,7 +213,8 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
     /* if we get another error we should handle it, 
      * so we give it to the previous errorhandler
      */
-    fprintf(stderr, "*vo: unexpected error\n");
+    fprintf(stderr, "*vo: unexpected error serial: %lu, waited for: %lu\n",
+	    ev->serial, req_serial);
     return prev_xerrhandler(dpy, ev);
   }
 }
@@ -233,8 +239,10 @@ void display_init_xv(yuv_image_t *picture_data,
   result = XvQueryExtension(mydisplay, &xv_version, &xv_release, 
 			    &xv_request_base, &xv_event_base, 
 			    &xv_error_base);
-  if(result != Success)
+  if(result != Success) {
+    fprintf(stderr, "Xv not found\n");
     return;
+  }
   
   fprintf(stderr, "Found Xv extension, checking for suitable adaptors\n");
   /* Check for available adaptors */
@@ -357,7 +365,7 @@ void display_init_xshm()
   /* Test and see if we really got padded_width x padded_height */
   if(window.ximage->width != scale.image_width ||
      window.ximage->height != scale.image_height) {
-    fprintf(stderr, "vo: XvShmCreateImage got size: %d x %d\n",
+    fprintf(stderr, "vo: XShmCreateImage got size: %d x %d\n",
 	    window.ximage->width, window.ximage->height);
     exit(1);
   }
@@ -385,19 +393,20 @@ void display_init_xshm()
   window.ximage->data = shm_info.shmaddr;
   shm_info.readOnly = False;
   
-  
+
   /* make sure we don't have any unhandled errors */
   XSync(mydisplay, False);
+
   
   /* set error handler so we can check if xshmattach failed */
   prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
   
   /* get the serial of the xshmattach request */
   req_serial = NextRequest(mydisplay);
-  
+
   /* try to attach */
   XShmAttach(mydisplay, &shm_info);
-  
+
   /* make sure xshmattach has been processed and any errors
      have been returned to us */
   XSync(mydisplay, False);
@@ -466,7 +475,7 @@ Window display_init(yuv_image_t *picture_data,
   scr = XDefaultScreenOfDisplay(mydisplay);
   
   
-  /* Querry and calculate the displays aspect rate. */
+  /* Query and calculate the displays aspect rate. */
   dpy_size.width = DisplayWidthMM(mydisplay, screen);
   dpy_size.height = DisplayHeightMM(mydisplay, screen);
   
@@ -584,6 +593,10 @@ Window display_init(yuv_image_t *picture_data,
   
 
   
+
+  xshmeventbase = XShmGetEventBase(mydisplay);  
+  fprintf(stderr, "xshmeventbase: %d\n", xshmeventbase);
+
   /* Try to use XFree86 Xv (X video) extension for display.
      Sets use_xv to true on success. */
   display_init_xv(picture_data, picture_data_head, picture_buf_base);
