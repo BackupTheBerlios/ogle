@@ -89,7 +89,8 @@ void menu_update(void) {
   }
   
   for (i=0; menuitem[i].flag != 0; i++) {
-    gboolean val = (uop & menuitem[i].flag) ? TRUE : FALSE;
+    //gboolean val = (uop & menuitem[i].flag) ? TRUE : FALSE;
+    gboolean val = TRUE;
     gtk_widget_set_sensitive(GTK_WIDGET(menuitem[i].item), val);
   }
 }
