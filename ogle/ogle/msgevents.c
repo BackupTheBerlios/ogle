@@ -82,7 +82,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDetachQ",
   "MsgEventQQDetached",
   "MsgEventQDestroyQ",
-
+  "MsgEventQDemuxStreamChange2",
   NULL
 };
 
@@ -421,6 +421,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQDemuxStreamChange:
     size = sizeof(MsgQDemuxStreamChangeEvent_t);
+    break;
+  case MsgEventQDemuxStreamChange2:
+    size = sizeof(MsgQDemuxStreamChange2Event_t);
     break;
   case MsgEventQDemuxDefault:
     size = sizeof(MsgQDemuxDefaultEvent_t);

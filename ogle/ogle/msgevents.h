@@ -157,7 +157,8 @@ typedef enum {
   MsgEventQAppendQ,
   MsgEventQDetachQ,
   MsgEventQQDetached,
-  MsgEventQDestroyQ
+  MsgEventQDestroyQ,
+  MsgEventQDemuxStreamChange2
 } MsgEventType_t;
 
 
@@ -349,6 +350,16 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  uint8_t old_stream_id;
+  int old_subtype;
+  uint8_t new_stream_id;
+  int new_subtype;
+} MsgQDemuxStreamChange2Event_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
   uint8_t stream_id;
   int subtype;
 } MsgQDemuxStreamEvent_t;
@@ -501,6 +512,7 @@ typedef union {
   MsgQFlushDataEvent_t flushdata;
   MsgQDemuxStreamEvent_t demuxstream;
   MsgQDemuxStreamChangeEvent_t demuxstreamchange;
+  MsgQDemuxStreamChange2Event_t demuxstreamchange2;
   MsgQDemuxDefaultEvent_t demuxdefault;
   MsgQDVDCtrlLongEvent_t dvdctrllong;
   MsgQDemuxDVDEvent_t demuxdvd;
@@ -556,5 +568,6 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
 #define UI_DVD_GUI         0x8000
 #define VIDEO_OUTPUT       0x10000
 #define USER_INPUT         0x20000
+#define DECODE_LPCM_AUDIO  0x40000
 
 #endif /* MSGEVENTS_H_INCLUDED */
