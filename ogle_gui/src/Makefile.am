@@ -29,3 +29,7 @@ ogle_gui_SOURCES = \
 
 ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(INTLLIBS) \
 	@PTHREAD_LIB@ @XML_LIBS@
+
+# Because the dynamically opened libglade needs the callback symbols
+# from the executable
+ogle_gui_LDFLAGS = -export-dynamic
