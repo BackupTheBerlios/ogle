@@ -79,6 +79,34 @@ create_dummy_pixmap                    (GtkWidget       *widget,
   return pixmap;
 }
 
+
+/*
+  Hacked to fake gnome_pixmap_file from gnome-libs-1.2.8/libgnome/gnome-util.c
+  and changed to honor the configure --prefix. 
+*/
+char *
+ogle_gnome_pixmap_file (const char *filename)
+{
+  char *fullpath;
+  FILE *fp;
+  const char *dirpath = PACKAGE_PIXMAPS_DIR ;
+  fullpath = g_malloc( strlen(dirpath) + strlen(filename) +1);
+  if(fullpath==NULL)
+    return NULL;
+  strcpy(fullpath, dirpath);
+  strcat(fullpath, filename);
+
+  fp = fopen(fullpath, "r"); // Check if file exists.
+  if(fp==NULL) {
+    fprintf(stderr, "ogle_gnome_pixmap_file: No such file: %s", fullpath);
+    return NULL;
+  }
+  close(fp);
+
+  return fullpath;
+}
+
+
 /* This is an internally used function to create pixmaps. */
 GtkWidget*
 create_pixmap                          (GtkWidget       *widget,
@@ -94,7 +122,7 @@ create_pixmap                          (GtkWidget       *widget,
   if (!filename || !filename[0])
       return create_dummy_pixmap (widget, gnome_pixmap);
 
-  pathname = gnome_pixmap_file (filename);
+  pathname = ogle_gnome_pixmap_file (filename); // Modified
   if (!pathname)
     {
       g_warning (_("Couldn't find pixmap file: %s"), filename);

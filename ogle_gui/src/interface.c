@@ -145,8 +145,10 @@ create_menus_popup (void)
 static GnomeUIInfo file_menu_uiinfo[] =
 {
   GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
-  GNOMEUIINFO_ITEM_STOCK     ("Open", "Opens the device directly.",
+  GNOMEUIINFO_ITEM_STOCK     ("Open disc", "Opens the device directly.",
 			      on_opendvd_activate, GNOME_STOCK_PIXMAP_CDROM),
+  // XXX These strings should be dynamic.
+
   //GNOMEUIINFO_MENU_OPEN_ITEM (on_open_activate, NULL),
   GNOMEUIINFO_SEPARATOR,
   GNOMEUIINFO_MENU_EXIT_ITEM (on_exit_activate, NULL),

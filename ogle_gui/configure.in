@@ -31,9 +31,16 @@ else
 fi
 
 dnl Subst PACKAGE_PIXMAPS_DIR.
-PACKAGE_PIXMAPS_DIR="`gnome-config --datadir`/pixmaps/${PACKAGE}"
-AC_SUBST(PACKAGE_PIXMAPS_DIR)
+dnl PACKAGE_PIXMAPS_DIR="`gnome-config --datadir`/pixmaps/${PACKAGE}"
+dnl AC_SUBST(PACKAGE_PIXMAPS_DIR)
 
+if test "x${prefix}" = "xNONE"; then
+   PACKAGE_PIXMAPS_DIR="${ac_default_prefix}/share/pixmaps/"
+else
+   PACKAGE_PIXMAPS_DIR="${prefix}/share/pixmaps/"
+fi
+AC_SUBST(PACKAGE_PIXMAPS_DIR)
+AC_DEFINE_UNQUOTED(PACKAGE_PIXMAPS_DIR, "$PACKAGE_PIXMAPS_DIR", [Get pixmaps])
 
 
 dvd_path=""
@@ -71,6 +78,19 @@ AC_SUBST(DVDLIBS)
 AC_SUBST(DVD_INCLUDEDIR)
 
 
+dnl Architecture specific stuff
+AC_CANONICAL_HOST
+case "$host_os" in
+	solaris*)
+		AC_DEFINE(SOLARIS, 1, [This is a Solaris system])
+		;;
+	linux)
+		AC_DEFINE(LINUX, 1, [This is a Linux system])
+		;;
+	*)
+		epa
+		;;
+esac
 
 AC_OUTPUT([
 Makefile

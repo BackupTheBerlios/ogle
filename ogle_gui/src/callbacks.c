@@ -115,7 +115,17 @@ on_opendvd_activate                  (GtkMenuItem     *menuitem,
 				      gpointer         user_data) 
 {
   DVDResult_t res;
-  res = DVDSetDVDRoot(nav, "/dev/dvd");
+#ifdef LINUX
+  char *dev="/dev/dvd";
+#else
+#ifdef SOLARIS
+  char *dev="/cdrom/cdrom0";
+#else
+#error "No default path."
+#endif
+#endif
+
+  res = DVDSetDVDRoot(nav, dev);
   if(res != DVD_E_Ok) {
     DVDPerror("callbacks.on_opendvd_activate(): DVDSetDVDRoot", res);
     return;

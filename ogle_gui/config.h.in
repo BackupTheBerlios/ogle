@@ -134,3 +134,12 @@
 /* Version number of package */
 #undef VERSION
 
+/* Get pixmaps */
+#undef PACKAGE_PIXMAPS_DIR
+
+/* This is a Solaris system */
+#undef SOLARIS
+
+/* This is a Linux system */
+#undef LINUX
+
