@@ -40,6 +40,7 @@
 #include "xsniffer.h"
 #include "callbacks.h"
 #include "bindings.h"
+#include "actions.h"
 
 extern int msgqid;
 

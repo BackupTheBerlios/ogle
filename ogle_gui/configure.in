@@ -36,30 +36,39 @@ dnl Add the languages which your application supports here.
 ALL_LINGUAS="da de fr nl pt sv"
 AM_GNU_GETTEXT([use-libtool])
 
-AM_PATH_GTK(,,[AC_MSG_ERROR([You must have gtk+ development files])])
+AC_ARG_ENABLE(gtk2, 
+  [use gtk2 for the GUI],
+  dnl actions for gtk2
+  [ PKG_CHECK_MODULES(GTK, gtk+-2.0)
+    PKG_CHECK_MODULES(XML, libxml-2.0 >= 2.4.19)
+    PKG_CHECK_MODULES(LIBGLADE, libglade-2.0)
+  ],
+  dnl actions for gtk1
+  [ AM_PATH_GTK(,,[AC_MSG_ERROR([You must have gtk+ development files])])
 
-AM_PATH_LIBGLADE(,[AC_MSG_ERROR([You must have libglade development files])])
+    AM_PATH_LIBGLADE(,[AC_MSG_ERROR([You must have libglade development files])])
 
-dnl Hack to get the path to the libglade so-file
-LIBGLADE_PREFIX=`$LIBGLADE_CONFIG --prefix`
-AC_DEFINE_UNQUOTED(LIBGLADE_LIBDIR, "${LIBGLADE_PREFIX}/lib",
-  [Prefix for libglade])
-dnl this should be something different for some bsd (libglade.so.4 i
-dnl think), but I don't know how to check for it properly
+    dnl Hack to get the path to the libglade so-file
+    LIBGLADE_PREFIX=`$LIBGLADE_CONFIG --prefix`
+    AC_DEFINE_UNQUOTED(LIBGLADE_LIBDIR, "${LIBGLADE_PREFIX}/lib",
+      [Prefix for libglade])
+    dnl this should be something different for some bsd (libglade.so.4 i
+    dnl think), but I don't know how to check for it properly
 
-case "$host_os" in
-     hpux*)
+    case "$host_os" in
+      hpux*)
 	AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.sl.0",
 	[Name of the libglade lib (for dlopen)])
 	;;
-     *)
+      *)
 	AC_DEFINE_UNQUOTED(LIBGLADE_LIB, "libglade.so.0",
 	[Name of the libglade lib (for dlopen)])
 	;;
-esac
+    esac
 
-AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
-  [ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
+    AM_PATH_XML2(2.4.19, AC_DEFINE(HAVE_XML, 1, [libxml found]),
+	[ AC_MSG_ERROR([Install libxml2(-dev) and/or specify it's location]) ])
+  ])
 
 dvd_path=""
 AC_ARG_WITH(dvdcontrol, 

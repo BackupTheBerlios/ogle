@@ -27,6 +27,7 @@
 
 #include "fileselector.h"
 #include "myintl.h"
+#include "callbacks.h"
 
 #include "xsniffer.h" //hack
 

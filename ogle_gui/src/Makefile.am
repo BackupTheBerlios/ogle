@@ -3,9 +3,9 @@
 INCLUDES = \
 	-I$(top_srcdir)/intl \
 	$(DVD_INCLUDEDIR) \
-	$(GTK_CFLAGS) \
-	$(XML_CFLAGS) \
-	$(LIBGLADE_CFLAGS)
+	@GTK_CFLAGS@ \
+	@XML_CFLAGS@ \
+	@LIBGLADE_CFLAGS@
 
 # define LOCALEDIR, CONFIG_FILE, CONFIG_FILE_DTD, and PACKAGE_PIXMAPS_DIR
 DEFS = \
@@ -36,8 +36,8 @@ ogle_gui_SOURCES = \
 	my_glade.c my_glade.h \
 	debug_print.h
 
-ogle_gui_LDADD = $(DVDLIBS) $(GTK_LIBS) $(INTLLIBS) \
-	$(PTHREAD_LIB) $(XML_LIBS)
+ogle_gui_LDADD = $(DVDLIBS) @GTK_LIBS@ $(INTLLIBS) \
+	$(PTHREAD_LIB) @XML_LIBS@ @LIBGLADE_LIBS@
 
 # Because the dynamically opened libglade needs the callback symbols
 # from the executable

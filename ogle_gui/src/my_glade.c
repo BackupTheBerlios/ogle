@@ -12,17 +12,18 @@
 #include "debug_print.h"
 #include "my_glade.h"
 
-// location of the standard ogle_gui.glade file
-#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "/ogle_gui.glade"
+// the glade file
+static GladeXML *xml;
 
+// If LIBGLADE_LIBDIR is defined, then we should dynamic linking of
+// libglade, since otherwise libxml will clash with libxml2
+// This also means we use glade1 instead of glade2
+#ifdef LIBGLADE_LIBDIR
 // my own versions of the glade calls
 static void (*my_glade_init)(void);
 static GladeXML * (*my_glade_xml_new)(const char *, const char *);
 static void (*my_glade_xml_signal_autoconnect)(GladeXML *);
 static GtkWidget * (*my_glade_xml_get_widget)(GladeXML *, const char *);
-
-// the glade file
-static GladeXML *xml;
 
 // my version of dlsym, which checks for errors
 static void *my_dlsym(void *handle, char *symbol) {
@@ -48,11 +49,33 @@ static void *my_dlsym(void *handle, char *symbol) {
   return fun;
 }
 
+#define GLADE_INIT my_glade_init
+#define GLADE_XML_NEW(x) my_glade_xml_new(x, NULL)
+#define GLADE_XML_SIGNAL_AUTOCONNECT my_glade_xml_signal_autoconnect
+#define GLADE_XML_GET_WIDGET my_glade_xml_get_widget
+#define GLADE_EXT "glade"
+
+#else /* not defined(GLADE_XML_LIB) */
+
+#define GLADE_INIT glade_init 
+// yes, different number of arguments, strange incompatibility
+#define GLADE_XML_NEW(x) glade_xml_new(x, NULL, NULL) 
+#define GLADE_XML_SIGNAL_AUTOCONNECT glade_xml_signal_autoconnect
+#define GLADE_XML_GET_WIDGET glade_xml_get_widget
+
+#define GLADE_EXT "glade2"
+
+#endif
+
+// location of the standard ogle_gui.glade file
+#define OGLE_GLADE_FILE PACKAGE_PIXMAPS_DIR "/ogle_gui." GLADE_EXT
+
 // to be called first
 void my_glade_setup ()
 {
-  void *glade_lib;
   char *home;
+#ifdef LIBGLADE_LIBDIR
+  void *glade_lib;
 
   // First try to open libglade.so in the path given by libglade-config
   glade_lib = dlopen (LIBGLADE_LIBDIR "/" LIBGLADE_LIB, RTLD_NOW);
@@ -65,37 +88,39 @@ void my_glade_setup ()
     gtk_exit(1);
   }
 
+  // connect symbols in dynamic lib
   my_glade_init = my_dlsym(glade_lib, "glade_init");
   my_glade_xml_new = my_dlsym(glade_lib, "glade_xml_new");
   my_glade_xml_signal_autoconnect = 
     my_dlsym(glade_lib, "glade_xml_signal_autoconnect");
   my_glade_xml_get_widget =
     my_dlsym(glade_lib, "glade_xml_get_widget");
+#endif
 
-  my_glade_init();
+  GLADE_INIT();
 
   // first, try the user's home directory
   home = getenv("HOME");
   if (home != NULL) {
     char *filename;
-    filename = g_strdup_printf("%s/.ogle_gui/ogle_gui.glade", home);
+    filename = g_strdup_printf("%s/.ogle_gui/ogle_gui." GLADE_EXT, home);
     if(!access(filename, R_OK)) {
-      xml = my_glade_xml_new(filename, NULL);
+      xml = GLADE_XML_NEW(filename);
     }
     g_free(filename);
   }
   if (xml == NULL) {
-    xml = my_glade_xml_new(OGLE_GLADE_FILE, NULL);
+    xml = GLADE_XML_NEW(OGLE_GLADE_FILE);
   }
   if (xml == NULL) {
     fprintf(stderr, "Couldn't find $HOME/.ogle_gui/ogle_gui.glade or %s\n", 
 	    OGLE_GLADE_FILE);
     gtk_exit(1);
   }
-  my_glade_xml_signal_autoconnect(xml);
+  GLADE_XML_SIGNAL_AUTOCONNECT(xml);
 }
 
 GtkWidget *get_glade_widget(const char *name)
 {
-  return my_glade_xml_get_widget(xml, name);
+  return GLADE_XML_GET_WIDGET(xml, name);
 }

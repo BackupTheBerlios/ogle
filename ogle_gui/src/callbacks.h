@@ -213,5 +213,12 @@ void
 on_jump_to_ptt_activate                (GtkWidget       *widget,
                                         gpointer        pos);
 
+
+void
+autoload_bookmark                      (void);
+
+void
+autosave_bookmark                      (void);
+
 #endif /* CALLBACKS_H */
 
