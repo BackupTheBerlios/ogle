@@ -19,6 +19,49 @@
 #include <inttypes.h>
 #include "c_mlib.h"
 
+static inline void
+mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
+			    const uint8_t *ref_block,
+                            const int width, const int height,
+			    int32_t stride);
+static inline void
+mlib_VideoInterpAveX_U8_U8(uint8_t *curr_block, 
+                           const uint8_t *ref_block,
+                           const int width, int height,
+                           int32_t frame_stride,   
+                           int32_t field_stride);
+static inline void
+mlib_VideoInterpAveY_U8_U8(uint8_t *curr_block, 
+                           const uint8_t *ref_block,
+                           const int width, const int height,
+                           int32_t frame_stride,   
+                           int32_t field_stride);
+static inline void
+mlib_VideoInterpAveXY_U8_U8(uint8_t *curr_block, 
+                            const uint8_t *ref_block, 
+                            const int width, const int height,
+                            int32_t frame_stride,   
+                            int32_t field_stride);
+static inline void
+mlib_VideoInterpX_U8_U8(uint8_t *curr_block, 
+			const uint8_t *ref_block,
+			const int width, const int height,
+			int32_t frame_stride,   
+			int32_t field_stride);
+static inline void
+mlib_VideoInterpY_U8_U8(uint8_t *curr_block, 
+			const uint8_t *ref_block,
+			const int width, const int height,
+			int32_t frame_stride,   
+			int32_t field_stride);
+static inline void
+mlib_VideoInterpXY_U8_U8(uint8_t *curr_block, 
+			 const uint8_t *ref_block, 
+			 const int width, const int height,
+			 int32_t frame_stride,   
+			 int32_t field_stride);
+
+
 static inline unsigned int
 clip_to_u8 (int value)
 {
@@ -32,56 +75,11 @@ mlib_Init(void)
 {
 }
 
-void
-mlib_VideoIDCTAdd_U8_S16 (uint8_t *curr_block,
-			  int16_t *coeffs, 
-			  int32_t stride) 
-{
-  int x,y;
-  
-  mlib_VideoIDCT8x8_S16_S16(coeffs, coeffs);
-  for (y = 0; y < 8; y++) {
-    for (x = 0; x < 8; x++)
-      curr_block[x] = clip_to_u8(curr_block[x] + *coeffs++);
-    curr_block += stride;
-  }
-}  
-
-void
-mlib_VideoAddBlock_U8_S16 (uint8_t *curr_block,
-			   int16_t *mc_block, 
-			   int32_t stride) 
-{
-  int x,y;
-
-  for (y = 0; y < 8; y++) {
-    for (x = 0; x < 8; x++)
-      curr_block[x] = clip_to_u8(curr_block[x] + *mc_block++);
-    curr_block += stride;
-  }
-}  
-
-void
-mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
-			    uint8_t *ref_block,
-			    int width, int height,
-			    int32_t stride)
-{
-  int x,y;
-  
-  for (y = 0; y < height; y++) {
-    for (x = 0; x < width; x++)
-      curr_block[x] = (curr_block[x] + ref_block[x] + 1U) / 2U;
-    ref_block += stride;
-    curr_block += stride;
-  }
-}
-
-void
+inline void
 mlib_VideoCopyRef_U8_U8 (uint8_t *curr_block,
-                         uint8_t *ref_block,
-                         int32_t width,
-                         int32_t height,
+                         const uint8_t *ref_block,
+                         const int32_t width,
+                         const int32_t height,
                          int32_t stride)
 {
   int x, y;
@@ -94,10 +92,26 @@ mlib_VideoCopyRef_U8_U8 (uint8_t *curr_block,
   }
 }
 
-void
+static inline void
+mlib_VideoCopyRefAve_U8_U8 (uint8_t *curr_block,
+			    const uint8_t *ref_block,
+			    const int width, const int height,
+			    int32_t stride)
+{
+  int x, y;
+  
+  for (y = 0; y < height; y++) {
+    for (x = 0; x < width; x++)
+      curr_block[x] = (curr_block[x] + ref_block[x] + 1U) / 2U;
+    ref_block += stride;
+    curr_block += stride;
+  }
+}
+
+static inline void
 mlib_VideoInterpAveX_U8_U8(uint8_t *curr_block, 
-                           uint8_t *ref_block,
-                           int width, int height,
+                           const uint8_t *ref_block,
+                           const int width, const int height,
                            int32_t frame_stride,   
                            int32_t field_stride) 
 {
@@ -112,15 +126,15 @@ mlib_VideoInterpAveX_U8_U8(uint8_t *curr_block,
   }
 }
 
-void
+static inline void
 mlib_VideoInterpAveY_U8_U8(uint8_t *curr_block, 
-                           uint8_t *ref_block,
-                           int width, int height,
+                           const uint8_t *ref_block,
+                           const int width, const int height,
                            int32_t frame_stride,   
                            int32_t field_stride) 
 {
   int x, y;
-  uint8_t *ref_block_next = ref_block+field_stride;
+  const uint8_t *ref_block_next = ref_block + field_stride;
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
@@ -132,15 +146,15 @@ mlib_VideoInterpAveY_U8_U8(uint8_t *curr_block,
   }
 }
 
-void
+static inline void
 mlib_VideoInterpAveXY_U8_U8(uint8_t *curr_block, 
-                            uint8_t *ref_block, 
-                            int width, int height,
+                            const uint8_t *ref_block, 
+                            const int width, const int height,
                             int32_t frame_stride,   
                             int32_t field_stride) 
 {
-  int x,y;
-  uint8_t *ref_block_next = ref_block+field_stride;
+  int x, y;
+  const uint8_t *ref_block_next = ref_block + field_stride;
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
@@ -153,10 +167,10 @@ mlib_VideoInterpAveXY_U8_U8(uint8_t *curr_block,
   }
 }
 
-void
+static inline void
 mlib_VideoInterpX_U8_U8(uint8_t *curr_block, 
-			uint8_t *ref_block,
-			int width, int height,
+			const uint8_t *ref_block,
+			const int width, const int height,
 			int32_t frame_stride,   
 			int32_t field_stride) 
 {
@@ -170,15 +184,15 @@ mlib_VideoInterpX_U8_U8(uint8_t *curr_block,
   }
 }
 
-void
+static inline void
 mlib_VideoInterpY_U8_U8(uint8_t *curr_block, 
-			uint8_t *ref_block,
-			int width, int height,
+			const uint8_t *ref_block,
+			const int width, const int height,
 			int32_t frame_stride,   
 			int32_t field_stride) 
 {
   int x, y;
-  uint8_t *ref_block_next = ref_block+field_stride;
+  const uint8_t *ref_block_next = ref_block + field_stride;
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
@@ -189,15 +203,15 @@ mlib_VideoInterpY_U8_U8(uint8_t *curr_block,
   }
 }
 
-void
+static inline void
 mlib_VideoInterpXY_U8_U8(uint8_t *curr_block, 
-			 uint8_t *ref_block, 
-			 int width, int height,
+			 const uint8_t *ref_block, 
+			 const int width, const int height,
 			 int32_t frame_stride,   
 			 int32_t field_stride) 
 {
-  int x,y;
-  uint8_t *ref_block_next = ref_block+field_stride;
+  int x, y;
+  const uint8_t *ref_block_next = ref_block + field_stride;
 
   for (y = 0; y < height; y++) {
     for (x = 0; x < width; x++)
@@ -211,7 +225,7 @@ mlib_VideoInterpXY_U8_U8(uint8_t *curr_block,
 
 void
 mlib_VideoCopyRefAve_U8_U8_16x16(uint8_t *curr_block,
-                                 uint8_t *ref_block,
+                                 const uint8_t *ref_block,
                                  int32_t stride)
 {
   mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 16, 16, stride);
@@ -219,7 +233,7 @@ mlib_VideoCopyRefAve_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRefAve_U8_U8_16x8(uint8_t *curr_block,
-				uint8_t *ref_block,
+				const uint8_t *ref_block,
 				int32_t stride)
 {
   mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 16, 8, stride);
@@ -227,7 +241,7 @@ mlib_VideoCopyRefAve_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRefAve_U8_U8_8x8(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t stride)
 {
   mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 8, 8, stride);
@@ -235,7 +249,7 @@ mlib_VideoCopyRefAve_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRefAve_U8_U8_8x4(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t stride)
 {
   mlib_VideoCopyRefAve_U8_U8 (curr_block, ref_block, 8, 4, stride);
@@ -243,7 +257,7 @@ mlib_VideoCopyRefAve_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoCopyRef_U8_U8_16x16(uint8_t *curr_block,
-			      uint8_t *ref_block,
+			      const uint8_t *ref_block,
 			      int32_t stride)
 {
   mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 16, 16, stride);
@@ -251,7 +265,7 @@ mlib_VideoCopyRef_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRef_U8_U8_16x8(uint8_t *curr_block,
-			     uint8_t *ref_block,
+			     const uint8_t *ref_block,
 			     int32_t stride)
 {
   mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 16, 8, stride);
@@ -259,7 +273,7 @@ mlib_VideoCopyRef_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRef_U8_U8_8x8(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t stride)
 {
   mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 8, 8, stride);
@@ -267,7 +281,7 @@ mlib_VideoCopyRef_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoCopyRef_U8_U8_8x4(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t stride)
 {
   mlib_VideoCopyRef_U8_U8 (curr_block, ref_block, 8, 4, stride);
@@ -275,7 +289,7 @@ mlib_VideoCopyRef_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpAveX_U8_U8_16x16(uint8_t *curr_block,
-                                 uint8_t *ref_block,
+                                 const uint8_t *ref_block,
                                  int32_t frame_stride,
                                  int32_t field_stride)
 {
@@ -284,7 +298,7 @@ mlib_VideoInterpAveX_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveX_U8_U8_16x8(uint8_t *curr_block,
-				uint8_t *ref_block,
+				const uint8_t *ref_block,
 				int32_t frame_stride,
 				int32_t field_stride)
 {
@@ -293,7 +307,7 @@ mlib_VideoInterpAveX_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveX_U8_U8_8x8(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
@@ -302,7 +316,7 @@ mlib_VideoInterpAveX_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveX_U8_U8_8x4(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
@@ -311,7 +325,7 @@ mlib_VideoInterpAveX_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpAveY_U8_U8_16x16(uint8_t *curr_block,
-                                 uint8_t *ref_block,
+                                 const uint8_t *ref_block,
                                  int32_t frame_stride,
                                  int32_t field_stride)
 {
@@ -320,7 +334,7 @@ mlib_VideoInterpAveY_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveY_U8_U8_16x8(uint8_t *curr_block,
-				uint8_t *ref_block,
+				const uint8_t *ref_block,
 				int32_t frame_stride,
 				int32_t field_stride)
 {
@@ -329,7 +343,7 @@ mlib_VideoInterpAveY_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveY_U8_U8_8x8(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
@@ -338,7 +352,7 @@ mlib_VideoInterpAveY_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveY_U8_U8_8x4(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
@@ -347,7 +361,7 @@ mlib_VideoInterpAveY_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpAveXY_U8_U8_16x16(uint8_t *curr_block,
-				  uint8_t *ref_block,
+				  const uint8_t *ref_block,
 				  int32_t frame_stride,
 				  int32_t field_stride)
 {
@@ -356,7 +370,7 @@ mlib_VideoInterpAveXY_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveXY_U8_U8_16x8(uint8_t *curr_block,
-                                 uint8_t *ref_block,
+                                 const uint8_t *ref_block,
                                  int32_t frame_stride,
                                  int32_t field_stride)
 {
@@ -365,7 +379,7 @@ mlib_VideoInterpAveXY_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveXY_U8_U8_8x8(uint8_t *curr_block,
-				uint8_t *ref_block,
+				const uint8_t *ref_block,
 				int32_t frame_stride,
 				int32_t field_stride)
 {
@@ -374,7 +388,7 @@ mlib_VideoInterpAveXY_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpAveXY_U8_U8_8x4(uint8_t *curr_block,
-				uint8_t *ref_block,
+				const uint8_t *ref_block,
 				int32_t frame_stride,
 				int32_t field_stride)
 {
@@ -383,7 +397,7 @@ mlib_VideoInterpAveXY_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpX_U8_U8_16x16(uint8_t *curr_block,
-			      uint8_t *ref_block,
+			      const uint8_t *ref_block,
 			      int32_t frame_stride,
 			      int32_t field_stride)
 {
@@ -392,7 +406,7 @@ mlib_VideoInterpX_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpX_U8_U8_16x8(uint8_t *curr_block,
-			     uint8_t *ref_block,
+			     const uint8_t *ref_block,
 			     int32_t frame_stride,
 			     int32_t field_stride)
 {
@@ -401,7 +415,7 @@ mlib_VideoInterpX_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpX_U8_U8_8x8(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
@@ -410,7 +424,7 @@ mlib_VideoInterpX_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpX_U8_U8_8x4(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
@@ -419,7 +433,7 @@ mlib_VideoInterpX_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpY_U8_U8_16x16(uint8_t *curr_block,
-			      uint8_t *ref_block,
+			      const uint8_t *ref_block,
 			      int32_t frame_stride,
 			      int32_t field_stride)
 {
@@ -428,7 +442,7 @@ mlib_VideoInterpY_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpY_U8_U8_16x8(uint8_t *curr_block,
-			     uint8_t *ref_block,
+			     const uint8_t *ref_block,
 			     int32_t frame_stride,
 			     int32_t field_stride)
 {
@@ -437,7 +451,7 @@ mlib_VideoInterpY_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpY_U8_U8_8x8(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
@@ -446,7 +460,7 @@ mlib_VideoInterpY_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpY_U8_U8_8x4(uint8_t *curr_block,
-			    uint8_t *ref_block,
+			    const uint8_t *ref_block,
 			    int32_t frame_stride,
 			    int32_t field_stride)
 {
@@ -455,7 +469,7 @@ mlib_VideoInterpY_U8_U8_8x4(uint8_t *curr_block,
 
 void
 mlib_VideoInterpXY_U8_U8_16x16(uint8_t *curr_block,
-			       uint8_t *ref_block,
+			       const uint8_t *ref_block,
 			       int32_t frame_stride,
 			       int32_t field_stride)
 {
@@ -464,7 +478,7 @@ mlib_VideoInterpXY_U8_U8_16x16(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpXY_U8_U8_16x8(uint8_t *curr_block,
-			      uint8_t *ref_block,
+			      const uint8_t *ref_block,
 			      int32_t frame_stride,
 			      int32_t field_stride)
 {
@@ -473,7 +487,7 @@ mlib_VideoInterpXY_U8_U8_16x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpXY_U8_U8_8x8(uint8_t *curr_block,
-			     uint8_t *ref_block,
+			     const uint8_t *ref_block,
 			     int32_t frame_stride,
 			     int32_t field_stride)
 {
@@ -482,7 +496,7 @@ mlib_VideoInterpXY_U8_U8_8x8(uint8_t *curr_block,
 
 void 
 mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
-			     uint8_t *ref_block,
+			     const uint8_t *ref_block,
 			     int32_t frame_stride,
 			     int32_t field_stride)
 {
@@ -512,8 +526,8 @@ mlib_VideoInterpXY_U8_U8_8x4(uint8_t *curr_block,
  *        c[1..7] = 128*sqrt(2)
  */
 
-inline static void 
-idct_row(int16_t *blk, int16_t *coeffs)
+static inline void 
+idct_row(int16_t *blk, const int16_t *coeffs)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
 
@@ -587,8 +601,8 @@ idct_row(int16_t *blk, int16_t *coeffs)
 
 /* FIXME something odd is going on with inlining this 
  * procedure. Things break if it isn't inlined */
-inline static void 
-idct_col(int16_t *blk, int16_t *coeffs)
+static inline void 
+idct_col(int16_t *blk, const int16_t *coeffs)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
 
@@ -651,8 +665,8 @@ idct_col(int16_t *blk, int16_t *coeffs)
   blk[8*7] = (x7-x1)>>14;
 }
 
-inline static void 
-idct_col_u8(uint8_t *blk, int16_t *coeffs, int stride)
+static inline void 
+idct_col_u8(uint8_t *blk, const int16_t *coeffs, int stride)
 {
   int x0, x1, x2, x3, x4, x5, x6, x7, x8;
 
@@ -716,23 +730,32 @@ idct_col_u8(uint8_t *blk, int16_t *coeffs, int stride)
 }
 
 
-
 void
-mlib_VideoIDCT8x8_S16_S16(int16_t *block,
-			  int16_t *coeffs)
+mlib_VideoIDCTAdd_U8_S16 (uint8_t *curr_block,
+			  const int16_t *coeffs, 
+			  int32_t stride) 
 {
+  int16_t temp[64];
+  int16_t *block = &temp[0];
+  int x,y;
   int i;
   
   for (i=0; i<8; i++)
     idct_row(block + 8*i, coeffs + 8*i);
   for (i=0; i<8; i++)
     idct_col(block + i, block + i);
-}
+  
+  for (y = 0; y < 8; y++) {
+    for (x = 0; x < 8; x++)
+      curr_block[x] = clip_to_u8(curr_block[x] + *block++);
+    curr_block += stride;
+  }
+}  
 
 
 void
 mlib_VideoIDCT8x8_U8_S16(uint8_t *block,
-			 int16_t *coeffs,
+			 const int16_t *coeffs,
 			 int32_t stride)
 {
   int16_t temp[64];

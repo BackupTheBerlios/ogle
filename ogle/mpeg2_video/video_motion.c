@@ -58,7 +58,7 @@ extern yuv_image_t *bwd_ref_image;
 typedef mlib_status (*mc_function_t)(mlib_u8 *curr_block, mlib_u8 *ref_block, 
 				     mlib_s32 frm_stride, mlib_s32 fld_stride);
 #else
-typedef void (*mc_function_t)(uint8_t *curr_block, uint8_t *ref_block, 
+typedef void (*mc_function_t)(uint8_t *curr_block, const uint8_t *ref_block, 
 			      int32_t frm_stride, int32_t fld_stride);
 #endif
 
