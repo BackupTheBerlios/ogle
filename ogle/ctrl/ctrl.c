@@ -543,6 +543,7 @@ int main(int argc, char *argv[])
   MsgEventQ_t q;
   MsgEvent_t ev;
   MsgEvent_t r_ev;
+  MsgEventClient_t rcpt;
   cap_state_t state;
 
   
@@ -638,7 +639,7 @@ int main(int argc, char *argv[])
   demux_pid = init_demux(msgqid_str);
 
 
-  while(!search_capabilities(DEMUX_MPEG2_PS, NULL, NULL, NULL)) {
+  while(!search_capabilities(DEMUX_MPEG2_PS, &rcpt, NULL, NULL)) {
     MsgNextEvent(&q, &ev);
     switch(ev.type) {
     case MsgEventQInitReq:
@@ -678,6 +679,12 @@ int main(int argc, char *argv[])
     }
     
   }
+  
+  ev.type = MsgEventQCtrlData;
+  ev.ctrldata.shmid = ctrl_data_shmid;
+  
+  MsgSendEvent(&q, rcpt, &ev);
+  
   if(input_file != NULL) {
     mq_cmd_t *cmd;
     
