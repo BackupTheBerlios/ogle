@@ -51,7 +51,7 @@ if test x$enable_mlib = xyes; then
 fi
 AC_SUBST(MLIB_CFLAGS)
 AC_SUBST(MLIB_LIBS)
-AM_CONDITIONAL(MLIB_LIBS, test x$have_mlib == xyes)
+AM_CONDITIONAL(MLIB_LIBS, test x$have_mlib = xyes)
 
 CFLAGS="$CFLAGS -Wall"
 
