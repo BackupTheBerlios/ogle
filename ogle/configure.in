@@ -78,7 +78,8 @@ dnl ---------------------------------------------------------
 
 jpeg_path=""
 AC_ARG_WITH(libjpeg, 
-  [  --with-libjpeg=path     specify the install prefix to libjpeg ], 
+  AC_HELP_STRING([--with-libjpeg=path],
+                 [specify the install prefix to libjpeg]), 
   [if test "x$withval" = xno; then
      AC_MSG_ERROR([You must have/use libjpeg])
    fi
@@ -107,7 +108,8 @@ AC_CHECK_LIB(jpeg, main,
 CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(libjpeg-includes, 
-  [  --with-libjpeg-includes=path  specify location of libjpeg headers ], 
+  AC_HELP_STRING([--with-libjpeg-includes=path],
+                 [specify location of libjpeg headers]), 
   [JPEG_CFLAGS=-I$with_libjpeg_includes])
 
 dnl if test x"$JPEG_CFLAGS" = x"-I/usr/local/include"; then
@@ -160,7 +162,8 @@ dnl ---------------------------------------------------------
 
 dvd_path=""
 AC_ARG_WITH(dvdread, 
-  [  --with-dvdread=path     specify the install prefix to libdvdread ], 
+  AC_HELP_STRING([--with-dvdread=path],
+                 [specify the install prefix to libdvdread]), 
   [if test "x$with_dvdread" = xno; then
      AC_MSG_ERROR([You must have/use libdvdread])
    fi
@@ -193,7 +196,8 @@ AC_CHECK_LIB(dvdread, DVDDiscID,
 CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(dvdread-includes, 
-  [  --with-dvdread-includes=path  specify location of libdvdread headers ], 
+  AC_HELP_STRING([--with-dvdread-includes=path],
+              [specify location of libdvdread headers]), 
   [DVDREAD_CFLAGS=-I$with_dvdread_includes])
 
 dnl if test x"$DVDREAD_CFLAGS" = x"-I/usr/local/include"; then
@@ -232,7 +236,8 @@ dnl ---------------------------------------------------------
 have_mlib=no
 mlib_path="/opt/SUNWmlib"
 AC_ARG_WITH(libmlib,
-  [  --with-libmlib=path     specify where mediaLib is installed],
+  AC_HELP_STRING([--with-libmlib=path],
+                 [specify where mediaLib is installed]),
   [if test "x$with_libmlib" != xyes; then
      mlib_path=$with_libmlib
    fi])
@@ -284,7 +289,8 @@ dnl ---------------------------------------------------------
 
 a52_path=""
 AC_ARG_WITH(liba52, 
-  [  --with-liba52=path      specify the install prefix to liba52 (a52dec) ], 
+  AC_HELP_STRING([--with-liba52=path],
+                 [specify the install prefix to liba52 (a52dec)]), 
   [if test "x$with_liba52" = xno; then
      AC_MSG_ERROR([You must have/use a52dec])
    fi
@@ -328,7 +334,8 @@ AC_CHECK_LIB(a52, a52_free,
 CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(liba52-includes, 
-  [  --with-liba52-includes=path  specify location of liba52 headers ], 
+  AC_HELP_STRING([--with-liba52-includes=path],
+                 [specify location of liba52 headers]), 
   [A52_CFLAGS=-I$with_liba52_includes])
 
 dnl update to test for 0.7.2 / 0.7.3 MM_ACCEL_DJBFFT ?
@@ -362,7 +369,8 @@ dnl ---------------------------------------------------------
 
 mad_path=""
 AC_ARG_WITH(libmad, 
-  [  --with-libmad=path      specify the install prefix to libmad ], 
+  AC_HELP_STRING([--with-libmad=path],
+                 [specify the install prefix to libmad]), 
   [if test "x$with_libmad" = xno; then
      AC_MSG_ERROR([You must have/use libmad])
    fi
@@ -391,7 +399,8 @@ AC_CHECK_LIB(mad, mad_frame_decode,
 CFLAGS=$TMPCFLAGS
 
 AC_ARG_WITH(libmad-includes, 
-  [  --with-libmad-includes=path  specify location of libmad headers ], 
+  AC_HELP_STRING([--with-libmad-includes=path],
+                 [specify location of libmad headers]), 
   [MAD_CFLAGS=-I$with_libmad_includes])
 
 saved_CPPFLAGS=$CPPFLAGS
