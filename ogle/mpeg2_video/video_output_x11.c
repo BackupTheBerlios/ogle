@@ -108,6 +108,8 @@ static int scalemode_change = 0;
 static double sar;
 static double xscale_factor;
 
+static int use_xshm = 1;
+
 extern int msgqid;
 extern yuv_image_t *image_bufs;
 
@@ -115,6 +117,30 @@ extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
 void display_change_size(int new_width, int new_height);
+
+
+unsigned long req_serial;
+
+int (*prev_xerrhandler)(Display *dpy, XErrorEvent *ev);
+
+int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
+{
+  if(ev->serial == req_serial) {
+    /* this is an error to the xshmattach request 
+     * we assume that xshm doesn't work,
+     * eg we are using a remote display
+     */
+    use_xshm = 0;
+    fprintf(stderr, "*vo: Disabling Xshm\n");
+    return 0;
+  } else {
+    /* if we get another error we should handle it, 
+     * so we give it to the previous errorhandler
+     */
+    fprintf(stderr, "*vo: unexpected error\n");
+    return prev_xerrhandler(dpy, ev);
+  }
+}
 
 void display_init(int padded_width, int padded_height,
 		  int horizontal_size, int vertical_size,
@@ -243,7 +269,6 @@ void display_init(int padded_width, int padded_height,
   
   //   XSelectInput(mydisplay, mywindow, NoEventMask);
 
-  XFlush(mydisplay);
   XSync(mydisplay, False);
    
   /* Create the colormaps. */   
@@ -299,31 +324,24 @@ void display_init(int padded_width, int padded_height,
               xv_image = XvShmCreateImage (mydisplay, xv_port, xv_id, NULL,
                                             padded_width, padded_height, 
 					   &shm_info);
-#if 0 //HAVE_XV_NO_CP TODO hack, check if correct
-              shm_info.shmid = shmget (IPC_PRIVATE, xv_image->data_size, 
-                                         IPC_CREAT | 0777);
-              shm_info.shmaddr = shmat (shm_info.shmid, 0, 0);
-#else
               shm_info.shmid = picture_data_head->shmid;
 
               shm_info.shmaddr = picture_buf_base;
 
-#endif
 	      
               shm_info.readOnly = True;
-#if 0 // HAVE_XV_NO_CP // TODO hack
-              xv_image->data = shm_info.shmaddr;
-#else
+
 	      xv_image->data = picture_data->y;
-#endif
+
+
               XShmAttach (mydisplay, &shm_info);
-              XSync (mydisplay, False);
-              shmctl (shm_info.shmid, IPC_RMID, 0);
-              //memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
+
+	      shmctl (shm_info.shmid, IPC_RMID, 0);
+	      //memset (xv_image->data, 128, xv_image->data_size); /*grayscale */
 	      
 	      CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
 	      
-              return; /* All set up! */
+	      return; /* All set up! */
             } else {
               xv_port = 0;
             }
@@ -363,13 +381,36 @@ void display_init(int padded_width, int padded_height,
     goto shmemerror;
   }
   
+  
+  /* make sure we don't have any unhandled errors */
+  XSync (mydisplay, False);
+  
+  /* set error handler so we can check if xshmattach failed */
+  prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+  
+  /* get the serial of the xshmattach request */
+  req_serial = NextRequest(mydisplay);
+  
+  /* try to attach */
+  
   /* Attach shared memory segment */
   shm_info.shmaddr = (char *) shmat(shm_info.shmid, 0, 0);
+  
+  
+  /* make sure xshmattach has been processed and any errors
+     returned to us */
+  XSync (mydisplay, False);
+  
+  /* revert to the previous xerrorhandler */
+  XSetErrorHandler(prev_xerrhandler);
+  
+  if(use_xshm) {
+
   if (shm_info.shmaddr == ((char *) -1)) {
     fprintf(stderr, "Shared memory: Couldn't attach segment\n");
     goto shmemerror;
   }
-  
+  }
   windows[0].ximage->data = shm_info.shmaddr;
   shm_info.readOnly = False;
   XShmAttach(mydisplay, &shm_info);
