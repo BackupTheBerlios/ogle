@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <inttypes.h>
+
+#include "include/debug_print.h"
+
 #include "mmx.h"
 #include "mmx_mlib.h"
 
@@ -27,6 +30,7 @@ static uint64_t twos = 0x0002000200020002ULL;
 void
 mlib_Init(void)
 {
+  DNOTE("Using MMX accelerated media functions\n");
   return;
 }
 
