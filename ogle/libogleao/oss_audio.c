@@ -158,6 +158,7 @@ int oss_init(ogle_ao_instance_t *_instance,
   if(audio_info->chtypes != OGLE_AO_CHTYPE_UNSPECIFIED) {
     // do this only if we have requested specific channels in chtypes
     // otherwise trust the nr channels
+#ifdef SNDCTL_DSP_GETCHANNELMASK
     int chmask;
     if(ioctl(instance->fd, SNDCTL_DSP_GETCHANNELMASK, &chmask) == -1) {
       //driver doesn't support this, assume it does 2ch stereo
@@ -192,6 +193,10 @@ int oss_init(ogle_ao_instance_t *_instance,
       audio_info->chtypes = chtypes;
       audio_info->channels = nr_ch;
     }
+#else
+    audio_info->chtypes = OGLE_AO_CHTYPE_LEFT | OGLE_AO_CHTYPE_RIGHT;
+    audio_info->channels = 2;
+#endif
   }
   if(audio_info->chlist) {
     free(audio_info->chlist);
