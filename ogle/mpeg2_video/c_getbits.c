@@ -41,6 +41,19 @@
 #endif
 
 
+typedef struct _data_q_t {
+  int in_use;
+  int eoq;
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  data_buf_head_t *data_head;
+  picture_data_elem_t *data_elems;
+  yuv_image_t *image_bufs;
+  struct _data_q_t *next;
+} data_q_t;
+
+
+extern data_q_t *data_q_head;
 extern int ctrl_data_shmid;
 extern ctrl_data_t *ctrl_data;
 extern ctrl_time_t *ctrl_time;
@@ -57,14 +70,13 @@ extern int input_stream;
 int stream_shmid = -1;
 char *stream_shmaddr;
 
-int data_buf_shmid = -1;
 char *data_buf_shmaddr;
 
 int flush_to_scrid = -1;
 
 int get_q();
 int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid);
-
+extern int detach_data_q(int q_shmid, data_q_t **data_q_list);
 int attach_ctrl_shm(int shmid);
 void handle_events(MsgEventQ_t *q, MsgEvent_t *ev);
 
@@ -370,6 +382,9 @@ void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQCtrlData:
     attach_ctrl_shm(ev->ctrldata.shmid);
     break;
+  case MsgEventQQDetached:
+    detach_data_q(ev->detachq.q_shmid, &data_q_head);
+    break;
   default:
     fprintf(stderr, "*video_decoder: unrecognized event type\n");
     break;
@@ -405,7 +420,6 @@ int attach_stream_buffer(uint8_t stream_id, uint8_t subtype, int shmid)
       return -1;
     }
     
-    data_buf_shmid = shmid;
     data_buf_shmaddr = shmaddr;
     
   }    
