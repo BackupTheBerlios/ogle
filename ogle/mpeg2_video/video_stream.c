@@ -4255,11 +4255,60 @@ void motion_comp()
   
 }
 
-
+/* 6.2.3.2 Quant matrix extension */
 void quant_matrix_extension()
 {
-  fprintf(stderr, "***ni quant_matrix_extension()\n");
-  exit(-1);
+  GETBITS(4, "extension_start_code_identifier");
+  seq.header.load_intra_quantiser_matrix = 
+    GETBITS(1, "load_intra_quantiser_matrix");
+  if(seq.header.load_intra_quantiser_matrix) {
+    int n;
+    intra_inverse_quantiser_matrix_changed = 1;
+#ifdef STATS
+    stats_intra_inverse_quantiser_matrix_loaded = 1;
+#endif
+    for(n = 0; n < 64; n++) {
+      seq.header.intra_quantiser_matrix[n] = 
+        GETBITS(8, "intra_quantiser_matrix[n]");
+    }
+    
+    /* 7.3.1 Inverse scan for matrix download */
+    {
+      int v, u;
+      for (v=0; v<8; v++) {
+	for (u=0; u<8; u++) {
+	  seq.header.intra_inverse_quantiser_matrix[v*8+u] =
+	    seq.header.intra_quantiser_matrix[scan[0][v][u]];
+	}
+      }
+    }
+  }
+  seq.header.load_non_intra_quantiser_matrix = 
+    GETBITS(1, "load_non_intra_quantiser_matrix");
+  if(seq.header.load_non_intra_quantiser_matrix) {
+    int n;
+    non_intra_inverse_quantiser_matrix_changed = 1;
+#ifdef STATS
+    stats_non_intra_inverse_quantiser_matrix_loaded = 1;
+#endif
+    for(n = 0; n < 64; n++) {
+      seq.header.non_intra_quantiser_matrix[n] = GETBITS(8, "non_intra_quantiser_matrix[n]");
+    }
+   
+    /* inverse scan for matrix download */
+    {
+      int v, u;
+      for (v=0; v<8; v++) {
+	for (u=0; u<8; u++) {
+	  seq.header.non_intra_inverse_quantiser_matrix[v*8+u] =
+	    seq.header.non_intra_quantiser_matrix[scan[0][v][u]];
+	}
+      }
+    }
+  }
+  GETBITS(1, "load_chroma_intra_quantiser_matrix (always 0 in 4:2:0)");
+  GETBITS(1, "load_chroma_non_intra_quantiser_matrix (always 0 in 4:2:0)");
+  next_start_code();
 }
 
 
