@@ -18,7 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types>
+#include <sys/types.h>
 #include <sys/msg.h>
 #include <errno.h>
 #include <ogle/msgevents.h>
