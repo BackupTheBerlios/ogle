@@ -48,6 +48,10 @@
 #include "yuv2rgb.h"
 #include "screenshot.h"
 
+#define SPU
+#ifdef SPU
+#include "spu_mixer.h"
+#endif
 #ifdef HAVE_XV
 #include <X11/extensions/Xv.h>
 #include <X11/extensions/Xvlib.h>
@@ -104,6 +108,9 @@ static int scalemode = MLIB_BILINEAR;
 static int scalemode_change = 0;
 static double sar;
 static double xscale_factor;
+
+
+
 extern void display_process_exit(void);
 
 static void draw_win(debug_win *dwin);
@@ -128,11 +135,18 @@ void display_init(int padded_width, int padded_height,
   if (mydisplay == NULL)
     fprintf(stderr,"Can not open display\n");
 
+
+
+#ifdef SPU
+  init_spu();
+#endif
+
   /* Check for availability of shared memory */
   if (!XShmQueryExtension(mydisplay)) {
     fprintf(stderr, "No shared memory available!\n");
     exit(1);
   }
+
 
   screen = DefaultScreen(mydisplay);
 
@@ -705,12 +719,14 @@ void draw_win_x11(debug_win *dwin)
   // XFlushmydisplay);
 }
 
+
 #ifdef HAVE_MLIB
 void draw_win(debug_win *dwin)
 {
   mlib_image *mimage_s;
   mlib_image *mimage_d;
   
+
   /* Put the decode rgb data at the end of the data segment. */
   char *address = dwin->data;
   
@@ -733,7 +749,13 @@ void draw_win(debug_win *dwin)
 	  dwin->image->padded_height, 
 	  dwin->image->padded_width*(pixel_stride/8),
 	  dwin->image->padded_width, dwin->image->padded_width/2 );
-  
+
+#ifdef SPU
+  mix_subpicture(address,
+		 dwin->image->padded_width,
+		 dwin->image->padded_height);
+#endif
+
   if(dwin->grid) {
     if(dwin->color_grid) {
       add_color_grid(dwin);
