@@ -1,5 +1,5 @@
 #include <inttypes.h>
-
+#include <semaphore.h>
 /* Packettypes. */
 
 enum {
@@ -29,9 +29,23 @@ typedef struct {
   uint8_t *y; //[480][720];  //y-component image
   uint8_t *u; //[480/2][720/2]; //u-component
   uint8_t *v; //[480/2][720/2]; //v-component
-  
-  //timecode_t time;
-
-  uint8_t lock;
+  uint16_t start_x, start_y;
+  uint16_t horizontal_size;
+  uint16_t vertical_size;
+  uint16_t padded_width, padded_height;
 } yuv_image_t;
 
+typedef struct {
+  yuv_image_t picture;
+  int in_use;
+  int displayed;
+} picture_info_t;
+
+typedef struct {
+  sem_t pictures_ready_to_display;
+  sem_t pictures_displayed;
+  int nr_of_buffers;
+  picture_info_t *picture_infos;
+  int *dpy_q;
+  long int frame_interval;
+} buf_ctrl_head_t;
