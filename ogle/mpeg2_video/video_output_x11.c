@@ -1440,12 +1440,15 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.input = ev.xbutton.button;
 
 	if(ev.xbutton.button == 2) {
-	  new_view_area.width = m_ev.input.x - new_view_area.x;
-	  new_view_area.height = m_ev.input.y - new_view_area.y;
-	  if(new_view_area.width < 1 ||
-	     new_view_area.height < 1) {
+	  int w, h;
+	  w = m_ev.input.x - new_view_area.x;
+	  h = m_ev.input.y - new_view_area.y;
+
+	  if(w < 1 || h < 1) {
 	    view_area_mode = 0;
 	  } else {
+	    new_view_area.width = w;
+	    new_view_area.height = h; 
 	    view_area_mode = 1;
 	  }
 	}
@@ -1634,6 +1637,12 @@ void display(yuv_image_t *current_image)
       new_view_area.height != src_view_area.height) &&
      view_area_mode != 2) {
     display_adjust_size(current_image, -1, -1);
+    //TODO move this
+    XClearArea(mydisplay, window.win,
+	       0, 0,
+	       window.window_area.width,
+	       window.window_area.height,
+	       False);
   }
   
   if(((window.win_state == WINDOW_STATE_NORMAL) && 
