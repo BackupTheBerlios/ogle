@@ -12,6 +12,24 @@
 #include "programstream.h"
 
 
+
+
+
+
+
+typedef struct {
+  uint8_t *buf_start;
+  int len;
+  int in_use;
+} q_elem;
+
+#define A_BUFS 44
+q_elem audio_q[A_BUFS];
+uint8_t *audio_buf;
+int q_write_pos = 0;
+int q_read_pos = 0;
+
+
 #define BUF_SIZE 2048
 
 
@@ -411,6 +429,29 @@ void push_stream_data(uint8_t stream_id, int len)
 
     }
     DPRINTF(4, "Video packet: %u bytes\n", len);    
+  } else   if(stream_id == 0xc0) {
+    if(audio) {
+      if(audio_q[q_write_pos].in_use) {
+	fwrite(audio_q[q_read_pos].buf_start,
+	       audio_q[q_read_pos].len,
+	       1, audio_file);
+	q_read_pos = (q_read_pos + 1) % A_BUFS;
+      }
+      memcpy(audio_q[q_write_pos].buf_start, data, len);
+      audio_q[q_write_pos].len = len;
+      audio_q[q_write_pos].in_use = 1;
+      q_write_pos = (q_write_pos + 1) % A_BUFS;
+      
+#ifdef STATS
+      stat_video_n_packets++;
+      if(ol_pack.body.offset%4 != 0)
+	stat_video_unaligned_packet_offset++;
+      if((ol_pack.body.offset+ol_pack.body.length)%4 != 0)
+	stat_video_unaligned_packet_end++;
+#endif //STATS
+
+    }
+    DPRINTF(4, "Audio packet: %u bytes\n", len);    
   } else if(stream_id == MPEG2_PRIVATE_STREAM_1) {
     DPRINTF(4, "Private_stream_1 packet: %u bytes\n", len);
     if(audio) {
@@ -796,8 +837,10 @@ void pack()
   mpeg_version = pack_header();
   switch(mpeg_version) {
   case MPEG1:
+    next_start_code();
     while(nextbits(32) >= 0x000001BC) {
       packet();
+      next_start_code();
     }
     break;
   case MPEG2:
@@ -992,6 +1035,15 @@ int main(int argc, char **argv)
     return 1;
   }
 
+  if(audio) {
+    int n;
+    audio_buf = malloc(A_BUFS*2352);
+    for(n = 0; n < A_BUFS; n++) {
+      audio_q[n].in_use = 0;
+      audio_q[n].buf_start = audio_buf+n*2352;
+      audio_q[n].len = 0;      
+    }
+  }
   loadinputfile(argv[optind]);
 
   // Setup signal handler for SEGV, to detect that we ran 
@@ -1018,9 +1070,9 @@ int main(int argc, char **argv)
   GETBITS(32, "skip");
 
   while(1) {
-    fprintf(stderr, "Searching for Program Stream\n");
+    //    fprintf(stderr, "Searching for Program Stream\n");
     if(nextbits(32) == MPEG2_PS_PACK_START_CODE) {
-      fprintf(stderr, "Found Program Stream\n");
+      //      fprintf(stderr, "Found Program Stream\n");
       MPEG2_program_stream();
     }
     GETBITS(8, "resync");
