@@ -1731,44 +1731,45 @@ void picture_data(void)
 	  ctrl_time[last_scr_nr].realtime_offset;
 	pinfos[buf_id].scr_nr = last_scr_nr;
 	
-	
-	/* When it is a B-picture we are decoding we now that it is
-	 * the picture that is going to be displayed next.
-	 * We check to see if we are lagging behind the desired time
-	 * and in that case we don't decode/show this picture
-	 */
-	
-	/* Calculate the time remaining until this picture shall be viewed. */
-	{
-	  struct timespec realtime, calc_rt, err_time;
-	  
-	  clock_gettime(CLOCK_REALTIME, &realtime);
-	  
-	  timeadd(&calc_rt,
-		  &(pinfos[buf_id].pts_time),
-		  &(pinfos[buf_id].realtime_offset));
-	  timesub(&err_time, &calc_rt, &realtime);
-	  
-	  /* If the picture should already have been displayed then drop it. */
-	  /* TODO: More investigation needed. */
-	  if((err_time.tv_nsec < 0) && (forced_frame_rate != 0)) {
-	    fprintf(stderr, "!");
-	    
-	    fprintf(stderr, "errpts %ld.%+010ld\n\n",
-		    err_time.tv_sec,
-		    err_time.tv_nsec);
-	    
-	  
-	    /* mark the frame to be dropped */
-	    drop_frame = 1;
-	    
-	  }
-	}
-	
 	break;
       }
     }
+    
+    /* When it is a B-picture we are decoding we now that it is
+     * the picture that is going to be displayed next.
+     * We check to see if we are lagging behind the desired time
+     * and in that case we don't decode/show this picture
+     */
+    
+    /* Calculate the time remaining until this picture shall be viewed. */
+    if(pic.header.picture_coding_type == PIC_CODING_TYPE_B) {
+      
+      struct timespec realtime, calc_rt, err_time;
+      
+      clock_gettime(CLOCK_REALTIME, &realtime);
+      
+      timeadd(&calc_rt,
+	      &(pinfos[buf_id].pts_time),
+	      &(pinfos[buf_id].realtime_offset));
+      timesub(&err_time, &calc_rt, &realtime);
+	
+      /* If the picture should already have been displayed then drop it. */
+      /* TODO: More investigation needed. */
+      if(((err_time.tv_nsec < 0) || (err_time.tv_sec < 0)) && (forced_frame_rate != 0)) {
+	fprintf(stderr, "!");
+	  
+	fprintf(stderr, "errpts %ld.%+010ld\n\n",
+		err_time.tv_sec,
+		err_time.tv_nsec);
+	  
+	  
+	/* mark the frame to be dropped */
+	drop_frame = 1;
+	  
+      }
+    }
   }
+  
   /*
  else {
  // either this is the second field of the frame or it is an error
