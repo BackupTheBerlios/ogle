@@ -78,6 +78,7 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
 	     uint64_t PTS, uint64_t DTS);
 int attach_buffer(int shmid, int size);
 int chk_for_msg(void);
+void loadinputfile(char *infilename);
 
 typedef struct {
   uint8_t *buf_start;
@@ -328,34 +329,68 @@ void dprintf_stream_id (int debuglevel, int stream_id)
 #endif
 }
 
-static cmd_ctrl_cmd_t demux_q[5];
+typedef enum {
+  CMD_CTRL,
+  CMD_FILE
+} cmd_type_t;
+
+
+typedef struct {
+  cmd_type_t cmd_type;
+  union {
+    cmd_ctrl_cmd_t ctrl;
+    char *file;
+  } cmd;
+} demux_q_t;
+
+static demux_q_t demux_q[5];
 static int demux_q_start = 0;
 static int demux_q_len = 0;
 
 void get_next_demux_q(void)
 {
-  while(!demux_q_len) {
-    wait_for_msg(CMD_CTRL_CMD);
+  int new_demux_range = 0;
+  while(!new_demux_range) {
+    while(!demux_q_len) {
+      wait_for_msg(CMD_CTRL_CMD);
+    }
+    
+    switch(demux_q[demux_q_start].cmd_type) {
+    case CMD_CTRL:
+      off_from = demux_q[demux_q_start].cmd.ctrl.off_from;
+      off_to = demux_q[demux_q_start].cmd.ctrl.off_to;
+      new_demux_range = 1;
+      break;
+    case CMD_FILE:
+      loadinputfile(demux_q[demux_q_start].cmd.file);
+      free(demux_q[demux_q_start].cmd.file);
+      break;
+    }
+    demux_q_start = (demux_q_start+1)%5;
+    demux_q_len--;
   }
-  off_from = demux_q[demux_q_start].off_from;
-  off_to = demux_q[demux_q_start].off_to;
-  demux_q_start = (demux_q_start+1)%5;
-  demux_q_len--;
-
 }
 
-void add_to_demux_q(cmd_ctrl_cmd_t *ctrl_cmd)
+void add_to_demux_q(int type, void *cmd)
 {
   int pos;
   
   if(demux_q_len < 5) {
     pos = (demux_q_start + demux_q_len)%5;
-    demux_q[pos] = *ctrl_cmd;
+    demux_q[pos].cmd_type = type;
+    switch(type) {
+    case CMD_CTRL:
+      demux_q[pos].cmd.ctrl = *(cmd_ctrl_cmd_t *)cmd;
+      break;
+    case CMD_FILE:
+      demux_q[pos].cmd.file = strdup((char *)cmd);
+    }
     demux_q_len++;
+    
   } else {
     fprintf(stderr, "add_to_demux_q: q full\n");
   }
-
+  
 }
 
 /* demuxer state */
@@ -1454,7 +1489,7 @@ int main(int argc, char **argv)
   if(msgqid != -1) {
     init_id_reg();
     /* wait for load_file command */
-    wait_for_msg(CMD_FILE_OPEN);
+    get_next_demux_q();
   } else {
     loadinputfile(argv[optind]);
   }
@@ -1685,7 +1720,7 @@ int eval_msg(cmd_t *cmd)
   switch(cmd->cmdtype) {
   case CMD_FILE_OPEN:
     fprintf(stderr, "demux: open file: %s\n", cmd->cmd.file_open.file);
-    loadinputfile(cmd->cmd.file_open.file);
+    add_to_demux_q(CMD_FILE, cmd->cmd.file_open.file);
     break;
   case CMD_DEMUX_GNT_BUFFER:
     fprintf(stderr, "demux: got buffer id %d, size %d\n",
@@ -1723,7 +1758,7 @@ int eval_msg(cmd_t *cmd)
 	off_to = cmd->cmd.ctrl_cmd.off_to;
 	break;
       case CTRLCMD_PLAY_FROM_TO:
-	add_to_demux_q(&cmd->cmd.ctrl_cmd);
+	add_to_demux_q(CMD_CTRL, &cmd->cmd.ctrl_cmd);
 	break;
       default:
 	break;
