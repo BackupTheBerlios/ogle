@@ -500,7 +500,7 @@ int get_q()
   off = data_elem->off;
   len = data_elem->len;
   
-  switch(data_elem->cmd) {
+  switch(data_elem->flowcmd) {
   case 1:
     if(mmap_base != dummy_buf) {
       tmp_base = mmap_base;

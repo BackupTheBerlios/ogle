@@ -360,13 +360,10 @@ static void display_process()
     
     //#ifdef SYNCMASTER
     
-    if(ctrl_data->sync_master <= SYNC_VIDEO) {
-      ctrl_data->sync_master = SYNC_VIDEO;
+    if(ctrl_time[pinfos[buf_id].scr_nr].sync_master <= SYNC_VIDEO) {
+      ctrl_time[pinfos[buf_id].scr_nr].sync_master = SYNC_VIDEO;
       
       //TODO release scr_nr when done
-      if(prev_scr_nr != pinfos[buf_id].scr_nr) {
-	ctrl_time[pinfos[buf_id].scr_nr].offset_valid = OFFSET_NOT_VALID;
-      }
       
       if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
 	if(pinfos[buf_id].PTS_DTS_flags & 0x2) {
@@ -414,6 +411,8 @@ static void display_process()
     
     if(TIME_S(prefered_time) == 0 || TIME_SS(frame_interval) == 1) {
       prefered_time = real_time;
+    } else if(ctrl_time[pinfos[buf_id].scr_nr].offset_valid == OFFSET_NOT_VALID) {
+      prefered_time = real_time;
     } else /* if(TIME_S(pinfos[buf_id].pts_time) != -1) */ {
       
       clocktime_t buftime, pts_time;
@@ -450,6 +449,9 @@ static void display_process()
 	//TODO fix this time mess
 	//fprintf(stderr, "APA\n");
 	wait_time.tv_nsec = 0;
+      }
+      if(wait_time.tv_sec > 0) {
+	fprintf(stderr, "*vo: waittime > 1 sec\n");
       }
       nanosleep(&wait_time, NULL);
     } else {

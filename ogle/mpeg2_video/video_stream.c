@@ -1935,9 +1935,14 @@ void picture_data(void)
 
       PTS_TO_CLOCKTIME(pts_time, pinfos[buf_id].PTS);
       clocktime_get(&realtime);
-      timeadd(&calc_rt,
-	      &pts_time,
-	      &ctrl_time[last_scr_nr].realtime_offset);
+      if(ctrl_time[last_scr_nr].offset_valid == OFFSET_VALID) {
+	timeadd(&calc_rt,
+		&pts_time,
+		&ctrl_time[last_scr_nr].realtime_offset);
+      } else {
+	calc_rt = realtime;
+	fprintf(stderr, "*vs: offset not valid\n");
+      }
       
       if(ctrl_data->mode == MODE_SPEED) {
 	clocktime_t difftime;
