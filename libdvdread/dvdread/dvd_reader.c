@@ -135,6 +135,10 @@ static int initAllCSSKeys( dvd_reader_t *dvd )
     uint32_t start, len;
     int title;
 	
+    char *nokeys_str = getenv("DVDREAD_NOKEYS");
+    if(nokeys_str != NULL)
+      return 0;
+    
     fprintf( stderr, "\n" );
     fprintf( stderr, "libdvdread: Attempting to retrieve all CSS keys\n" );
     fprintf( stderr, "libdvdread: This can take a _long_ time, "
