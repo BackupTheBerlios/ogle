@@ -31,11 +31,9 @@
 
 #include "c_getbits.h"
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
 #include "timemath.h"
 #include "sync.h"
-#include "ip_sem.h"
 #include "msgevents.h"
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0

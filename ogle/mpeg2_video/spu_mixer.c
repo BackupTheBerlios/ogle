@@ -17,7 +17,6 @@
 #include "msgtypes.h"
 #include "queue.h"
 #include "timemath.h"
-#include "ip_sem.h"
 
 #ifndef SHM_SHARE_MMU
 #define SHM_SHARE_MMU 0

@@ -51,7 +51,6 @@
 
 #include "common.h"
 #include "timemath.h"
-#include "ip_sem.h"
 #include "msgevents.h"
 
 #ifndef SHM_SHARE_MMU

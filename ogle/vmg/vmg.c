@@ -16,9 +16,7 @@
 #endif
 
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
-#include "ip_sem.h"
 #include "timemath.h"
 //#include "sync.h"
 

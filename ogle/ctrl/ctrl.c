@@ -14,9 +14,7 @@
 
 #include "mpeg.h"
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
-#include "ip_sem.h"
 #include "msgevents.h"
 #include "timemath.h"
 
@@ -1304,13 +1302,7 @@ int create_q(int nr_of_elems, int buf_shmid,
   
   q_head = (q_head_t *)shmaddr;
   
-  /*
-  {
-    int init_nr[2] = { 0, nr_of_elems };
-    if(ip_sem_init(&q_head->queue, init_nr) == -1)
-      exit(1); // XXX 
-  }
-  */
+
   q_head->data_buf_shmid = buf_shmid;
   q_head->nr_of_qelems = nr_of_elems;
   q_head->write_nr = 0;

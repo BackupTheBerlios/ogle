@@ -34,10 +34,8 @@
 
 #include "programstream.h"
 #include "common.h"
-#include "msgtypes.h"
 #include "queue.h"
 #include "mpeg.h"
-#include "ip_sem.h"
 #include "msgevents.h"
 
 
@@ -2044,7 +2042,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     
     q_head = (q_head_t *)data_elems[data_elem_nr].q_addr;
     
-#if 1 /* msgq */
     q_head->writer_requests_notification = 1;
 
     while(data_elems[data_elem_nr].in_use) {
@@ -2054,12 +2051,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     }
     //q_head->writer_requests_notification = 0;
     
-#else
-    if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
-      perror("demux: put_in_q(), sem_wait()");
-      exit(1); // XXX 
-    }
-#endif
 
   }
   /* Now the element should be free. 'paranoia check' */
@@ -2070,14 +2061,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   
   /* If decremented earlier, then increment it now to restore the normal 
    * maximum free buffers for the queue. */
-#if 0
-  for(n = 0; n < nr_waits; n++) {
-    if(ip_sem_post(&q_head->queue, BUFS_EMPTY) == -1) {
-      perror("demux: put_in_q(), sem_post()");
-      exit(1); // XXX 
-    }
-  }
-#endif
   
   
   
@@ -2132,13 +2115,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   q_elem = (q_elem_t *)(q_addr+sizeof(q_head_t));
   elem = q_head->write_nr;
   
-#if 0
-  /* Make sure that there is room for it. */
-  if(ip_sem_wait(&q_head->queue, BUFS_EMPTY) == -1) {
-    perror("demux: put_in_q(), sem_wait()");
-    exit(1); // XXX 
-  }
-#else
   if(q_elem[elem].in_use) {
     q_head->writer_requests_notification = 1;
     
@@ -2149,14 +2125,12 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     }
     //    q_head->writer_requests_notification = 0;
   }
-#endif
   
   q_elem[elem].data_elem_index = data_elem_nr;
   q_elem[elem].in_use = 1;
   
   q_head->write_nr = (q_head->write_nr+1)%q_head->nr_of_qelems;
   
-#if 1
   if(q_head->reader_requests_notification) {
     q_head->reader_requests_notification = 0;
     ev.type = MsgEventQNotify;
@@ -2166,14 +2140,6 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
     }
   }
 
-#else
-  /* Let the consumer know that there is data available for consumption. */
-  if(ip_sem_post(&q_head->queue, BUFS_FULL) == -1) {
-    perror("demux: put_in_q(), sem_post()");
-    exit(1); // XXX 
-  }
-#endif
-  
   return 0;
 }
 
