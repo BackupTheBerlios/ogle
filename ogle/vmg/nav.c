@@ -47,7 +47,8 @@ extern dvd_state_t state;
 extern unsigned char discid[16];
 
 static void do_run(void);
-static int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
+static int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
+			     cell_playback_t *cell, 
 			     int block, int *still_time);
 
 static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
@@ -554,8 +555,8 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
  * subpicture change and answer attribute query requests.
  * access menus, pause, play, jump forward/backward...
  */
-int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
-		      int block, int *still_time)
+int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi, 
+		      cell_playback_t *cell, int block, int *still_time)
 {
   int res = 0;
       
@@ -584,7 +585,63 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
       }
     }
     break;
-	  
+/*
+  case DVDCtrlTimeSkipp:
+    // We have 120 60 30 10 7.5 7 6.5 ... 0.5 seconds markers
+    if(ev.dvdctrl.cmd.timeskipp.seconds > 0) {
+      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
+      const unsigned int hsec = ev.dvdctrl.cmd.timeskipp.seconds * 2;
+      unsigned int diff, idx = 0;
+      diff = abs(hsec - time[0]);
+      while(idx < 19 && abs(hsec - time[idx]) <= diff) {
+	diff = abs(hsec - time[idx]);
+	idx++;
+      }
+      idx--; // Restore it to the one that got us the diff
+
+//    bit 0:  v0: *Video data* does not exist in the VOBU at the address
+//            v1: *video data* does exists in the VOBU on the address
+//    bit 1: indicates whether theres *video data* between 
+//           current vobu and last vobu. ??
+//    if address = 3fff ffff -> vobu does not exist
+
+      // Make sure we have a VOBU that 'exists' (with in the cell)
+      // Perhaps we need to make this loop more sophisticated?
+      while(idx < 19 && (dsi->vobu_sri.bwda[18-idx] == SRI_END_OF_CELL ||
+			 (dsi->vobu_sri.bwda[18-idx] & 0x80000000))) idx++;
+      if(idx < 19) {
+	// Fake this, as a jump with blockN as destination
+	// Humm was this fwda a absolute VOBU addres withing the VOBS or
+	// was it just within VOB/the cell... 
+	state.blockN = dsi->vobu_sri.fwda[idx];
+	res = 1;
+      } else
+	res = 0; // no new block found.. must be at the end of the cell..
+    } else {
+      const unsigned int time[19] = { 240, 120, 60, 20, 15, 14, 13, 12, 11, 
+				       10,   9,  8,  7,  6,  5,  4,  3,  2, 1};
+      const unsigned int hsec = (-ev.dvdctrl.cmd.timeskipp.seconds) * 2; // -
+      unsigned int diff, idx = 0;
+      diff = abs(hsec - time[0]);
+      while(idx < 19 && abs(hsec - time[idx]) < diff) { // <
+	diff = abs(hsec - time[idx]);
+	idx++;
+      }
+      idx--; // Restore it to the one that got us the diff
+      // Make sure we have a VOBU that 'exicsts' (with in the cell)
+      // What about the 'top' two bits here?  If there is no video at the
+      // seek destination?  Check with the menus in Coruptor.
+      while(idx < 19 && dsi->vobu_sri.fwda[idx] == SRI_END_OF_CELL) idx++;
+      if(idx < 19) {
+	// Fake this, as a jump with blockN as destination
+	state.blockN = dsi->vobu_sri.bwda[18-idx];
+	res = 1;
+      } else
+	res = 0; // no new_block found.. must be at the end of the cell..    
+    }
+    break;
+*/    
   case DVDCtrlMenuCall:
     NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
     res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
@@ -1185,7 +1242,7 @@ static void do_run(void) {
 	 * access menus, pause, play, jump forward/backward...
 	 */
 
-	res = process_user_data(ev, &pci, cell, block, &still_time);
+	res = process_user_data(ev, &pci, &dsi, cell, block, &still_time);
 	break;
       case MsgEventQDVDCtrlLong:
 
