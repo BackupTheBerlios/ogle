@@ -13,13 +13,210 @@ create_pipe() {
 create_pipe "/tmp/ac3"
 create_pipe "/tmp/audio"
 
-# information on the build 
-echo "Build: @BUILDINFO@"
-# and the os version we are running on
-runtime="Runtime: `uname -m -r -s -v`"
-runtime="${runtime} `uname -p 2> /dev/null`"
-echo "$runtime"
+ostype=`uname`
 
+debug="0"
+check="0"
+param=""
+
+for p in $*; do
+    if [ $p = "--debug" ]; then
+	debug="1"
+    elif [ $p = "--check" ]; then
+	debug="1"
+	check="1"
+    else
+	param="$param $p"
+    fi
+done
+
+if [ "$debug" = "1" ]; then
+ # information on the build 
+ echo "Build: @BUILDINFO@"
+ # and the os version we are running on
+ runtime="Runtime: `uname -m -r -s -v`"
+ runtime="${runtime} `uname -p 2> /dev/null`"
+ echo "$runtime"
+
+ case $ostype in
+     "Linux")
+
+         #cpu information
+	 cpuinfo=`cat /proc/cpuinfo | sed s/\.*/\&,/`
+	 echo "cpuinfo:"
+	 echo $cpuinfo
+	 echo ""
+	 
+         #check for bad kernels
+	 linux_version="`uname -r`"
+	 if [ "$linux_version" = "2.4.10" ]; then
+	     echo ""
+	     echo "WARNING: This kernel ($linux_version) is known to have problems with DVD:s."
+	     echo ""
+	 fi
+	 echo $linux_version | grep "2.4.9-" >/dev/null
+	 if [ "$?" = "0" ]; then
+	     echo ""
+	     echo "WARNING: There has been some DVD-troubles with modified 2.4.9-kernels."
+	     echo ""
+	 fi
+	 
+         #check for dvd drives
+	 PROCFILE="/proc/sys/dev/cdrom/info"
+	 if [ ! -r "$PROCFILE" ]; then
+	     echo "File not found: $PROCFILE"
+	 else
+	     DEVLIST=`cat $PROCFILE | grep 'drive name:' | cut -d':' -f 2-`
+	     
+	     N=0
+	     for dev in $DEVLIST; do
+		 DEV[$N]=$dev
+		 N=`expr $N + 1`
+	     done
+	     
+	     ISDVDLIST=`cat $PROCFILE \
+                        | grep 'Can read DVD:' \
+                        | cut -d':' -f 2-`
+	     
+	     N=0
+	     for isdvd in $ISDVDLIST; do
+		 IS_DVD[$N]=$isdvd
+		 N=`expr $N + 1`
+	     done
+	     
+	     N=0
+	     M=0
+	     for dev in ${DEV[*]}; do
+		 if [ "${IS_DVD[$N]}" = "1" ]; then
+		     DVD_DEV[$M]=$dev
+		     M=`expr $M + 1`
+		 fi
+		 N=`expr $N + 1`
+	     done
+	     
+             #is /dev/dvd set?
+	     dev="/dev/dvd"
+	     while [ -h $dev ]; do
+		 nextdev=`ls -l $dev | cut -d'>' -f 2`
+		 nextdev="`echo $nextdev`"
+		 echo  "$dev -> $nextdev"
+		 abspath="`echo $nextdev | cut -b1`"
+		 if [ "$abspath" = "/" ]; then
+		     dev="`echo $nextdev`"
+		 else
+		     dev="`dirname $dev`/$nextdev"
+		 fi
+	     done
+	     if [ ! -r "$dev" ]; then
+		 echo "`ls -l $dev`"
+		 echo "WARNING: $dev is not readable"
+		 echo ""
+	     fi
+	     
+             #ide devices
+	     ide_devices="`ls /proc/ide | grep hd`"
+	     N=0
+	     for dev in $ide_devices; do
+		 ide_dev[$N]=$dev
+		 N=`expr $N + 1`
+	     done
+             #ide cd/dvd devices
+	     M=0
+	     P=0
+	     for dev in ${ide_dev[*]}; do
+		 driver="`cat /proc/ide/$dev/driver | cut -d' ' -f 1`"
+		 if [ "$driver"  = "ide-cd" ]; then
+		     ide_cd_dev[$M]=$dev
+		     M=`expr $M + 1`
+		 elif [ "$driver" = "ide-scsi" ]; then
+		     ide_scsi_cd_dev[$P]=$dev
+		     P=`expr $P + 1`
+		 fi
+	     done
+             #the devices that can read DVD
+	     echo  -n "Valid DVD devices:"
+	     for dev in ${DVD_DEV[*]}; do
+		 scsi_dev="`echo $dev | grep sr`"
+		 if [ -n "$scsi_dev" ]; then
+		     scsi_nr="`echo $dev | cut -d'r' -f 2`"
+		     echo -n " /dev/scd$scsi_nr"
+		 else
+		     echo -n " /dev/$dev"
+		 fi
+	     done
+	     echo ""
+	     for dev in ${ide_scsi_cd_dev[*]}; do
+		 echo "/dev/$dev is running ide-scsi (`cat /proc/ide/$dev/model`)"
+	     done
+	     
+             #ide device information
+	     hdparm_path="/sbin /usr/sbin"
+	     hdparm_found=0
+	     hdparm_version=`hdparm -V 2> /dev/null`
+	     if [ "$?" != "0" ]; then
+		 for hpath in $hdparm_path; do
+		     if $hpath/hdparm -V 2>/dev/null; then
+			 hdparm_found=1
+			 break
+		     fi
+		 done
+	     else
+		 hdparm_found=1
+	     fi
+	     if [ "$hdparm_found" = "1" ]; then
+		 for dev in ${DVD_DEV[*]}; do
+		     ide_dev="`echo $dev | grep hd`"
+		     if [ -n "$ide_dev" ]; then
+			 dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
+			 dmainfo="`echo $dmainfo`"
+			 if [ ! -r /dev/$dev ]; then
+			     echo "WARNING: Cannot read /dev/$dev, need to be root to do that?"
+			 fi
+			 if [ -z "$dmainfo" ]; then
+			     echo "WARNING: Could not get DMA state for /dev/$dev"
+			 elif [ "$dmainfo" = "1" ]; then
+			     echo "DMA is on for /dev/$dev"
+			 else
+			     echo ""
+			     echo "WARNING: DMA is OFF for /dev/$dev"
+			     echo ""
+			 fi
+			 $hpath/hdparm /dev/$dev 2>/dev/null
+		     fi
+		 done
+		 for dev in ${ide_scsi_cd_dev[*]}; do
+		     dmainfo="`$hpath/hdparm /dev/$dev 2>/dev/null | grep using_dma | cut -d'=' -f 2 | cut -d\( -f 1`"
+		     dmainfo="`echo $dmainfo`"
+		     if [ ! -r /dev/$dev ]; then
+			 echo "WARNING: Cannot read /dev/$dev, need to be root to do that?"
+		     fi
+		     if [ -z "$dmainfo" ]; then
+			 echo "WARNING: Could not get DMA state for /dev/$dev"
+		     elif [ "$dmainfo" = "1" ]; then
+			 echo "DMA is on for /dev/$dev"
+		     else	       
+			 echo ""
+			 echo "WARNING: DMA is OFF for /dev/$dev"
+			 echo ""
+		     fi
+		     $hpath/hdparm /dev/$dev 2>/dev/null
+		 done
+	     else
+		 echo "WARNING: hdparm not found"
+	     fi  
+	 fi
+	 
+	 ;;
+     "SunOS")
+	 sysinfo -class device
+	 fpversion
+	 ;;
+ esac
+fi
+
+if [ "$check" = "1" ]; then
+    exit
+fi
 # This is were all the helper programs are placed
 prefix=@prefix@
 exec_prefix=@exec_prefix@
@@ -59,7 +256,7 @@ export DVDP_SPU
 DVDP_VIDEO_OUT=$DVDP_ROOT/ogle_vout
 export DVDP_VIDEO_OUT
 if [ -x "$DVDP_UI" ]; then
-  $DVDP_CTRL -u gui $*;
+  $DVDP_CTRL -u gui $param;
 else
-  $DVDP_CTRL -u cli $*;
+  $DVDP_CTRL -u cli $param;
 fi;
