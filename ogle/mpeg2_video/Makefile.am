@@ -34,7 +34,7 @@ EXTRA_DIST = \
 
 bin_PROGRAMS = video_stream video_output
 
-INCLUDES = @X_CFLAGS@ @MLIB_CFLAGS@
+INCLUDES = @X_CFLAGS@ @MLIB_CFLAGS@ @JPEG_CFLAGS@
 
 video_stream_SOURCES = \
 	video_stream.c video_stream.h \
@@ -53,4 +53,4 @@ video_output_SOURCES = \
 
 video_stream_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
 
-video_output_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la
+video_output_LDADD = @X_PRE_LIBS@ @X_LIBS@ -lX11 @X_EXTRA_LIBS@ @XEXT_LIB@ @MLIB_LIBS@ @JPEG_LIBS@ $(top_builddir)/common/libcommon.a $(top_builddir)/ogle/libmsgevents.la

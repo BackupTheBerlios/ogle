@@ -46,14 +46,45 @@ if test x$use_xv = xyes; then
 	       AC_MSG_WARN(You won't bw able to use Xv), 
 	       $X_LIBS -lXext $X_EXTRA_LIBS)
 fi
-
-
-dnl Checks for library functions.
-AC_CHECK_LIB(jpeg, main, 
-	     XEXT_LIB="$XEXT_LIB -ljpeg", 
-	     AC_MSG_ERROR(You need libjpeg), 
-             $X_LIBS -lX11 $X_EXTRA_LIBS)
 AC_SUBST(XEXT_LIB)
+
+jpeg_path=""
+AC_ARG_WITH(libjpeg, 
+  [  --with-libjpeg=path     specify the install prefix to libjpeg ], 
+  if test x$withval = xno; then
+    AC_MSG_ERROR([You must have/use libjpeg])
+  fi
+  if test x$withval != xyes; then
+    jpeg_path=$withval
+  fi)
+if test -z "$jpeg_path"; then
+  dnl We have nothing better to go on, guess that it's installed in prefix
+  if test "x$prefix" != xNONE; then
+    jpeg_path=$prefix
+  else
+    jpeg_path=$ac_default_prefix
+  fi  
+fi
+AC_CHECK_LIB(jpeg, main, 
+  [ JPEG_LIBS="-L$jpeg_path/lib -rpath $jpeg_path/lib -ljpeg"
+    JPEG_CFLAGS=-I$jpeg_path/include
+  ],, -L$jpeg_path/lib)
+if test -z "JPEG_LIBS"; then
+  AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location])
+fi
+
+AC_ARG_WITH(libjpeg-includes, 
+  [  --with-libjpeg-includes=path specify location of libjpeg headers ], 
+  JPEG_CFLAGS=-I$with_libjpeg_includes)
+
+if test -z "JPEG_CFLAGS"; then
+  AC_CHECK_HEADER(jpeglib.h,, 
+    [ AC_MSG_WARN([Can not find jpeglib.h])
+      AC_MSG_ERROR([Need libjpeg, install it and/or specify it's location]) ] )
+fi
+
+AC_SUBST(JPEG_CFLAGS)
+AC_SUBST(JPEG_LIBS)
 
 dnl nanosleep is in librt on Solaris
 AC_CHECK_FUNC(nanosleep, , 
@@ -166,7 +197,7 @@ AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, test x$USE_MMX = xyes)
 
 dnl Yes this is ugly, but since I'm a developer I can do this... 
-INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include -I/usr/pd/include'
+INCLUDES='-I. -I$(top_srcdir) -I$(top_srcdir)/include'
 CFLAGS="$INCLUDES $CFLAGS"
 
 
