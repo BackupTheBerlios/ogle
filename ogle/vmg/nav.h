@@ -189,7 +189,7 @@ typedef struct { /* AnGLe Information for seamless playback */
   struct {
     uint32_t address; // Sector offset to next ILVU, high bit is before/after
     uint16_t size;    // Byte size of the ILVU poited to by address.
-  } dsta[9];
+  } __attribute__ ((packed)) dsta[9];
 } __attribute__ ((packed)) sml_agli_t;
 
 typedef struct { /* VOBUnit SeaRch Information */
