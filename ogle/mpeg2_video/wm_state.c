@@ -9,7 +9,7 @@
 #include <X11/Xatom.h>
 
 #include <inttypes.h>
-
+#include <string.h>
 
 #include "wm_state.h"
 
@@ -304,6 +304,22 @@ static void switch_to_fullscreen_state(Display *dpy, Window win)
     ev.xclient.data.l[0] = 10;
     XSendEvent(dpy, DefaultRootWindow(dpy), False,
 	       SubstructureNotifyMask, &ev);
+  } else {
+    if(wm_name != NULL) {
+      if(strcmp(wm_name, "KWin") == 0) {
+	XEvent ev;
+	ev.type = ClientMessage;
+	ev.xclient.window = win;
+	ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
+	ev.xclient.format = 32;
+	ev.xclient.data.l[0] = 1; // _NET_WM_STATE_ADD
+	ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
+	ev.xclient.data.l[2] = 0;
+
+	XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		   SubstructureNotifyMask, &ev);
+      }
+    }
   }
 
   // Wait for a configure notify
@@ -418,6 +434,22 @@ static void switch_to_normal_state(Display *dpy, Window win)
     ev.xclient.data.l[0] = 4;
     XSendEvent(dpy, DefaultRootWindow(dpy), False,
 	       SubstructureNotifyMask, &ev);
+  } else {
+    if(wm_name != NULL) {
+      if(strcmp(wm_name, "KWin") == 0) {
+	XEvent ev;
+	ev.type = ClientMessage;
+	ev.xclient.window = win;
+	ev.xclient.message_type = XInternAtom(dpy, "_NET_WM_STATE", True);
+	ev.xclient.format = 32;
+	ev.xclient.data.l[0] = 0; // _NET_WM_STATE_REMOVE
+	ev.xclient.data.l[1] = XInternAtom(dpy, "_NET_WM_STATE_STAYS_ON_TOP", False);
+	ev.xclient.data.l[2] = 0;
+
+	XSendEvent(dpy, DefaultRootWindow(dpy), False,
+		   SubstructureNotifyMask, &ev);
+      }
+    }
   }
 
   current_state = WINDOW_STATE_NORMAL;
@@ -571,7 +603,7 @@ static int check_for_gnome_wm(Display *dpy)
  * Oterhwise returns 0.
  */
 
-static int check_for_EWMH_wm(Display *dpy)
+static int check_for_EWMH_wm(Display *dpy, char **wm_name_return)
 {
   Atom atom;
   Atom type_return;
@@ -717,9 +749,28 @@ static int check_for_EWMH_wm(Display *dpy)
 		  return 0;
 		}
 		
-		fprintf(stderr, "wm_name: property has wrong type\n");
 		if(type_return == type_utf8) {
+		  if(XGetWindowProperty(dpy, win_id, atom, 0,
+					4, False, type_utf8,
+					&type_return, &format_return,
+					&nitems_return,
+					&bytes_after_return,
+					&prop_return) != Success) {
+		    
+		    fprintf(stderr, "XGetWindowProperty failed in wm_name\n");
+		    return 0;
+		  }
+
 		  fprintf(stderr, "wm_name: property of type UTF8_STRING\n");
+		  
+		  fprintf(stderr, "wm_name: format: %d\n", format_return);
+		  fprintf(stderr, "wm_name: nitmes: %ld\n", nitems_return);
+		  fprintf(stderr, "wm_name: bytes_after: %ld\n", bytes_after_return);
+		  if(format_return == 8) {
+		    fprintf(stderr, "wm_name: %s\n", (char *)prop_return);
+		    *wm_name_return = strdup((char *)prop_return);
+		  }
+		  
 		}
 		if(prop_return != NULL) {
 		  XFree(prop_return);
@@ -731,6 +782,7 @@ static int check_for_EWMH_wm(Display *dpy)
 		fprintf(stderr, "wm_name: bytes_after: %ld\n", bytes_after_return);
 		if(format_return == 8) {
 		  fprintf(stderr, "wm_name: %s\n", (char *)prop_return);
+		  *wm_name_return = strdup((char *)prop_return);
 		}
 	        XFree(prop_return);
 		/* end name check */
@@ -822,12 +874,13 @@ static int check_for_gnome_wm_layers(Display *dpy)
 
 int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
 {
-
+  
   if(state != current_state) {
     
-    EWMH_wm = check_for_EWMH_wm(dpy);
+    EWMH_wm = check_for_EWMH_wm(dpy, &wm_name);
     gnome_wm = check_for_gnome_wm(dpy);
     
+
     //fprintf(stderr, "EWMH_wm: %s\n", EWMH_wm ? "True" : "False");
     //fprintf(stderr, "gnome_wm: %s\n", gnome_wm ? "True" : "False");
     
@@ -845,6 +898,10 @@ int ChangeWindowState(Display *dpy, Window win, WindowState_t state)
     default:
       fprintf(stderr, "unknown window state\n");
       break;
+    }
+    if(wm_name != NULL) {
+      free(wm_name);
+      wm_name = NULL;
     }
   }
   
