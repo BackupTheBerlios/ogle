@@ -266,6 +266,7 @@ print_system_set () {
           print_system_reg(i);
           printf(" = ");
           print_reg_or_data_2(bits(0,3,1), 2+i);
+          printf(" ");
         }
       }
       break;
@@ -299,6 +300,10 @@ print_set () {
   print_reg(bits(3,0,8));
   print_set_op(set_op);
   print_reg_or_data(bits(0,3,1), 4);
+  if(bits(1,4,4)) {
+    printf(" ");
+    print_link_instruction();
+  }
 }
 
 vmcmd(uint8_t *bytes)  {
