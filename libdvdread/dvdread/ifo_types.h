@@ -165,6 +165,64 @@ typedef struct {
   } app_info;
 } ATTRIBUTE_PACKED audio_attr_t;
 
+
+/**
+ * MultiChannel Extension
+ */
+typedef struct {
+#ifdef WORDS_BIGENDIAN
+  unsigned int zero1      : 7;
+  unsigned int ach0_gme   : 1;
+
+  unsigned int zero2      : 7;
+  unsigned int ach1_gme   : 1;
+
+  unsigned int zero3      : 4;
+  unsigned int ach2_gv1e  : 1;
+  unsigned int ach2_gv2e  : 1;
+  unsigned int ach2_gm1e  : 1;
+  unsigned int ach2_gm2e  : 1;
+
+  unsigned int zero4      : 4;
+  unsigned int ach3_gv1e  : 1;
+  unsigned int ach3_gv2e  : 1;
+  unsigned int ach3_gmAe  : 1;
+  unsigned int ach3_se2e  : 1;
+
+  unsigned int zero5      : 4;
+  unsigned int ach4_gv1e  : 1;
+  unsigned int ach4_gv2e  : 1;
+  unsigned int ach4_gmBe  : 1;
+  unsigned int ach4_seBe  : 1;
+#else
+  unsigned int ach0_gme   : 1;
+  unsigned int zero1      : 7;
+
+  unsigned int ach1_gme   : 1;
+  unsigned int zero2      : 7;
+
+  unsigned int ach2_gm2e  : 1;
+  unsigned int ach2_gm1e  : 1;
+  unsigned int ach2_gv2e  : 1;
+  unsigned int ach2_gv1e  : 1;
+  unsigned int zero3      : 4;
+
+  unsigned int ach3_se2e  : 1;
+  unsigned int ach3_gmAe  : 1;
+  unsigned int ach3_gv2e  : 1;
+  unsigned int ach3_gv1e  : 1;
+  unsigned int zero4      : 4;
+
+  unsigned int ach4_seBe  : 1;
+  unsigned int ach4_gmBe  : 1;
+  unsigned int ach4_gv2e  : 1;
+  unsigned int ach4_gv1e  : 1;
+  unsigned int zero5      : 4;
+#endif
+  uint8_t zero6[19];
+} ATTRIBUTE_PACKED multichannel_ext_t;
+
+
 /**
  * Subpicture Attributes.
  */
@@ -546,6 +604,12 @@ typedef struct {
 } ATTRIBUTE_PACKED tt_srpt_t;
 #define TT_SRPT_SIZE 8
 
+
+/**
+ * Parental Management Information Unit Table.
+ */
+typedef uint16_t pf_level_t[8];
+
 /**
  * Parental Management Information Unit Table.
  */
@@ -554,7 +618,7 @@ typedef struct {
   uint16_t zero_1;
   uint16_t pf_ptl_mai_start_byte;
   uint16_t zero_2;
-  /* uint16_t *pf_ptl_mai // table of nr_of_vtss+1 x 8 */
+  pf_level_t *pf_ptl_mai; /* table of (nr_of_vtss + 1) x 8 */
 } ATTRIBUTE_PACKED ptl_mait_country_t;
 #define PTL_MAIT_COUNTRY_SIZE 8
 
@@ -609,6 +673,7 @@ typedef struct {
   uint16_t zero_1;
   uint32_t last_byte;
   vts_attributes_t *vts;
+  uint32_t *vts_atrt_offsets; /* offsets table for each vts_attributes */
 } ATTRIBUTE_PACKED vts_atrt_t;
 #define VTS_ATRT_SIZE 8
 
@@ -715,6 +780,8 @@ typedef struct {
   uint8_t  zero_20[17];
   uint8_t  nr_of_vts_subp_streams;
   subp_attr_t vts_subp_attr[32];
+  uint16_t zero_21;
+  multichannel_ext_t vts_mu_audio_attr[8];
   /* XXX: how much 'padding' here, if any? */
 } ATTRIBUTE_PACKED vtsi_mat_t;
 
@@ -742,6 +809,7 @@ typedef struct {
   uint16_t zero_1;
   uint32_t last_byte;
   ttu_t  *title;
+  uint32_t *ttu_offset; /* offset table for each ttu */
 } ATTRIBUTE_PACKED vts_ptt_srpt_t;
 #define VTS_PTT_SRPT_SIZE 8
 
@@ -771,6 +839,7 @@ typedef struct {
   uint16_t zero_1;
   uint32_t last_byte;
   vts_tmap_t *tmap;
+  uint32_t *tmap_offset; /* offset table for each tmap */
 } ATTRIBUTE_PACKED vts_tmapt_t;
 #define VTS_TMAPT_SIZE 8
 
