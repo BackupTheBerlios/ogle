@@ -30,15 +30,8 @@
 #include "nav.h"
 #include "nav_print.h"
 #include "vmcmd.h"
+#include "ifo.h"
 
-
-/* FIXME: Move this function to a common file. */
-typedef struct {
-  uint8_t hour;
-  uint8_t minute;
-  uint8_t second;
-  uint8_t frame_u; // The two high bits of this byte represent the frame rate.
-}  __attribute__ ((packed)) dvd_time_t;
 
 void print_time(FILE *out, dvd_time_t *time) {
   char *rate = NULL;
