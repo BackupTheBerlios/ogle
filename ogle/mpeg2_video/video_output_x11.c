@@ -301,7 +301,7 @@ static void display_init_xv(int picture_buffer_shmid,
 {
   int xv_found = 0;
 #ifdef HAVE_XV
-  int i, j;
+  int i, j, k;
   int result;
   int n;
   xv_port = 0; /* We have no port yet. */
@@ -335,29 +335,41 @@ static void display_init_xv(int picture_buffer_shmid,
     if(!(xv_adaptor_info[i].type & XvInputMask) ||
        !(xv_adaptor_info[i].type & XvImageMask))
       continue;
-    
-    xv_port = xv_adaptor_info[i].base_id;
-      
-    /* Check image formats of adaptor */
-    xv_formats = XvListImageFormats(mydisplay, xv_port, &xv_num_formats);
-    for(j = 0; j < xv_num_formats; j++) {
-      if(xv_formats[j].id == 0x32315659) { /* YV12 */
-	//if(xv_formats[j].id == 0x30323449) { /* I420 */
-	xv_id = xv_formats[j].id;
-	break;
-      } 
-    }
-    /* No matching format found */
-    if(j == xv_num_formats)
-      continue;
-      
-    NOTE("Xv adaptor \"%s\" port %li image format %i\n",
-	 xv_adaptor_info[i].name, xv_port, xv_id);
 
+    /* Check Available Ports */
+    for (j = 0; j <  xv_adaptor_info[i].num_ports && !xv_port ; j++) {
+      
+      /* Check Image formats of adaptor */
+      xv_formats = XvListImageFormats(mydisplay, 
+				      xv_adaptor_info[i].base_id + j,
+				      &xv_num_formats);
+      for (k = 0; k < xv_num_formats; k ++) {
+	/* Check for proper format (YV12) and see if we can grab the port */
+	if ( (xv_formats[k].id == 0x32315659) &&
+	     (XvGrabPort(mydisplay,xv_adaptor_info[i].base_id+j,0) == Success)
+	     ) {
+	  xv_id = xv_formats[k].id;
+	  xv_port = xv_adaptor_info[i].base_id + j;
+	  break;
+	}	
+      }
+      
+      /* delete stuff nicely */
+      XFree(xv_formats);
+    }
+    
+    /* Check next Adapter */
+    if (xv_port==0) continue;
+    
+    /* Report what we found */
+
+    NOTE("Xv adaptor \"%s\" port %li image format %i\n", xv_adaptor_info[i].name, xv_port, xv_id);
+    
     DNOTE("Xv createimage %dx%d\n", padded_width, padded_height);
 
     DNOTE("XvShmCreateImage: %ld\n", NextRequest(mydisplay));
-    /* Allocate XvImages */
+
+    /* Allocate XvImage */
     xv_image = XvShmCreateImage(mydisplay, xv_port, xv_id, NULL,
 				padded_width,
 				padded_height, 
@@ -415,7 +427,11 @@ static void display_init_xv(int picture_buffer_shmid,
     /* All set up! */
     break;
   }
+  /* Clean up */
+  XvFreeAdaptorInfo(xv_adaptor_info);
+
 #endif /* HAVE_XV */
+  /* In case we didn't find a working Xv */  
   if(!xv_found) {
     use_xv = 0;
   }
@@ -1736,6 +1752,8 @@ void display_exit(void)
 
   if(mydisplay) {
     XSync(mydisplay,True);
+    if(use_xv)
+      XvUngrabPort(mydisplay,xv_port,CurrentTime);
     if(use_xshm)
       XShmDetach(mydisplay, &shm_info);
     if(window.ximage != 0)
