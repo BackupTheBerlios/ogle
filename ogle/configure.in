@@ -733,6 +733,10 @@ dnl ---------------------------------------------------------
 
 if test "x$GCC" = xyes; then
   CFLAGS="$CFLAGS -Wall"
+  GCC_VERSION=`$CC -v 2>&1 | grep version | awk '/^gcc version/ { print $3 }'`
+  GCC_VERSION_MAJOR=`echo $GCC_VERSION | awk 'BEGIN { FS = "." } { print $1 }'`
+  GCC_VERSION_MINOR=`echo $GCC_VERSION | awk 'BEGIN { FS = "." } { print $2 }'`
+  GCC_VERSION_MICRO=`echo $GCC_VERSION | awk 'BEGIN { FS = "." } { print $3 }'`
 else
     dnl non-GCC flags - we probably need exact configuration triplets here.
     case "$host" in
@@ -769,8 +773,15 @@ dnl Do we need this ? should we hard code it to pentium/pentiumpro?
 dnl what about k6 / athlon
 dnl will it still assemble the mmx instructions when -march=i386
 dnl	  CFLAGS="$CFLAGS -march=$host_cpu"
-	  XCFLAGS="-march=i586 -mcpu=pentiumpro"
+
+	  if ( test $GCC_VERSION_MAJOR -ge 4 ) || ( test $GCC_VERSION_MAJOR -eq 3 && test $GCC_VERSION_MINOR -ge 4 ); then
+	     CPU_SCHED="-mtune"
+	  else
+	     CPU_SCHED="-mcpu"
+	  fi
+	  XCFLAGS="-march=i586 $CPU_SCHED=pentiumpro"
 	fi
+	echo "$XCFLAGS"
 	USE_MMX=yes
 	;;
 x86_64)
