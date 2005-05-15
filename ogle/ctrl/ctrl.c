@@ -1609,12 +1609,27 @@ void sigchld_handler(int sig, siginfo_t *info, void* context)
 #endif
   
   while(1) {
-    if((pid = waitpid(wpid, &stat_loc, WCONTINUED | WUNTRACED)) == -1) {
-      perror("ctrl: waitpid failed");
+    static int use_wcont = 1;
+    int options;
+    
+    //linux waitpid doesn't handle WCONTINUED
+    options = WUNTRACED;
+    if(use_wcont) {
+      options |= WCONTINUED;
+    }
+    if((pid = waitpid(wpid, &stat_loc, options)) == -1) {
       switch(errno) {
       case EINTR:
 	continue;
+      case EINVAL:
+	if(use_wcont) {
+	  use_wcont = 0;
+	  options &= ~WCONTINUED; //remove WCONTINUED from options
+	  DNOTE("%s\n", "Disabling use of WCONTINUED in waitpid");
+	  continue;
+	}
       default:
+	ERROR("waitpid for %d failed: %s\n", wpid, strerror(errno));
 	return;
       }
     }
