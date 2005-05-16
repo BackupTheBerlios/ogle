@@ -320,7 +320,7 @@ static void display_init_xv(int picture_buffer_shmid,
        xv_version, xv_release);
   
   /* Check for available adaptors */
-  result = XvQueryAdaptors(mydisplay, DefaultRootWindow (mydisplay), 
+  result = XvQueryAdaptors(mydisplay, window.win, 
 			   &xv_num_adaptors, &xv_adaptor_info);
   if(result != Success) {
     WARNING("%s", "No Xv adaptors found\n");
@@ -363,7 +363,11 @@ static void display_init_xv(int picture_buffer_shmid,
     
     /* Report what we found */
 
-    NOTE("Xv adaptor \"%s\" port %li image format %i\n", xv_adaptor_info[i].name, xv_port, xv_id);
+    NOTE("Xv adaptor \"%s\" port %li image format 0x%X (%c%c%c%c)\n", xv_adaptor_info[i].name, xv_port, xv_id,
+	 ((unsigned char *)&xv_id)[0],
+	 ((unsigned char *)&xv_id)[1],
+	 ((unsigned char *)&xv_id)[2],
+	 ((unsigned char *)&xv_id)[3]);
     
     DNOTE("Xv createimage %dx%d\n", padded_width, padded_height);
 
