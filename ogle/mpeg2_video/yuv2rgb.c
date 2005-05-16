@@ -55,7 +55,7 @@ void yuv2rgb_init(uint32_t bpp, uint32_t mode)
     ;
   
   if( yuv2rgb == NULL ) {
-    fprintf( stderr, "No accelerated colorspace coversion found\n" );
+    fprintf( stderr, "No accelerated colorspace conversion found\n" );
     yuv2rgb = yuv2rgb_c_init(bpp, mode);
   }
 }
