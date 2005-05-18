@@ -137,6 +137,7 @@ static XShmSegmentInfo shm_info;
 static Display *mydisplay = NULL;
 static int screen_nr;
 static GC mygc;
+static GC colorkey_gc;
 static char title[100];
 
 static int color_depth, pixel_stride, mode;
@@ -144,10 +145,6 @@ static int color_depth, pixel_stride, mode;
 
 static int screenshot = 0;
 static int screenshot_spu = 0;
-static int view_area_mode = 0;
-static area_t src_view_area;
-static area_t new_view_area;
-
 
 static struct {
   int zoom_n;              /* Zoom factor. */
@@ -197,6 +194,10 @@ static void draw_win_xv(window_info *dwin);
 static void draw_win_x11(window_info *dwin);
 static void display_change_size(yuv_image_t *img, int new_width, 
 				int new_height, int resize_window);
+static void clear_window(void);
+static void clear_borders(void);
+static void display_adjust_size(yuv_image_t *current_image,
+				int given_width, int given_height);
 
 static Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
 {
@@ -427,8 +428,28 @@ static void display_init_xv(int picture_buffer_shmid,
       CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;
     }
     xv_found = 1;
+    
+    /* clear window with colorkey in case XV_AUTOPAINT_COLORKEY isn't enabled*/
+    {
+      char const * const attr_name = "XV_COLORKEY";
+      Atom attr_atom = XInternAtom(mydisplay, attr_name, False);
+      unsigned int val;
+      if(XvGetPortAttribute(mydisplay, xv_port, attr_atom, &val) != Success) {
+	ERROR("Couldn't get attribute: %s\n", attr_name);
+      } else {
+	XGCValues gcval;
+	gcval.foreground = val;
+	gcval.fill_style = FillSolid;
+	colorkey_gc = XCreateGC(mydisplay, window.win,
+				GCForeground | GCFillStyle, &gcval);
 
-    /* All set up! */
+	XFillRectangle(mydisplay, window.win, colorkey_gc,
+		       0, 0,
+		       window.window_area.width,
+		       window.window_area.height);
+      }
+    }
+    /* Allt set up! */
     break;
   }
   /* Clean up */
@@ -719,6 +740,17 @@ void display_reset(void)
 
 }
 
+static void set_videoarea(window_info *w, int width, int height)
+{
+  w->video_area.width = width;
+  w->video_area.height = height;
+  w->video_area.x = (w->window_area.width - 
+		     w->video_area.width) / 2;
+  w->video_area.y = (w->window_area.height -
+		     w->video_area.height) / 2;
+  
+  return;
+}
 
 void display_init(int padded_width, int padded_height,
 		  int picture_buffer_shmid,
@@ -928,13 +960,8 @@ void display_init(int padded_width, int padded_height,
 	    xev.xconfigure.width, 
 	    xev.xconfigure.height);
 	  */
-	  window.video_area.width = scale.image_width;
-	  window.video_area.height = scale.image_height;
-	  window.video_area.x = (window.window_area.width - 
-				 window.video_area.width) / 2;
-	  window.video_area.y = (window.window_area.height -
-				 window.video_area.height) / 2;
-	  
+	  set_videoarea(&window, scale.image_width, scale.image_height);
+
 	  XTranslateCoordinates(mydisplay, window.win,
 				DefaultRootWindow(mydisplay), 
 				0,
@@ -1027,7 +1054,6 @@ static void display_change_size(yuv_image_t *img, int new_width,
       XResizeWindow(mydisplay, window.win, 
 		    scale.image_width, scale.image_height);
     }
-
     return;
   }
   
@@ -1101,10 +1127,13 @@ static void display_change_size(yuv_image_t *img, int new_width,
     XSync(mydisplay, False);
   }
   
+
   /* Save the new size so we know what to scale to. */
   scale.image_width = new_width;
-  scale.image_height = new_height;
+  scale.image_height = new_height; 
   
+  set_videoarea(&window, scale.image_width, scale.image_height);
+
   /* Force a change of the window size. */
   if(resize_window == True) {
     XResizeWindow(mydisplay, window.win, 
@@ -1113,6 +1142,48 @@ static void display_change_size(yuv_image_t *img, int new_width,
 }
 
 
+static area_t bound_viewarea(yuv_image_t *img, area_t area)
+{
+  yuv_picture_t *p = &img->info->picture;
+  
+  if(area.width <= 0 || area.height <= 0) {
+   //reset viewarea
+   area.x = 0;
+   area.y = 0;
+    area.width = p->horizontal_size;
+    area.height = p->vertical_size;
+  } else {
+    if(area.x < 0)
+      area.x = 0;
+    if(area.y < 0)
+      area.y = 0;
+    if(area.x + area.width > p->horizontal_size)
+      area.width = p->horizontal_size - area.x;
+    if(area.y + area.height > p->vertical_size)
+      area.height = p->vertical_size - area.y;
+  }
+
+  return area;
+}
+
+static area_t viewarea; //only accessed by get/set_viewarea()
+
+static area_t get_viewarea(yuv_image_t *img)
+{
+  return bound_viewarea(img, viewarea);
+}
+
+
+static void set_viewarea(yuv_image_t *img, area_t area)
+{
+  
+  viewarea = bound_viewarea(img, area);
+
+  display_adjust_size(img, -1, -1);
+  clear_borders();
+
+}
+
 static void display_adjust_size(yuv_image_t *current_image,
 				int given_width, int given_height) {
   int dpy_sar_frac_n, dpy_sar_frac_d;
@@ -1120,7 +1191,8 @@ static void display_adjust_size(yuv_image_t *current_image,
   int64_t scale_frac_n, scale_frac_d;
   int base_width, base_height, max_width, max_height;
   int new_width, new_height;
-  
+  area_t src_view_area;
+
   if(aspect_mode == AspectModeSrcVM) {
     sar_frac_n // hack
       = aspect_new_frac_d * current_image->info->picture.horizontal_size;
@@ -1161,36 +1233,7 @@ static void display_adjust_size(yuv_image_t *current_image,
   }
   */
 
-  if(view_area_mode == 0) {
-    new_view_area.x = 0;
-    new_view_area.y = 0;
-    new_view_area.width = current_image->info->picture.horizontal_size;
-    new_view_area.height = current_image->info->picture.vertical_size;
-    src_view_area = new_view_area;
-  } else if(view_area_mode == 1) {
-    src_view_area = new_view_area;
-  }
-	  
-  if(src_view_area.x < 0) {
-    src_view_area.x = 0;
-    new_view_area.x = src_view_area.x;
-  }
-  if(src_view_area.y < 0) {
-    src_view_area.y = 0;
-    new_view_area.y = src_view_area.y;
-  }
-  if(src_view_area.x + src_view_area.width >
-     current_image->info->picture.horizontal_size) {
-    src_view_area.width =
-      current_image->info->picture.horizontal_size - src_view_area.x;
-    new_view_area.width = src_view_area.width;
-  }
-  if(src_view_area.y + src_view_area.height >
-     current_image->info->picture.vertical_size) {
-    src_view_area.height =
-      current_image->info->picture.vertical_size - src_view_area.y;
-    new_view_area.height = src_view_area.height;
-  }
+  src_view_area = get_viewarea(current_image);
 
   /* Keep either the height or the width constant. */ 
   if(scale_frac_n > scale_frac_d) {
@@ -1306,6 +1349,10 @@ static void display_toggle_fullscreen(yuv_image_t *current_image) {
 
 void clear_borders(void)
 {
+
+  if(use_xv) {
+    clear_window();
+  }
   // top border
   if(window.video_area.y > 0) {
     XClearArea(mydisplay, window.win,
@@ -1358,6 +1405,34 @@ void screenshot_mode(int mode)
   }
 }
 
+
+static void set_rubberband(yuv_image_t *img, int start, int x, int y)
+{
+  static int x0;
+  static int y0;
+  area_t area;
+  
+  if(start) {
+    x0 = x;
+    y0 = y;
+    return;
+  }
+  
+  area.width = x - x0;
+  area.height = y - y0;
+  area.x = x0;
+  area.y = y0;
+  
+  if(area.width < 1 || area.height < 1) {
+    area.x = area.y = area.width = area.height = 0;
+    set_viewarea(img, area); //reset viewarea
+  } else {
+    set_viewarea(img, area);
+  }
+  
+}
+
+
 void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
@@ -1365,9 +1440,12 @@ void check_x_events(yuv_image_t *current_image)
   clocktime_t cur_time;
   static Bool cursor_visible = True;
   static Time last_motion;
+  area_t src_view_area;
   
   while(XCheckIfEvent(mydisplay, &ev, true_predicate, NULL) != False) {
-    
+  
+    src_view_area = get_viewarea(current_image);
+
     switch(ev.type) {
     case KeyPress:
       // send keypress to whoever wants it
@@ -1467,9 +1545,7 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.input = ev.xbutton.button;
 
 	if(ev.xbutton.button == 2) {
-	  view_area_mode = 2;
-	  new_view_area.x = m_ev.input.x;
-	  new_view_area.y = m_ev.input.y;
+	  set_rubberband(current_image, 1, m_ev.input.x, m_ev.input.y); 
 	}
 
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
@@ -1516,43 +1592,33 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.y_root = ev.xbutton.y_root;
 	m_ev.input.mod_mask = ev.xbutton.state;
 	m_ev.input.input = ev.xbutton.button;
-
-	if(ev.xbutton.button == 2) {
-	  int w, h;
-	  w = m_ev.input.x - new_view_area.x;
-	  h = m_ev.input.y - new_view_area.y;
-
-	  if(w < 1 || h < 1) {
-	    view_area_mode = 0;
-	  } else {
-	    new_view_area.width = w;
-	    new_view_area.height = h; 
-	    view_area_mode = 1;
-	  }
-	}
 	
-      if(input_mask & INPUT_MASK_ButtonRelease) {
-	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
-	  switch(errno) {
-	  case EAGAIN:
-	    // msgq full, drop message
-	    break;
+	if(ev.xbutton.button == 2) {
+	  set_rubberband(current_image, 0, m_ev.input.x, m_ev.input.y);
+	}
+      
+	if(input_mask & INPUT_MASK_ButtonRelease) {
+	  if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
+	    switch(errno) {
+	    case EAGAIN:
+	      // msgq full, drop message
+	      break;
 #ifdef EIDRM
-	  case EIDRM:
+	    case EIDRM:
 #endif
-	  case EINVAL:
-	    FATAL("%s", "buttonrelease\n");
-	    perror("MsgSendEvent");
-	    display_exit(); //TODO clean up and exit
-	    break;
-	  default:
-	    FATAL("%s", "buttonrelease, couldn't send notification\n");
-	    perror("MsgSendEvent");
-	    display_exit(); //TODO clean up and exit
-	    break;
+	    case EINVAL:
+	      FATAL("%s", "buttonrelease\n");
+	      perror("MsgSendEvent");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    default:
+	      FATAL("%s", "buttonrelease, couldn't send notification\n");
+	      perror("MsgSendEvent");
+	      display_exit(); //TODO clean up and exit
+	      break;
+	    }
 	  }
 	}
-      }
       }
       if(cursor_visible == False) {
 	restore_cursor(mydisplay, window.win);
@@ -1614,6 +1680,7 @@ void check_x_events(yuv_image_t *current_image)
       
       if(ev.xexpose.window == window.win) {
 	if(use_xv) {
+	  clear_borders();
 	  draw_win_xv(&window);
  	} else {
 	  draw_win_x11(&window);
@@ -1623,22 +1690,17 @@ void check_x_events(yuv_image_t *current_image)
     case ConfigureNotify:
       // remove all configure notify in queue
       while(XCheckTypedEvent(mydisplay, ConfigureNotify, &ev) == True); 
-      
+
       if(ev.xconfigure.window == window.win) {
 	Window dummy_win;
 	window.window_area.width = ev.xconfigure.width;
 	window.window_area.height = ev.xconfigure.height;
-	
+
 	display_adjust_size(current_image, 
 			    ev.xconfigure.width, 
 			    ev.xconfigure.height);
 	
-	window.video_area.width = scale.image_width;
-	window.video_area.height = scale.image_height;
-	window.video_area.x = (window.window_area.width - 
-			       window.video_area.width) / 2;
-	window.video_area.y = (window.window_area.height -
-			       window.video_area.height) / 2;
+	set_videoarea(&window, scale.image_width, scale.image_height);
 
 	XTranslateCoordinates(mydisplay, window.win,
 			      DefaultRootWindow(mydisplay), 
@@ -1652,6 +1714,9 @@ void check_x_events(yuv_image_t *current_image)
 				window.window_area.x,
 				window.window_area.y);
 	clear_borders();
+	if(use_xv) {
+	  draw_win_xv(&window);
+	}
       }
       break;    
     default:
@@ -1669,6 +1734,22 @@ void check_x_events(yuv_image_t *current_image)
   }
 }
 
+static void clear_window(void)
+{
+  if(use_xv) {
+    XFillRectangle(mydisplay, window.win, colorkey_gc,
+		   0, 0,
+		   window.window_area.width,
+		   window.window_area.height);
+  } else {
+    XClearArea(mydisplay, window.win,
+	       0, 0,
+	       window.window_area.width,
+	       window.window_area.height,
+	       False);
+  }
+}
+
 void display(yuv_image_t *current_image)
 {
   static int sar_frac_n, sar_frac_d; 
@@ -1683,44 +1764,20 @@ void display(yuv_image_t *current_image)
       
       display_adjust_size(current_image, -1, -1);
       //TODO move this
-      XClearArea(mydisplay, window.win,
-		 0, 0,
-		 window.window_area.width,
-		 window.window_area.height,
-		 False);
-
+      clear_borders();
     }
   }
   if(aspect_mode == AspectModeSrcVM) {
     /* New VM aspect ratio? */
     if(aspect_new_frac_n != sar_frac_n || aspect_new_frac_d != sar_frac_d) {
-      
+
       sar_frac_n = aspect_new_frac_n;
       sar_frac_d = aspect_new_frac_d;
     
       display_adjust_size(current_image, -1, -1);
       //TODO move this
-      XClearArea(mydisplay, window.win,
-		 0, 0,
-		 window.window_area.width,
-		 window.window_area.height,
-		 False);
-
+      clear_borders();
     }
-  }
-  
-  if((new_view_area.x != src_view_area.x ||
-      new_view_area.y != src_view_area.y ||
-      new_view_area.width != src_view_area.width ||
-      new_view_area.height != src_view_area.height) &&
-     view_area_mode != 2) {
-    display_adjust_size(current_image, -1, -1);
-    //TODO move this
-    XClearArea(mydisplay, window.win,
-	       0, 0,
-	       window.window_area.width,
-	       window.window_area.height,
-	       False);
   }
   
   if(((window.win_state == WINDOW_STATE_NORMAL) && 
@@ -1834,13 +1891,8 @@ static void draw_win_x11(window_info *dwin)
     rect_t fb_rect;
     rect_t clip_rect;
 
-    window.video_area.width = dwin->image->info->picture.horizontal_size;
-    window.video_area.height = dwin->image->info->picture.vertical_size;
-    window.video_area.x = (int)(window.window_area.width - 
-				window.video_area.width) / 2;
-    window.video_area.y = (int)(window.window_area.height -
-				window.video_area.height) / 2;
-  
+    set_videoarea(&window, dwin->image->info->picture.horizontal_size,
+		  dwin->image->info->picture.vertical_size);
     
     stride = dwin->image->info->picture.padded_width;
     y = dwin->image->y;
@@ -1999,10 +2051,10 @@ static void draw_win_x11(window_info *dwin)
 		       sar_frac_n, sar_frac_d);
   }
   
-
 #ifdef HAVE_MLIB
   if((scale.image_width != dwin->image->info->picture.horizontal_size) ||
      (scale.image_height != dwin->image->info->picture.vertical_size)) {
+    area_t src_view_area = get_viewarea(dwin->image);
     /* Destination image */
     mimage_d = mlib_ImageCreateStruct(MLIB_BYTE, 4,
 				      scale.image_width, 
@@ -2037,12 +2089,7 @@ static void draw_win_x11(window_info *dwin)
     screenshot_yuv_jpg(dwin->image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
   
-  window.video_area.width = scale.image_width;
-  window.video_area.height = scale.image_height;
-  window.video_area.x = (window.window_area.width - 
-			 window.video_area.width) / 2;
-  window.video_area.y = (window.window_area.height -
-			 window.video_area.height) / 2;
+  set_videoarea(&window, scale.image_width, scale.image_height);
 
   /*
   
@@ -2122,7 +2169,7 @@ static void draw_win_xv(window_info *dwin)
 {
 #ifdef HAVE_XV
   yuv_image_t *draw_image;
-
+  area_t src_view_area;
   int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */   
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
@@ -2172,12 +2219,9 @@ static void draw_win_xv(window_info *dwin)
     screenshot_yuv_jpg(draw_image, dwin->ximage, sar_frac_n, sar_frac_d);
   }
   
-  window.video_area.width = scale.image_width;
-  window.video_area.height = scale.image_height;
-  window.video_area.x = (int)(window.window_area.width - 
-			      window.video_area.width) / 2;
-  window.video_area.y = (int)(window.window_area.height -
-			      window.video_area.height) / 2;
+  set_videoarea(&window, scale.image_width, scale.image_height);
+
+  src_view_area = get_viewarea(draw_image);
   if(use_xshm) {
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
 		  src_view_area.x, src_view_area.y, 
