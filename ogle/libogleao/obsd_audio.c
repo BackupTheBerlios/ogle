@@ -196,7 +196,6 @@ ogle_ao_instance_t *obsd_open(char *dev)
     
     instance->fd = open(dev, O_WRONLY);
     if(instance->fd < 0) {
-      fprintf(stderr, "Can not open %s\n", dev);
       free(instance);
       return NULL;
     }
