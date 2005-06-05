@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 #include "audio_types.h"
 #include "parse_config.h"
@@ -248,8 +249,8 @@ int audio_config(audio_config_t *aconf,
 	}
 	aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
 	if(!aconf->adev_handle) {
-	  FATAL("failed opening the %s audio driver at %s\n",
-		drivers[driver_n].name, dev_string);
+	  FATAL("failed opening the %s audio driver at %s: %s\n",
+		drivers[driver_n].name, dev_string, strerror(errno));
 	  exit(1);
 	}
       } else {
