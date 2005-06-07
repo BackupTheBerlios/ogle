@@ -269,16 +269,51 @@ int alsa_init(ogle_ao_instance_t *_instance,
 	
   
   if(i->initialized) {
+    snd_pcm_state_t state;
+    char *name;
+
     DNOTE("%s", "alsa reinit\n");
    
     if((err = snd_pcm_drain(i->alsa_pcm)) < 0) {
       ERROR("drain failed: %s\n", snd_strerror(err));
+      state = snd_pcm_state(i->alsa_pcm);
+      ERROR("alsa state: %d\n", state);
     }
-    
+
     if((err = snd_pcm_prepare(i->alsa_pcm)) < 0) {
       ERROR("prepare failed: %s\n",
 	    snd_strerror(err));
-    }    
+      state = snd_pcm_state(i->alsa_pcm);
+      ERROR("alsa state: %d\n", state);
+      
+      name = strdup(snd_pcm_name(i->alsa_pcm));
+      ERROR("Trying to close/reopen alsa device: %s\n", name);
+      
+      
+      DNOTE("Closing alsa pcm device: %s\n", name ? name : "");
+      
+      snd_pcm_close(i->alsa_pcm);
+      
+      i->initialized = 0;
+      i->sample_rate = 0;
+      i->samples_written = 0;
+      i->sample_frame_size = 0;
+      
+      DNOTE("Reopening alsa pcm device: %s\n", name);
+      
+      if((err = snd_pcm_open(&(i->alsa_pcm), name, 
+			     SND_PCM_STREAM_PLAYBACK, SND_PCM_NONBLOCK)) < 0) {
+	ERROR("Reopening alsa pcm device '%s': %s\n", name, snd_strerror(err));
+      }    
+      
+      free(name);
+      
+      if(err < 0) {
+	return -1;
+      }
+    }
+
+
   }
 
   // these are allocated with alloca and automatically freed when
@@ -392,7 +427,7 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
   NOTE("xrun_recovery: %s\n", snd_strerror(err));
   if(err == -EPIPE) {	/* underrun */
     if((err = snd_pcm_prepare(handle)) < 0) {
-      ERROR("Can't recovery from underrun, prepare failed: %s\n",
+      ERROR("Can't recover from underrun, prepare failed: %s\n",
 	    snd_strerror(err));
     }
     return 0;
@@ -401,7 +436,7 @@ static int xrun_recovery(snd_pcm_t *handle, int err)
       sleep(1);	/* wait until suspend flag is released */
     if(err < 0) {
       if((err = snd_pcm_prepare(handle)) < 0) {
-	ERROR("Can't recovery from suspend, prepare failed: %s\n",
+	ERROR("Can't recover from suspend, prepare failed: %s\n",
 	      snd_strerror(err));
       }
     }
