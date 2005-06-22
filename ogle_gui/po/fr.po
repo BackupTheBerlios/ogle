@@ -21,7 +21,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui 0.8.5\n"
-"POT-Creation-Date: 2002-08-12 00:06+0200\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-06-22 12:36+0200\n"
 "PO-Revision-Date: 2002-08-12 00:00+0200\n"
 "Last-Translator: Michel Dupré <michel.dupre3@wanadoo.fr>\n"
 "Language-Team: None\n"
@@ -57,7 +58,7 @@ msgstr "Aucun"
 #. TRANSLATORS:
 #. See the Swedish translation for the correct iso-8859-1
 #. representations of these, and use them if possible
-#: src/callbacks.c:221
+#: src/callbacks.c:236
 msgid ""
 "Authors:\n"
 "\n"
@@ -75,12 +76,12 @@ msgstr ""
 "Martin Norbäck\n"
 "Björn Augustsson"
 
-#: src/callbacks.c:230
+#: src/callbacks.c:245
 #, c-format
 msgid "Ogle GUI version %s"
 msgstr "Interface graphique version %s"
 
-#: src/fileselector.c:44
+#: src/fileselector.c:45
 msgid "Please select a file or directory."
 msgstr "Choisissez un fichier"
 
@@ -720,7 +721,6 @@ msgstr "hawaïen"
 msgid "Hebrew"
 msgstr "hébreu"
 
-#. Withdrawn in 1989. Still used!!!
 #: src/language.c:193
 msgid "Herero"
 msgstr "herero"
@@ -789,7 +789,6 @@ msgstr "indo-européennes, autres langues"
 msgid "Indonesian"
 msgstr "indonésien"
 
-#. Withdrawn in 1989. Still used?
 #: src/language.c:211
 msgid "Interlingua (International Auxiliary Language Association)"
 msgstr "interlingua (langue auxiliaire internationale)"
@@ -838,7 +837,6 @@ msgstr "japonais"
 msgid "Javanese"
 msgstr "javanais"
 
-#. Withdrawn 2001-07-27
 #: src/language.c:225
 msgid "Judeo-Arabic"
 msgstr "judéo-arabe"
@@ -1402,7 +1400,6 @@ msgstr "rapanui"
 msgid "Rarotongan"
 msgstr "rarotonga"
 
-#. { N_("Reserved for local use"), "qaa-qtz", "qaa-qtz", ""},
 #: src/language.c:369
 msgid "Romance (Other)"
 msgstr "romanes, autres langues"
@@ -1487,7 +1484,6 @@ msgstr "serbe"
 msgid "Serbo-Croatian"
 msgstr "serbo-croate"
 
-#. Withdrawn 2000-02-18. Still used?
 #: src/language.c:390
 msgid "Serer"
 msgstr "sérère"
@@ -1829,7 +1825,6 @@ msgstr "yapois"
 msgid "Yiddish"
 msgstr "yiddish"
 
-#. // Withdrawn in 1989. Still used?
 #: src/language.c:477
 msgid "Yoruba"
 msgstr "yoruba"
@@ -1905,195 +1900,209 @@ msgstr "Titre %i"
 msgid "Chapter %i"
 msgstr "Chapitre %i"
 
-#. ogle_gui.glade:192
 #: pixmaps/glade-strings.c:10
 msgid "%P %%"
 msgstr "%P %%"
 
-#. ogle_gui.glade:1154
 #: pixmaps/glade-strings.c:13
+msgid "0"
+msgstr ""
+
+#: pixmaps/glade-strings.c:16
+msgid "1"
+msgstr ""
+
+#: pixmaps/glade-strings.c:19
+msgid "2"
+msgstr ""
+
+#: pixmaps/glade-strings.c:22
+msgid "3"
+msgstr ""
+
+#: pixmaps/glade-strings.c:25
+msgid "4"
+msgstr ""
+
+#: pixmaps/glade-strings.c:28
+msgid "5"
+msgstr ""
+
+#: pixmaps/glade-strings.c:31
+msgid "6"
+msgstr ""
+
+#: pixmaps/glade-strings.c:34
+msgid "7"
+msgstr ""
+
+#: pixmaps/glade-strings.c:37
+msgid "8"
+msgstr ""
+
+#: pixmaps/glade-strings.c:40
+msgid "9"
+msgstr ""
+
+#: pixmaps/glade-strings.c:43
 msgid "About"
 msgstr "À propos"
 
-#. ogle_gui.glade:1074
-#: pixmaps/glade-strings.c:16
+#: pixmaps/glade-strings.c:46
 msgid "Angle select"
 msgstr "Choisir un angle"
 
-#. ogle_gui.glade:998
-#: pixmaps/glade-strings.c:19
+#: pixmaps/glade-strings.c:49
 msgid "Audio select"
 msgstr "Sélection Audio"
 
-#. ogle_gui.glade:1118
-#: pixmaps/glade-strings.c:22
+#: pixmaps/glade-strings.c:52
 msgid "Chapters"
 msgstr "Chapitre"
 
-#. ogle_gui.glade:97
-#: pixmaps/glade-strings.c:25
+#: pixmaps/glade-strings.c:55
 msgid "E_xit"
 msgstr "_Sortie"
 
-#. ogle_gui.glade:907
-#: pixmaps/glade-strings.c:28
+#: pixmaps/glade-strings.c:58
 msgid "Enter"
 msgstr "Entrée"
 
-#. ogle_gui.glade:383
-#: pixmaps/glade-strings.c:31
+#: pixmaps/glade-strings.c:61
 msgid "Fast forward"
 msgstr "Avance rapide"
 
-#. ogle_gui.glade:717
-#: pixmaps/glade-strings.c:34
+#: pixmaps/glade-strings.c:64
 msgid "Go up"
 msgstr "Remonter"
 
-#. ogle_gui.glade:831
-#: pixmaps/glade-strings.c:37
+#: pixmaps/glade-strings.c:67
+msgid "Keypad"
+msgstr ""
+
+#: pixmaps/glade-strings.c:70
 msgid "Move cursor down"
 msgstr "Curseur vers le bas"
 
-#. ogle_gui.glade:755
-#: pixmaps/glade-strings.c:40
+#: pixmaps/glade-strings.c:73
 msgid "Move cursor left"
 msgstr "Curseur vers la gauche"
 
-#. ogle_gui.glade:869
-#: pixmaps/glade-strings.c:43
+#: pixmaps/glade-strings.c:76
 msgid "Move cursor right"
 msgstr "Curseur vers la droite"
 
-#. ogle_gui.glade:793
-#: pixmaps/glade-strings.c:46
+#: pixmaps/glade-strings.c:79
 msgid "Move cursor up"
 msgstr "Curseur vers le haut"
 
-#. ogle_gui.glade:1252
-#: pixmaps/glade-strings.c:49
+#: pixmaps/glade-strings.c:82
 msgid "OK"
 msgstr "Oui"
 
-#. ogle_gui.glade:23
-#: pixmaps/glade-strings.c:52
+#: pixmaps/glade-strings.c:85
 msgid "Ogle"
 msgstr "Ogle"
 
-#. ogle_gui.glade:79
-#: pixmaps/glade-strings.c:55
+#: pixmaps/glade-strings.c:88
 msgid "Open _disc"
 msgstr "Ouverture du _DVD"
 
-#. ogle_gui.glade:497
-#: pixmaps/glade-strings.c:58
+#: pixmaps/glade-strings.c:91
 msgid "Pause"
 msgstr "Pause"
 
-#. ogle_gui.glade:1209 ogle_gui.glade:1227
-#: pixmaps/glade-strings.c:61
+#: pixmaps/glade-strings.c:94
 msgid "Placeholder"
 msgstr "Signet"
 
-#. ogle_gui.glade:345
-#: pixmaps/glade-strings.c:64
+#: pixmaps/glade-strings.c:97
 msgid "Play"
 msgstr "Lecture"
 
-#. ogle_gui.glade:626
-#: pixmaps/glade-strings.c:67
+#: pixmaps/glade-strings.c:100
 msgid "Play fast"
 msgstr "Lecture accélérée"
 
-#. ogle_gui.glade:664
-#: pixmaps/glade-strings.c:70
+#: pixmaps/glade-strings.c:103
 msgid "Play slow"
 msgstr "Lecture ralentie"
 
-#. ogle_gui.glade:121
-#: pixmaps/glade-strings.c:73
+#: pixmaps/glade-strings.c:106
 msgid "Properties..."
 msgstr "Propriétés..."
 
-#. ogle_gui.glade:269
-#: pixmaps/glade-strings.c:76
+#: pixmaps/glade-strings.c:109
 msgid "Reverse"
 msgstr "Reculer"
 
-#. ogle_gui.glade:231
-#: pixmaps/glade-strings.c:79
+#: pixmaps/glade-strings.c:112
 msgid "Rewind"
 msgstr "Rembobiner"
 
-#. ogle_gui.glade:960
-#: pixmaps/glade-strings.c:82
+#: pixmaps/glade-strings.c:115
 msgid "Select menu..."
 msgstr "Menu de sélection"
 
-#. ogle_gui.glade:421
-#: pixmaps/glade-strings.c:85
+#: pixmaps/glade-strings.c:118
 msgid "Skip backwards"
 msgstr "Saut en arrière"
 
-#. ogle_gui.glade:573
-#: pixmaps/glade-strings.c:88
+#: pixmaps/glade-strings.c:121
 msgid "Skip forwards"
 msgstr "Saut en avant"
 
-#. ogle_gui.glade:535
-#: pixmaps/glade-strings.c:91
+#: pixmaps/glade-strings.c:124
 msgid "Step forwards"
 msgstr "Chapitre suivant"
 
-#. ogle_gui.glade:459
-#: pixmaps/glade-strings.c:94
+#: pixmaps/glade-strings.c:127
 msgid "Step reverse"
 msgstr "Chapitre précédent"
 
-#. ogle_gui.glade:307
-#: pixmaps/glade-strings.c:97
+#: pixmaps/glade-strings.c:130
 msgid "Stop"
 msgstr "Arrêt"
 
-#. ogle_gui.glade:1036
-#: pixmaps/glade-strings.c:100
+#: pixmaps/glade-strings.c:133
 msgid "Subtitle select"
 msgstr "Sélection des sous-titres"
 
-#. ogle_gui.glade:175
-#: pixmaps/glade-strings.c:103
+#: pixmaps/glade-strings.c:136
 msgid "_About..."
 msgstr "_A propos..."
 
-#. ogle_gui.glade:106
-#: pixmaps/glade-strings.c:106
+#: pixmaps/glade-strings.c:139
 msgid "_Edit"
 msgstr "Édit_er"
 
-#. ogle_gui.glade:52
-#: pixmaps/glade-strings.c:109
+#: pixmaps/glade-strings.c:142
 msgid "_File"
 msgstr "_Fichier"
 
-#. ogle_gui.glade:150
-#: pixmaps/glade-strings.c:112
+#: pixmaps/glade-strings.c:145
 msgid "_Full screen"
 msgstr "_Plein écran"
 
-#. ogle_gui.glade:160
-#: pixmaps/glade-strings.c:115
+#: pixmaps/glade-strings.c:148
 msgid "_Help"
 msgstr "_Aide"
 
-#. ogle_gui.glade:67
-#: pixmaps/glade-strings.c:118
+#: pixmaps/glade-strings.c:151
 msgid "_Open..."
 msgstr "_Ouverture..."
 
-#. ogle_gui.glade:130
-#: pixmaps/glade-strings.c:121
+#: pixmaps/glade-strings.c:154
 msgid "_View"
 msgstr "_Vision"
+
+#: pixmaps/glade-strings.c:157
+msgid "n"
+msgstr ""
+
+#: pixmaps/glade-strings.c:160
+msgid "n/nn"
+msgstr ""
 
 #~ msgid "_PTT"
 #~ msgstr "_PTT"

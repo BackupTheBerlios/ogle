@@ -6,7 +6,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui-0.9.0\n"
-"POT-Creation-Date: 2003-02-23 12:57+0100\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-06-22 12:36+0200\n"
 "PO-Revision-Date: 2003-02-26\n"
 "Last-Translator: Myckel Habets <myckelhabets@netscape.net>\n"
 "Language-Team: Dutch\n"
@@ -42,7 +43,7 @@ msgstr "Geen"
 #. TRANSLATORS:
 #. See the Swedish translation for the correct iso-8859-1
 #. representations of these, and use them if possible
-#: src/callbacks.c:233
+#: src/callbacks.c:236
 msgid ""
 "Authors:\n"
 "\n"
@@ -60,12 +61,12 @@ msgstr ""
 "Martin Norbäck\n"
 "Björn Augustsson"
 
-#: src/callbacks.c:242
+#: src/callbacks.c:245
 #, c-format
 msgid "Ogle GUI version %s"
 msgstr "Ogle GUI versie %s"
 
-#: src/fileselector.c:44
+#: src/fileselector.c:45
 msgid "Please select a file or directory."
 msgstr "Selecteer een bestand of directory"
 

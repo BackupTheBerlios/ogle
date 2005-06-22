@@ -21,7 +21,8 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: ogle_gui 0.8.5\n"
-"POT-Creation-Date: 2002-08-18 13:00+0200\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2005-06-22 12:36+0200\n"
 "PO-Revision-Date: 2002-08-19 16:46-0300\n"
 "Last-Translator: Joao Vitor Boverio <netreel@linuxmail.org>\n"
 "Language-Team: None\n"
@@ -57,7 +58,7 @@ msgstr "Nenhum"
 #. TRANSLATORS:
 #. See the Swedish translation for the correct iso-8859-1
 #. representations of these, and use them if possible
-#: src/callbacks.c:221
+#: src/callbacks.c:236
 msgid ""
 "Authors:\n"
 "\n"
@@ -75,12 +76,12 @@ msgstr ""
 "Martin Norbäck\n"
 "Björn Augustsson"
 
-#: src/callbacks.c:230
+#: src/callbacks.c:245
 #, c-format
 msgid "Ogle GUI version %s"
 msgstr "Versao da interface grafica %s"
 
-#: src/fileselector.c:44
+#: src/fileselector.c:45
 msgid "Please select a file or directory."
 msgstr "Por favor selecione um arquivo ou diretorio."
 
@@ -1890,10 +1891,12 @@ msgid "Resume"
 msgstr "Resumo"
 
 #: src/ptt.c:87
+#, c-format
 msgid "Title %i"
 msgstr "Titulo %i"
 
 #: src/ptt.c:93
+#, c-format
 msgid "Chapter %i"
 msgstr "Capitulo %i"
 
@@ -1902,152 +1905,204 @@ msgid "%P %%"
 msgstr "%P %%"
 
 #: pixmaps/glade-strings.c:13
+msgid "0"
+msgstr ""
+
+#: pixmaps/glade-strings.c:16
+msgid "1"
+msgstr ""
+
+#: pixmaps/glade-strings.c:19
+msgid "2"
+msgstr ""
+
+#: pixmaps/glade-strings.c:22
+msgid "3"
+msgstr ""
+
+#: pixmaps/glade-strings.c:25
+msgid "4"
+msgstr ""
+
+#: pixmaps/glade-strings.c:28
+msgid "5"
+msgstr ""
+
+#: pixmaps/glade-strings.c:31
+msgid "6"
+msgstr ""
+
+#: pixmaps/glade-strings.c:34
+msgid "7"
+msgstr ""
+
+#: pixmaps/glade-strings.c:37
+msgid "8"
+msgstr ""
+
+#: pixmaps/glade-strings.c:40
+msgid "9"
+msgstr ""
+
+#: pixmaps/glade-strings.c:43
 msgid "About"
 msgstr "Sobre"
 
-#: pixmaps/glade-strings.c:16
+#: pixmaps/glade-strings.c:46
 msgid "Angle select"
 msgstr "Selecione um angulo"
 
-#: pixmaps/glade-strings.c:19
+#: pixmaps/glade-strings.c:49
 msgid "Audio select"
 msgstr "Selecione um audio"
 
-#: pixmaps/glade-strings.c:22
+#: pixmaps/glade-strings.c:52
 msgid "Chapters"
 msgstr "Capitulos"
 
-#: pixmaps/glade-strings.c:25
+#: pixmaps/glade-strings.c:55
 msgid "E_xit"
 msgstr "_Saida"
 
-#: pixmaps/glade-strings.c:28
+#: pixmaps/glade-strings.c:58
 msgid "Enter"
 msgstr "Enter"
 
-#: pixmaps/glade-strings.c:31
+#: pixmaps/glade-strings.c:61
 msgid "Fast forward"
 msgstr "Avancar rapido"
 
-#: pixmaps/glade-strings.c:34
+#: pixmaps/glade-strings.c:64
 msgid "Go up"
 msgstr "Va acima"
 
-#: pixmaps/glade-strings.c:37
+#: pixmaps/glade-strings.c:67
+msgid "Keypad"
+msgstr ""
+
+#: pixmaps/glade-strings.c:70
 msgid "Move cursor down"
 msgstr "Mova o cursor para baixo"
 
-#: pixmaps/glade-strings.c:40
+#: pixmaps/glade-strings.c:73
 msgid "Move cursor left"
 msgstr "Mova o cursor para esquerda"
 
-#: pixmaps/glade-strings.c:43
+#: pixmaps/glade-strings.c:76
 msgid "Move cursor right"
 msgstr "Mova o cursor para direita"
 
-#: pixmaps/glade-strings.c:46
+#: pixmaps/glade-strings.c:79
 msgid "Move cursor up"
 msgstr "Mova o cursor para cima"
 
-#: pixmaps/glade-strings.c:49
+#: pixmaps/glade-strings.c:82
 msgid "OK"
 msgstr "OK"
 
-#: pixmaps/glade-strings.c:52
+#: pixmaps/glade-strings.c:85
 msgid "Ogle"
 msgstr "Ogle"
 
-#: pixmaps/glade-strings.c:55
+#: pixmaps/glade-strings.c:88
 msgid "Open _disc"
 msgstr "Tocar DVD"
 
-#: pixmaps/glade-strings.c:58
+#: pixmaps/glade-strings.c:91
 msgid "Pause"
 msgstr "Pausa"
 
-#: pixmaps/glade-strings.c:61
+#: pixmaps/glade-strings.c:94
 msgid "Placeholder"
 msgstr "Signet"
 
-#: pixmaps/glade-strings.c:64
+#: pixmaps/glade-strings.c:97
 msgid "Play"
 msgstr "Play"
 
-#: pixmaps/glade-strings.c:67
+#: pixmaps/glade-strings.c:100
 msgid "Play fast"
 msgstr "Tocar Rapido"
 
-#: pixmaps/glade-strings.c:70
+#: pixmaps/glade-strings.c:103
 msgid "Play slow"
 msgstr "Tocar devagar"
 
-#: pixmaps/glade-strings.c:73
+#: pixmaps/glade-strings.c:106
 msgid "Properties..."
 msgstr "Propriedades"
 
-#: pixmaps/glade-strings.c:76
+#: pixmaps/glade-strings.c:109
 msgid "Reverse"
 msgstr "Reverter"
 
-#: pixmaps/glade-strings.c:79
+#: pixmaps/glade-strings.c:112
 msgid "Rewind"
 msgstr "Rebobinar"
 
-#: pixmaps/glade-strings.c:82
+#: pixmaps/glade-strings.c:115
 msgid "Select menu..."
 msgstr "Selecao de Menu"
 
-#: pixmaps/glade-strings.c:85
+#: pixmaps/glade-strings.c:118
 msgid "Skip backwards"
 msgstr "Pular capitulo para atras"
 
-#: pixmaps/glade-strings.c:88
+#: pixmaps/glade-strings.c:121
 msgid "Skip forwards"
 msgstr "Pular capitulo para frente"
 
-#: pixmaps/glade-strings.c:91
+#: pixmaps/glade-strings.c:124
 msgid "Step forwards"
 msgstr "Capitulo a frente"
 
-#: pixmaps/glade-strings.c:94
+#: pixmaps/glade-strings.c:127
 msgid "Step reverse"
 msgstr "Capitulo atras"
 
-#: pixmaps/glade-strings.c:97
+#: pixmaps/glade-strings.c:130
 msgid "Stop"
 msgstr "Parar"
 
-#: pixmaps/glade-strings.c:100
+#: pixmaps/glade-strings.c:133
 msgid "Subtitle select"
 msgstr "Selecao de subtitulo"
 
-#: pixmaps/glade-strings.c:103
+#: pixmaps/glade-strings.c:136
 msgid "_About..."
 msgstr "_Sobre"
 
-#: pixmaps/glade-strings.c:106
+#: pixmaps/glade-strings.c:139
 msgid "_Edit"
 msgstr "_Edit"
 
-#: pixmaps/glade-strings.c:109
+#: pixmaps/glade-strings.c:142
 msgid "_File"
 msgstr "_Arquivo"
 
-#: pixmaps/glade-strings.c:112
+#: pixmaps/glade-strings.c:145
 msgid "_Full screen"
 msgstr "_Tela cheia"
 
-#: pixmaps/glade-strings.c:115
+#: pixmaps/glade-strings.c:148
 msgid "_Help"
 msgstr "_Ajuda"
 
-#: pixmaps/glade-strings.c:118
+#: pixmaps/glade-strings.c:151
 msgid "_Open..."
 msgstr "_Abrir"
 
-#: pixmaps/glade-strings.c:121
+#: pixmaps/glade-strings.c:154
 msgid "_View"
 msgstr "_Ver"
+
+#: pixmaps/glade-strings.c:157
+msgid "n"
+msgstr ""
+
+#: pixmaps/glade-strings.c:160
+msgid "n/nn"
+msgstr ""
 
 #~ msgid "_PTT"
 #~ msgstr "_PTT"
