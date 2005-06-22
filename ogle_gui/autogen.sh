@@ -2,7 +2,9 @@
 set -x
 
 # Don't run gettextize automatically, you shouldn't really
-#gettextize --copy --force < /dev/null
+# run gettextize when upgradeing to new version of gettext
+# and follow the instructions, and commit changes to cvs
+#gettextize --copy --force --intl
 aclocal -I m4
 libtoolize --copy --automake
 autoheader
