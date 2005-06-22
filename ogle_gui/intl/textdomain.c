@@ -1,5 +1,5 @@
 /* Implementation of the textdomain(3) function.
-   Copyright (C) 1995-1998, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1995-1998, 2000-2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify it
    under the terms of the GNU Library General Public License as published
@@ -44,8 +44,8 @@
    names than the internal variables in GNU libc, otherwise programs
    using libintl.a cannot be linked statically.  */
 #if !defined _LIBC
-# define _nl_default_default_domain _nl_default_default_domain__
-# define _nl_current_default_domain _nl_current_default_domain__
+# define _nl_default_default_domain libintl_nl_default_default_domain
+# define _nl_current_default_domain libintl_nl_current_default_domain
 #endif
 
 /* @@ end of prolog @@ */
@@ -67,7 +67,7 @@ extern const char *_nl_current_default_domain attribute_hidden;
 #  define strdup(str) __strdup (str)
 # endif
 #else
-# define TEXTDOMAIN textdomain__
+# define TEXTDOMAIN libintl_textdomain
 #endif
 
 /* Lock variable to protect the global data in the gettext implementation.  */
@@ -77,8 +77,7 @@ __libc_rwlock_define (extern, _nl_state_lock attribute_hidden)
    If DOMAINNAME is null, return the current default.
    If DOMAINNAME is "", reset to the default of "messages".  */
 char *
-TEXTDOMAIN (domainname)
-     const char *domainname;
+TEXTDOMAIN (const char *domainname)
 {
   char *new_domain;
   char *old_domain;
