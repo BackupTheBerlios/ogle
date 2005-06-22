@@ -5,7 +5,7 @@ set -x
 #gettextize --copy --force < /dev/null
 aclocal -I m4
 libtoolize --copy --automake
+autoheader
 automake --copy --add-missing
 autoconf
-autoheader
 rm -f config.cache
