@@ -162,6 +162,7 @@ static int scalemode = MLIB_BILINEAR;
 
 static int use_xshm = 1;
 static int use_xv = 1;
+static int use_xvcolorkey = 1;
 
 #ifdef SOCKIPC
 #warning "todo"
@@ -281,6 +282,30 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
     return 0;
   } else {
     /* if we get another error we should handle it, 
+     * so we give it to the previous errorhandler
+     */
+    ERROR("unexpected error serial: %lu, waited for: %lu\n",
+	  ev->serial, req_serial);
+    return prev_xerrhandler(dpy, ev);
+  }
+}
+
+static int xvgetport_errorhandler(Display *dpy, XErrorEvent *ev)
+{
+  if(ev->serial == req_serial) {
+    /* this could be an error to the xvgetportattr request
+     * we assume that XV_COLORKEY isn't available,
+     * eg we are not using an overlay with colorkey
+     */
+    WARNING("req_code: %d\n", ev->request_code);
+    WARNING("minor_code: %d\n", ev->minor_code);
+    WARNING("error_code: %d\n", ev->error_code);
+    
+    use_xvcolorkey = 0;
+    WARNING("%s", "XV_COLORKEY not available\n");
+    return 0;
+  } else {
+    /* if we get another error we should handle it,
      * so we give it to the previous errorhandler
      */
     ERROR("unexpected error serial: %lu, waited for: %lu\n",
@@ -434,7 +459,20 @@ static void display_init_xv(int picture_buffer_shmid,
       char const * const attr_name = "XV_COLORKEY";
       Atom attr_atom = XInternAtom(mydisplay, attr_name, False);
       unsigned int val;
-      if(XvGetPortAttribute(mydisplay, xv_port, attr_atom, &val) != Success) {
+      long ret;
+      
+      /* set error handler so we can check if xvgetportattr failed */
+      prev_xerrhandler = XSetErrorHandler(xvgetport_errorhandler);
+      
+      /* get the serial of the XvGetPortAttribute request */
+      req_serial = NextRequest(mydisplay);
+      
+      ret = XvGetPortAttribute(mydisplay, xv_port, attr_atom, &val);
+      
+      /* revert to the previous xerrorhandler */
+      XSetErrorHandler(prev_xerrhandler);
+      
+      if((ret != Success) || (use_xvcolorkey == 0)) {
 	ERROR("Couldn't get attribute: %s\n", attr_name);
       } else {
 	XGCValues gcval;
@@ -1736,7 +1774,7 @@ void check_x_events(yuv_image_t *current_image)
 
 static void clear_window(void)
 {
-  if(use_xv) {
+  if(use_xv && use_xvcolorkey) {
     XFillRectangle(mydisplay, window.win, colorkey_gc,
 		   0, 0,
 		   window.window_area.width,
