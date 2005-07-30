@@ -235,28 +235,31 @@ int audio_config(audio_config_t *aconf,
 	}
 	if(drivers[n].name == NULL) {
 	  NOTE("Audio driver '%s' not found\n", driver_str);
+	  driver_n = 0;
 	}
       }
-
-      NOTE("Using audio driver '%s'\n", drivers[driver_n].name);
-	     
-      if(drivers[driver_n].open != NULL) {
-	char *dev_string;
-	if(!strcmp("alsa", drivers[driver_n].name)) {
-	  dev_string = get_audio_alsa_name();
+      
+      do {
+	NOTE("Using audio driver '%s'\n", drivers[driver_n].name);
+	
+	if(drivers[driver_n].open != NULL) {
+	  char *dev_string;
+	  if(!strcmp("alsa", drivers[driver_n].name)) {
+	    dev_string = get_audio_alsa_name();
+	  } else {
+	    dev_string = get_audio_device();
+	  }
+	  aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
+	  if(!aconf->adev_handle) {
+	    ERROR("Failed opening the %s audio driver at %s: %s\n",
+		  drivers[driver_n].name, dev_string, strerror(errno));
+	    driver_n++;
+	  }
 	} else {
-	  dev_string = get_audio_device();
-	}
-	aconf->adev_handle = ogle_ao_open(drivers[driver_n].open, dev_string);
-	if(!aconf->adev_handle) {
-	  FATAL("failed opening the %s audio driver at %s: %s\n",
-		drivers[driver_n].name, dev_string, strerror(errno));
+	  FATAL("%s", "ogle_ao_open not taken, no audio ouput driver!\n");
 	  exit(1);
 	}
-      } else {
-	FATAL("%s", "ogle_ao_open not taken, no audio ouput driver!\n");
-	exit(1);
-      }
+      } while(!aconf->adev_handle);
     }
     // DNOTE("%s", "ogle_ao_open passed\n");
   }
@@ -264,7 +267,7 @@ int audio_config(audio_config_t *aconf,
     aconf->ainfo = malloc(sizeof(ogle_ao_audio_info_t));
     aconf->ainfo->chlist = NULL;
   }
-
+  
   if(aconf->dst_format.sample_format == SampleFormat_IEC61937) {
     aconf->ainfo->sample_rate = sample_rate;
     aconf->ainfo->sample_resolution = sample_resolution;
