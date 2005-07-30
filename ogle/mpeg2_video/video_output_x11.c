@@ -263,12 +263,25 @@ static void restore_cursor(Display *dpy, Window win)
 }
 
 
+typedef struct {
+  int major;
+  int available;
+  int use;
+} x_extension_t;
+
+static x_extension_t xshm;
+static x_extension_t xv;
+
 static unsigned long req_serial;
 static int (*prev_xerrhandler)(Display *dpy, XErrorEvent *ev);
 
 static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
 {
-  if(ev->serial == req_serial) {
+  if(ev->request_code == xshm.major) {
+    if(ev->serial != req_serial) {
+      WARNING("unexpected error serial: %lu, waited for (xshm): %lu\n",
+	    ev->serial, req_serial);
+    }
     /* this could be an error to the xshmattach request 
      * we assume that xshm doesn't work,
      * eg we are using a remote display
@@ -284,7 +297,7 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
     /* if we get another error we should handle it, 
      * so we give it to the previous errorhandler
      */
-    ERROR("unexpected error serial: %lu, waited for: %lu\n",
+    ERROR("unexpected error serial: %lu, waited for (xshm): %lu\n",
 	  ev->serial, req_serial);
     return prev_xerrhandler(dpy, ev);
   }
@@ -292,7 +305,11 @@ static int xshm_errorhandler(Display *dpy, XErrorEvent *ev)
 
 static int xvgetport_errorhandler(Display *dpy, XErrorEvent *ev)
 {
-  if(ev->serial == req_serial) {
+  if(ev->request_code == xv.major) {
+    if(ev->serial != req_serial) {
+      WARNING("unexpected error serial: %lu, waited for (xv): %lu\n",
+	      ev->serial, req_serial);
+    }
     /* this could be an error to the xvgetportattr request
      * we assume that XV_COLORKEY isn't available,
      * eg we are not using an overlay with colorkey
@@ -308,10 +325,45 @@ static int xvgetport_errorhandler(Display *dpy, XErrorEvent *ev)
     /* if we get another error we should handle it,
      * so we give it to the previous errorhandler
      */
-    ERROR("unexpected error serial: %lu, waited for: %lu\n",
+    ERROR("unexpected error serial: %lu, waited for (xv): %lu\n",
 	  ev->serial, req_serial);
     return prev_xerrhandler(dpy, ev);
   }
+}
+
+static void set_xv_errorhandler(Display *dpy)
+{
+  int major, event, error;
+  
+  if(XQueryExtension(dpy, "XVideo", &major, &event, &error) == True) {
+    xv.available = 1;
+    xv.major = major;
+  } else {
+    xv.available = 0;
+    xv.major = -1;
+  }
+
+  prev_xerrhandler = XSetErrorHandler(xvgetport_errorhandler);
+}
+
+static void set_xshm_errorhandler(Display *dpy)
+{
+  int major, event, error;
+  
+  if(XQueryExtension(dpy, "MIT-SHM", &major, &event, &error) == True) {
+    xshm.available = 1;
+    xshm.major = major;
+  } else {
+    xshm.available = 0;
+    xshm.major = -1;
+  }
+  
+  prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+}
+
+static void set_prev_errorhandler(void)
+{
+  XSetErrorHandler(prev_xerrhandler);
 }
 
 /* This section of the code looks for the Xv extension for hardware
@@ -423,28 +475,33 @@ static void display_init_xv(int picture_buffer_shmid,
     /* Set the data pointer to the decoders picture segment. */  
     //    xv_image->data = picture_data->y;
     shm_info.readOnly = True;
-    
-    /* make sure we don't have any unhandled errors */
-    XSync(mydisplay, False);
-    
-    /* set error handler so we can check if xshmattach failed */
-    prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
-    
-    /* get the serial of the xshmattach request */
-    req_serial = NextRequest(mydisplay);
-    
-    /* try to attach */
-    if(!XShmAttach(mydisplay, &shm_info)) {
-      ERROR("xshmattach failed\n");
+
+    /* Try to use xshm if use_xshm is set.
+       If it fails, use_xshm will be set to 0
+    */
+    if(use_xshm) {
+      /* make sure we don't have any unhandled errors */
+      XSync(mydisplay, False);
+      
+      /* set error handler so we can check if xshmattach failed */
+      set_xshm_errorhandler(mydisplay);
+      
+      /* get the serial of the xshmattach request */
+      req_serial = NextRequest(mydisplay);
+      
+      /* try to attach */
+      if(!XShmAttach(mydisplay, &shm_info)) {
+	ERROR("xshmattach failed\n");
+      }
+      
+      /* make sure xshmattach has been processed and any errors
+	 have been returned to us */
+      XSync(mydisplay, False);
+      
+      /* revert to the previous xerrorhandler */
+      set_prev_errorhandler();
     }
-    
-    /* make sure xshmattach has been processed and any errors
-       have been returned to us */
-    XSync(mydisplay, False);
-    
-    /* revert to the previous xerrorhandler */
-    XSetErrorHandler(prev_xerrhandler);
-    
+
     if(use_xshm) {
 #if 0
       shmctl(shm_info.shmid, IPC_RMID, 0); // only works on Linux..
@@ -462,7 +519,7 @@ static void display_init_xv(int picture_buffer_shmid,
       long ret;
       
       /* set error handler so we can check if xvgetportattr failed */
-      prev_xerrhandler = XSetErrorHandler(xvgetport_errorhandler);
+      set_xv_errorhandler(mydisplay);
       
       /* get the serial of the XvGetPortAttribute request */
       req_serial = NextRequest(mydisplay);
@@ -470,7 +527,7 @@ static void display_init_xv(int picture_buffer_shmid,
       ret = XvGetPortAttribute(mydisplay, xv_port, attr_atom, &val);
       
       /* revert to the previous xerrorhandler */
-      XSetErrorHandler(prev_xerrhandler);
+      set_prev_errorhandler();
       
       if((ret != Success) || (use_xvcolorkey == 0)) {
 	ERROR("Couldn't get attribute: %s\n", attr_name);
@@ -572,7 +629,7 @@ static void display_init_xshm()
   if(use_xshm) {
     
     /* set error handler so we can check if xshmattach failed */
-    prev_xerrhandler = XSetErrorHandler(xshm_errorhandler);
+    set_xshm_errorhandler(mydisplay);
     
     /* get the serial of the xshmattach request */
     req_serial = NextRequest(mydisplay);
@@ -585,7 +642,7 @@ static void display_init_xshm()
     XSync(mydisplay, False);
     
     /* revert to the previous xerrorhandler */
-    XSetErrorHandler(prev_xerrhandler);
+    set_prev_errorhandler();
     
     CompletionType = XShmGetEventBase(mydisplay) + ShmCompletion;  
   }
