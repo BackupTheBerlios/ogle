@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Vilhelm Bergman
+ * Copyright (C) 2000, 2001, 2005 Vilhelm Bergman, Björn Englund
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -104,7 +104,8 @@ void* xsniff_mouse(void* args) {
 		mev.input.input,
 		mev.input.mod_mask);
 	*/
-	do_keysym_action(keysym);
+	do_keysym_action(keysym, ev.input.input_base,
+			 ev.input.input_keycode, ev.input.mod_mask);
       }
       break;
     default:

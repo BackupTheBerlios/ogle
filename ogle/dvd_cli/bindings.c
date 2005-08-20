@@ -954,6 +954,7 @@ typedef struct {
   KeySym keysym;
   void (*fun)(void *);
   void *arg;
+  unsigned int modifiers;
 } ks_map_t;
 
 static unsigned int ks_maps_index = 0;
@@ -1036,12 +1037,30 @@ void do_pointer_action(pointer_event_t *p_ev)
 }
 
 
-void do_keysym_action(KeySym keysym)
+void do_keysym_action(KeySym keysym, KeySym keysym_base,
+		      unsigned int keycode, unsigned int modifiers)
 {
   int n;
+  unsigned int dont_care_mods = LockMask | Mod1Mask; //get_dont_care_mods();
 
+  modifiers &= (ShiftMask | LockMask | ControlMask |
+    Mod1Mask | Mod2Mask | Mod3Mask | Mod4Mask | Mod5Mask);
+
+  //check bindings with modifiers first
   for(n = 0; n < ks_maps_index; n++) {
-    if(ks_maps[n].keysym == keysym) {
+    if(ks_maps[n].modifiers && (ks_maps[n].keysym == keysym_base)) {
+      if((ks_maps[n].modifiers == modifiers) || 
+	 (ks_maps[n].modifiers == (modifiers & ~dont_care_mods))) {
+	if(ks_maps[n].fun != NULL) {
+	  ks_maps[n].fun(ks_maps[n].arg);
+	}
+	return;
+      }
+    }
+  }
+  //then without modifiers
+  for(n = 0; n < ks_maps_index; n++) {
+    if((!ks_maps[n].modifiers) && (ks_maps[n].keysym == keysym)) {
       if(ks_maps[n].fun != NULL) {
 	ks_maps[n].fun(ks_maps[n].arg);
       }
@@ -1052,13 +1071,15 @@ void do_keysym_action(KeySym keysym)
 }
 
 
-void remove_keysym_binding(KeySym keysym)
+void remove_keysym_binding(KeySym keysym, unsigned int modifiers)
 {
   int n;
   
   for(n = 0; n < ks_maps_index; n++) {
-    if(ks_maps[n].keysym == keysym) {
+    if((ks_maps[n].keysym == keysym) &&
+       (ks_maps[n].modifiers == modifiers)) {
       ks_maps[n].keysym = NoSymbol;
+      ks_maps[n].modifiers = 0;
       ks_maps[n].fun = NULL;
       ks_maps[n].arg = NULL;
       return;
@@ -1066,12 +1087,14 @@ void remove_keysym_binding(KeySym keysym)
   }
 }
 
-void add_keysym_binding(KeySym keysym, void(*fun)(void *), void *arg)
+void add_keysym_binding(KeySym keysym, unsigned int modifiers, 
+			void(*fun)(void *), void *arg)
 {
   int n;
   
   for(n = 0; n < ks_maps_index; n++) {
-    if(ks_maps[n].keysym == keysym) {
+    if((ks_maps[n].keysym == keysym) &&
+       (ks_maps[n].modifiers == modifiers)) {
       ks_maps[n].fun = fun;
       ks_maps[n].arg = arg;
       return;
@@ -1084,6 +1107,7 @@ void add_keysym_binding(KeySym keysym, void(*fun)(void *), void *arg)
   }
   
   ks_maps[ks_maps_index].keysym = keysym;
+  ks_maps[ks_maps_index].modifiers = modifiers;
   ks_maps[ks_maps_index].fun = fun;
   ks_maps[ks_maps_index].arg = arg;
   
@@ -1093,10 +1117,11 @@ void add_keysym_binding(KeySym keysym, void(*fun)(void *), void *arg)
   return;
 }
   
-void add_keybinding(char *key, char *action)
+void add_keybinding(char *key, char **modifier_array, char *action)
 {
   KeySym keysym;
   int n = 0;
+  unsigned int modifiers = 0;
   
   keysym = XStringToKeysym(key);
   
@@ -1105,15 +1130,41 @@ void add_keybinding(char *key, char *action)
     return;
   }
   
+  if(modifier_array) {
+    char **m;
+    for(m = modifier_array; *m != NULL; m++) {
+      if(!strcasecmp(*m, "Shift")) {
+	modifiers |= ShiftMask;
+      } else if(!strcasecmp(*m, "Lock")) {
+	modifiers |= LockMask;
+      } else if(!strcasecmp(*m, "Control")) {
+	modifiers |= ControlMask;
+      } else if(!strcasecmp(*m, "Mod1")) {
+	modifiers |= Mod1Mask;
+      } else if(!strcasecmp(*m, "Mod2")) {
+	modifiers |= Mod2Mask;
+      } else if(!strcasecmp(*m, "Mod3")) {
+	modifiers |= Mod3Mask;
+      } else if(!strcasecmp(*m, "Mod4")) {
+	modifiers |= Mod4Mask;
+      } else if(!strcasecmp(*m, "Mod5")) {
+	modifiers |= Mod5Mask;
+      } else {
+	WARNING("add_keybinding(): No such modifier: '%s'\n", *m);
+      }
+      
+    }
+  }
+
   if(!strcmp("NoAction", action)) {
-    remove_keysym_binding(keysym);
+    remove_keysym_binding(keysym, modifiers);
     return;
   }
     
   for(n = 0; actions[n].str != NULL; n++) {
     if(!strcmp(actions[n].str, action)) {
       if(actions[n].fun != NULL) {
-	add_keysym_binding(keysym, actions[n].fun, actions[n].ptr);
+	add_keysym_binding(keysym, modifiers, actions[n].fun, actions[n].ptr);
       }
       return;
     }

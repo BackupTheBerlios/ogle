@@ -16,7 +16,8 @@ typedef struct {
   unsigned int modifier_mask; 
 } pointer_event_t;
 
-void do_keysym_action(KeySym keysym);
-void add_keybinding(char *key, char *action);
+void do_keysym_action(KeySym keysym, KeySym keysym_base,
+		      unsigned int keycode, unsigned int modifiers);
+void add_keybinding(char *key, char **modifier_array, char *action);
 
 #endif /* BINDINGS_H */

@@ -24,6 +24,69 @@ extern int default_skip_seconds;
 extern int skip_seconds;
 extern int prevpg_timeout;
 
+
+static void interpret_key(xmlDocPtr doc, xmlNodePtr cur, char *action)
+{
+  char *keysym = NULL;
+  char **modifiers = NULL;
+  int nr_modifiers = 0;
+
+  cur = cur->xmlChildrenNode;
+  
+  while(cur != NULL) {
+
+    if(!xmlIsBlankNode(cur)) {
+
+      if(!strcmp("keysym", cur->name)) {
+	if(keysym != NULL) {
+	  ERROR("%s", "interpret_key(): more than one <keysym>\n");
+	  break;
+	}
+	keysym = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+	if(keysym == NULL) {
+	  ERROR("%s", "interpret_key(): <keysym> empty\n");
+	} else {
+	  //fprintf(stderr, "action: %s\n", action);
+	}
+      } else if(!strcmp("modifier", cur->name)) {
+	char *m;
+	
+	if(keysym == NULL) {
+	  ERROR("%s", "interpret_key(): no <keysym>\n");
+	  break;
+	}
+	m = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+	if(m == NULL) {
+	  WARNING("%s", "interpret_key(): <modifier> empty\n");
+	} else {
+	  char **ma;
+	  nr_modifiers++;
+	  ma = realloc(modifiers, sizeof(char *) * (nr_modifiers+1));
+	  if(ma == NULL) {
+	    ERROR("%s", "interpret_key(): realloc failed\n");
+	    nr_modifiers--;
+	  } else {
+	    modifiers = ma;
+	    modifiers[nr_modifiers-1] = m;
+	    modifiers[nr_modifiers] = NULL;
+	  }
+	}
+      }
+    }
+    cur = cur->next;
+  }
+  
+  if(keysym) {
+    add_keybinding(keysym, modifiers, action);
+    //fprintf(stderr, "keysym: %s\n", keysym);	
+    if(modifiers) {
+      free(modifiers);
+    }
+    free(keysym);
+  }
+  
+}
+
 static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
 {
   char *action = NULL;
@@ -50,13 +113,20 @@ static void interpret_b(xmlDocPtr doc, xmlNodePtr cur)
 	  ERROR("%s", "interpret_b(): no <action>\n");
 	  break;
 	}
-	key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
-	if(key == NULL) {
-	  WARNING("%s", "interpret_b(): <key> empty\n");
+	
+	if(!strcmp("text", cur->xmlChildrenNode->name) &&
+	   !xmlIsBlankNode(cur->xmlChildrenNode)) {
+	  key = xmlNodeListGetString(doc, cur->xmlChildrenNode, 1);
+	  
+	  if(key == NULL) {
+	    WARNING("%s", "interpret_b(): <key> empty\n");
+	  } else {
+	    add_keybinding(key, NULL, action);
+	    //fprintf(stderr, "key: %s\n", key);	
+	    free(key);
+	  }
 	} else {
-	  add_keybinding(key, action);
-	  //fprintf(stderr, "key: %s\n", key);	
-	  free(key);
+	  interpret_key(doc, cur, action);
 	}
       }
     }
