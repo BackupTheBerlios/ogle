@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001, 2005 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -920,7 +920,8 @@ void display_init(int padded_width, int padded_height,
     scr = XDefaultScreenOfDisplay(mydisplay);
     
     init_config(mydisplay);
-    
+
+
     /* Assume (for now) that the window will be the same size as the source. */
     scale.image_width = padded_width;
     scale.image_height = padded_height;
@@ -1528,6 +1529,7 @@ static void set_rubberband(yuv_image_t *img, int start, int x, int y)
 }
 
 
+
 void check_x_events(yuv_image_t *current_image)
 {
   XEvent ev;
@@ -1546,7 +1548,8 @@ void check_x_events(yuv_image_t *current_image)
       // send keypress to whoever wants it
       if(input_mask & INPUT_MASK_KeyPress) {
 	MsgEvent_t m_ev;
-	KeySym keysym;
+	KeySym keysym, base_keysym;
+	base_keysym = XLookupKeysym(&(ev.xkey), 0);
 	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
 	m_ev.type = MsgEventQInputKeyPress;
 	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
@@ -1559,6 +1562,8 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.y_root = ev.xkey.y_root;
 	m_ev.input.mod_mask = ev.xkey.state;
 	m_ev.input.input = keysym;
+	m_ev.input.input_base = base_keysym;
+	m_ev.input.input_keycode = ev.xkey.keycode;
 
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {
@@ -1586,7 +1591,8 @@ void check_x_events(yuv_image_t *current_image)
       // send keyrelease to whoever wants it
       if(input_mask & INPUT_MASK_KeyRelease) {
 	MsgEvent_t m_ev;
-	KeySym keysym;
+	KeySym keysym, base_keysym;
+	base_keysym = XLookupKeysym(&(ev.xkey), 0);
 	XLookupString(&(ev.xkey), NULL, 0, &keysym, NULL);
 	m_ev.type = MsgEventQInputKeyRelease;
 	m_ev.input.x = (ev.xkey.x - window.video_area.x) *
@@ -1599,6 +1605,8 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.y_root = ev.xkey.y_root;
 	m_ev.input.mod_mask = ev.xkey.state;
 	m_ev.input.input = keysym;
+	m_ev.input.input_base = base_keysym;
+	m_ev.input.input_keycode = ev.xkey.keycode;
 
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {

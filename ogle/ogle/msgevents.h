@@ -2,7 +2,7 @@
 #define MSGEVENTS_H_INCLUDED
 
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001, 2005 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -203,6 +203,8 @@ typedef struct {
   unsigned long mod_mask; /* X modifiers (keys/buttons)*/
   unsigned long input;
   unsigned long time; /* milliseconds */
+  unsigned long input_base;
+  unsigned int input_keycode;
 } MsgQInputEvent_t;
 
 

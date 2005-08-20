@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001, 2005 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -1249,6 +1249,8 @@ static void msgqinput_to_dvdinput(DVDEvent_t *ev, MsgEvent_t *mev)
   ev->input.mod_mask = mev->input.mod_mask;
   ev->input.input = mev->input.input;
   ev->input.time = mev->input.time;
+  ev->input.input_base = mev->input.input_base;
+  ev->input.input_keycode = mev->input.input_keycode;
   
 }
 
