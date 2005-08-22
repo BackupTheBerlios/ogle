@@ -54,6 +54,7 @@ static void do_run(void);
 static int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 			     cell_playback_t *cell, 
 			     int block, int *still_time);
+static void reset_dvd(void);
 
 static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
 {
@@ -77,6 +78,7 @@ void usage(void)
   fprintf(stderr, "Usage: %s  -m <msgqid>\n", 
           program_name);
 }
+
 
 int main(int argc, char *argv[])
 {
@@ -838,6 +840,8 @@ void set_dvderror(MsgEvent_t *ev, int32_t serial, DVDResult_t err)
 
 #define DVD_SERIAL(ev) ((ev)->dvdctrl.cmd.any.serial)
 
+static unsigned int stop_state = 1;
+
 /* Do user input processing. Like audio change, 
  * subpicture change and answer attribute query requests.
  * access menus, pause, play, jump forward/backward...
@@ -909,6 +913,25 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
     {
       MsgEvent_t send_ev;
       static double last_speed = 1.0;
+
+      if(stop_state == 2) {
+	res = 1;
+      }
+
+      if(stop_state != 1) {
+	stop_state = 1;
+	
+	DNOTE(" DVDCtrlEvent %d start stop, todo\n",
+	      ev.dvdctrl.cmd.type);
+	
+	send_ev.type = MsgEventQStop;
+	send_ev.stop.state = 1;
+	
+	MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
+      }
+      
+      
+
       send_ev.type = MsgEventQSpeed;
       if(ev.dvdctrl.cmd.type == DVDCtrlForwardScan) {
 	send_ev.speed.speed = ev.dvdctrl.cmd.scan.speed;
@@ -963,8 +986,27 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	  
 	  
   case DVDCtrlStop:
-    DNOTE("unknown (not handled) DVDCtrlEvent %d\n",
-	  ev.dvdctrl.cmd.type);
+    {
+      MsgEvent_t send_ev;
+
+      if(stop_state == 0) {
+	stop_state = 2;
+	reset_dvd();
+      } else if(stop_state == 1) {
+	stop_state = 0;
+	DNOTE(" DVDCtrlEvent %d stop, todo\n",
+	      ev.dvdctrl.cmd.type);
+	
+	send_ev.type = MsgEventQStop;
+	send_ev.stop.state = 0;
+	/* Hack to exit STILL_MODE if we're in it. */
+	if(cell->first_sector + block > cell->last_vobu_start_sector &&
+	   *still_time > 0) {
+	  *still_time = 0;
+	}
+	MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
+      }
+    }
     break;
 	  
   case DVDCtrlAngleChange:
@@ -1411,6 +1453,16 @@ static void do_init_cell(int flush) {
   pending_lbn = cell->first_sector + block;
 }
 
+static void reset_dvd(void)
+{
+    vm_reset();
+
+    interpret_config();
+
+    vm_start(); // see hack in main
+    do_init_cell(0);
+    
+}
 
 static void do_run(void) {
   pci_t pci;

@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Björn Englund, Håkan Hjort
+ * Copyright (C) 2000, 2001, 2005 Björn Englund, Håkan Hjort
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -115,6 +115,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQGntPicBuf",
   "MsgEventQDestroyBuf",
   "MsgEventQDemuxStreamEnable",
+  "MsgEventQStop",
   NULL
 };
 
@@ -900,6 +901,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
   case MsgEventQSaveScreenshot:
     size = sizeof(MsgQAnyEvent_t) + sizeof(ScreenshotMode_t) + 
       strlen(event_send->savescreenshot.formatstr)+1;
+    break;
+  case MsgEventQStop:
+    size = sizeof(MsgQStopEvent_t);
     break;
   default:
     fprintf(stderr, "MsgSendEvent: Unknown event: %d\n", event_send->type);

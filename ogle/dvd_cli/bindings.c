@@ -348,6 +348,11 @@ void actionPlay(void *data)
   DVDForwardScan(nav, speed);
 }
 
+void actionStop(void *data)
+{
+  DVDStop(nav);
+}
+
 
 void actionFastForward(void *data)
 {
@@ -973,7 +978,7 @@ typedef struct {
 static action_mapping_t actions[] = {
   { "Play", do_action, actionPlay },
   { "PauseToggle", do_action, actionPauseToggle },
-  { "Stop", NULL, NULL },
+  { "Stop", do_action, actionStop },
   { "FastForward", do_action, actionFastForward },
   { "SlowForward", do_action, actionSlowForward },
   { "Faster", do_action, actionFaster },
@@ -1041,7 +1046,7 @@ void do_keysym_action(KeySym keysym, KeySym keysym_base,
 		      unsigned int keycode, unsigned int modifiers)
 {
   int n;
-  unsigned int dont_care_mods = LockMask | Mod1Mask; //get_dont_care_mods();
+  unsigned int dont_care_mods = LockMask | Mod2Mask; //get_dont_care_mods();
 
   modifiers &= (ShiftMask | LockMask | ControlMask |
     Mod1Mask | Mod2Mask | Mod3Mask | Mod4Mask | Mod5Mask);

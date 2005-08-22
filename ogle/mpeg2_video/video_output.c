@@ -506,6 +506,9 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       set_speed(&ctrl_time[prev_scr_nr].sync_point, ev->speed.speed);
     }
     break;
+  case MsgEventQStop:
+    set_videostate(ev->stop.state);
+    break;
   case MsgEventQSaveScreenshot:
     if(ev->savescreenshot.formatstr[0]) {
       screenshot_set_formatstr(ev->savescreenshot.formatstr);

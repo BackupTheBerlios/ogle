@@ -106,6 +106,10 @@
   	</b>
 	<b>	
 	  <action>Stop</action>
+	  <key>
+	   <keysym>space</keysym>
+	   <modifier>Shift</modifier>
+ 	  </key>
   	</b>
 	<b>	
 	  <action>Faster</action>

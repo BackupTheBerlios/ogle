@@ -102,7 +102,6 @@ static int fb_fd;
 
 /* end needed for sun ffb2 */
 
-
 extern int XShmGetEventBase(Display *dpy);
 static int CompletionType;
 
@@ -203,6 +202,18 @@ static void display_adjust_size(yuv_image_t *current_image,
 static Bool true_predicate(Display *dpy, XEvent *ev, XPointer arg)
 {
     return True;
+}
+
+static unsigned int videostate = 1;
+void set_videostate(unsigned int state)
+{
+  videostate = state;
+
+  if(state == 0) {
+    if(mydisplay) {
+      clear_window();
+    }
+  }
 }
 
 static Cursor hidden_cursor;
@@ -1839,7 +1850,7 @@ void check_x_events(yuv_image_t *current_image)
 
 static void clear_window(void)
 {
-  if(use_xv && use_xvcolorkey) {
+  if(use_xv && use_xvcolorkey && videostate) {
     XFillRectangle(mydisplay, window.win, colorkey_gc,
 		   0, 0,
 		   window.window_area.width,
@@ -1946,7 +1957,10 @@ static void draw_win_x11(window_info *dwin)
 {
   int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */ 
   char *address = dwin->ximage->data;
-  
+
+  if(videostate == 0) {
+    return;
+  }
 #ifdef HAVE_MLIB
   int dest_size = dwin->ximage->bytes_per_line * dwin->ximage->height;
   int source_size = (dwin->image->info->picture.padded_width*(pixel_stride/8) 
@@ -2274,6 +2288,11 @@ static void draw_win_xv(window_info *dwin)
   yuv_image_t *draw_image;
   area_t src_view_area;
   int sar_frac_n = 0, sar_frac_d = 0; /* initialize to shut up compiler */   
+
+  if(videostate == 0) {
+    return;
+  }
+
   /* Set the source of the xv_image to the source of the image 
      that we want drawn. */ 
 

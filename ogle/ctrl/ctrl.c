@@ -756,6 +756,62 @@ static void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
       }
     }
     break;
+  case MsgEventQStop:
+    {
+      clocktime_t rt;
+      
+      clocktime_get(&rt);
+#if DEBUG
+      DNOTE("_MsgEventQSpeed\n");
+      DNOTE("speed: %.2f\n", ev->speed.speed);
+#endif
+      
+      if(ev->stop.state == 0) {
+	/* first pause play */
+	s_ev.type = MsgEventQSpeed;
+	s_ev.speed.speed = 0.000000001;
+	ctrl_data->speed = s_ev.speed.speed;
+	
+	// send speed event to syncmasters
+	{
+	  // TODO get decoders that do sync...
+	  //
+	  if(search_capabilities(DECODE_AC3_AUDIO, &rcpt, NULL, NULL)) {
+	    
+	    MsgSendEvent(q, rcpt, &s_ev, 0);
+	    
+	  }
+	  
+	  if(search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, NULL)) {
+	    
+	    MsgSendEvent(q, rcpt, &s_ev, 0);
+	    
+	  }
+	}
+      }
+      
+      /* then send stop event */
+      s_ev.type = MsgEventQStop;
+      s_ev.stop.state = ev->stop.state;
+
+      // send stop event to all?
+      {
+	// TODO get decoders that do sync...
+	//
+	if(search_capabilities(DECODE_AC3_AUDIO, &rcpt, NULL, NULL)) {
+	  
+	  MsgSendEvent(q, rcpt, &s_ev, 0);
+	  
+	}
+
+	if(search_capabilities(VIDEO_OUTPUT, &rcpt, NULL, NULL)) {
+	  
+	  MsgSendEvent(q, rcpt, &s_ev, 0);
+	  
+	}
+      }
+    }
+    break;
   default:
     WARNING("handle_events: notice, msgtype %d not handled\n",
 	    ev->type);

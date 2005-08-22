@@ -178,8 +178,9 @@ typedef enum {
   MsgEventQSPUState,
   MsgEventQReqPicBuf,
   MsgEventQGntPicBuf,
-  MsgEventQDestroyPicBuf,
-  MsgEventQDemuxStreamEnable
+  MsgEventQDestroyPicBuf,      /* 50 */
+  MsgEventQDemuxStreamEnable,
+  MsgEventQStop
 } MsgEventType_t;
 
 
@@ -549,6 +550,13 @@ typedef struct {
   MsgEventType_t type;
   MsgEventQ_t *q;
   MsgEventClient_t client;
+  uint32_t state;
+} MsgQStopEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
 } MsgQAnyEvent_t;
 
 typedef union {
@@ -597,6 +605,7 @@ typedef union {
   MsgQInputEvent_t input;
   MsgQSaveScreenshotEvent_t savescreenshot;
   MsgQSPUStateEvent_t spustate;
+  MsgQStopEvent_t stop;
 } MsgEvent_t;
 
 #ifdef SOCKIPC
