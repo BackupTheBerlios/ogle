@@ -105,6 +105,7 @@ int main( int argc, char **argv )
 
     ifoClose( ifo_file );
     DVDClose( dvd );
+    DVDFree();
     return 0;
 }
 

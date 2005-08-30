@@ -36,6 +36,7 @@ void usage(void)
 int main(int argc, char *argv[])
 {
   int i;
+  int err = 0;
   unsigned char disc_id[16];
   dvd_reader_t *dvd;
 
@@ -47,21 +48,23 @@ int main(int argc, char *argv[])
   }
 
   dvd = DVDOpen( argv[ 1 ] );
-  if( !dvd ) {
+  if( dvd ) {
+    if( DVDDiscID( dvd, disc_id ) == 0) {
+      for(i = 0; i < 16; i++) {
+	printf( "%02x", disc_id[i] );
+      }
+      printf( "\n" );
+    } else {
+      fprintf( stderr, "Error getting disc id from disc %s!\n", argv[ 1 ] );
+      err = -1;
+    }
+    DVDClose(dvd);
+  } else {
     fprintf( stderr, "Can't open disc %s!\n", argv[ 1 ] );
-    return -1;
+    err = -1;
   }
 
-  if( DVDDiscID( dvd, disc_id ) != 0) {
-    fprintf( stderr, "Error getting disc id from disc %s!\n", argv[ 1 ] );
-    return -1;
-  }
-
-  for(i = 0; i < 16; i++) {
-    printf( "%02x", disc_id[i] );
-  }
-  printf( "\n" );
-
-  return 0;  
+  DVDFree();
+  return err;  
 }
 
