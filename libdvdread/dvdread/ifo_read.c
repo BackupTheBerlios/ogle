@@ -110,7 +110,7 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 
   ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
   if(!ifofile)
-    return 0;
+    return NULL;
 
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
@@ -119,13 +119,13 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
-      return 0;
+      return NULL;
 
     memset(ifofile, 0, sizeof(ifo_handle_t));
 
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpen_File(ifofile, title, "BUP"))
-      return 0;
+      return NULL;
   }
   return ifofile;
 }
@@ -140,7 +140,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
       fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
     }
     free(ifofile);
-    return 0;
+    return NULL;
   }
 
   /* First check if this is a VMGI file. */
@@ -151,7 +151,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
       fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n",
 	      suffix);
       ifoClose(ifofile);
-      return 0;
+      return NULL;
     }
 
     ifoRead_PGCI_UT(ifofile);
@@ -162,7 +162,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
       fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n",
 	      suffix);
       ifoClose(ifofile);
-      return 0;
+      return NULL;
     }
 
     ifoRead_TXTDT_MGI(ifofile);
@@ -178,7 +178,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
       fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.%s).\n",
               title, suffix);
       ifoClose(ifofile);
-      return 0;
+      return NULL;
     }
 
     ifoRead_PGCI_UT(ifofile);
@@ -190,7 +190,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
       fprintf(stderr, "libdvdread: Invalid title IFO (VTS_%02d_0.%s).\n",
               title, suffix);
       ifoClose(ifofile);
-      return 0;
+      return NULL;
     }
 
     return ifofile;
@@ -204,7 +204,7 @@ static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title,
 	    suffix);
   }
   ifoClose(ifofile);
-  return 0;
+  return NULL;
 }
 
 
@@ -213,7 +213,7 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
 
   ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
   if(!ifofile)
-    return 0;
+    return NULL;
 
   memset(ifofile, 0, sizeof(ifo_handle_t));
 
@@ -222,13 +222,13 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
-      return 0;
+      return NULL;
 
     memset(ifofile, 0, sizeof(ifo_handle_t));
 
     ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpenVMGI_File(ifofile, "BUP"))
-      return 0;
+      return NULL;
   }
   return ifofile;
 }
@@ -237,7 +237,7 @@ static ifo_handle_t *ifoOpenVMGI_File(ifo_handle_t *ifofile, char *suffix) {
   if(!ifofile->file) {
     fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
     free(ifofile);
-    return 0;
+    return NULL;
   }
 
   if(ifoRead_VMG(ifofile))
@@ -246,7 +246,7 @@ static ifo_handle_t *ifoOpenVMGI_File(ifo_handle_t *ifofile, char *suffix) {
   fprintf(stderr, "libdvdread: Invalid main menu IFO (VIDEO_TS.%s).\n", 
 	  suffix);
   ifoClose(ifofile);
-  return 0;
+  return NULL;
 }
 
 
@@ -255,14 +255,14 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
   
   ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
   if(!ifofile)
-    return 0;
+    return NULL;
 
   memset(ifofile, 0, sizeof(ifo_handle_t));
   
   if(title <= 0 || title > 99) {
     fprintf(stderr, "libdvdread: ifoOpenVTSI invalid title (%d).\n", title);
     free(ifofile);
-    return 0;
+    return NULL;
   }
     
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
@@ -270,13 +270,13 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
-      return 0;
+      return NULL;
 
     memset(ifofile, 0, sizeof(ifo_handle_t));
 
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpenVTSI_File(ifofile, title, "BUP"))
-      return 0;
+      return NULL;
   }
   return ifofile;
 }
@@ -285,7 +285,7 @@ static ifo_handle_t *ifoOpenVTSI_File(ifo_handle_t* ifofile, int title, char *su
   if(!ifofile->file) {
     fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", title, suffix);
     free(ifofile);
-    return 0;
+    return NULL;
   }
 
   ifoRead_VTS(ifofile);
@@ -295,7 +295,7 @@ static ifo_handle_t *ifoOpenVTSI_File(ifo_handle_t* ifofile, int title, char *su
   fprintf(stderr, "libdvdread: Invalid IFO for title %d (VTS_%02d_0.%s).\n",
           title, title, suffix);
   ifoClose(ifofile);
-  return 0;
+  return NULL;
 }
 
 
@@ -315,6 +315,7 @@ void ifoClose(ifo_handle_t *ifofile) {
   ifoFree_FP_PGC(ifofile);
   ifoFree_PGCIT(ifofile);
   ifoFree_VTS_PTT_SRPT(ifofile);
+  ifoFree_VTS_TMAPT(ifofile);
 
   if(ifofile->vmgi_mat)
     free(ifofile->vmgi_mat);
@@ -1706,6 +1707,8 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
         ifoFree_PGC(pgcit->pgci_srp[j].pgc);
         free(pgcit->pgci_srp[j].pgc);
       }
+      free(pgcit->pgci_srp);
+      pgcit->pgci_srp = NULL;
       return 0;
     }
     if(!ifoRead_PGC(ifofile, pgcit->pgci_srp[i].pgc, 
@@ -1716,6 +1719,7 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
         free(pgcit->pgci_srp[j].pgc);
       }
       free(pgcit->pgci_srp);
+      pgcit->pgci_srp = NULL;
       return 0;
     }
   }
@@ -1726,8 +1730,10 @@ static int ifoRead_PGCIT_internal(ifo_handle_t *ifofile, pgcit_t *pgcit,
 static void ifoFree_PGCIT_internal(pgcit_t *pgcit) {
   if(pgcit) {
     int i;
-    for(i = 0; i < pgcit->nr_of_pgci_srp; i++)
+    for(i = 0; i < pgcit->nr_of_pgci_srp; i++) {
       ifoFree_PGC(pgcit->pgci_srp[i].pgc);
+      free(pgcit->pgci_srp[i].pgc);
+    }
     free(pgcit->pgci_srp);
   }
 }

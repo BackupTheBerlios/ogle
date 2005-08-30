@@ -150,10 +150,21 @@ extern void SetUDFCacheHandle(dvd_reader_t *device, void *cache);
 
 void FreeUDFCache(void *cache)
 {
+  int n;
+  
   struct udf_cache *c = (struct udf_cache *)cache;
   if(c == NULL) {
     return;
   }
+
+  for(n = 0; n < c->lb_num; n++) {
+    if(c->lbs[n].data) {
+      /* free data */
+      free(c->lbs[n].data);
+    }
+  }
+  c->lb_num = 0;
+
   if(c->lbs) {
     free(c->lbs);
   }
