@@ -57,7 +57,9 @@ int main(int argc, char *argv[])
   }
 
   ifoPrint( dvd, atoi( argv[ 2 ] ) );
+  DVDClose(dvd);
 
+  DVDFree(); //to keep memory checkers from complaining 
   return 0;  
 }
 
