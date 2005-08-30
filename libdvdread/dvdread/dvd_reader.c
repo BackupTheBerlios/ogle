@@ -1013,7 +1013,8 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 {
     struct md5_ctx ctx;
     int title;
-
+    int nr_of_files = 0;
+    
     /* Check arguments. */
     if( dvd == NULL || discid == NULL )
       return 0;
@@ -1027,7 +1028,9 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 	    ssize_t bytes_read;
 	    size_t file_size = dvd_file->filesize * DVD_VIDEO_LB_LEN;
 	    char *buffer = malloc( file_size );
-	    
+
+	    nr_of_files++;
+
 	    if( buffer == NULL ) {
 		fprintf( stderr, "libdvdread: DVDDiscId, failed to "
 			 "allocate memory for file read!\n" );
@@ -1048,7 +1051,9 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 	}
     }
     md5_finish_ctx( &ctx, discid );
-    
+    if(nr_of_files == 0) {
+      return -1;
+    }
     return 0;
 }
 
