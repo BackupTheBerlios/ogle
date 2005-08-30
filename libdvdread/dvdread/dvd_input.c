@@ -262,14 +262,35 @@ static int file_close(dvd_input_t dev)
 }
 
 
+static void *dvdcss_library = NULL;
+
+/**
+ * Free any objects allocated by dvdinput_setup.
+ * Should only be called when libdvdread is not to be used any more.
+ * Closes dlopened libraries.
+ */
+void dvdinput_free(void)
+{
+#ifdef HAVE_DVDCSS_DVDCSS_H
+  /* linked statically, nothing to free */
+  return;
+#else
+  if(dvdcss_library) {
+    dlclose(dvdcss_library);
+    dvdcss_library = NULL;
+  }
+  return;
+#endif
+}
+
+
 /**
  * Setup read functions with either libdvdcss or minimal DVD access.
  */
 int dvdinput_setup(void)
 {
-  void *dvdcss_library = NULL;
   char **dvdcss_version = NULL;
-
+  
 #ifdef HAVE_DVDCSS_DVDCSS_H
   /* linking to libdvdcss */
   dvdcss_library = &dvdcss_library;  /* Give it some value != NULL */
@@ -277,7 +298,12 @@ int dvdinput_setup(void)
   dvdcss_version = &dvdcss_interface_2;
 
 #else
+
   /* dlopening libdvdcss */
+  if(dvdcss_library) {
+    /* libdvdcss is already dlopened */
+    return 1;
+  }
   dvdcss_library = dlopen("libdvdcss.so.2", RTLD_LAZY);
   
   if(dvdcss_library != NULL) {

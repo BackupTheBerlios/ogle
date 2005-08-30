@@ -95,6 +95,16 @@ dvd_reader_t *DVDOpen( const char * );
 void DVDClose( dvd_reader_t * );
 
 /**
+ * Closes libraries dlopened by DVDOpen.
+ *
+ * You must DVDClose all handles opened with DVDOpen before calling this.
+ * Use this function only if you really need to close the dlopened libs.
+ * 
+ * DVDFree(void);
+ */
+void DVDFree(void);
+
+/**
  * 
  */
 typedef enum {

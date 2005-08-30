@@ -486,6 +486,11 @@ void DVDClose( dvd_reader_t *dvd )
     }
 }
 
+void DVDFree(void)
+{
+  dvdinput_free();
+}
+
 /**
  * Open an unencrypted file on a DVD image file.
  */
