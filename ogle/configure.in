@@ -24,6 +24,24 @@ AC_CHECK_HEADERS([byteswap.h sys/bswap.h sys/endian.h sys/param.h stropts.h])
 AC_CHECK_HEADERS([poll.h sys/poll.h sys/select.h])
 AC_CHECK_FUNCS(poll)
 
+
+dnl ---------------------------------------------------------
+dnl libdir suffix
+dnl ---------------------------------------------------------
+
+libdir_suffix="lib"
+AC_ARG_WITH(libdir-suffix, 
+  AC_HELP_STRING([--with-libdir-suffix=suffix],
+                 [Specify the default libdir suffix to use.
+		 If you want libs to be searched for in PREFIX/lib64 use
+		 --with-libdir-suffix=lib64]), 
+  [libdir_suffix=$withval])
+
+dnl ---------------------------------------------------------
+dnl end libdir suffix
+dnl ---------------------------------------------------------
+
+
 dnl Find X Window System
 AC_PATH_XTRA
 saved_CPPFLAGS=$CPPFLAGS
@@ -96,17 +114,22 @@ if test -z "$jpeg_path"; then
     jpeg_path=$ac_default_prefix
   fi  
 fi
+
+
 dnl Both this and the libdvdread should first test and see if any flags
 dnl beside -lname are needed. Then they the suggested path (+ some standard?)
+jpeg_lib="$jpeg_path/$libdir_suffix"
+jpeg_include="$jpeg_path/include"
+
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$jpeg_path/lib"
+CFLAGS="-L$jpeg_lib"
 AC_CHECK_LIB(jpeg, main, 
-  [ JPEG_LIBS="-L$jpeg_path/lib -R$jpeg_path/lib -ljpeg"
-    JPEG_CPPFLAGS=-I$jpeg_path/include
+  [ JPEG_LIBS="-L$jpeg_lib -R$jpeg_lib -ljpeg"
+    JPEG_CPPFLAGS=-I$jpeg_include
   ],
   [AC_MSG_WARN([Need libjpeg, install it and/or specify it's location])
     MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libjpeg, " ], 
-  -L$jpeg_path/lib)
+  -L$jpeg_lib)
 
 CFLAGS=$TMPCFLAGS
 
@@ -192,7 +215,7 @@ dnl ---------------------------------------------------------
 dnl dvdread
 dnl ---------------------------------------------------------
 
-dvd_path=""
+dvdread_path=""
 AC_ARG_WITH(dvdread, 
   AC_HELP_STRING([--with-dvdread=path],
                  [specify the install prefix to libdvdread]), 
@@ -200,22 +223,25 @@ AC_ARG_WITH(dvdread,
      AC_MSG_ERROR([You must have/use libdvdread])
    fi
    if test "x$with_dvdread" != xyes; then
-     dvd_path=$with_dvdread
+     dvdread_path=$with_dvdread
    fi])
-if test -z "$dvd_path"; then
+if test -z "$dvdread_path"; then
   dnl We have nothing better to go on, guess that it's installed in prefix
   if test "x$prefix" != xNONE; then
-    dvd_path=$prefix
+    dvdread_path=$prefix
   else
-    dvd_path=$ac_default_prefix
+    dvdread_path=$ac_default_prefix
   fi
 fi
 
+dvdread_lib="$dvdread_path/$libdir_suffix"
+dvdread_include="$dvdread_path/include"
+
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$dvd_path/lib"
+CFLAGS="-L$dvdread_lib"
 AC_CHECK_LIB(dvdread, DVDDiscID, 
-  [ DVDREAD_LIBS="-L$dvd_path/lib -R$dvd_path/lib -ldvdread" 
-    DVDREAD_CPPFLAGS=-I$dvd_path/include
+  [ DVDREAD_LIBS="-L$dvdread_lib -R$dvdread_lib -ldvdread" 
+    DVDREAD_CPPFLAGS=-I$dvdread_include
   ],
   [
     AC_CHECK_LIB(dvdread, DVDOpen, 
@@ -223,8 +249,8 @@ AC_CHECK_LIB(dvdread, DVDDiscID,
       MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libdvdread >= 0.9.4, " ],
       [ AC_MSG_WARN([Need libdvdread, install it or specify it's location])
       MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libdvdread, " ],
-      -L$dvd_path/lib)
-  ], -L$dvd_path/lib)
+      -L$dvdread_lib)
+  ], -L$dvdread_lib)
 
 CFLAGS=$TMPCFLAGS
 
@@ -340,13 +366,16 @@ if test -z "$a52_path"; then
   fi
 fi
 
+a52_lib="$a52_path/$libdir_suffix"
+a52_include="$a52_path/include"
+
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$a52_path/lib"
+CFLAGS="-L$a52_lib"
 dnl a52_free is a new function in 0.7.3
 AC_CHECK_LIB(a52, a52_free, 
   [ 
-    A52_LIBS="-L$a52_path/lib -R$a52_path/lib -la52" 
-    A52_CPPFLAGS=-I$a52_path/include
+    A52_LIBS="-L$a52_lib -R$a52_lib -la52" 
+    A52_CPPFLAGS=-I$a52_include
   ],
   [
     if test "x$have_mlib" = xyes; then
@@ -355,16 +384,16 @@ AC_CHECK_LIB(a52, a52_free,
 	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 >= 0.7.3, " ],
 	[ AC_MSG_WARN([Need liba52, install a52dec or specify it's location])
 	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52, " ],
-	-L$a52_path/lib -L$mlib_path/lib -lmlib -lm)
+	-L$a52_lib -L$mlib_path/lib -lmlib -lm)
     else
       AC_CHECK_LIB(a52, a52_init, 
         [ AC_MSG_WARN([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
           MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 >= 0.7.3, " ],
         [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
 	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52, " ],
-	-L$a52_path/lib -lm)
+	-L$a52_lib -lm)
     fi
-  ], [-L$a52_path/lib -lm])
+  ], [-L$a52_lib -lm])
 
 CFLAGS=$TMPCFLAGS
 
@@ -421,15 +450,18 @@ if test -z "$mad_path"; then
   fi
 fi
 
+mad_lib="$mad_path/$libdir_suffix"
+mad_include="$mad_path/include"
+
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$mad_path/lib"
+CFLAGS="-L$mad_lib"
 AC_CHECK_LIB(mad, mad_frame_decode, 
   [ 
-    MAD_LIBS="-L$mad_path/lib -R$mad_path/lib -lmad" 
-    MAD_CPPFLAGS=-I$mad_path/include
+    MAD_LIBS="-L$mad_lib -R$mad_lib -lmad" 
+    MAD_CPPFLAGS=-I$mad_include
   ],[AC_MSG_WARN([Need libmad, install it or specify it's location])
      MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}libmad, " ],
-    [-L$mad_path/lib])
+    [-L$mad_lib])
 
 CFLAGS=$TMPCFLAGS
 
@@ -910,6 +942,15 @@ if test "x$prefix" != xNONE; then
 else
   echo "  prefix: $ac_default_prefix"
 fi  
+
+echo "libdvdread CPPFLAGS: $DVDREAD_CPPFLAGS"
+echo "libdvdread LIBS: $DVDREAD_LIBS"
+echo "liba52 CPPFLAGS: $A52_CPPFLAGS"
+echo "liba52 LIBS: $A52_LIBS"
+echo "libmad CPPFLAGS: $MAD_CPPFLAGS"
+echo "libmad LIBS: $MAD_LIBS"
+echo "libjpeg CPPFLAGS: $JPEG_CPPFLAGS"
+echo "libjpeg LIBS: $JPEG_LIBS"
 
 echo ""
 
