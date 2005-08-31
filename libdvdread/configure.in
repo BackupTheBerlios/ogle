@@ -56,13 +56,13 @@ dvdcss_include=""
 dvdcss_lib=""
 dvdcss_has_path=""
 
-AC_ARG_WITH([libdvdcss-include],
-    [  --with-libdvdcss-include[=PATH]   path to libdvdcss include files],
+AC_ARG_WITH([libdvdcss-includes],
+    [  --with-libdvdcss-includes[=PATH]   path to libdvdcss headers],
     [ link_dvdcss=yes
       dvdcss_include=$withval])
 
-AC_ARG_WITH([libdvdcss-lib],
-    [  --with-libdvdcss-lib[=PATH]   path to libdvdcss lib files],
+AC_ARG_WITH([libdvdcss-libs],
+    [  --with-libdvdcss-libs[=PATH]   path to libdvdcss libs],
     [ link_dvdcss=yes
       dvdcss_lib=$withval])
 
