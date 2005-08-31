@@ -52,8 +52,22 @@ dnl is given we link with it instead.
 dnl
 link_dvdcss=no
 dvdcss_path=""
+dvdcss_include=""
+dvdcss_lib=""
+dvdcss_has_path=""
+
+AC_ARG_WITH([libdvdcss-include],
+    [  --with-libdvdcss-include[=PATH]   path to libdvdcss include files],
+    [ link_dvdcss=yes
+      dvdcss_include=$withval])
+
+AC_ARG_WITH([libdvdcss-lib],
+    [  --with-libdvdcss-lib[=PATH]   path to libdvdcss lib files],
+    [ link_dvdcss=yes
+      dvdcss_lib=$withval])
+
 AC_ARG_WITH([libdvdcss],
-    [  --with-libdvdcss[=PATH]   force linking against libdvdcss],
+    [  --with-libdvdcss[=PREFIX]   force linking against libdvdcss],
     [if test x"$withval" != xno; then
        link_dvdcss=yes
      fi
@@ -72,7 +86,18 @@ dnl dlopen libdvdcss
   )
 else
 dnl link with libdvdcss
-  if test -z "$dvdcss_path"; then
+  if test -z "$dvdcss_include"; then
+    dvdcss_include="$dvdcss_path/include"
+  fi
+  if test -z "$dvdcss_lib"; then
+    dvdcss_lib="$dvdcss_path/lib"
+  else
+    dvdcss_has_path="yes" 
+  fi
+  if test -n "$dvdcss_path"; then
+    dvdcss_has_path="yes" 
+  fi
+  if test -z "$dvdcss_has_path" ; then
     AC_CHECK_HEADERS(dvdcss/dvdcss.h, 
       [ ],
       AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
@@ -91,19 +116,19 @@ dnl link with libdvdcss
   else
     dnl -w added to shutup GCC3.1's cpp warning about -I/usr/local
     saved_CPPFLAGS=$CPPFLAGS
-    CPPFLAGS="-w $CPPFLAGS -I$dvdcss_path/include"
+    CPPFLAGS="-w $CPPFLAGS -I$dvdcss_include"
     AC_CHECK_HEADERS(dvdcss/dvdcss.h, 
       [ ],
       AC_MSG_ERROR(You need libdvdcss (dvdcss.h))
     )
     CPPFLAGS=$saved_CPPFLAGS
     saved_CFLAGS=$CFLAGS
-    CFLAGS="$CFLAGS -I$dvdcss_path/include -L$dvdcss_path/lib -ldvdcss"
+    CFLAGS="$CFLAGS -I$dvdcss_include -L$dvdcss_lib -ldvdcss"
     AC_MSG_CHECKING([for dvdcss_interface_2 in -ldvdcss])
     AC_TRY_LINK([#include <dvdcss/dvdcss.h>], 
                 [if(!dvdcss_interface_2) { return 1; }],
-        [ CSS_LIBS="-L$dvdcss_path/lib -R$dvdcss_path/lib -ldvdcss"
-          CSS_CFLAGS=-I$dvdcss_path/include ],
+        [ CSS_LIBS="-L$dvdcss_lib -R$dvdcss_lib -ldvdcss"
+          CSS_CFLAGS=-I$dvdcss_include ],
         [ AC_MSG_RESULT([no])
           AC_MSG_ERROR(You need libdvdcss.so.2 or later)
         ] )
