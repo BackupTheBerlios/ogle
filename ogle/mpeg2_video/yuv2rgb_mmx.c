@@ -30,23 +30,23 @@
 
 #ifdef HAVE_MMX
 //static unsigned long  MMX_10w[]         = {0x00100010, 0x00100010};
-static unsigned long  MMX_80w[]         = {0x00800080, 0x00800080};
+static uint32_t MMX_80w[]         = {0x00800080, 0x00800080};
 
-static unsigned long  MMX_00FFw[]       = {0x00ff00ff, 0x00ff00ff};
+static uint32_t MMX_00FFw[]       = {0x00ff00ff, 0x00ff00ff};
 
-static unsigned short MMX_Ublucoeff[]   = {0x0081, 0x0081, 0x0081, 0x0081};
-static unsigned short MMX_Vredcoeff[]   = {0x0066, 0x0066, 0x0066, 0x0066};
+static uint16_t MMX_Ublucoeff[]   = {0x0081, 0x0081, 0x0081, 0x0081};
+static uint16_t MMX_Vredcoeff[]   = {0x0066, 0x0066, 0x0066, 0x0066};
 
-static unsigned short MMX_Ugrncoeff[]   = {0xffe8, 0xffe8, 0xffe8, 0xffe8};
-static unsigned short MMX_Vgrncoeff[]   = {0xffcd, 0xffcd, 0xffcd, 0xffcd};
+static uint16_t MMX_Ugrncoeff[]   = {0xffe8, 0xffe8, 0xffe8, 0xffe8};
+static uint16_t MMX_Vgrncoeff[]   = {0xffcd, 0xffcd, 0xffcd, 0xffcd};
 
-static unsigned short MMX_Ycoeff[]      = {0x004a, 0x004a, 0x004a, 0x004a};
-static unsigned short MMX_redmask[]     = {0xf800, 0xf800, 0xf800, 0xf800};
+static uint16_t MMX_Ycoeff[]      = {0x004a, 0x004a, 0x004a, 0x004a};
+static uint16_t MMX_redmask[]     = {0xf800, 0xf800, 0xf800, 0xf800};
 
-static unsigned short MMX_grnmask[]     = {0x07e0, 0x07e0, 0x07e0, 0x07e0};
+static uint16_t MMX_grnmask[]     = {0x07e0, 0x07e0, 0x07e0, 0x07e0};
 // static unsigned short MMX_blumask[]  = {0x001f, 0x001f, 0x001f, 0x001f};
 
-// get rif of 'defined but unused' warnings
+// get rid of 'defined but unused' warnings
 // gcc doesn't recognise that they _are_ used inside __asm__
 // make dummy use of them
 void __yuv2rgb_mmx_preventwarnings_dontusethis(void)
@@ -69,19 +69,21 @@ void __yuv2rgb_mmx_preventwarnings_dontusethis(void)
 #endif
 #endif
 
-
+/* we depend on long to be 32 bit on x86_32 and 64 bit on x86_64
+   to be able to use the same asm, because pointers are 64bit on x86_64
+*/
 void  YUV2RGB420_MMX_16(uint8_t *out,
                         const uint8_t* lum, const uint8_t* cb,const uint8_t*cr,
-                        const unsigned int cols, const unsigned int rows,
-                        const unsigned int screen_width,
-                        const unsigned int colsY,const unsigned int colsUV) {
-  unsigned short *row1;
-  int x;
-  unsigned char *y;
-  int col1;
-  int mod = screen_width/2-cols;
-  
-  row1 = (unsigned short *)out;
+                        const uint32_t cols, const uint32_t rows,
+                        const uint32_t screen_width,
+                        const uint32_t colsY, const uint32_t colsUV) {
+  uint16_t *row1;
+  long x;
+  uint8_t *y;
+  long col1;
+  long mod = screen_width/2-cols;
+  unsigned long _cols = cols; //this is needed to compile on x86_64
+  row1 = (uint16_t *)out;
   col1 = cols + mod;
   mod += cols + mod;
   mod *= 2;
@@ -225,20 +227,20 @@ void  YUV2RGB420_MMX_16(uint8_t *out,
          "movq           %%mm4,                  (%4,%5,2)\n"
          "movq           %%mm5,                  8(%4,%5,2)\n"
 
-         "addl           $8,                     %2\n"
-         "addl           $4,                     %0\n"
-         "addl           $4,                     %1\n"
-         "cmpl           %3,                     %6\n"
-         "leal           16(%4),                 %4\n"
+         "add           $8,                     %2\n"
+         "add           $4,                     %0\n"
+         "add           $4,                     %1\n"
+         "cmp           %3,                     %6\n"
+         "lea           16(%4),                 %4\n"
          "jl             1b\n"
-         "addl           %3,                     %2\n"                   /* lum += cols */
-         "addl           %7,                     %4\n"                   /* row1 += mod */
+         "add           %3,                     %2\n" /* lum += cols */
+         "add           %7,                     %4\n" /* row1 += mod */
          "movl           $0,                     %6\n"
-         "cmpl           %8,                     %2\n"
+         "cmp           %8,                     %2\n"
          "jl             1b\n"
          :
-         : "r" (cr), "r" (cb), "r" (lum), "r" (cols), "r" (row1) ,"r" (col1), "m" (x), "m" (mod)
-         , "m" (y)
+         : "r" (cr), "r" (cb), "r" (lum), "r" (_cols), "r" (row1) ,"r" (col1), "m" (x), "m" (mod)
+	   , "m" (y)
          );
       __asm__ __volatile__(
          "emms\n"
@@ -247,7 +249,7 @@ void  YUV2RGB420_MMX_16(uint8_t *out,
    }
 
 yuv2rgb_fun yuv2rgb_mmx_init(int bpp, int mode) {
-  
+
   if (bpp== 16 && mode == MODE_RGB) {
     fprintf(stdout,"using MMX for yuv2rgb conversion\n"); 
     return YUV2RGB420_MMX_16;
