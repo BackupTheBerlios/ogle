@@ -216,7 +216,8 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
     
     dev = dvdinput_open( location );
     if( !dev ) {
-	fprintf( stderr, "libdvdread: Can't open %s for reading\n", location );
+	fprintf( stderr, "libdvdread: Can't open '%s' for reading: %s\n",
+		 location, strerror(errno));
 	return 0;
     }
 
@@ -802,7 +803,20 @@ void DVDCloseFile( dvd_file_t *dvd_file )
     }
 }
 
-/* Internal, but used from dvd_udf.c */
+/**
+ * Internal, but used from dvd_udf.c 
+ *
+ * @param device A read handle.
+ * @param lb_number Logical block number to start read from.
+ * @param block_count Number of logical blocks to read.
+ * @param data Pointer to buffer where read data should be stored.
+ *             This buffer must be large enough to hold lb_number*2048 bytes.
+ *             The pointer must be aligned to the logical block size when
+ *             reading from a raw/O_DIRECT device.
+ * @param encrypted 0 if no decryption shall be performed,
+ *                  1 if decryption shall be performed
+ * @param return Returns number of blocks read on success, negative on error
+ */
 int UDFReadBlocksRaw( dvd_reader_t *device, uint32_t lb_number,
 			 size_t block_count, unsigned char *data, 
 			 int encrypted )
@@ -824,12 +838,20 @@ int UDFReadBlocksRaw( dvd_reader_t *device, uint32_t lb_number,
 			 (int) block_count, encrypted );
 }
 
-/* This is using a single input and starting from 'dvd_file->lb_start' offset.
+/**
+ * This is using a single input and starting from 'dvd_file->lb_start' offset.
  *
  * Reads 'block_count' blocks from 'dvd_file' at block offset 'offset'
  * into the buffer located at 'data' and if 'encrypted' is set
  * descramble the data if it's encrypted.  Returning either an
- * negative error or the number of blocks read. */
+ * negative error or the number of blocks read.
+ *
+ * @param data Pointer to buffer where read data should be placed.
+ *             This buffer must be large enough to hold block_count*2048 bytes.
+ *             The pointer must be aligned to 2048 bytes when reading from
+ *             a raw/O_DIRECT device.
+ * @return Returns the number of blocks read on success or a negative error.
+ */
 static int DVDReadBlocksUDF( dvd_file_t *dvd_file, uint32_t offset,
 			     size_t block_count, unsigned char *data,
 			     int encrypted )
@@ -838,12 +860,19 @@ static int DVDReadBlocksUDF( dvd_file_t *dvd_file, uint32_t offset,
 			     block_count, data, encrypted );
 }
 
-/* This is using possibly several inputs and starting from an offset of '0'.
- *
+/**
+ * This is using possibly several inputs and starting from an offset of '0'.
+ * data must be aligned to logical block size (2048 bytes) of the device
+ * for raw/O_DIRECT devices to work
  * Reads 'block_count' blocks from 'dvd_file' at block offset 'offset'
  * into the buffer located at 'data' and if 'encrypted' is set
  * descramble the data if it's encrypted.  Returning either an
- * negative error or the number of blocks read. */
+ * negative error or the number of blocks read.
+ *
+ * @param dvd_file A file read handle.
+ * @param offset Block offset from start of file.
+ * @return Returns number of blocks read on success, negative on error.
+ */
 static int DVDReadBlocksPath( dvd_file_t *dvd_file, unsigned int offset,
 			      size_t block_count, unsigned char *data,
 			      int encrypted )
@@ -911,7 +940,9 @@ static int DVDReadBlocksPath( dvd_file_t *dvd_file, unsigned int offset,
     return ret + ret2;
 }
 
-/* This is broken reading more than 2Gb at a time is ssize_t is 32-bit. */
+/**
+ * This is broken reading more than 2Gb at a time if ssize_t is 32-bit.
+ */
 ssize_t DVDReadBlocks( dvd_file_t *dvd_file, int offset, 
 		       size_t block_count, unsigned char *data )
 {
@@ -957,9 +988,18 @@ int DVDFileSeek( dvd_file_t *dvd_file, int offset )
     return offset;
 }
 
+#ifndef HAVE_UINTPTR_T
+#warning "Assuming that (unsigned long) can hold (void *)"
+typedef unsigned long uintptr_t;
+#endif
+
+#define DVD_ALIGN(ptr) (void *)((((uintptr_t)(ptr)) + (DVD_VIDEO_LB_LEN-1)) \
+				/ DVD_VIDEO_LB_LEN * DVD_VIDEO_LB_LEN)
+
 ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
 {
-    unsigned char *secbuf;
+    unsigned char *secbuf_start;
+    unsigned char *secbuf; //must be aligned to 2048-bytes for raw/O_DIRECT
     unsigned int numsec, seek_sector, seek_byte;
     int ret;
     
@@ -972,14 +1012,17 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
 
     numsec = ( ( seek_byte + byte_size ) / DVD_VIDEO_LB_LEN ) +
       ( ( ( seek_byte + byte_size ) % DVD_VIDEO_LB_LEN ) ? 1 : 0 );
-    
-    secbuf = (unsigned char *) malloc( numsec * DVD_VIDEO_LB_LEN );
-    if( !secbuf ) {
+
+    /* must align to 2048 bytes if we are reading from raw/O_DIRECT */
+    secbuf_start = (unsigned char *) malloc( (numsec+1) * DVD_VIDEO_LB_LEN );
+    if( !secbuf_start ) {
 	fprintf( stderr, "libdvdread: Can't allocate memory " 
 		 "for file read!\n" );
         return 0;
     }
-    
+
+    secbuf = DVD_ALIGN(secbuf_start);
+
     if( dvd_file->dvd->isImageFile ) {
 	ret = DVDReadBlocksUDF( dvd_file, (uint32_t) seek_sector, 
 				(size_t) numsec, secbuf, DVDINPUT_NOFLAGS );
@@ -989,12 +1032,12 @@ ssize_t DVDReadBytes( dvd_file_t *dvd_file, void *data, size_t byte_size )
     }
 
     if( ret != (int) numsec ) {
-        free( secbuf );
+        free( secbuf_start );
         return ret < 0 ? ret : 0;
     }
 
     memcpy( data, &(secbuf[ seek_byte ]), byte_size );
-    free( secbuf );
+    free( secbuf_start );
 
     dvd_file->seek_pos += byte_size;
     return byte_size;
@@ -1036,10 +1079,12 @@ int DVDDiscID( dvd_reader_t *dvd, unsigned char *discid )
 			 "allocate memory for file read!\n" );
 		return -1;
 	    }
+
 	    bytes_read = DVDReadBytes( dvd_file, buffer, file_size );
 	    if( bytes_read != file_size ) {
 		fprintf( stderr, "libdvdread: DVDDiscId read returned %d bytes"
-			 ", wanted %d\n", bytes_read, file_size );
+			 ", wanted %d\n", (int)bytes_read, (int)file_size );
+		free(buffer);
 		DVDCloseFile( dvd_file );
 		return -1;
 	    }
@@ -1062,7 +1107,8 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
 		      char *volid, unsigned int volid_size,
 		      unsigned char *volsetid, unsigned int volsetid_size )
 {
-  unsigned char *buffer;
+  unsigned char *buffer; /* must be aligned to 2048 for raw/O_DIRECT */
+  unsigned char *buffer_start; 
   int ret;
 
   /* Check arguments. */
@@ -1074,17 +1120,21 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
     return -1;
   }
   
-  buffer = malloc( DVD_VIDEO_LB_LEN );
-  if( buffer == NULL ) {
+  buffer_start = malloc( 2 * DVD_VIDEO_LB_LEN );
+  if( buffer_start == NULL ) {
     fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
 	     "allocate memory for file read!\n" );
     return -1;
   }
-
+  /* (x + LB-1 )/LB*LB */
+ /*Depends on sizeof(unsigned long) being at least as large as sizeof(void *)*/
+  buffer = DVD_ALIGN(buffer_start);
+  
   ret = UDFReadBlocksRaw( dvd, 16, 1, buffer, 0 );
   if( ret != 1 ) {
     fprintf( stderr, "libdvdread: DVDISOVolumeInfo, failed to "
 	     "read ISO9660 Primary Volume Descriptor!\n" );
+    free(buffer_start);
     return -1;
   }
   
@@ -1110,6 +1160,8 @@ int DVDISOVolumeInfo( dvd_reader_t *dvd,
     }
     memcpy(volsetid, &buffer[190], volsetid_size);
   }
+  free(buffer_start);
+
   return 0;
 }
 

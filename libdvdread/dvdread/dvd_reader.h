@@ -151,6 +151,8 @@ void DVDCloseFile( dvd_file_t * );
  * @param offset Block offset from the start of the file to start reading at.
  * @param block_count Number of block to read.
  * @param data Pointer to a buffer to write the data into.
+ *             It must be aligned to the logical block size of the device when
+ *             reading from a raw/O_DIRECT device (2048 bytes for DVD)
  * @return Returns number of blocks read on success, -1 on error.
  *
  * blocks_read = DVDReadBlocks(dvd_file, offset, block_count, data);
