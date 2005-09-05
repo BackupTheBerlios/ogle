@@ -21,18 +21,25 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#define __USE_GNU /* to get O_DIRECT in linux */
 #include <fcntl.h>
 #include <unistd.h>
 
 #include "dvd_reader.h"
 #include "dvd_input.h"
 
+
 /* The function pointers that is the exported interface of this file. */
 dvd_input_t (*dvdinput_open)  (const char *);
 int         (*dvdinput_close) (dvd_input_t);
 int         (*dvdinput_seek)  (dvd_input_t, int);
 int         (*dvdinput_title) (dvd_input_t, int); 
+/**
+ *  pointer must be aligned to 2048 bytes
+ *  if reading from a raw/O_DIRECT file
+ */
 int         (*dvdinput_read)  (dvd_input_t, void *, int, int);
+
 char *      (*dvdinput_error) (dvd_input_t);
 
 #ifdef HAVE_DVDCSS_DVDCSS_H
@@ -156,18 +163,26 @@ static int css_close(dvd_input_t dev)
 static dvd_input_t file_open(const char *target)
 {
   dvd_input_t dev;
+  char *use_odirect;
+  int oflags;
   
+  oflags = O_RDONLY | O_BINARY;
+  use_odirect = getenv("DVDREAD_USE_DIRECT");
+  if(use_odirect) {
+#ifndef O_DIRECT
+#define O_DIRECT 0
+#endif
+    oflags |= O_DIRECT;
+  }
   /* Allocate the library structure */
   dev = (dvd_input_t) malloc(sizeof(struct dvd_input_s));
   if(dev == NULL) {
-    fprintf(stderr, "libdvdread: Could not allocate memory.\n");
     return NULL;
   }
   
   /* Open the device */
-  dev->fd = open(target, O_RDONLY | O_BINARY);
+  dev->fd = open(target, oflags);
   if(dev->fd < 0) {
-    perror("libdvdread: Could not open input");
     free(dev);
     return NULL;
   }
@@ -238,6 +253,7 @@ static int file_read(dvd_input_t dev, void *buffer, int blocks, int flags)
       return (int) (bytes / DVD_VIDEO_LB_LEN);
     }
     
+    buffer+=ret;
     len -= ret;
   }
 
