@@ -152,7 +152,7 @@ AC_C_BIGENDIAN
 AC_C_CONST
 AC_C_INLINE
 AC_TYPE_SIZE_T
-
+AC_CHECK_TYPES(uintptr_t,,,)
 dnl
 dnl Linux and Solaris needs this to make lseek and others be 64 bit
 dnl
@@ -178,7 +178,7 @@ AC_ARG_ENABLE([pedantic],
 if test x"$enable_pedantic" = xyes; then
     if test x"$GCC" = xyes; then
 	dnl  -Wtraditional is not included here!
-	CFLAGS="$CFLAGS -pedantic -Wall -W -Waggregate-return -Wbad-function-cast -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wconversion -Wformat -Wid-clash-30 -Wimplicit -Wimplicit-function-delcaration -Wimplicit-int -Wlong-long -Wmain -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wno-import -Wno-parentheses -Wparentheses -Wpointer-arith -Wredundant-decls -Wreturn-type -Wshadow -Wsign-compare -Wstrict-prototypes -Wswitch -Wtrigraphs -Wunused -Wwrite-strings"
+	CFLAGS="$CFLAGS -pedantic -Wall -W -Waggregate-return -Wbad-function-cast -Wcast-align -Wcast-qual -Wchar-subscripts -Wcomment -Wconversion -Wformat -Wimplicit -Wimplicit-function-declaration -Wimplicit-int -Wlong-long -Wmain -Wmissing-declarations -Wmissing-prototypes -Wnested-externs -Wno-import -Wno-parentheses -Wparentheses -Wpointer-arith -Wredundant-decls -Wreturn-type -Wshadow -Wsign-compare -Wstrict-prototypes -Wswitch -Wtrigraphs -Wunused -Wwrite-strings"
     fi
 fi
 
