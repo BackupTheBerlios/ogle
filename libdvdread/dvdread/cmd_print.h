@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2; indent-tabs-mode: nil -*- */
 #ifndef CMD_PRINT_H_INCLUDED
 #define CMD_PRINT_H_INCLUDED
 

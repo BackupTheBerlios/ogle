@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2; indent-tabs-mode: nil -*- */
 /*
  * Copyright (C) 2001 Billy Biggs <vektor@dumbterm.net>.
  *

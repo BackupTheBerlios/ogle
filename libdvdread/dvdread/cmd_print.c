@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2; indent-tabs-mode: nil -*- */
 /*
  * Copyright (C) 2000, 2001, 2002, 2003 Martin Norbäck, Håkan Hjort
  *
@@ -242,22 +243,22 @@ static void print_special_instruction(cmd_t *cmd) {
   unsigned int op = bits(cmd,1,4,4);
   
   switch(op) {
-    case 0: // NOP
-      fprintf(stdout, "Nop");
-      break;
-    case 1: // Goto line
-      fprintf(stdout, "Goto %u", bits(cmd,7,0,8));
-      break;
-    case 2: // Break
-      fprintf(stdout, "Break");
-      break;
-    case 3: // Parental level
-      fprintf(stdout, "SetTmpPML %u, Goto %u", 
-	      bits(cmd,6,4,4), bits(cmd,7,0,8));
-      break;
-    default:
-      fprintf(stdout, "WARNING: Unknown special instruction (%u)", 
-	      bits(cmd,1,4,4));
+  case 0: // NOP
+    fprintf(stdout, "Nop");
+    break;
+  case 1: // Goto line
+    fprintf(stdout, "Goto %u", bits(cmd,7,0,8));
+    break;
+  case 2: // Break
+    fprintf(stdout, "Break");
+    break;
+  case 3: // Parental level
+    fprintf(stdout, "SetTmpPML %u, Goto %u", 
+            bits(cmd,6,4,4), bits(cmd,7,0,8));
+    break;
+  default:
+    fprintf(stdout, "WARNING: Unknown special instruction (%u)", 
+            bits(cmd,1,4,4));
   }
 }
 
@@ -278,86 +279,86 @@ static void print_link_instruction(cmd_t *cmd, int optional) {
     fprintf(stdout, ", ");
   
   switch(op) {
-    case 0:
-      if(!optional)
+  case 0:
+    if(!optional)
       fprintf(stdout, "WARNING: NOP (link)!");
-      break;
-    case 1:
-      print_linksub_instruction(cmd);
-      break;
-    case 4:
-      fprintf(stdout, "LinkPGCN %u", bits(cmd,6,1,15));
-      break;
-    case 5:
-      fprintf(stdout, "LinkPTT %u (button %u)", 
-	      bits(cmd,6,6,10), bits(cmd,6,0,6));
-      break;
-    case 6:
-      fprintf(stdout, "LinkPGN %u (button %u)", 
-	      bits(cmd,7,1,7), bits(cmd,6,0,6));
-      break;
-    case 7:
-      fprintf(stdout, "LinkCN %u (button %u)", 
-	      bits(cmd,7,0,8), bits(cmd,6,0,6));
-      break;
-    default:
-      fprintf(stdout, "WARNING: Unknown link instruction");
+    break;
+  case 1:
+    print_linksub_instruction(cmd);
+    break;
+  case 4:
+    fprintf(stdout, "LinkPGCN %u", bits(cmd,6,1,15));
+    break;
+  case 5:
+    fprintf(stdout, "LinkPTT %u (button %u)", 
+            bits(cmd,6,6,10), bits(cmd,6,0,6));
+    break;
+  case 6:
+    fprintf(stdout, "LinkPGN %u (button %u)", 
+            bits(cmd,7,1,7), bits(cmd,6,0,6));
+    break;
+  case 7:
+    fprintf(stdout, "LinkCN %u (button %u)", 
+            bits(cmd,7,0,8), bits(cmd,6,0,6));
+    break;
+  default:
+    fprintf(stdout, "WARNING: Unknown link instruction");
   }
 }
 
 static void print_jump_instruction(cmd_t *cmd) {
   switch(bits(cmd,1,4,4)) {
+  case 1:
+    fprintf(stdout, "Exit");
+    break;
+  case 2:
+    fprintf(stdout, "JumpTT %u", bits(cmd,5,1,7));
+    break;
+  case 3:
+    fprintf(stdout, "JumpVTS_TT %u", bits(cmd,5,1,7));
+    break;
+  case 5:
+    fprintf(stdout, "JumpVTS_PTT %u:%u", bits(cmd,5,1,7), bits(cmd,2,6,10));
+    break;
+  case 6:
+    switch(bits(cmd,5,0,2)) {
+    case 0:
+      fprintf(stdout, "JumpSS FP");
+      break;
     case 1:
-      fprintf(stdout, "Exit");
+      fprintf(stdout, "JumpSS VMGM (menu %u)", bits(cmd,5,4,4));
       break;
     case 2:
-      fprintf(stdout, "JumpTT %u", bits(cmd,5,1,7));
+      fprintf(stdout, "JumpSS VTSM (vts %u, title %u, menu %u)", 
+              bits(cmd,4,0,8), bits(cmd,3,0,8), bits(cmd,5,4,4));
       break;
     case 3:
-      fprintf(stdout, "JumpVTS_TT %u", bits(cmd,5,1,7));
+      fprintf(stdout, "JumpSS VMGM (pgc %u)", bits(cmd,2,1,15));
       break;
-    case 5:
-      fprintf(stdout, "JumpVTS_PTT %u:%u", bits(cmd,5,1,7), bits(cmd,2,6,10));
-      break;
-    case 6:
-      switch(bits(cmd,5,0,2)) {
-        case 0:
-          fprintf(stdout, "JumpSS FP");
-          break;
-        case 1:
-          fprintf(stdout, "JumpSS VMGM (menu %u)", bits(cmd,5,4,4));
-          break;
-        case 2:
-          fprintf(stdout, "JumpSS VTSM (vts %u, title %u, menu %u)", 
-		  bits(cmd,4,0,8), bits(cmd,3,0,8), bits(cmd,5,4,4));
-          break;
-        case 3:
-          fprintf(stdout, "JumpSS VMGM (pgc %u)", bits(cmd,2,1,15));
-          break;
-        }
-      break;
-    case 8:
-      switch(bits(cmd,5,0,2)) {
-        case 0:
-          fprintf(stdout, "CallSS FP (rsm_cell %u)",
+    }
+    break;
+  case 8:
+    switch(bits(cmd,5,0,2)) {
+    case 0:
+      fprintf(stdout, "CallSS FP (rsm_cell %u)",
               bits(cmd,4,0,8));
-          break;
-        case 1:
-          fprintf(stdout, "CallSS VMGM (menu %u, rsm_cell %u)",
-		  bits(cmd,5,4,4), bits(cmd,4,0,8));
-          break;
-        case 2:
-          fprintf(stdout, "CallSS VTSM (menu %u, rsm_cell %u)",
-		  bits(cmd,5,4,4), bits(cmd,4,0,8));
-          break;
-        case 3:
-          fprintf(stdout, "CallSS VMGM (pgc %u, rsm_cell %u)", 
-		  bits(cmd,2,1,15), bits(cmd,4,0,8));
-          break;
-      }
       break;
-    default:
-      fprintf(stdout, "WARNING: Unknown Jump/Call instruction");
+    case 1:
+      fprintf(stdout, "CallSS VMGM (menu %u, rsm_cell %u)",
+              bits(cmd,5,4,4), bits(cmd,4,0,8));
+      break;
+    case 2:
+      fprintf(stdout, "CallSS VTSM (menu %u, rsm_cell %u)",
+              bits(cmd,5,4,4), bits(cmd,4,0,8));
+      break;
+    case 3:
+      fprintf(stdout, "CallSS VMGM (pgc %u, rsm_cell %u)", 
+              bits(cmd,2,1,15), bits(cmd,4,0,8));
+      break;
+    }
+    break;
+  default:
+    fprintf(stdout, "WARNING: Unknown Jump/Call instruction");
   }
 }
 
@@ -365,45 +366,45 @@ static void print_system_set(cmd_t *cmd) {
   int i;
   
   switch(bits(cmd,0,4,4)) {
-    case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
-      for(i = 1; i <= 3; i++) {
-        if(bits(cmd,2+i,0,1)) {
-          print_system_reg((unsigned int)i);
-          fprintf(stdout, " = ");
-          print_reg_or_data_2(cmd,bits(cmd,0,3,1), 2 + i);
-          fprintf(stdout, " ");
-        }
+  case 1: // Set system reg 1 &| 2 &| 3 (Audio, Subp. Angle)
+    for(i = 1; i <= 3; i++) {
+      if(bits(cmd,2+i,0,1)) {
+        print_system_reg((unsigned int)i);
+        fprintf(stdout, " = ");
+        print_reg_or_data_2(cmd,bits(cmd,0,3,1), 2 + i);
+        fprintf(stdout, " ");
       }
-      break;
-    case 2: // Set system reg 9 & 10 (Navigation timer, Title PGC number)
-      print_system_reg(9);
-      fprintf(stdout, " = ");
-      print_reg_or_data(cmd,bits(cmd,0,3,1), 2);
-      fprintf(stdout, " ");
-      print_system_reg(10);
-      fprintf(stdout, " = %u", bits(cmd,5,0,8)); // ??
-      break;
-    case 3: // Mode: Counter / Register + Set
-      fprintf(stdout, "SetMode ");
-      if(bits(cmd,5,0,1))
-	fprintf(stdout, "Counter ");
-      else
-	fprintf(stdout, "Register ");
-      print_reg(bits(cmd,5,4,4));
-      print_set_op(0x1); // '='
-      print_reg_or_data(cmd,bits(cmd,0,3,1), 2);
-      break;
-    case 6: // Set system reg 8 (Highlighted button)
-      print_system_reg(8);
-      if(bits(cmd,0,3,1)) // immediate
-        fprintf(stdout, " = 0x%x (button no %u)", 
-		bits(cmd,4,0,16), bits(cmd,4,0,6));
-      else
-        fprintf(stdout, " = g[%u]", bits(cmd,5,4,4));
-      break;
-    default:
-      fprintf(stdout, "WARNING: Unknown system set instruction (%u)", 
-	      bits(cmd,0,4,4));
+    }
+    break;
+  case 2: // Set system reg 9 & 10 (Navigation timer, Title PGC number)
+    print_system_reg(9);
+    fprintf(stdout, " = ");
+    print_reg_or_data(cmd,bits(cmd,0,3,1), 2);
+    fprintf(stdout, " ");
+    print_system_reg(10);
+    fprintf(stdout, " = %u", bits(cmd,5,0,8)); // ??
+    break;
+  case 3: // Mode: Counter / Register + Set
+    fprintf(stdout, "SetMode ");
+    if(bits(cmd,5,0,1))
+      fprintf(stdout, "Counter ");
+    else
+      fprintf(stdout, "Register ");
+    print_reg(bits(cmd,5,4,4));
+    print_set_op(0x1); // '='
+    print_reg_or_data(cmd,bits(cmd,0,3,1), 2);
+    break;
+  case 6: // Set system reg 8 (Highlighted button)
+    print_system_reg(8);
+    if(bits(cmd,0,3,1)) // immediate
+      fprintf(stdout, " = 0x%x (button no %u)", 
+              bits(cmd,4,0,16), bits(cmd,4,0,6));
+    else
+      fprintf(stdout, " = g[%u]", bits(cmd,5,4,4));
+    break;
+  default:
+    fprintf(stdout, "WARNING: Unknown system set instruction (%u)", 
+            bits(cmd,0,4,4));
   }
 }
 
@@ -442,8 +443,8 @@ static void print_set_version_3(cmd_t *cmd) {
       
       fprintf(stdout, "0x%x", i);
       if(isprint(i & 0xff) && isprint((i>>8) & 0xff))
-	fprintf(stdout, " (\"%c%c\")", 
-		(char)((i>>8) & 0xff), (char)(i & 0xff));
+        fprintf(stdout, " (\"%c%c\")", 
+                (char)((i>>8) & 0xff), (char)(i & 0xff));
     } else {
       print_reg(bits(cmd,2,0,8));
     }
@@ -454,59 +455,59 @@ static void print_set_version_3(cmd_t *cmd) {
 
 static void print_command(cmd_t *cmd) {
   switch(bits(cmd,0,0,3)) { /* three first bits */
-    case 0: // Special instructions
-      print_if_version_1(cmd);
-      print_special_instruction(cmd);
-      break;
-    case 1: // Jump/Call or Link instructions
-      if(bits(cmd,0,3,1)) {
-        print_if_version_2(cmd);
-        print_jump_instruction(cmd);
-      } else {
-        print_if_version_1(cmd);
-        print_link_instruction(cmd,0); // must be pressent
-      }
-      break;
-    case 2: // Set System Parameters instructions
+  case 0: // Special instructions
+    print_if_version_1(cmd);
+    print_special_instruction(cmd);
+    break;
+  case 1: // Jump/Call or Link instructions
+    if(bits(cmd,0,3,1)) {
       print_if_version_2(cmd);
-      print_system_set(cmd);
-      print_link_instruction(cmd,1); // either 'if' or 'link'
-      break;
-    case 3: // Set General Parameters instructions
-      print_if_version_3(cmd);
-      print_set_version_1(cmd);
-      print_link_instruction(cmd,1); // either 'if' or 'link'
-      break;
-    case 4: // Set, Compare -> LinkSub instructions
-      print_set_version_2(cmd);
-      fprintf(stdout, ", ");
-      print_if_version_4(cmd);
-      print_linksub_instruction(cmd);
-      break;
-    case 5: // Compare -> (Set and LinkSub) instructions
-      if(bits(cmd,0,3,1))
-	print_if_version_5(cmd);
-      else
-	print_if_version_1(cmd);
-      fprintf(stdout, "{ ");
-      print_set_version_3(cmd);
-      fprintf(stdout, ", ");
-      print_linksub_instruction(cmd);
-      fprintf(stdout, " }");
-      break;
-    case 6: // Compare -> Set, always LinkSub instructions
-      if(bits(cmd,0,3,1))
-	print_if_version_5(cmd);
-      else
-	print_if_version_1(cmd);
-      fprintf(stdout, "{ ");
-      print_set_version_3(cmd);
-      fprintf(stdout, " } ");
-      print_linksub_instruction(cmd);
-      break;
-    default:
-      fprintf(stdout, "WARNING: Unknown instruction type (%i)", 
-	      bits(cmd,0,0,3));
+      print_jump_instruction(cmd);
+    } else {
+      print_if_version_1(cmd);
+      print_link_instruction(cmd,0); // must be pressent
+    }
+    break;
+  case 2: // Set System Parameters instructions
+    print_if_version_2(cmd);
+    print_system_set(cmd);
+    print_link_instruction(cmd,1); // either 'if' or 'link'
+    break;
+  case 3: // Set General Parameters instructions
+    print_if_version_3(cmd);
+    print_set_version_1(cmd);
+    print_link_instruction(cmd,1); // either 'if' or 'link'
+    break;
+  case 4: // Set, Compare -> LinkSub instructions
+    print_set_version_2(cmd);
+    fprintf(stdout, ", ");
+    print_if_version_4(cmd);
+    print_linksub_instruction(cmd);
+    break;
+  case 5: // Compare -> (Set and LinkSub) instructions
+    if(bits(cmd,0,3,1))
+      print_if_version_5(cmd);
+    else
+      print_if_version_1(cmd);
+    fprintf(stdout, "{ ");
+    print_set_version_3(cmd);
+    fprintf(stdout, ", ");
+    print_linksub_instruction(cmd);
+    fprintf(stdout, " }");
+    break;
+  case 6: // Compare -> Set, always LinkSub instructions
+    if(bits(cmd,0,3,1))
+      print_if_version_5(cmd);
+    else
+      print_if_version_1(cmd);
+    fprintf(stdout, "{ ");
+    print_set_version_3(cmd);
+    fprintf(stdout, " } ");
+    print_linksub_instruction(cmd);
+    break;
+  default:
+    fprintf(stdout, "WARNING: Unknown instruction type (%i)", 
+            bits(cmd,0,0,3));
   }
 }
 

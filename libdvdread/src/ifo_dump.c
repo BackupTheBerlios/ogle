@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2; indent-tabs-mode: nil -*- */
 /*
  * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
