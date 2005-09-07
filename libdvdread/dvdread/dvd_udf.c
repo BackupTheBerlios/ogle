@@ -941,8 +941,10 @@ uint32_t UDFFindFile( dvd_reader_t *device, char *filename,
   char tokenline[ MAX_UDF_FILE_NAME_LEN ];
   char *token;
   uint8_t filetype;
-
-  *filesize = 0;
+  
+  if(filesize) {
+    *filesize = 0;
+  }
   tokenline[0] = '\0';
   strcat( tokenline, filename );
 
@@ -1020,7 +1022,9 @@ uint32_t UDFFindFile( dvd_reader_t *device, char *filename,
     return 0;
   }
 
-  *filesize = File.Length;
+  if(filesize) {
+    *filesize = File.Length;
+  }
   /* Hack to not return partition.Start for empty files. */
   if( !File.Location ) {
     return 0;
