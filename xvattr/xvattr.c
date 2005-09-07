@@ -35,7 +35,8 @@ static struct option long_options[] = {
   {"attribute"      , required_argument, 0, 'a' },
   {"port"           , required_argument, 0, 'p' },
   {"value"          , required_argument, 0, 'v' },
-  {"version"        , no_argument,       0, 'V' }
+  {"version"        , no_argument,       0, 'V' },
+  {"display"        , required_argument, 0, 'd' }
 };
 
 extern char *optarg;
@@ -44,8 +45,9 @@ extern char *optarg;
 void usage(void)
 {
   fprintf(stderr, "usage: %s [-a <attribute name>] [-v <value>] [-p <port nr>]\n", program_name);
-  fprintf(stderr, "       %s {-p | --port} <port nr>\n", program_name);
+  fprintf(stderr, "       %s {--display} <display>\n", program_name);
   fprintf(stderr, "       %s {-h | -help}\n", program_name);
+  fprintf(stderr, "       %s {-p | --port} <port nr>\n", program_name);
   fprintf(stderr, "       %s {-V | --version}\n", program_name);
 }
 
@@ -59,6 +61,7 @@ int main(int argc, char **argv)
   Display *dpy;
   int c;
   char *attr_name = NULL;
+  char *dpy_name = NULL;
   int num_adaptors = 0;
   XvAdaptorInfo *adaptor_info;
   int n;
@@ -73,11 +76,6 @@ int main(int argc, char **argv)
   
   program_name = argv[0];
 
-  dpy = XOpenDisplay(NULL);
-  if(dpy == NULL) {
-    fprintf(stderr, "%s: Couldn't open display\n", program_name);
-    exit(-1);
-  }
   
   while((c = getopt_long(argc, argv, short_options,
 			 long_options, &option_index)) != EOF) {
@@ -97,6 +95,9 @@ int main(int argc, char **argv)
     case 'p':
       sscanf(optarg, "%i", &port_nr);
       break;
+    case 'd':
+      dpy_name = optarg;
+      break;
     default:
       usage();
       exit(0);
@@ -109,6 +110,13 @@ int main(int argc, char **argv)
     exit(2);
   }
   
+  dpy = XOpenDisplay(dpy_name);
+  if(dpy == NULL) {
+    fprintf(stderr, "%s: Couldn't open display '%s'\n",
+	    program_name, dpy_name ? dpy_name :
+	    (getenv("DISPLAY") ? getenv("DISPLAY") : ""));
+    exit(-1);
+  }
 
   if(XvQueryExtension(dpy, &xv_version, &xv_release, &xv_request_base,
 		      &xv_event_base, &xv_error_base) == Success) {
