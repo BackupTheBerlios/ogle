@@ -4,13 +4,12 @@ AM_INIT_AUTOMAKE(ogle, 0.9.2-cvs)
 dnl AM_CONFIG_HEADER(config.h)
 AM_MAINTAINER_MODE
 AC_CANONICAL_HOST
-
+dnl check CFLAGS before AC_PROG_CC is run because it sets CFLAGS if not set
+USER_CFLAGS="$CFLAGS"
 dnl Checks for programs.
 AC_PROG_CC
-
 dnl AM_DISABLE_SHARED
 AM_PROG_LIBTOOL
-
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_BIGENDIAN
 AC_C_CONST
@@ -122,7 +121,7 @@ jpeg_lib="$jpeg_path/$libdir_suffix"
 jpeg_include="$jpeg_path/include"
 
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$jpeg_lib"
+CFLAGS="$CFLAGS -L$jpeg_lib"
 AC_CHECK_LIB(jpeg, main, 
   [ JPEG_LIBS="-L$jpeg_lib -R$jpeg_lib -ljpeg"
     JPEG_CPPFLAGS=-I$jpeg_include
@@ -216,15 +215,16 @@ dnl dvdread
 dnl ---------------------------------------------------------
 
 dvdread_path=""
-AC_ARG_WITH(dvdread, 
-  AC_HELP_STRING([--with-dvdread=path],
+AC_ARG_WITH(libdvdread, 
+  AC_HELP_STRING([--with-libdvdread=path],
                  [specify the install prefix to libdvdread]), 
-  [if test "x$with_dvdread" = xno; then
+  [if test "x$with_libdvdread" = xno; then
      AC_MSG_ERROR([You must have/use libdvdread])
    fi
-   if test "x$with_dvdread" != xyes; then
-     dvdread_path=$with_dvdread
+   if test "x$with_libdvdread" != xyes; then
+     dvdread_path=$with_libdvdread
    fi])
+
 if test -z "$dvdread_path"; then
   dnl We have nothing better to go on, guess that it's installed in prefix
   if test "x$prefix" != xNONE; then
@@ -238,7 +238,7 @@ dvdread_lib="$dvdread_path/$libdir_suffix"
 dvdread_include="$dvdread_path/include"
 
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$dvdread_lib"
+CFLAGS="$CFLAGS -L$dvdread_lib"
 AC_CHECK_LIB(dvdread, DVDDiscID, 
   [ DVDREAD_LIBS="-L$dvdread_lib -R$dvdread_lib -ldvdread" 
     DVDREAD_CPPFLAGS=-I$dvdread_include
@@ -254,10 +254,10 @@ AC_CHECK_LIB(dvdread, DVDDiscID,
 
 CFLAGS=$TMPCFLAGS
 
-AC_ARG_WITH(dvdread-includes, 
-  AC_HELP_STRING([--with-dvdread-includes=path],
+AC_ARG_WITH(libdvdread-includes, 
+  AC_HELP_STRING([--with-libdvdread-includes=path],
               [specify location of libdvdread headers]), 
-  [DVDREAD_CPPFLAGS=-I$with_dvdread_includes])
+  [DVDREAD_CPPFLAGS=-I$with_libdvdread_includes])
 
 dnl if test x"$DVDREAD_CPPFLAGS" = x"-I/usr/local/include"; then
 dnl  DVDREAD_CPPFLAGS=""
@@ -370,7 +370,7 @@ a52_lib="$a52_path/$libdir_suffix"
 a52_include="$a52_path/include"
 
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$a52_lib"
+CFLAGS="$CFLAGS -L$a52_lib"
 dnl a52_free is a new function in 0.7.3
 AC_CHECK_LIB(a52, a52_free, 
   [ 
@@ -389,7 +389,7 @@ AC_CHECK_LIB(a52, a52_free,
       AC_CHECK_LIB(a52, a52_init, 
         [ AC_MSG_WARN([You have liba52 0.7.2 or earlier, need 0.7.3 or later])
           MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52 >= 0.7.3, " ],
-        [ AC_MSG_ERROR([Need liba52, install a52dec or specify it's location])
+        [ AC_MSG_WARN([Need liba52, install a52dec or specify it's location])
 	  MANDATORY_MISSING_LIBS="${MANDATORY_MISSING_LIBS}liba52, " ],
 	-L$a52_lib -lm)
     fi
@@ -454,7 +454,7 @@ mad_lib="$mad_path/$libdir_suffix"
 mad_include="$mad_path/include"
 
 TMPCFLAGS=$CFLAGS
-CFLAGS="-L$mad_lib"
+CFLAGS="$CFLAGS -L$mad_lib"
 AC_CHECK_LIB(mad, mad_frame_decode, 
   [ 
     MAD_LIBS="-L$mad_lib -R$mad_lib -lmad" 
@@ -885,6 +885,15 @@ if test "x$USE_MMX" = xyes; then
   BUILD_MMX=1
   CFLAGS="$CFLAGS $XCFLAGS"
 fi
+GCCINFO=
+if test "x$GCC" = xyes; then
+   echo "int main(){return(0);}" > gcctest.c
+   gcc $CFLAGS $CPPFLAGS -S -fverbose-asm -o gcctest.s gcctest.c
+   GCCINFO="gcc options: `grep '^#' gcctest.s`"
+   rm -f gcctest.c gcctest.s
+fi
+echo "$GCCINFO"
+
 BUILDINFO="`uname -m -r -s -v`"
 BUILDINFO="${BUILDINFO} `uname -p` `date`"
 BUILDINFO="${BUILDINFO}${BUILD_MMX:+ mmx}${BUILD_ALTIVEC:+ Altivec}"
@@ -952,6 +961,9 @@ echo "libmad LIBS: $MAD_LIBS"
 echo "libjpeg CPPFLAGS: $JPEG_CPPFLAGS"
 echo "libjpeg LIBS: $JPEG_LIBS"
 
+echo "CFLAGS: $CFLAGS"
+echo "O_CFLAGS: $O_CFLAGS"
+
 echo ""
 
 if test "x$BUILD_MMX" = x1; then
@@ -1006,7 +1018,8 @@ if test "x$MANDATORY_MISSING_LIBS" != x; then
    AC_MSG_ERROR([
 The following *mandatory* libraries/headers are *not* installed
 or couldn't be located. See earlier output for more info.
-$MANDATORY_MISSING_LIBS 
-These libraries are needed to build ogle.
+Missing libs:
+	$MANDATORY_MISSING_LIBS 
+These libraries are needed to build ogle!
 ])
 fi
