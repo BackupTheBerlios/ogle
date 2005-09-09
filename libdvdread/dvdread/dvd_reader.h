@@ -96,14 +96,33 @@ dvd_reader_t *DVDOpen( const char * );
 void DVDClose( dvd_reader_t * );
 
 /**
- * Closes libraries dlopened by DVDOpen.
+ * Initializes libdvdread to be used with multithreading apps.
+ *
+ * You must call this function before using any other functions of libdvdread
+ * if you are going to use libdvdread in multiple threads in your program.
+ * If you are not using threads, or using libdvdread from just one thread,
+ * you do not need to call this, but you are allowed to do so anyway.
+ * 
+ * There are several restrictions on how you can use libdvdread in
+ * multithreading apps, see further documentation.
+ *
+ * If you have called DVDFinish() you need to call DVDInit again to use
+ * libdvdread in multiple threads.
+ *
+ * DVDInit(void);
+ */
+void DVDInit(void);
+
+/**
+ * frees any dlopened objects.
  *
  * You must DVDClose all handles opened with DVDOpen before calling this.
- * Use this function only if you really need to close the dlopened libs.
+ * Use this function if you need to close the dlopened libs and any other
+ * objects that have been dynamically allocated by libdvdread.
  * 
- * DVDFree(void);
+ * DVDFinish(void);
  */
-void DVDFree(void);
+void DVDFinish(void);
 
 /**
  * 

@@ -70,6 +70,9 @@ struct dvd_reader_s {
   /* Filesystem cache */
   int udfcache_level; /* 0 - turned off, 1 - on */
   void *udfcache;
+
+  /* block aligned malloc */
+  void *align;
 };
 
 struct dvd_file_s {
@@ -123,6 +126,20 @@ void SetUDFCacheHandle(dvd_reader_t *device, void *cache)
   struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
 
   dev->udfcache = cache;
+}
+
+void *GetAlignHandle(dvd_reader_t *device)
+{
+  struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
+  
+  return dev->align;
+}
+
+void SetAlignHandle(dvd_reader_t *device, void *align)
+{
+  struct dvd_reader_s *dev = (struct dvd_reader_s *)device;
+
+  dev->align = align;
 }
 
 #ifdef WIN32 /* replacement gettimeofday implementation */
@@ -216,7 +233,7 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
 {
   dvd_reader_t *dvd;
   dvd_input_t dev;
-    
+
   dev = dvdinput_open( location );
   if( !dev ) {
     fprintf( stderr, "libdvdread: Can't open '%s' for reading: %s\n",
@@ -226,7 +243,9 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
 
   dvd = (dvd_reader_t *) malloc( sizeof( dvd_reader_t ) );
   if( !dvd ) {
+    int tmp_errno = errno;
     dvdinput_close(dev);
+    errno = tmp_errno;
     return NULL;
   }
   dvd->isImageFile = 1;
@@ -235,6 +254,8 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
     
   dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
   dvd->udfcache = NULL;
+
+  dvd->align = NULL;
 
   if( have_css ) {
     /* Only if DVDCSS_METHOD = title, a bit if it's disc or if
@@ -249,7 +270,10 @@ static dvd_reader_t *DVDOpenImageFile( const char *location, int have_css )
   if(!UDFFindFile(dvd, "/", NULL)) {
     dvdinput_close(dvd->dev);
     if(dvd->udfcache) {
-      FreeUDFCache(dvd->udfcache);
+      FreeUDFCache(dvd, dvd->udfcache);
+    }
+    if(dvd->align) {
+      fprintf(stderr, "libdvdread: DVDOpenImageFile(): Memory leak in align functions 1\n");
     }
     free(dvd);
     return NULL;
@@ -274,7 +298,9 @@ static dvd_reader_t *DVDOpenPath( const char *path_root )
   }
   dvd->udfcache_level = DEFAULT_UDF_CACHE_LEVEL;
   dvd->udfcache = NULL;
-    
+
+  dvd->align = NULL;
+
   dvd->css_state = 0; /* Only used in the UDF path */
   dvd->css_title = 0; /* Only matters in the UDF path */
 
@@ -331,7 +357,8 @@ dvd_reader_t *DVDOpen( const char *path )
   struct stat fileinfo;
   int ret, have_css;
   char *dev_name = NULL;
-
+  int internal_errno = 0;
+  
   if( path == NULL ) {
     errno = EINVAL;
     return NULL;
@@ -445,13 +472,16 @@ dvd_reader_t *DVDOpen( const char *path )
                fe->fs_file,
                have_css ? " for CSS authentication" : "");
       auth_drive = DVDOpenImageFile( dev_name, have_css );
+      if(!auth_drive) {
+        internal_errno = errno;
+      }
     }
 #elif defined(__sun)
     mntfile = fopen( MNTTAB, "r" );
     if( mntfile ) {
       struct mnttab mp;
       int res;
-
+      
       while( ( res = getmntent( mntfile, &mp ) ) != -1 ) {
         if( res == 0 && !strcmp( mp.mnt_mountp, path_copy ) ) {
           dev_name = sun_block2char( mp.mnt_special );
@@ -462,6 +492,9 @@ dvd_reader_t *DVDOpen( const char *path )
                    mp.mnt_mountp,
                    have_css ? " for CSS authentication" : "");
           auth_drive = DVDOpenImageFile( dev_name, have_css );
+          if(!auth_drive) {
+            internal_errno = errno;
+          }
           break;
         }
       }
@@ -481,6 +514,9 @@ dvd_reader_t *DVDOpen( const char *path )
                    me->mnt_dir,
                    have_css ? " for CSS authentication" : "");
           auth_drive = DVDOpenImageFile( me->mnt_fsname, have_css );
+          if(!auth_drive) {
+            internal_errno = errno;
+          }
           dev_name = strdup(me->mnt_fsname);
           break;
         }
@@ -491,8 +527,9 @@ dvd_reader_t *DVDOpen( const char *path )
     if( !dev_name ) {
       fprintf( stderr, "libdvdread: Couldn't find device name.\n" );
     } else if( !auth_drive ) {
-      fprintf( stderr, "libdvdread: Device %s inaccessible%s\n", dev_name,
-               have_css ? ", CSS authentication not available" : "");
+      fprintf( stderr, "libdvdread: Device %s inaccessible%s: %s\n", dev_name,
+               have_css ? ", CSS authentication not available" : "",
+               strerror(internal_errno));
     }
 
     free( dev_name );
@@ -520,12 +557,21 @@ void DVDClose( dvd_reader_t *dvd )
   if( dvd ) {
     if( dvd->dev ) dvdinput_close( dvd->dev );
     if( dvd->path_root ) free( dvd->path_root );
-    if( dvd->udfcache ) FreeUDFCache( dvd->udfcache );
+    if( dvd->udfcache ) FreeUDFCache( dvd, dvd->udfcache );
+    if(dvd->align) {
+      fprintf(stderr, "libdvdread: DVDClose(): Memory leak in align functions\n");
+    }
+    dvdinput_free();
     free( dvd );
   }
 }
 
-void DVDFree(void)
+void DVDInit(void)
+{
+  dvdinput_setup();
+}
+
+void DVDFinish(void)
 {
   dvdinput_free();
 }

@@ -53,7 +53,7 @@ extern "C" {
  */
 uint32_t UDFFindFile( dvd_reader_t *device, char *filename, uint32_t *size );
   
-void FreeUDFCache(void *cache);
+void FreeUDFCache(dvd_reader_t *device, void *cache);
 int UDFGetVolumeIdentifier(dvd_reader_t *device,
                            char *volid, unsigned int volid_size);
 int UDFGetVolumeSetIdentifier(dvd_reader_t *device,

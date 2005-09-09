@@ -280,6 +280,7 @@ static int file_close(dvd_input_t dev)
 
 
 static void *dvdcss_library = NULL;
+static int dvdcss_library_init = 0;
 
 /**
  * Free any objects allocated by dvdinput_setup.
@@ -296,6 +297,7 @@ void dvdinput_free(void)
     dlclose(dvdcss_library);
     dvdcss_library = NULL;
   }
+  dvdcss_library_init = 0;
   return;
 #endif
 }
@@ -307,6 +309,16 @@ void dvdinput_free(void)
 int dvdinput_setup(void)
 {
   char **dvdcss_version = NULL;
+
+  /* dlopening libdvdcss */
+  if(dvdcss_library_init) {
+    /* libdvdcss is already dlopened, function ptrs set */
+    if(dvdcss_library) {
+      return 1; /* css available */
+    } else {
+      return 0; /* css not available */
+    }
+  }
   
 #ifdef HAVE_DVDCSS_DVDCSS_H
   /* linking to libdvdcss */
@@ -316,13 +328,8 @@ int dvdinput_setup(void)
 
 #else
 
-  /* dlopening libdvdcss */
-  if(dvdcss_library) {
-    /* libdvdcss is already dlopened */
-    return 1;
-  }
   dvdcss_library = dlopen("libdvdcss.so.2", RTLD_LAZY);
-  
+
   if(dvdcss_library != NULL) {
 #if defined(__OpenBSD__) && !defined(__ELF__)
 #define U_S "_"
@@ -356,11 +363,14 @@ int dvdinput_setup(void)
       fprintf(stderr,  "libdvdread: Missing symbols in libdvdcss.so.2, "
               "this shouldn't happen !\n");
       dlclose(dvdcss_library);
+      dvdcss_library = NULL;
     }
   }
 #endif /* HAVE_DVDCSS_DVDCSS_H */
+
+  dvdcss_library_init = 1;
   
-  if(dvdcss_library != NULL) {
+  if(dvdcss_library) {
     /*
       char *psz_method = getenv( "DVDCSS_METHOD" );
       char *psz_verbose = getenv( "DVDCSS_VERBOSE" );
