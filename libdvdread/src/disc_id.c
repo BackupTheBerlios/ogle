@@ -1,3 +1,4 @@
+/* -*- c-basic-offset: 2; indent-tabs-mode: nil -*- */
 /*
  * Copyright (C) 2000 Björn Englund <d4bjorn@dtek.chalmers.se>,
  *                    Håkan Hjort <d95hjort@dtek.chalmers.se>
@@ -23,6 +24,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 #include <dvdread/dvd_reader.h>
 
@@ -51,20 +54,24 @@ int main(int argc, char *argv[])
   if( dvd ) {
     if( DVDDiscID( dvd, disc_id ) == 0) {
       for(i = 0; i < 16; i++) {
-	printf( "%02x", disc_id[i] );
+        printf( "%02x", disc_id[i] );
       }
       printf( "\n" );
     } else {
-      fprintf( stderr, "Error getting disc id from disc %s!\n", argv[ 1 ] );
+      fprintf( stderr, "Error getting disc id from disc '%s': %s\n",
+	       argv[ 1 ], strerror(errno) );
+      
       err = -1;
     }
+
     DVDClose(dvd);
   } else {
-    fprintf( stderr, "Can't open disc %s!\n", argv[ 1 ] );
+    fprintf( stderr, "Can't open disc '%s': %s\n",
+             argv[ 1 ], strerror(errno) );
     err = -1;
   }
 
-  DVDFree();
+  DVDFinish();
   return err;  
 }
 

@@ -296,7 +296,7 @@ int main( int argc, char **argv )
     ifoClose( vmg_file );
     DVDCloseFile( title );
     DVDClose( dvd );
-    DVDFree();
+    DVDFinish();
     return 0;
 }
 
