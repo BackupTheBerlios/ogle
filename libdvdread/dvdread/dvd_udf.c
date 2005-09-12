@@ -143,7 +143,9 @@ static void *dvdalign_lbmalloc(dvd_reader_t *device, uint32_t num_lbs)
      a more efficient version.
   */
   if(a->ptrs_in_use > 50) {
-    fprintf(stderr, "libdvdread: dvdalign_lbmalloc(), more allocs than supposed: %u\n", a->ptrs_in_use);
+    if(dvdread_verbose(device) >= 0) {
+      fprintf(stderr, "libdvdread: dvdalign_lbmalloc(), more allocs than supposed: %u\n", a->ptrs_in_use);
+    }
   }
 
   return  a->ptrs[n].aligned;
@@ -179,7 +181,9 @@ static void dvdalign_lbfree(dvd_reader_t *device, void *ptr)
       }
     }
   }
-  fprintf(stderr, "libdvdread: dvdalign_lbfree(), error trying to free mem: %08lx (%u)\n", (unsigned long)ptr, a ? a->ptrs_in_use : 0);
+  if(dvdread_verbose(device) >= 0) {
+    fprintf(stderr, "libdvdread: dvdalign_lbfree(), error trying to free mem: %08lx (%u)\n", (unsigned long)ptr, a ? a->ptrs_in_use : 0);
+  }
 }
 
 

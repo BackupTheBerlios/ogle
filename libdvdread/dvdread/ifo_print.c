@@ -1058,7 +1058,9 @@ void ifoPrint(dvd_reader_t *dvd, int title) {
 
   ifohandle = ifoOpen(dvd, title);
   if(!ifohandle) {
-    fprintf(stderr, "Can't open info file for title %d\n", title);
+    if(dvdread_verbose(dvd) >= 0) {
+      fprintf(stderr, "Can't open info file for title %d\n", title);
+    }
     return;
   }
   
