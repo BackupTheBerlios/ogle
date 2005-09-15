@@ -1778,7 +1778,7 @@ static int get_cellN_for_vobu(uint32_t vobu_addr)
   unsigned int i, j, entries;
   c_adt_t *c_adt = vtsi->vts_c_adt;
     //nr_of_vobs = c_adt->nr_of_vobs;
-  entries = (c_adt->last_byte + 1 - C_ADT_SIZE)/sizeof(c_adt_t);
+  entries = (c_adt->last_byte + 1 - C_ADT_SIZE)/sizeof(cell_adr_t);
   
   fprintf(stderr, "VOBU addr: 0x%x\n", vobu_addr);
   for(i = 0; i < entries; i++) {
