@@ -31,6 +31,7 @@
 #endif
 
 #include <string.h>
+#include <errno.h>
 
 #include "bswap.h"
 #include "ifo_types.h"
@@ -117,6 +118,16 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
   if(!ifoOpen_File(ifofile, title, "IFO")) {
+    if(title) {
+      if(dvdread_verbose(dvd) >= 1) {
+        fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", 
+                title, "IFO");
+      }
+    } else {
+      if(dvdread_verbose(dvd) >= 1) {
+        fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", "IFO");
+      }
+    }
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
@@ -126,6 +137,16 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpen_File(ifofile, title, "BUP"))
+      if(title) {
+        if(dvdread_verbose(dvd) >= 1) {
+          fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", 
+                  title, "BUP");
+        }
+      } else {
+        if(dvdread_verbose(dvd) >= 1) {
+          fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", "BUP");
+        }
+      }
       return NULL;
   }
   return ifofile;
@@ -134,16 +155,6 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
 static ifo_handle_t *ifoOpen_File(ifo_handle_t *ifofile, int title, 
                                   char *suffix) {
   if(!ifofile->file) {
-    if(title) {
-      if(dvdread_verbose(device_of_file(ifofile->file)) >= 1) {
-        fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", 
-                title, suffix);
-      }
-    } else {
-      if(dvdread_verbose(device_of_file(ifofile->file)) >= 1) {
-        fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
-      }
-    }
     free(ifofile);
     return NULL;
   }
@@ -236,6 +247,11 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
 
   ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_FILE);
   if(!ifoOpenVMGI_File(ifofile, "IFO")) {
+    if(dvdread_verbose(dvd) >= 1) {
+      fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.IFO: %s\n",
+              strerror(errno));
+    }
+
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
@@ -245,6 +261,10 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
 
     ifofile->file = DVDOpenFile(dvd, 0, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpenVMGI_File(ifofile, "BUP"))
+      if(dvdread_verbose(dvd) >= 1) {
+        fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.BUP: %s\n",
+                strerror(errno));
+      }
       return NULL;
   }
   return ifofile;
@@ -252,9 +272,6 @@ ifo_handle_t *ifoOpenVMGI(dvd_reader_t *dvd) {
 
 static ifo_handle_t *ifoOpenVMGI_File(ifo_handle_t *ifofile, char *suffix) {
   if(!ifofile->file) {
-    if(dvdread_verbose(device_of_file(ifofile->file)) >= 1) {
-      fprintf(stderr, "libdvdread: Can't open file VIDEO_TS.%s.\n", suffix);
-    }
     free(ifofile);
     return NULL;
   }
@@ -281,15 +298,19 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
   memset(ifofile, 0, sizeof(ifo_handle_t));
   
   if(title <= 0 || title > 99) {
-    if(dvdread_verbose(device_of_file(ifofile->file)) >= 0) {
+    if(dvdread_verbose(dvd) >= 0) {
       fprintf(stderr, "libdvdread: ifoOpenVTSI invalid title (%d).\n", title);
     }
     free(ifofile);
+    errno = EINVAL;
     return NULL;
   }
     
   ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_FILE);
   if(!ifoOpenVTSI_File(ifofile, title, "IFO")) {
+    if(dvdread_verbose(dvd) >= 1) {
+      fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", title, "IFO");
+    }
     /* lower functions free the pointer, reallocate */
     ifofile = (ifo_handle_t *)malloc(sizeof(ifo_handle_t));
     if(!ifofile)
@@ -299,6 +320,9 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
 
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
     if(!ifoOpenVTSI_File(ifofile, title, "BUP"))
+      if(dvdread_verbose(dvd) >= 1) {
+        fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", title, "BUP");
+      }
       return NULL;
   }
   return ifofile;
@@ -306,9 +330,6 @@ ifo_handle_t *ifoOpenVTSI(dvd_reader_t *dvd, int title) {
 
 static ifo_handle_t *ifoOpenVTSI_File(ifo_handle_t* ifofile, int title, char *suffix) {
   if(!ifofile->file) {
-    if(dvdread_verbose(device_of_file(ifofile->file)) >= 1) {
-      fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", title, suffix);
-    }
     free(ifofile);
     return NULL;
   }
