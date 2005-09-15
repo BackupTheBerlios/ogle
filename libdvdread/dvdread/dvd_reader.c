@@ -907,9 +907,10 @@ dvd_file_t *DVDOpenFile( dvd_reader_t *dvd, int titlenum,
   char filename[ MAX_UDF_FILE_NAME_LEN ];
     
   /* Check arguments. */
-  if( dvd == NULL || titlenum < 0 )
+  if( dvd == NULL || titlenum < 0 ) {
     errno = EINVAL;
     return NULL;
+  }
 
   switch( domain ) {
   case DVD_READ_INFO_FILE:
