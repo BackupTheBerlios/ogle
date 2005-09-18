@@ -482,9 +482,16 @@ dvd_reader_t *DVDOpen( const char *path )
     /* Resolve any symlinks and get the absolut dir name. */
     {
       char *new_path;
-      int cdir = open( ".", O_RDONLY );
-            
-      if( cdir >= 0 ) {
+      char *current_path;
+
+      current_path = malloc(PATH_MAX);
+      if(current_path) {
+        if(!getcwd(current_path, PATH_MAX)) {
+          free(current_path);
+          current_path = NULL;
+        }
+      }
+      if(current_path) {
         chdir( path_copy );
         new_path = malloc(PATH_MAX);
         if(new_path) {
@@ -493,8 +500,9 @@ dvd_reader_t *DVDOpen( const char *path )
             new_path = NULL;
           }
         }
-        fchdir( cdir );
-        close( cdir );
+
+        chdir(current_path);
+        free(current_path);
         if( new_path ) {
           free( path_copy );
           path_copy = new_path;

@@ -23,8 +23,14 @@
 
 #include <dvdread/dvd_reader.h>
 
+#if defined(__BEOS__)
+#if !defined(_INTTYPES_H_) && !defined(_INTTYPES_H) && !defined(_STDINT_H_) && !defined(_STDINT_H)
+#error "Must include <inttypes.h> or <stdint.h> before any libdvdread header."
+#endif
+#else
 #if !defined(UINT8_MAX) || !defined(UINT16_MAX) || !defined(INT32_MAX)
 #error "Must include <inttypes.h> or <stdint.h> before any libdvdread header."
+#endif
 #endif
 
 #undef ATTRIBUTE_PACKED

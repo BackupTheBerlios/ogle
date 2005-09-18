@@ -81,6 +81,10 @@ typedef struct dvd_file_s dvd_file_t;
  * @return If successful a a read handle is returned. Otherwise 0 is returned.
  *
  * dvd = DVDOpen(path);
+ *
+ * Threads: this function uses chdir() and getcwd().
+ * The current working directory is global to all threads,
+ * so using chdir/getcwd in another thread could give unexpected results.
  */
 dvd_reader_t *DVDOpen( const char * );
 
