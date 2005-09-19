@@ -113,6 +113,7 @@ int get_verbose(void)
   } else {
     verbose = DVDREAD_VERBOSE_DEFAULT;
   }
+  return verbose;
 }
 
 int dvdread_verbose(dvd_reader_t *dvd)
