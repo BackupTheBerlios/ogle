@@ -48,6 +48,7 @@
 
 #include "dvd_reader.h"
 #include "dvd_udf.h"
+#include "dvdread_internal.h"
 
 #ifndef EMEDIUMTYPE
 #define EMEDIUMTYPE ENOENT
