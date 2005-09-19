@@ -136,7 +136,7 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
     memset(ifofile, 0, sizeof(ifo_handle_t));
 
     ifofile->file = DVDOpenFile(dvd, title, DVD_READ_INFO_BACKUP_FILE);
-    if(!ifoOpen_File(ifofile, title, "BUP"))
+    if(!ifoOpen_File(ifofile, title, "BUP")) {
       if(title) {
         if(dvdread_verbose(dvd) >= 1) {
           fprintf(stderr, "libdvdread: Can't open file VTS_%02d_0.%s.\n", 
@@ -148,6 +148,7 @@ ifo_handle_t *ifoOpen(dvd_reader_t *dvd, int title) {
         }
       }
       return NULL;
+    }
   }
   return ifofile;
 }
