@@ -1928,7 +1928,9 @@ void display_exit(void)
   if(mydisplay) {
     XSync(mydisplay,True);
     if(use_xv)
+#ifdef HAVE_XV
       XvUngrabPort(mydisplay,xv_port,CurrentTime);
+#endif
     if(use_xshm)
       XShmDetach(mydisplay, &shm_info);
     if(window.ximage != 0)
