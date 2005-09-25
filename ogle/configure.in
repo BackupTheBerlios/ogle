@@ -889,8 +889,12 @@ GCCINFO=
 if test "x$GCC" = xyes; then
    echo "int main(){return(0);}" > gcctest.c
    gcc $CFLAGS $CPPFLAGS -S -fverbose-asm -o gcctest.s gcctest.c
-   GCCINFO="gcc options: `grep '^#' gcctest.s`"
+   GCCOPTLIST="gcc options: `grep '^#' gcctest.s`"
    rm -f gcctest.c gcctest.s
+   for n in $GCCOPTLIST; do
+     GCCINFO="${GCCINFO}${n} "
+   done
+   GCCINFO="`echo $GCCINFO | sed s/#/:/g`"
 fi
 echo "$GCCINFO"
 
@@ -906,6 +910,7 @@ ifdef([AM_PROG_AS],[AM_PROG_AS],[])
 
 AC_SUBST(O_CFLAGS)
 AC_SUBST(BUILDINFO)
+AC_SUBST(GCCINFO)
 AC_SUBST(USE_MMX)
 AM_CONDITIONAL(USE_MMX, [test "x$USE_MMX" = xyes])
 AC_SUBST(USE_ALTIVEC)

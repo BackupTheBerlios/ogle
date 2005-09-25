@@ -28,6 +28,8 @@ while [ $# -gt 0 ]
           OGLE_DLEVEL=5
           DVDCSS_VERBOSE=2
           export DVDCSS_VERBOSE
+	  DVDREAD_VERBOSE=2
+	  export DVDREAD_VERBOSE
           ;;
       --check)
           debug="1"
@@ -88,6 +90,8 @@ if [ "$debug" = "1" ]; then
  runtime="Runtime: `uname -m -r -s -v`"
  runtime="${runtime} `uname -p 2> /dev/null`"
  echo "$runtime"
+ # gcc options used at compile time
+ echo "@GCCINFO@"
 
  case $ostype in
      "Linux")
