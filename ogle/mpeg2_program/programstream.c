@@ -277,7 +277,8 @@ int dvd_change_file(int titlenum, dvd_read_domain_t domain)
     DVDCloseFile(dvdfile);
   }
   if((dvdfile = DVDOpenFile(dvdroot, titlenum, domain)) == NULL) {
-    FATAL("%s", "Couldn't open dvdfile\n");
+    FATAL("Couldn't open dvdfile (%d,%d): %s\n",
+	  titlenum, domain, strerror(errno));
     exit(1);
   }
   dvd_file_num = titlenum;
