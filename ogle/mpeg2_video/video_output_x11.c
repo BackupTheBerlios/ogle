@@ -850,10 +850,10 @@ static void set_videoarea(window_info *w, int width, int height)
 {
   w->video_area.width = width;
   w->video_area.height = height;
-  w->video_area.x = (w->window_area.width - 
-		     w->video_area.width) / 2;
-  w->video_area.y = (w->window_area.height -
-		     w->video_area.height) / 2;
+  w->video_area.x = ((int)w->window_area.width - 
+		     (int)w->video_area.width) / 2;
+  w->video_area.y = ((int)w->window_area.height -
+		     (int)w->video_area.height) / 2;
   
   return;
 }
@@ -2210,8 +2210,8 @@ static void draw_win_x11(window_info *dwin)
   
   set_videoarea(&window, scale.image_width, scale.image_height);
 
-  /*
   
+  /*  
   fprintf(stderr, "dwin->win: %d, mygc: %d, dwin->ximage: %d, 0, 0,\n",
 	  dwin->win, mygc, dwin->ximage);
   fprintf(stderr, "x: %d %x,  y: %d %x, w: %d %x, h: %d %x\n",
