@@ -1536,6 +1536,7 @@ void mpeg2_slice(void)
   } while(((seq.mb_column + 1) < seq.mb_width) && (nextbits(23) != 0));
   
   DINDENT(-2);
+  DINDENT(-2);
 }
 
 
