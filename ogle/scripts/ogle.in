@@ -16,16 +16,15 @@ mpeg_vs_debug=""
 check="0"
 param=""
 
-if [ -z "$OGLE_DLEVEL" ]; then
-    OGLE_DLEVEL=3
-fi
 
 while [ $# -gt 0 ]
   do
   case "$1" in
       --debug)
           debug="1"
-          OGLE_DLEVEL=5
+	  if [ -z "$OGLE_DLEVEL" ]; then
+	      OGLE_DLEVEL=5
+	  fi
           DVDCSS_VERBOSE=2
           export DVDCSS_VERBOSE
 	  DVDREAD_VERBOSE=2
@@ -79,6 +78,10 @@ while [ $# -gt 0 ]
   esac
   shift
 done
+
+if [ -z "$OGLE_DLEVEL" ]; then
+    OGLE_DLEVEL=3
+fi
 
 export OGLE_DLEVEL
 
