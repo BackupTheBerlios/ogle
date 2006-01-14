@@ -38,6 +38,7 @@ static void *my_dlsym(void *handle, char *symbol) {
   new_symbol = g_strdup(symbol);
 #endif
 
+  dlerror();
   fun = dlsym(handle, new_symbol);
   error = dlerror();
   if(error != NULL) {
