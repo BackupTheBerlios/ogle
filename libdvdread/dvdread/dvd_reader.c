@@ -127,6 +127,15 @@ dvd_reader_t *device_of_file(dvd_file_t *file)
 }
 
 /**
+ * Returns the compiled version. (DVDREAD_VERSION as an int)
+ */
+int DVDVersion(void)
+{
+  return DVDREAD_VERSION;
+}
+
+
+/**
  * Set the level of caching on udf
  * level = 0 (no caching)
  * level = 1 (caching filesystem info)

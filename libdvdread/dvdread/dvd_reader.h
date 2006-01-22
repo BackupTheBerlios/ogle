@@ -32,9 +32,14 @@
  */
 
 /**
- * The current version.
+ * The current version. (0.9.4 => 904, 1.2.3 => 10203)
  */
-#define DVDREAD_VERSION 904
+#define DVDREAD_VERSION 905
+
+/**
+ * Returns the compiled version. (DVDREAD_VERSION as an int)
+ */
+int DVDVersion(void);
 
 /**
  * The length of one Logical Block of a DVD.
