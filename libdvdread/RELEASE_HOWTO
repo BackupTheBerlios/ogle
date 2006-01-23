@@ -1,0 +1,51 @@
+1.	Check out a clean source tree from CVS.
+
+2.	./bootstrap
+	./configure
+	Do 'make dist' and
+	make sure the resulting tar.gz compiles and runs (on all platforms).
+	
+3.	Update libtool versioning info in dvdread/Makefile.am if needed.
+	Commit changes.
+
+4.	Update libdvdread version in configure.in
+	Commit changes.
+
+5.	Update libdvdread version in dvdread/dvd_reader.h
+
+(note: version for 3,4,5 should be moved to configure.in in future versions)
+
+6.	Make rpms
+
+6.1 update the version number (and package description)
+    and change log
+    in libdvdread.spec
+
+6.2 chroot to your build environment if neccesary
+
+6.3 Copy the spec files to /usr/src/redhat/SPECS
+
+6.4 Copy the libdvdread-x.x.x.tar.gz to /usr/src/redhat/SOURCES
+
+6.6 Change the hostname if you don't want it set in the package information
+    with 'hostname <name>'
+
+6.6 rpmbuild -ba --target i386 libdvdread.spec
+
+6.7 Change back your hostname
+
+6.8 Make sure the rpms can be installed and run.
+
+6.9 Copy the rpms in /usr/src/redhat/RPMS/i386 and /usr/src/redhat/SRPMS
+    to the web server.
+
+7.  Copy libdvdread-X.X.X.tar.gz to the web server.
+
+8.  Update the web (download links, news, features)
+    Make sure you can download everything (permissions/...)
+
+9.  Announce on ogle-user, ogle-devel mailinglists
+    Announce on freshmeat/...
+
+10. Tag all files in cvs with the release
+    'cvs tag v_X_X_X .'
