@@ -68,6 +68,7 @@ typedef struct {
   int has_highlight;
   uint8_t color[4];
   uint8_t contrast[4];
+  int32_t nav_serial;
 } spu_handle_t;
 
 typedef struct {
@@ -77,6 +78,7 @@ typedef struct {
   int y_start;
   int x_end;
   int y_end;
+  int32_t nav_serial;
 } highlight_t;
 
 
@@ -109,11 +111,13 @@ static highlight_t highlight = {{0,1,2,3}, {0xf, 0xa, 0x6,0x2}, 2,2,718, 450};
 static uint32_t spu_state;
 
 extern int video_scr_nr;
+extern int *video_flush_to_scrid;
 extern int msgqid;
 
 extern MsgEventQ_t *msgq;
 
 static int flush_to_scrid = -1;
+static int32_t flush_to_navserial = -1;
 static int rgbmode,pixelstride;
 
 #define MAX_BUF_SIZE 65536
@@ -251,21 +255,30 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
   case MsgEventQSPUHighlight:
     {
       int n;
-      
+      DNOTE("hilite %d, %d -> %d, %d,  %d\n",
+	    ev->spuhighlight.x_start,
+	    ev->spuhighlight.y_start,
+	    ev->spuhighlight.x_end,
+	    ev->spuhighlight.y_end,
+	    ev->spuhighlight.nav_serial);
+	    
       /* Enable the highlight, should have PTS or scr I think */
       spu_info.has_highlight = 1;
-      
+      highlight.nav_serial = ev->spuhighlight.nav_serial;
       highlight.x_start = ev->spuhighlight.x_start;
       highlight.y_start = ev->spuhighlight.y_start;
       highlight.x_end = ev->spuhighlight.x_end;
       highlight.y_end = ev->spuhighlight.y_end;
-
+      DNOTE("%s", "col/cont:");
       for(n = 0; n < 4; n++) {
 	highlight.color[n] = ev->spuhighlight.color[n];
+	DNOTEC(" %d", highlight.color[n]);
       }
       for(n = 0; n < 4; n++) {
 	highlight.contrast[n] = ev->spuhighlight.contrast[n];
+	DNOTEC(" %d", highlight.contrast[n]);
       }
+      DNOTEC("%s", "\n");
       redraw_request();
     }
     break;
@@ -283,7 +296,7 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
 
 
 static int get_q(char *dst, int readlen, uint64_t *display_base_time, 
-		 int *new_scr_nr)
+		 int *new_scr_nr, int32_t *nav_serial)
 {
   MsgEvent_t ev;
   q_head_t *q_head;
@@ -344,7 +357,7 @@ static int get_q(char *dst, int readlen, uint64_t *display_base_time,
   if(PTS_DTS_flags & 0x1) {
     DTS = data_elem->DTS;
   }
-  
+  *nav_serial = data_elem->serial;
   //DNOTE("spu_mixer: len: %d\n", len);
   //DNOTE("spu_mixer: readlen: %d\n", readlen);
   //DNOTE("spu_mixer: read_offset: %d\n", read_offset);
@@ -415,7 +428,7 @@ int init_spu(void)
 
 
 static int get_data(uint8_t *databuf, int bufsize, 
-		    uint64_t *dtime, int *scr_nr)
+		    uint64_t *dtime, int *scr_nr, int32_t *nav_serial)
 {
   int r;
   static int bytes_to_read = 0;
@@ -436,7 +449,8 @@ static int get_data(uint8_t *databuf, int bufsize,
   }
   if(state == 0) {
     while(bytes_to_read > 0) {
-      r = get_q(&databuf[2-bytes_to_read], bytes_to_read, dtime, scr_nr);
+      r = get_q(&databuf[2-bytes_to_read], bytes_to_read, dtime,
+		scr_nr, nav_serial);
       
       if(r > 0) {
 	bytes_to_read -= r;
@@ -470,7 +484,8 @@ static int get_data(uint8_t *databuf, int bufsize,
 
   // get the rest of the spu
   while(bytes_to_read > 0) {
-    r = get_q(&databuf[spu_size-bytes_to_read], bytes_to_read, dtime, scr_nr);
+    r = get_q(&databuf[spu_size-bytes_to_read], bytes_to_read, dtime,
+	      scr_nr, nav_serial);
     
     if(r > 0) {
       bytes_to_read -= r;
@@ -960,7 +975,10 @@ static void decode_display_data(spu_handle_t *spu_info, char *data,
   aligned = 1;
   set_byte(&spu_info->buffer[fieldoffset[field]]);
   
-  //DNOTE("\nDecoding overlay picture data\n");
+  DNOTE("Decoding overlay picture data, hilite: %d, hiliser: %d, spuser: %d\n",
+	spu_info->has_highlight,
+	highlight.nav_serial,
+	spu_info->nav_serial);
   
   //initialize(spu_info->width, spu_info->height);
   x = 0;
@@ -1146,20 +1164,30 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
 
   /* If next_time haven't been set, try to set it. */
   if(spu_info->next_time == 0) {
-    
+
     if(spu_info->next_DCSQ_offset == spu_info->last_DCSQ) {
       unsigned char *b = spu_info->next_buffer;
       
       if(get_data(spu_info->next_buffer, MAX_BUF_SIZE, 
-		   &spu_info->base_time, &spu_info->scr_nr) <= 0) {
+		  &spu_info->base_time, &spu_info->scr_nr, 
+		  &spu_info->nav_serial) <= 0) {
 	if(flush_to_scrid != -1) {
 	  // FIXME: assumes order of src_nr
 	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 	    /* Reset state  */
+	    DNOTE("not getdata scr %d < flushto %d (%d),  hili: %d spu: %d\n",
+		  ctrl_time[spu_info->scr_nr].scr_id, flush_to_scrid,
+		  flush_to_navserial,
+		  highlight.nav_serial, spu_info->nav_serial); 
+
 	    spu_info->display_start = 0;
-	    spu_info->has_highlight = 0;
+	    
+	    if(highlight.nav_serial < flush_to_navserial) {
+	      spu_info->has_highlight = 0;
+	    }
 	  }
 	}
+
 	return 0;
       }
       /* The offset to the first DCSQ */
@@ -1185,7 +1213,13 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
       
       /* Reset state  */
       spu_info->display_start = 0;
-      spu_info->has_highlight = 0;
+      if(highlight.nav_serial < flush_to_navserial) {
+	spu_info->has_highlight = 0;
+      }
+      DNOTE("scr %d < flushto %d (%d),  hili: %d spu: %d\n",
+	    ctrl_time[spu_info->scr_nr].scr_id, flush_to_scrid,
+	    flush_to_navserial,
+	    highlight.nav_serial, spu_info->nav_serial); 
       
       return 1;
     } else {
@@ -1193,13 +1227,22 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
     }
   }
 
-  //  if(spu_info->scr_nr < video_scr_nr) { // FIXME: assumes order of src_nr
-  if(ctrl_time[spu_info->scr_nr].scr_id < ctrl_time[video_scr_nr].scr_id) {
+#if 0
+  DNOTE("video_scr_nr %d (%d), v_ft: %d\n",
+	video_scr_nr,
+	ctrl_time[video_scr_nr].scr_id,
+	*video_flush_to_scrid);
+#endif
+
+  if((ctrl_time[spu_info->scr_nr].scr_id < ctrl_time[video_scr_nr].scr_id) ||
+     (ctrl_time[spu_info->scr_nr].scr_id < *video_flush_to_scrid)) {
+#if 0
     DNOTE("spu: spu_info->scr_nr (%d)[%d] != video_scr_nr (%d)[%d]\n",
 	  spu_info->scr_nr,
 	  ctrl_time[spu_info->scr_nr].scr_id,
 	  video_scr_nr,
 	  ctrl_time[video_scr_nr].scr_id);
+#endif
     return 1;
   }
 
@@ -1214,10 +1257,14 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
   //  timesub(&errtime, &spu_info->next_time, &realtime);
 
   if(TIME_SS(errtime) < 0 || TIME_S(errtime) < 0) {
-    //DNOTE("spu: errtime: %ld.%09ld\n",TIME_S(errtime),TIME_SS(errtime));
+#if 0
+    DNOTE("spu: errtime: %s%ld.%09ld\n", 
+	  (TIME_S(errtime) < 0 || TIME_SS(errtime) < 0 ? "-": ""),
+	  TIME_S(errtime),
+	  (TIME_SS(errtime) < 0 ? -TIME_SS(errtime) : TIME_SS(errtime)));
+#endif
     return 1;
   }
-  
   return 0;
 }
 
@@ -1349,7 +1396,7 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
 
 
 
-void flush_subpicture(int scr_id)
+void flush_subpicture(int scr_id, int32_t nav_serial)
 {
   /*
    * Check for, and execute all pending spu command sequences.
@@ -1362,7 +1409,7 @@ void flush_subpicture(int scr_id)
   
   //DNOTE("spu: flush_subpicture to scr_id: %d\n", scr_id);
   flush_to_scrid = scr_id;
-
+  flush_to_navserial = nav_serial;
   while(next_spu_cmd_pending(&spu_info)) {
 
     if(spu_info.next_DCSQ_offset == spu_info.last_DCSQ) {
@@ -1383,4 +1430,14 @@ void flush_subpicture(int scr_id)
      */
     spu_info.next_time = 0;
   }
+}
+
+int poll_subpicture(void)
+{
+  //ugly hack
+  if(!initialized) {
+    return 0;
+  }
+
+  return next_spu_cmd_pending(&spu_info);
 }

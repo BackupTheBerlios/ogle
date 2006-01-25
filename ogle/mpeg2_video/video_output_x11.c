@@ -609,6 +609,14 @@ static void display_init_xshm()
     exit(1);
   }
   
+  {
+    int shmsize = window.ximage->bytes_per_line * window.ximage->height;
+    DNOTE("init_xshm getting bpp: %d, h: %d = %d bytes sysv shm\n",
+	  window.ximage->bytes_per_line,
+	  window.ximage->height,
+	  shmsize);
+  }
+
   /* Get a shared memory segment */
   shm_info.shmid = shmget(IPC_PRIVATE,
 			  window.ximage->bytes_per_line * 
@@ -1204,10 +1212,23 @@ static void display_change_size(yuv_image_t *img, int new_width,
     if(window.ximage->bytes_per_line *  window.ximage->height
        < padded_width * padded_height * 4) {
       alloc_size = padded_width * padded_height * 4;
+      {
+	DNOTE("display_change_size: getting bpp:%d, h:%d = %d bytes sysv shm\n",
+	      padded_width,
+	      padded_height,
+	      alloc_size);
+      }
     } else {
       alloc_size = window.ximage->bytes_per_line * window.ximage->height;
+      {
+	DNOTE("display_change_size: getting bpp:%d, h:%d = %d bytes sysv shm\n",
+	      window.ximage->bytes_per_line,
+	      window.ximage->height,
+	      alloc_size);
+      }
     }
     
+
     /* Get a shared memory segment */
     shm_info.shmid = shmget(IPC_PRIVATE, alloc_size, IPC_CREAT | 0666);
 

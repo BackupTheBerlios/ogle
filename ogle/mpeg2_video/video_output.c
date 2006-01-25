@@ -104,7 +104,9 @@ int msgqid = -1;
 MsgEventQ_t *msgq;
 
 
+
 static int flush_to_scrid = -1;
+int *video_flush_to_scrid = &flush_to_scrid;
 static int prev_scr_nr = 0;
 
 
@@ -409,6 +411,9 @@ static void redraw_screen(void)
 
   if(flush_to_scrid != -1) {
     if(ctrl_time[video_scr_nr].scr_id < flush_to_scrid) {
+      if(last_image_buf != NULL) {
+	display(last_image_buf);    
+      }
       redraw_done();
       return;
     } else {
@@ -452,8 +457,12 @@ static int handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQFlushData:
     DPRINTF(1, "vo: got flush\n");
+#ifdef NAV_SEARCH_DEBUG
+    fprintf(stderr, "\n************\nvo: got flush: %d, %d\n*********\n",
+	    ev->flushdata.to_scrid, ev->flushdata.to_navserial);
+#endif
     flush_to_scrid = ev->flushdata.to_scrid;
-    flush_subpicture(flush_to_scrid);
+    flush_subpicture(flush_to_scrid, ev->flushdata.to_navserial);
     break;
   case MsgEventQAttachQ:
     attach_picture_buffer(ev->attachq.q_shmid);
@@ -689,7 +698,12 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
       if(MsgNextEventInterruptible(msgq, &ev) == -1) {
 	switch(errno) {
 	case EINTR:
-	  continue;
+	  timer.it_value.tv_usec = 0; // disable timer
+	  setitimer(ITIMER_REAL, &timer, NULL);
+	  if(poll_subpicture()) {
+	    redraw_request();
+	  }
+	  //  continue;
 	  break;
 	default:
 	  FATAL("%s", "waiting for notification");
@@ -698,10 +712,11 @@ static int get_next_picture_q_elem_id(data_q_t *data_q)
 	  display_exit(); //clean up and exit
 	  break;
 	}
+      } else {
+	timer.it_value.tv_usec = 0; // disable timer
+	setitimer(ITIMER_REAL, &timer, NULL);
+	event_handler(msgq, &ev);
       }
-      timer.it_value.tv_usec = 0; // disable timer
-      setitimer(ITIMER_REAL, &timer, NULL);
-      event_handler(msgq, &ev);
       if(redraw_needed) {
 	redraw_screen();
       }

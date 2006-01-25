@@ -1339,7 +1339,7 @@ int vm_time_play(dvd_time_t *time, unsigned int offset)
   if(seconds < 0)
     seconds = 0;
   
-  fprintf(stderr, "Time Play/Skipp to offset %dseconds\n", seconds);
+  fprintf(stderr, "Time Play/Skip to offset %d seconds\n", seconds);
   
   pgcN = get_PGCN();
   // Is there an entry for this pgc?
@@ -1371,8 +1371,13 @@ int vm_time_play(dvd_time_t *time, unsigned int offset)
        * Can one have time seek for multiangle pgc's?
        */
       { 
+	int cellN;
 	cell_playback_t *cells = state.pgc->cell_playback;
-	state.cellN = get_cellN_for_vobu(vobu_addr); //scan the cell table?
+	cellN = get_cellN_for_vobu(vobu_addr); //scan the cell table?
+	if(!cellN) {
+	  return 0;
+	}
+	state.cellN = cellN;
 	assert(vobu_addr >= cells[state.cellN - 1].first_sector);
 	assert(vobu_addr <= cells[state.cellN - 1].last_vobu_start_sector);
 	state.blockN = vobu_addr - cells[state.cellN - 1].first_sector;
@@ -1806,9 +1811,10 @@ static int get_cellN_for_vobu(uint32_t vobu_addr)
   }
   // Something crazy has happened!!
   // Unable to find the VOB / CELL id for the VOBU!
-  assert(0 & 14);
-
-  return 1;
+  //assert(0 & 14);
+  WARNING("Couldn't find Cell id for VOBU addr: 0x%x \n",
+	  vobu_addr);
+  return 0;
 }
 
 static int get_video_aspect(void)

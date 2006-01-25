@@ -40,10 +40,11 @@
 
 void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev);
-int get_q(MsgEventQ_t *msgq, unsigned char *buffer);
+int get_q(MsgEventQ_t *msgq, unsigned char *buffer, int32_t *serial);
 void wait_for_init(MsgEventQ_t *msgq);
 int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
+int send_videodecoder(MsgEventQ_t *msgq, MsgEvent_t *ev);
 
 static void change_file(char *new_filename);
 static int attach_ctrl_shm(int shmid);
@@ -63,6 +64,7 @@ static unsigned char *data_buf_shmaddr;
 
 static MsgEventClient_t demux_client = 0;
 static MsgEventClient_t spu_client = 0;
+static MsgEventClient_t videodecoder_client = 0;
 static char *dvdroot = NULL;
 //MsgEventClient_t ui_client;
 
@@ -75,6 +77,32 @@ int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev) {
 
 int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev) {
   return MsgSendEvent(msgq, spu_client, ev, 0);
+}
+
+int get_videodecoder(MsgEventQ_t *msgq)
+{
+  MsgEvent_t ev;
+  ev.type = MsgEventQReqCapability;
+  ev.reqcapability.capability = DECODE_MPEG2_VIDEO;
+  if(MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &ev, 0) == -1) {
+    FATAL("%s", "couldn't get video cap\n");
+    exit(1);
+  }
+  
+  while(!videodecoder_client) {
+    MsgEvent_t t_ev;
+    if(MsgNextEvent(msgq, &t_ev) != -1) {
+      handle_events(msgq, &t_ev);
+    }
+  }
+}
+
+int send_videodecoder(MsgEventQ_t *msgq, MsgEvent_t *ev) {
+  if(!videodecoder_client) {
+    get_videodecoder(msgq);
+    NOTE("%s", "got video decoder\n");
+  }
+  return MsgSendEvent(msgq, videodecoder_client, ev, 0);
 }
 
 char *get_dvdroot(void) {
@@ -118,6 +146,8 @@ void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev)
       demux_client = ev->gntcapability.capclient;
     else if((ev->gntcapability.capability & DECODE_DVD_SPU) == DECODE_DVD_SPU)
       spu_client = ev->gntcapability.capclient;
+    else if((ev->gntcapability.capability & DECODE_MPEG2_VIDEO) == DECODE_MPEG2_VIDEO)
+      videodecoder_client = ev->gntcapability.capclient;
     else
       WARNING("capabilities not requested (%d)\n", 
 	      ev->gntcapability.capability);
@@ -365,7 +395,7 @@ int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev) {
 }
 
 
-int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
+int get_q(MsgEventQ_t *msgq, unsigned char *buffer, int32_t *serial)
 {
   q_head_t *q_head;
   q_elem_t *q_elems;
@@ -388,6 +418,8 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   //static int packnr = 0;
   //static clocktime_t time_offset = { 0, 0 };
   MsgEvent_t ev;
+
+
   volatile int *in_use;
 
   /* Should never hapen if you call wait_q first */
@@ -432,6 +464,8 @@ int get_q(MsgEventQ_t *msgq, unsigned char *buffer)
   //scr_nr = q_elems[elem].scr_nr;
   
   change_file(data_elem->filename);
+  
+  *serial = data_elem->serial;
 
   off = data_elem->packet_data_offset;
   len = data_elem->packet_data_len;

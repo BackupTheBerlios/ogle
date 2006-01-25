@@ -52,6 +52,8 @@ extern int standalone;
 extern int output_client;
 extern int input_stream;
 
+extern int set_video_state(int state);
+
 int stream_shmid = -1;
 char *stream_shmaddr;
 
@@ -369,6 +371,9 @@ void handle_events(MsgEventQ_t *q, MsgEvent_t *ev)
     break;
   case MsgEventQQDetached:
     detach_data_q(ev->detachq.q_shmid, &data_q_head);
+    break;
+  case MsgEventQSetDecodeVideoState:
+    set_video_state(ev->decodevideostate.state);
     break;
   default:
     fprintf(stderr, "*video_decoder: unrecognized event type\n");

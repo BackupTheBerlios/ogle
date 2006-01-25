@@ -44,6 +44,7 @@ typedef struct {
   int flowcmd;
   PacketType_t packet_type;
   uint32_t packet_offset;
+  int32_t serial;
 } data_elem_t;
 
 
@@ -80,6 +81,7 @@ typedef struct {
   int picture_len;
   long int frame_interval;
   char *q_addr;
+  int32_t serial;
 } picture_data_elem_t;
 
 

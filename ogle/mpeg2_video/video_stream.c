@@ -64,6 +64,13 @@ extern MsgEventQ_t *msgq;
 
 extern int flush_to_scrid;
 
+static int video_state = 1;
+
+int set_video_state(int state)
+{
+  video_state = state;
+}
+
 int get_output_buffer(data_q_t *data_q,
 		      int padded_width, int padded_height, int nr_of_bufs);
 void remove_output_buffer(void);
@@ -2152,7 +2159,7 @@ void picture_data(void)
 
 
   /* now we can decode the picture if it shouldn't be dropped */
-  if(!drop_frame && (flush_to_scrid == -1)) {
+  if(!drop_frame && (flush_to_scrid == -1) && video_state) {
     /* Decode the slices. */
     if( MPEG2 ) {
       do {
@@ -2202,7 +2209,7 @@ void picture_data(void)
 	last_pts_to_dpy = pinfos[buf_id].PTS;
 	last_scr_nr_to_dpy = pinfos[buf_id].scr_nr;//?
 	
-	if(drop_frame || (flush_to_scrid != -1)) {
+	if(drop_frame || (flush_to_scrid != -1) || !video_state) {
 	  drop_frame = 0;
 	  pinfos[buf_id].is_reference = 0; //this is never set in a B picture?
 	  pinfos[buf_id].displayed = 1;
@@ -2256,7 +2263,7 @@ void picture_data(void)
       last_pts_to_dpy = pinfos[bwd_ref_buf_id].PTS;
       last_scr_nr_to_dpy = pinfos[bwd_ref_buf_id].scr_nr;
 
-      if(flush_to_scrid != -1) {
+      if(flush_to_scrid != -1 || !video_state) {
 	pinfos[bwd_ref_buf_id].is_reference = 0;
 	pinfos[bwd_ref_buf_id].displayed = 1;
       } else {

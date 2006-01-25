@@ -127,6 +127,7 @@ char *data_buf_addr;
 int off_from;
 int off_to;
 int demux_cmd;
+static int32_t demux_nav_serial;
 
 extern char *optarg;
 extern int   optind, opterr, optopt;
@@ -157,6 +158,9 @@ uint32_t offs;
 
 char cur_filename[PATH_MAX+1];
 int new_file;
+
+static int searching_for_nav;
+static int nav_found = 0;
 
 // #define DEBUG
 
@@ -420,6 +424,8 @@ int fill_buffer(int title, dvd_read_domain_t domain, int boffset, int nblocks)
 	/* the nr of contigously available blocks is too small, 
 	 * wait for more free blocks */
 	fprintf(stderr, "*demux: SEND A BUG REPORT: need more free space, not implemented\n");
+	fprintf(stderr, "title: %d, domain: %d, boffset: %u, nblocks: %u\n",
+		title, domain, boffset, nblocks);
       } else {
 	/* we have enough free blocks */
 	break;
@@ -583,7 +589,9 @@ void get_next_demux_q(void)
 	}
       }
     }
-    
+#ifdef NAV_SEARCH_DEBUG
+    fprintf(stderr, "+++++++++++++++ q len: %d +++++++++++\n", demux_q_len);
+#endif
     q_ev = &demux_q[demux_q_start];
     
     switch(q_ev->type) {
@@ -604,10 +612,78 @@ void get_next_demux_q(void)
       //free(q_ev->cmd.file);
       break;
     case MsgEventQDemuxDVD:
-      fill_buffer(q_ev->demuxdvd.titlenum, q_ev->demuxdvd.domain,
-		  q_ev->demuxdvd.block_offset, q_ev->demuxdvd.block_count);
-      new_demux_range = 1;
-      demux_cmd = q_ev->demuxdvd.flowcmd;
+      searching_for_nav = q_ev->demuxdvd.nav_search;
+      if(searching_for_nav) {
+#ifdef NAV_SEARCH_DEBUG
+	fprintf(stderr, "\n++++++++++++ demux dvd search+++++++++++++++++\n");
+#endif
+	if(nav_found) {
+	  //done, skip to next cmd
+#ifdef NAV_SEARCH_DEBUG
+	  WARNING("nav found at block %x\n", q_ev->demuxdvd.block_offset-1);
+#endif
+	  nav_found = 0;
+	} else {
+	  
+	  if(demux_q_start == 0) {
+	    demux_q_start = DEMUX_Q_NUM_ELEM-1;
+	  } else {
+	    demux_q_start--;
+	  }
+	  demux_q_len++;
+#ifdef NAV_SEARCH_DEBUG	  
+	  WARNING("searching for nav at block %x(%x)\n",
+		  q_ev->demuxdvd.block_offset,
+		  demux_nav_serial = q_ev->demuxdvd.serial);
+#endif
+	  //check next block
+	  if(q_ev->demuxdvd.block_count) {
+	    fill_buffer(q_ev->demuxdvd.titlenum, q_ev->demuxdvd.domain,
+			q_ev->demuxdvd.block_offset++, 1); 
+	    q_ev->demuxdvd.block_count--;
+	    new_demux_range = 1;
+	    demux_cmd = q_ev->demuxdvd.flowcmd;
+	    demux_nav_serial = q_ev->demuxdvd.serial;
+	  } else {
+	    WARNING("%s", "Found no NAV-blocks\n");
+	  }
+	}
+      } else {
+#ifdef NAV_SEARCH_DEBUG
+	fprintf(stderr, "\n++++++++++++ demux dvd +++++++++++++++++\n");
+#endif
+	if(q_ev->demuxdvd.titlenum == 0 &&
+	   q_ev->demuxdvd.domain == 0 &&
+	   q_ev->demuxdvd.block_offset == 0 &&
+	   q_ev->demuxdvd.block_count == 0) {
+#ifdef NAV_SEARCH_DEBUG
+	  fprintf(stderr, "\n++++++++++++ demux flush +++++++++++++++++\n");
+#endif	  
+	  demux_cmd = q_ev->demuxdvd.flowcmd;
+	  demux_nav_serial = q_ev->demuxdvd.serial;
+
+	  if(id_stat(0xe0, 0) == STREAM_DECODE ||
+	     id_stat(0xe0, 0) == STREAM_MUTED) {
+#ifdef NAV_SEARCH_DEBUG
+	    fprintf(stderr, "\n++++++++++++ stream in use +++++++++++++++\n");
+#endif
+	    if(demux_cmd & FlowCtrlFlush) {
+#ifdef NAV_SEARCH_DEBUG
+	      fprintf(stderr, "\n++++++ flowcmd ++++++++++++++\n");
+#endif
+	      put_in_q(id_qaddr(0xe0, 0), 0, 0, 0, 0, 0, 0, demux_cmd, 0, 0);
+	    }
+	  }
+	} else {
+	  
+	  
+	  fill_buffer(q_ev->demuxdvd.titlenum, q_ev->demuxdvd.domain,
+		      q_ev->demuxdvd.block_offset, q_ev->demuxdvd.block_count);
+	  new_demux_range = 1;
+	  demux_cmd = q_ev->demuxdvd.flowcmd;
+	  demux_nav_serial = q_ev->demuxdvd.serial;
+	}
+      }
       break;
     case MsgEventQDemuxDVDRoot:
       dvd_open_root(q_ev->demuxdvdroot.path);
@@ -933,6 +1009,17 @@ void push_stream_data(uint8_t stream_id, int len,
 	is_newfile = 0;
       }
 
+      if(searching_for_nav) {
+	//if not a nav pack, drop it
+	if(stream_id != MPEG2_PRIVATE_STREAM_2) {
+	  drop_bytes(len);
+	  return;
+	} else {
+	  //if a nav pack, we found it
+	  nav_found = 1;
+	}
+      }
+      
       if(stream_id == MPEG2_PRIVATE_STREAM_1) {
 	
 	if((subtype >= 0x80) && (subtype < 0x88)) {
@@ -2696,7 +2783,7 @@ int get_buffer(int size)
 }
 
 
-void flush_stream(int streamid, int scr_id)
+void flush_stream(int streamid, int scr_id, int32_t nav_serial)
 {
   MsgEvent_t ev;
   q_head_t *q_head = NULL;
@@ -2704,6 +2791,7 @@ void flush_stream(int streamid, int scr_id)
   // send flush msg
   ev.type = MsgEventQFlushData;
   ev.flushdata.to_scrid = scr_id;
+  ev.flushdata.to_navserial = nav_serial;
   
   if((streamid != MPEG2_PRIVATE_STREAM_1) &&
      ((id_reg[streamid].state == STREAM_DECODE) ||
@@ -2719,18 +2807,23 @@ void flush_stream(int streamid, int scr_id)
 }
 
 
-void flush_all_streams(int scr_id)
+void flush_all_streams(int scr_id, int32_t nav_serial)
 {
   MsgEvent_t ev;
   int n;
   q_head_t *q_head = NULL;
   
+#ifdef NAV_SEARCH_DEBUG
+  fprintf(stderr, "\n+++ flush all streams +++\n");
+#endif
+
   // send flush msg
   ev.type = MsgEventQFlushData;
   ev.flushdata.to_scrid = scr_id;
+  ev.flushdata.to_navserial = nav_serial;
   
   for(n = 0; n < 256; n++) {
-    flush_stream(n, scr_id);
+    flush_stream(n, scr_id, nav_serial);
   }
 
   for(n = 0; n < 256; n++) {
@@ -2861,10 +2954,11 @@ int put_in_q(char *q_addr, int off, int len, uint8_t PTS_DTS_flags,
   }
   
   if(demux_cmd & FlowCtrlFlush) {
-    flush_all_streams(scr_id);
+    flush_all_streams(scr_id, demux_nav_serial);
     demux_cmd &= ~FlowCtrlFlush;
   }
 
+  data_elems[data_elem_nr].serial = demux_nav_serial;
   data_elems[data_elem_nr].scr_nr = scr_nr;
   *in_use = 1;
 

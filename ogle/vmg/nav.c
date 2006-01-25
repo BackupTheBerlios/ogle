@@ -1,5 +1,5 @@
 /* Ogle - A video player
- * Copyright (C) 2000, 2001 Håkan Hjort
+ * Copyright (C) 2000, 2001, 2005 Håkan Hjort, Björn Englund
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
 #include <string.h>
 #include <assert.h>
 #include <time.h>
+#include <sys/poll.h>
+#include <errno.h>
 
 #include <ogle/msgevents.h>
 #include <ogle/dvdevents.h>
@@ -33,14 +35,15 @@
 #include <dvdread/nav_print.h>
 #include "vm.h"
 #include "interpret_config.h"
-
+#include "queue.h"
 
 extern int wait_q(MsgEventQ_t *msgq, MsgEvent_t *ev); // com.c
-extern int get_q(MsgEventQ_t *msgq, unsigned char *buffer);
+extern int get_q(MsgEventQ_t *msgq, unsigned char *buffer, int32_t *serial);
 extern void wait_for_init(MsgEventQ_t *msgq);
 extern void handle_events(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_demux(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern int send_spu(MsgEventQ_t *msgq, MsgEvent_t *ev);
+extern int send_videodecoder(MsgEventQ_t *msgq, MsgEvent_t *ev);
 extern char *get_dvdroot(void);
 extern void free_dvdroot(void);
 
@@ -50,11 +53,22 @@ extern unsigned char discid[16];
 MsgEvent_t dvdroot_return_ev;
 MsgEventClient_t dvdroot_return_client;
 
-static void do_run(void);
-static int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
-			     cell_playback_t *cell, 
-			     int block, int *still_time);
-static void reset_dvd(void);
+
+typedef struct {
+  int current_block; /* block offset from start of current cell 
+                  start of current cell = lbn for first vobu in cell */
+  int pending_lbn;   /* lbn (for next nav) that is requested from demux */
+  int pending_serial;   /* serial (for next nav) that is requested  */
+  cell_playback_t *cell;
+  int still_time;
+  pci_t pci;
+  dsi_t dsi;
+} nav_state_t;
+
+static void do_run(dvd_state_t *vmstate, nav_state_t *ns);
+static int process_user_data(MsgEvent_t ev, dvd_state_t *vmstate,
+			     nav_state_t *ns);
+static void reset_dvd(dvd_state_t *vmstate, nav_state_t *ns);
 
 static void time_convert(DVDTimecode_t *dest, dvd_time_t *source)
 {
@@ -73,6 +87,21 @@ int dlevel;
 
 static int standalone = 1;
 
+
+static int32_t dvd_serial = 0;
+
+int32_t get_serial(void)
+{
+  return dvd_serial;
+}
+
+int32_t next_serial(void)
+{
+  dvd_serial++;
+  
+  return dvd_serial;
+}
+
 void usage(void)
 {
   fprintf(stderr, "Usage: %s  -m <msgqid>\n", 
@@ -89,6 +118,8 @@ int main(int argc, char *argv[])
 #else
   int msgqid = -1;
 #endif
+  dvd_state_t *vmstate;
+  nav_state_t *ns;
   
   program_name = argv[0];
   GET_DLEVEL();
@@ -149,7 +180,10 @@ int main(int argc, char *argv[])
       FATAL("%s", "didn't get spu cap\n");
       exit(1);
     }
-    
+  
+    vmstate = &state;
+    ns = malloc(sizeof(nav_state_t));
+
     vm_reset();
 
     interpret_config();
@@ -215,7 +249,7 @@ int main(int argc, char *argv[])
   }
   
   //vm_reset(get_dvdroot());
-  do_run();
+  do_run(vmstate, ns);
   
   return 0;
 }
@@ -228,7 +262,7 @@ static int get_video_state(void)
   return video_state;
 }
 
-static int set_video_state(int state)
+static void set_video_state(int state)
 {
   video_state = state;
 }
@@ -238,7 +272,7 @@ static int set_video_state(int state)
  * returns the spustate (a mask telling the spu which types of subpictures
  * to show (forced / normal)
  */
-static uint32_t get_spustate(void)
+static uint32_t get_spustate(dvd_state_t *vmstate)
 {
   uint32_t spu_on = 0;
   int subpN = vm_get_subp_active_stream();
@@ -259,7 +293,7 @@ static uint32_t get_spustate(void)
     }
     break;
   case DVD_SUBPICTURE_STATE_FORCEDOFF:
-    if(state.domain == VTS_DOMAIN) {
+    if(vmstate->domain == VTS_DOMAIN) {
       spu_on = 0x0;
     } else {
       spu_on = 0x1;
@@ -297,11 +331,32 @@ static int send_spustate(uint32_t spustate)
   return 0;
 }
 
+static int send_demux_flush(void)
+{
+  MsgEvent_t ev;
+
+  ev.type = MsgEventQDemuxDVD;
+  ev.demuxdvd.titlenum = 0;
+  ev.demuxdvd.domain = 0;
+  ev.demuxdvd.block_offset = 0;
+  ev.demuxdvd.block_count = 0;
+  ev.demuxdvd.flowcmd = FlowCtrlFlush;
+  ev.demuxdvd.serial = get_serial();
+  ev.demuxdvd.nav_search = 0;
+
+  if(send_demux(msgq, &ev) == -1) {
+    FATAL("%s", "failed to send demux dvd flush\n");
+    exit(1);
+  }
+}
+
+
 /**
  * Update any info the demuxer needs, and then tell the demuxer
  * what range of sectors to process.
  */
-static void send_demux_sectors(int start_sector, int nr_sectors, 
+static void send_demux_sectors(dvd_state_t *vmstate,
+			       int start_sector, int nr_sectors, 
 			       FlowCtrl_t flush) {
   static int video_aspect = -1;
   MsgEvent_t ev;
@@ -469,16 +524,17 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
     }
     old_subp_enabled = new_subp_enabled; 
 
-    send_spustate(get_spustate());
+    send_spustate(get_spustate(vmstate));
     
   }
 
   {
-    static int old_video_enabled = -1;
+    static int old_video_enabled = 1;
     int new_video_enabled = 0;
     new_video_enabled = get_video_state();
 
     if(old_video_enabled != new_video_enabled) {
+#if 0
       DNOTE("sending video demuxstream state %s\n", 
 	    (new_video_enabled ? "enabled" : "disabled"));
       ev.type = MsgEventQDemuxStreamEnable;
@@ -489,6 +545,18 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
       if(send_demux(msgq, &ev) == -1) {
 	ERROR("%s", "failed to send video demuxstreamenable\n");
       }
+      if(!new_video_enabled) {
+	flush = FlowCtrlCompleteVideoUnit;
+      }
+#else
+      ev.type = MsgEventQSetDecodeVideoState;
+      ev.decodevideostate.state = new_video_enabled;
+
+      if(send_videodecoder(msgq, &ev) == -1) {
+	ERROR("%s", "failed to send video state\n");
+      }
+      
+#endif
     }
     old_video_enabled = new_video_enabled; 
   }
@@ -496,22 +564,63 @@ static void send_demux_sectors(int start_sector, int nr_sectors,
   
   /* Tell the demuxer what file and which sectors to demux. */
   ev.type = MsgEventQDemuxDVD;
-  if(state.domain == VMGM_DOMAIN || state.domain == FP_DOMAIN)
+  if(vmstate->domain == VMGM_DOMAIN || vmstate->domain == FP_DOMAIN) {
     ev.demuxdvd.titlenum = 0;
-  else
-    ev.demuxdvd.titlenum = state.vtsN;
-  if(state.domain == VTS_DOMAIN)
+  } else {
+    ev.demuxdvd.titlenum = vmstate->vtsN;
+  }
+  if(vmstate->domain == VTS_DOMAIN) {
     ev.demuxdvd.domain = DVD_READ_TITLE_VOBS;
-  else
+  } else {
     ev.demuxdvd.domain = DVD_READ_MENU_VOBS;
+  }
   ev.demuxdvd.block_offset = start_sector;
   ev.demuxdvd.block_count = nr_sectors;
   ev.demuxdvd.flowcmd = flush;
+  ev.demuxdvd.serial = get_serial();
+  ev.demuxdvd.nav_search = 0;
   if(send_demux(msgq, &ev) == -1) {
     FATAL("%s", "failed to send demux dvd block range\n");
     exit(1);
   }
-  //DNOTE("sent demux dvd block range (%d,%d)\n", start_sector, nr_sectors);
+  DNOTE("sent demux dvd block range (%d,%d)\n", start_sector, nr_sectors);
+}
+
+
+/**
+ * Update any info the demuxer needs, and then tell the demuxer
+ * what range of sectors to process for a nav pack.
+ */
+static uint32_t send_demux_nav(dvd_state_t *vmstate,
+			       int start_sector, int nr_sectors, 
+			       FlowCtrl_t flush) {
+  MsgEvent_t ev;
+  uint32_t serial;
+  /* Tell the demuxer what file and which sectors to demux. */
+  ev.type = MsgEventQDemuxDVD;
+  if(vmstate->domain == VMGM_DOMAIN || vmstate->domain == FP_DOMAIN) {
+    ev.demuxdvd.titlenum = 0;
+  } else {
+    ev.demuxdvd.titlenum = vmstate->vtsN;
+  }
+  if(vmstate->domain == VTS_DOMAIN) {
+    ev.demuxdvd.domain = DVD_READ_TITLE_VOBS;
+  } else {
+    ev.demuxdvd.domain = DVD_READ_MENU_VOBS;
+  }
+  ev.demuxdvd.block_offset = start_sector;
+  ev.demuxdvd.block_count = nr_sectors;
+  ev.demuxdvd.flowcmd = flush;
+  serial = get_serial();
+  ev.demuxdvd.serial = serial;
+  ev.demuxdvd.nav_search = 1;
+  if(send_demux(msgq, &ev) == -1) {
+    FATAL("%s", "failed to send demux dvd nav block range\n");
+    exit(1);
+  }
+  DNOTE("sent demux dvd nav block range (%d,%d)\n", start_sector, nr_sectors);
+  
+  return serial;
 }
 
 static void send_spu_palette(uint32_t palette[16]) {
@@ -536,6 +645,7 @@ static void send_highlight(int x_start, int y_start, int x_end, int y_end,
   int i;
   
   ev.type = MsgEventQSPUHighlight;
+  ev.spuhighlight.nav_serial = get_serial();
   ev.spuhighlight.x_start = x_start;
   ev.spuhighlight.y_start = y_start;
   ev.spuhighlight.x_end = x_end;
@@ -748,7 +858,8 @@ static void process_pci(pci_t *pci, uint16_t *btn_reg) {
 }
 
 
-int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
+int process_seek(dvd_state_t *vmstate, int seconds, dsi_t *dsi,
+		 cell_playback_t *cell)
 {
   int res = 0;
   dvd_time_t current_time;
@@ -792,7 +903,7 @@ int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
       if(idx < 19) {
 	// Fake this, as a jump with blockN as destination
 	// blockN is relative the start of the cell
-	state.blockN = dsi->dsi_gi.nv_pck_lbn +
+	vmstate->blockN = dsi->dsi_gi.nv_pck_lbn +
 	  (dsi->vobu_sri.fwda[idx] & 0x3fffffff) - cell->first_sector;
 	res = 1;
       } else
@@ -811,7 +922,7 @@ int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
       }
       idx--; // Restore it to the one that got us the diff
       
-      // Make sure we have a VOBU that 'exicsts' (with in the cell)
+      // Make sure we have a VOBU that 'exists' (within the cell)
       // What about the 'top' two bits here?  If there is no video at the
       // seek destination?  Check with the menus in Coruptor.
       while(idx < 19 && !VALID_XWDA(dsi->vobu_sri.bwda[18-idx])) {
@@ -820,7 +931,7 @@ int process_seek(int seconds, dsi_t *dsi, cell_playback_t *cell)
       if(idx < 19) {
 	// Fake this, as a jump with blockN as destination
 	// blockN is relative the start of the cell
-	state.blockN = dsi->dsi_gi.nv_pck_lbn -
+	vmstate->blockN = dsi->dsi_gi.nv_pck_lbn -
 	  (dsi->vobu_sri.bwda[18-idx] & 0x3fffffff) - cell->first_sector;
 	res = 1;
       } else
@@ -838,6 +949,65 @@ void set_dvderror(MsgEvent_t *ev, int32_t serial, DVDResult_t err)
   ev->dvdctrl.cmd.retval.val = err;
 }
 
+
+static int n_still_time;
+static cell_playback_t *n_cell;
+
+static int n_pending_lbn;
+
+static int n_current_block; 
+
+
+//static nav_state_t nav_state;
+
+void set_pending_nav(nav_state_t *ns, uint32_t lbn, uint32_t serial)
+{
+ ns->pending_lbn = lbn;
+ ns->pending_serial = serial;
+}
+
+uint32_t get_pending_lbn(nav_state_t *ns)
+{
+  return ns->pending_lbn;
+}
+
+uint32_t get_pending_serial(nav_state_t *ns)
+{
+  return ns->pending_serial;
+}
+
+void set_current_block(nav_state_t *ns, uint32_t block)
+{
+  ns->current_block = block;
+}
+
+uint32_t get_current_block(nav_state_t *ns)
+{
+  return ns->current_block;
+}
+
+int nav_within_cell(cell_playback_t *cell, uint32_t block)
+{
+  return (cell->first_sector + block <= cell->last_vobu_start_sector);
+}
+
+int navlbn_within_cell(cell_playback_t *cell, uint32_t lbn)
+{
+  return ((cell->first_sector <= lbn) && 
+	  (lbn <= cell->last_vobu_start_sector));
+}
+
+
+uint32_t blk2lbn(cell_playback_t *cell, int32_t block)
+{
+  return cell->first_sector + block;
+}
+
+uint32_t cell_len(cell_playback_t *cell)
+{
+  return cell->last_sector - cell->first_sector + 1;
+}
+
 #define DVD_SERIAL(ev) ((ev)->dvdctrl.cmd.any.serial)
 
 static unsigned int stop_state = 1;
@@ -846,11 +1016,16 @@ static unsigned int stop_state = 1;
  * subpicture change and answer attribute query requests.
  * access menus, pause, play, jump forward/backward...
  */
-int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi, 
-		      cell_playback_t *cell, int block, int *still_time)
+int process_user_data(MsgEvent_t ev, dvd_state_t *vmstate, nav_state_t *ns)
 {
   int res = 0;
-      
+  // pci_t *a_pci = &ns->pci;
+  // dsi_t *a_dsi = &ns->dsi; 
+  // cell_playback_t *a_cell = ns->cell;
+  // int a_block = get_current_block(ns);
+  // int *a_still_time = &ns->still_time;
+
+
   //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
   
   switch(ev.dvdctrl.cmd.type) {
@@ -865,31 +1040,30 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
   case DVDCtrlMouseActivate:
     
     // A button has already been activated, discard this event??
-    
-    if(cell->first_sector <= pci->pci_gi.nv_pck_lbn
-       && cell->last_vobu_start_sector >= pci->pci_gi.nv_pck_lbn) {
+    if(navlbn_within_cell(ns->cell, ns->pci.pci_gi.nv_pck_lbn)) {
       /* Update selected/activated button, send highlight info to spu */
       /* Returns true if a button is activated */
-      if(process_button(&ev.dvdctrl.cmd, pci, &state.HL_BTNN_REG)) {
-	int button_nr = state.HL_BTNN_REG >> 10;
-	res = vm_eval_cmd(&pci->hli.btnit[button_nr - 1].cmd);
+      if(process_button(&ev.dvdctrl.cmd, &ns->pci, &vmstate->HL_BTNN_REG)) {
+	int button_nr = vmstate->HL_BTNN_REG >> 10;
+	res = vm_eval_cmd(&ns->pci.hli.btnit[button_nr - 1].cmd);
       }
     }
     break;
   
   case DVDCtrlTimeSkip:
-    if(dsi->dsi_gi.nv_pck_lbn == -1) { // we are waiting for a new nav block
+    if(ns->dsi.dsi_gi.nv_pck_lbn == -1) { // we are waiting for a new nav block
       res = 0;
       break;
     }
-    res = process_seek(ev.dvdctrl.cmd.timeskip.seconds, dsi, cell);
+    res = process_seek(vmstate, ev.dvdctrl.cmd.timeskip.seconds,
+		       &ns->dsi, ns->cell);
     if(res)
       NOTE("%s", "Doing time seek\n");
     break;  
   
   case DVDCtrlMenuCall:
     NOTE("Jumping to Menu %d\n", ev.dvdctrl.cmd.menucall.menuid);
-    res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, block);
+    res = vm_menu_call(ev.dvdctrl.cmd.menucall.menuid, get_current_block(ns));
     if(!res)
       NOTE("%s", "No such menu!\n");
     break;
@@ -944,9 +1118,9 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	send_ev.speed.speed = last_speed;
 	    
       /* Hack to exit STILL_MODE if we're in it. */
-      if(cell->first_sector + block > cell->last_vobu_start_sector &&
-	 *still_time > 0) {
-	*still_time = 0;
+      if((!nav_within_cell(ns->cell, get_current_block(ns))) && 
+	 ns->still_time > 0) {
+	ns->still_time = 0;
       }
       MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
     }
@@ -991,7 +1165,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 
       if(stop_state == 0) {
 	stop_state = 2;
-	reset_dvd();
+	reset_dvd(vmstate, ns);
       } else if(stop_state == 1) {
 	stop_state = 0;
 	DNOTE(" DVDCtrlEvent %d stop, todo\n",
@@ -1000,9 +1174,9 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	send_ev.type = MsgEventQStop;
 	send_ev.stop.state = 0;
 	/* Hack to exit STILL_MODE if we're in it. */
-	if(cell->first_sector + block > cell->last_vobu_start_sector &&
-	   *still_time > 0) {
-	  *still_time = 0;
+	if((!nav_within_cell(ns->cell, get_current_block(ns))) && 
+	   ns->still_time > 0) {
+	  ns->still_time = 0;
 	}
 	MsgSendEvent(msgq, CLIENT_RESOURCE_MANAGER, &send_ev, 0);
       }
@@ -1011,31 +1185,31 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
 	  
   case DVDCtrlAngleChange:
     /* FIXME $$$ need to actually change the playback angle too, no? */
-    state.AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
+    vmstate->AGL_REG = ev.dvdctrl.cmd.anglechange.anglenr;
     break;
   case DVDCtrlAudioStreamChange: // FIXME $$$ Temorary hack
-    state.AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
+    vmstate->AST_REG = ev.dvdctrl.cmd.audiostreamchange.streamnr; // XXX
     break;
   case DVDCtrlSubpictureStreamChange: // FIXME $$$ Temorary hack
-    state.SPST_REG &= 0x40; // Keep the on/off bit.
-    state.SPST_REG |= (ev.dvdctrl.cmd.subpicturestreamchange.streamnr & 0x3f);
-    NOTE("DVDCtrlSubpictureStreamChange %x\n", state.SPST_REG);
+    vmstate->SPST_REG &= 0x40; // Keep the on/off bit.
+    vmstate->SPST_REG |= (ev.dvdctrl.cmd.subpicturestreamchange.streamnr & 0x3f);
+    NOTE("DVDCtrlSubpictureStreamChange %x\n", vmstate->SPST_REG);
     break;
   case DVDCtrlSetSubpictureState:
     subpicture_state = ev.dvdctrl.cmd.subpicturestate.display;
 
     switch(subpicture_state) {
     case DVD_SUBPICTURE_STATE_ON:
-      state.SPST_REG |= 0x40; // Turn it on
+      vmstate->SPST_REG |= 0x40; // Turn it on
       break;
     case DVD_SUBPICTURE_STATE_OFF:
     case DVD_SUBPICTURE_STATE_FORCEDOFF:
     case DVD_SUBPICTURE_STATE_DISABLED:
-      state.SPST_REG &= ~0x40; // Turn it off
+      vmstate->SPST_REG &= ~0x40; // Turn it off
       break;
     }
     
-    send_spustate(get_spustate());
+    send_spustate(get_spustate(vmstate));
     break;
   case DVDCtrlSetVideoState:
     set_video_state(ev.dvdctrl.cmd.videostate.display);
@@ -1063,11 +1237,11 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       /* how to get current time for searches in menu/system space? */
       /* a bit of a hack */
       location = &send_ev.dvdctrl.cmd.location.location;
-      location->title = state.TTN_REG;
-      location->ptt = state.PTTN_REG;
+      location->title = vmstate->TTN_REG;
+      location->ptt = vmstate->PTTN_REG;
       vm_get_total_time(&total_time);
       time_convert(&location->title_total, &total_time);
-      vm_get_current_time(&current_time, &(pci->pci_gi.e_eltm));
+      vm_get_current_time(&current_time, &(ns->pci.pci_gi.e_eltm));
       time_convert(&location->title_current, &current_time);
       MsgSendEvent(msgq, ev.any.client, &send_ev, 0);
     }
@@ -1328,7 +1502,7 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
       MsgEvent_t send_ev;
       char *state_str;
       DVDCtrlLongStateEvent_t *state_ev;
-      state_str = vm_get_state_str(block);
+      state_str = vm_get_state_str(get_current_block(ns));
       
       send_ev.type = MsgEventQDVDCtrlLong;
       send_ev.dvdctrllong.cmd.type = DVDCtrlLongState;
@@ -1402,11 +1576,11 @@ int process_user_data(MsgEvent_t ev, pci_t *pci, dsi_t *dsi,
   return res;
 }
 
-int process_long_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
-			   int block, int *still_time)
+int process_long_user_data(MsgEvent_t ev, 
+			   dvd_state_t *vmstate, nav_state_t *ns)
 {
   int res = 0;
-      
+
   //fprintf(stderr, "nav: User input, MsgEvent.type: %d\n", ev.type);
   
   switch(ev.dvdctrllong.cmd.type) {
@@ -1423,70 +1597,248 @@ int process_long_user_data(MsgEvent_t ev, pci_t *pci, cell_playback_t *cell,
 
 
 
-static int block;
-static int still_time;
-static cell_playback_t *cell;
-
-static int pending_lbn;
 
 #define INF_STILL_TIME (10 * 0xff)
 
-static void do_init_cell(int flush) {
+static void do_init_cell(dvd_state_t *vmstate, nav_state_t *ns, int flush) {
+  uint32_t lbn, blk;
+  uint32_t search_len;
+  uint32_t serial;
   
-  cell = &state.pgc->cell_playback[state.cellN - 1];
-  still_time = 10 * cell->still_time;
-
-  block = state.blockN;
-  assert(cell->first_sector + block <= cell->last_vobu_start_sector);
+  next_serial();
+  ns->cell = &(vmstate->pgc->cell_playback[vmstate->cellN - 1]);
+  ns->still_time = 10 * ns->cell->still_time;
+  
+  set_current_block(ns, vmstate->blockN);
+  blk = get_current_block(ns);
+  //  block = state.blockN;
+  assert(nav_within_cell(ns->cell, blk));
+  //assert(cell->first_sector + block <= cell->last_vobu_start_sector);
 
   // FIXME XXX $$$ Only send when needed, and do send even if not playing
   // from start? (should we do pre_commands when jumping to say part 3?)
   /* Send the palette to the spu. */
-  send_spu_palette(state.pgc->palette);
-  
+  send_spu_palette(vmstate->pgc->palette);
+
+  lbn = blk2lbn(ns->cell, blk);
+  search_len = cell_len(ns->cell) - blk;
+
   /* Get the pci/dsi data */
-  if(flush)
-    send_demux_sectors(cell->first_sector + block, 1, FlowCtrlFlush);
-  else
-    send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
-  
-  pending_lbn = cell->first_sector + block;
+  if(flush) {
+    serial = send_demux_nav(vmstate, lbn, search_len, FlowCtrlFlush);
+  } else {
+    serial = send_demux_nav(vmstate, lbn, search_len, FlowCtrlNone);
+  }
+#ifdef NAV_SEARCH_DEBUG
+  WARNING("send_demux_nav (cellinit) (%x, %x), serial %x\n", 
+	  lbn, search_len,  serial);  
+#endif
+  set_pending_nav(ns, lbn, serial);
 }
 
-static void reset_dvd(void)
+static void reset_dvd(dvd_state_t *vmstate, nav_state_t *ns)
 {
-    vm_reset();
+  fprintf(stderr, "\n*********** reset dvd ***************************\n");
+  next_serial();
+  send_demux_flush();
+  fprintf(stderr, "\n*********** vm reset ***************************\n");
+  vm_reset();
 
-    interpret_config();
-
-    vm_start(); // see hack in main
-    do_init_cell(0);
-    
-}
-
-static void do_run(void) {
-  pci_t pci;
-  dsi_t dsi;
+  interpret_config();
   
   vm_start(); // see hack in main
-  do_init_cell(0);
-  pci.pci_gi.nv_pck_lbn = -1;
-  dsi.dsi_gi.nv_pck_lbn = -1;
+  do_init_cell(vmstate, ns, 0);
+  
+}
+
+#if 0
+
+#else
+
+/*
+ * wait for events (nav_pack || userop || timer)
+ */
+
+
+
+static int wait_for_msg(MsgEventQ_t *msgq, int timeout)
+{
+  int ret;
+  struct pollfd fds[1];
+  unsigned int nfds;
+  fds[0].fd = msgq->socket.sd;
+  fds[0].events = POLLIN;
+  nfds = 1;
+  
+  // only check for messages
+  ret = poll(fds, nfds, timeout);
+  if(ret == -1) {
+    ERROR("poll(): %s\n", strerror(errno));
+    ret = -1;
+  } else if(ret == 0) {
+    //timeout
+    ret = 0;
+  } else {
+    if((fds[0].revents & POLLIN) == POLLIN) {
+      ret = 1;
+    } else {
+      ERROR("poll(): revents: %0x\n", fds[0].revents);
+      ret = -1;
+    }
+  } 
+
+  return ret;
+}
+
+#if 0
+static int wait_msgq(MsgEventQ_t *msgq, int wait_for_nav, int timeout)
+{
+  q_head_t *q_head;
+  q_elem_t *q_elems;
+  int elem;
+  volatile int *in_use;
+  int ret;
+  int rval;
+
+  if(msgq->type != MsgEventQType_socket) {
+    FATAL("%s", "socket needed, NI\n");
+  }
+  
+  if(!wait_for_nav) {
+    return wait_for_msg(msgq, timeout);
+  }
+  
+  q_head = (q_head_t *)stream_shmaddr;
+  q_elems = (q_elem_t *)(stream_shmaddr+sizeof(q_head_t));
+  elem = q_head->read_nr;
+  
+  in_use = &(q_elems[elem].in_use);
+  if(!*in_use) {
+    q_head->reader_requests_notification = 1;
+    
+    if(!*in_use) {
+      return wait_for_msg(msgq, timeout);
+    }
+  }
+  
+  // nav pack available, check if there is a message also
+  rval = 2;
+  ret = wait_for_msg(msgq, 0);
+  if(ret == 1) { 
+    rval = 3;
+  }
+  
+  
+  return rval;
+}
+
+#endif
+#if 0
+int wait_for_events(MsgEventQ_t *msgq)
+{
+  int timer_timeout = next_timer();
+  int still_time_timeout = still_time_left();
+  int timeout = -1;
+  int wait_for_nav;
+  int r;
+  
+  timer_timeout = next_timer();
+  still_time_timeout = still_time_left();
+  timeout = -1;
+
+  if(still_time_timeout) {
+    timeout = still_time_left;
+    wait_for_nav = 0;
+  } else {
+    //process navpacks only when not in still
+    wait_for_nav = 1;    
+  }
+  if(timer_timeout < still_time_timeout) {
+    timeout = timer_timeout;
+  }
+  
+  r = wait_msgq(msgq, wait_for_nav, timeout);
+
+  
+  /*  process_timeout(timeout)
+      if(cur_time > timer_end) {
+       inc_counter_regs();
+       dec_navtimer();
+       timer_end = timer_end+1.0s;
+       timer_start = cur_time;
+      }
+      if(still_time_start != 0) {
+       if(cur_time > still_time_end) {
+        still_time_start = 0;
+	next_cell(vm);
+	init_cell(vm);
+       }
+      }
+  */
+  if(userdata) {
+    process_userdata();
+  }
+  if(navblovk) {
+    nb = get_navblock();
+    
+    if(flush_in_progress()) {
+      if(nav.serial == serial && nav.lbn == lbn) {
+	//flush completed
+	flush_done();	
+      } else {
+	// drop packet
+	continue;
+      }
+    }
+    process_nav(nb) {
+      if dsi ...;
+      if pci ...;
+    }
+  }
+}
+
+#endif
+
+uint32_t next_vobu_offs(nav_state_t *ns) 
+{
+  return ns->dsi.vobu_sri.next_vobu & 0x3fffffff;
+}
+
+uint32_t nav_lbn(nav_state_t *ns)
+{
+  return ns->dsi.dsi_gi.nv_pck_lbn;
+}
+
+static void do_run(dvd_state_t *vmstate, nav_state_t *ns) {
+  int32_t packet_serial;
+
+  vm_start(); // see hack in main
+  do_init_cell(vmstate, ns, 0);
+  ns->pci.pci_gi.nv_pck_lbn = -1;
+  ns->dsi.dsi_gi.nv_pck_lbn = -1;
   
   while(1) {
     MsgEvent_t ev;
     int got_data;
-    
+    uint32_t blk;
+    static int last_pending = -1;
     // For now.. later use the time instead..
     /* Have we read the last dsi packet we asked for? Then request the next. */
-    if(pending_lbn == dsi.dsi_gi.nv_pck_lbn
-       && cell->first_sector + block <= cell->last_vobu_start_sector) {
-      int complete_video;
+    blk = get_current_block(ns);
+    if((nav_lbn(ns) != -1) && (nav_lbn(ns) != last_pending)
+       && (get_pending_serial(ns) == packet_serial)
+       && nav_within_cell(ns->cell, blk)) {
       
+      int complete_video;
+      last_pending = nav_lbn(ns);
+#ifdef NAV_SEARCH_DEBUG
+      WARNING("got pending block(ser) %x(%x), serial (%x)\n",
+	      get_pending_lbn(ns), get_pending_serial(ns), packet_serial); 
+#endif
       /* If there is video data in this vobu, but not in the next. Then this 
 	 data must be a complete image, so let the decoder know this. */
-      if((dsi.vobu_sri.next_vobu & 0x80000000) == 0 
-	 && dsi.dsi_gi.vobu_1stref_ea != 0 /* there is video in this */) {
+      if((ns->dsi.vobu_sri.next_vobu & 0x80000000) == 0 
+	 && ns->dsi.dsi_gi.vobu_1stref_ea != 0 /* there is video in this */) {
 	complete_video = FlowCtrlCompleteVideoUnit;
 	//DNOTE("FlowCtrlCompleteVideoUnit = 1;\n");
       } else {
@@ -1494,9 +1846,9 @@ static void do_run(void) {
       }
       
       /* Demux/play the content of this vobu. */
-      if(dsi.dsi_gi.vobu_ea != 0) {
-	send_demux_sectors(cell->first_sector + block + 1, 
-			   dsi.dsi_gi.vobu_ea, complete_video);
+      if(ns->dsi.dsi_gi.vobu_ea != 0) {
+	send_demux_sectors(vmstate, blk2lbn(ns->cell, blk) + 1, 
+			   ns->dsi.dsi_gi.vobu_ea, complete_video);
       }
       
       /* VOBU still ? */
@@ -1514,24 +1866,47 @@ static void do_run(void) {
 	*/
 	;
       } else {
+	uint32_t next_nav;
+	uint32_t blk = get_current_block(ns);
 	/* .. top two bits are flags */  
-	block += dsi.vobu_sri.next_vobu & 0x3fffffff;
+	//block += dsi.vobu_sri.next_vobu & 0x3fffffff;
+#ifdef NAV_SEARCH_DEBUG
+	WARNING("block %x, next_vobu %x (%x)\n",
+		blk, next_vobu_offs(ns),
+		blk + next_vobu_offs(ns));
+#endif
+	next_nav = nav_lbn(ns) + next_vobu_offs(ns) - ns->cell->first_sector;
+	set_current_block(ns, next_nav);
+	
+#ifdef NAV_SEARCH_DEBUG
+	WARNING("nv_lbn %x, first %x next %x, (%x)\n",
+		nav_lbn(ns),
+		ns->cell->first_sector, next_nav,
+		ns->cell->first_sector + next_nav);
+#endif
       }
-      
-      
+
+      blk = get_current_block(ns);
       /* TODO XXX $$$ Test earlier and merge the requests if posible? */
       /* If there is more data in this cell to demux, then get the
        * next nav pack. */
-      if(cell->first_sector + block <= cell->last_vobu_start_sector) {
-	send_demux_sectors(cell->first_sector + block, 1, FlowCtrlNone);
-	pending_lbn = cell->first_sector + block;
+      if(nav_within_cell(ns->cell, blk)) {
+	uint32_t lbn, search_len, serial;
+	lbn = blk2lbn(ns->cell, blk);
+	search_len = cell_len(ns->cell)-blk;
+#ifdef NAV_SEARCH_DEBUG
+	WARNING("send_demux_nav (%x, len %x), serial %x\n",
+		lbn, search_len, get_serial());
+#endif
+	serial = send_demux_nav(vmstate, lbn, search_len, FlowCtrlNone);
+	set_pending_nav(ns, lbn, serial);
       } else {
 	//DNOTE("end of cell\n");
 	; // end of cell!
-	if(still_time == INF_STILL_TIME) // Inf. still time
+	if(ns->still_time == INF_STILL_TIME) // Inf. still time
 	  NOTE("%s", "Still picture select an item to continue.\n");
-	else if(still_time != 0)
-	  NOTE("Pause for %d seconds,\n", still_time/10);
+	else if(ns->still_time != 0)
+	  NOTE("Pause for %d seconds,\n", ns->still_time/10);
 #if 0 
 	/* TODO XXX $$$ This should only be done at the correct time */
 	/* Handle forced activate button here */
@@ -1547,39 +1922,46 @@ static void do_run(void) {
 	  state.HL_BTNN_REG = button_nr << 10;
 	  
 	  if(vm_eval_cmd(&pci.hli.btnit[button_nr - 1].cmd)) {
-	    do_init_cell(/* ?? */ 0);
+	    do_init_cell(vmstate, ns, /* ?? */ 0);
 	    dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
 	}
 #endif
       }
+    } else {
+#ifdef NAV_SEARCH_DEBUG
+      WARNING("nav: pending %x(%x), got %x(%x)\n",
+	      get_pending_lbn(ns), get_pending_serial(ns),
+	      nav_lbn(ns), packet_serial);      
+#endif
     }
     
     
     // Wait for data/input or for cell still time to end
     {
-      if(cell->first_sector + block <= cell->last_vobu_start_sector) {
+      if(nav_within_cell(ns->cell, get_current_block(ns))) {
 	got_data = wait_q(msgq, &ev); // Wait for a data packet or a message
-      
       } else { 
 	/* Handle cell still time here */
 	got_data = 0;
-	if(still_time == INF_STILL_TIME) // Inf. still time
+	if(ns->still_time == INF_STILL_TIME) { // Inf. still time
 	  MsgNextEvent(msgq, &ev);
-	else
-	  while(still_time && MsgCheckEvent(msgq, &ev)) {
+	} else {
+	  while(ns->still_time && MsgCheckEvent(msgq, &ev)) {
 	    struct timespec req = {0, 100000000}; // 0.1s 
 	    nanosleep(&req, NULL);
-	    still_time--;
+	    ns->still_time--;
 	  }
+	}
 	
-	if(!still_time) // No more still time (or there never was any..)
+	if(!ns->still_time) { // No more still time (or there never was any..)
 	  if(MsgCheckEvent(msgq, &ev)) { // and no more messages
 	    // Let the vm run and give us a new cell to play
 	    vm_get_next_cell();
-	    do_init_cell(/* No jump */ 0);
-	    dsi.dsi_gi.nv_pck_lbn = -1;
+	    do_init_cell(vmstate, ns,  /* No jump */ 0);
+	    ns->dsi.dsi_gi.nv_pck_lbn = -1;
 	  }
+	}
       }
     }
     /* If we are here we either have a message or an available data packet */ 
@@ -1596,13 +1978,12 @@ static void do_run(void) {
 	 * access menus, pause, play, jump forward/backward...
 	 */
 
-	res = process_user_data(ev, &pci, &dsi, cell, block, &still_time);
+	res = process_user_data(ev, vmstate, ns);
 	break;
       case MsgEventQDVDCtrlLong:
-
-	res = process_long_user_data(ev, &pci, cell, block, &still_time);
+	res = process_long_user_data(ev, vmstate, ns);
 	break;
-	
+
       default:
 	handle_events(msgq, &ev);
 	/* If( new dvdroot ) {
@@ -1613,24 +1994,31 @@ static void do_run(void) {
 	*/
       }      
       if(res != 0) {/* a jump has occured */
-	do_init_cell(/* Flush streams */1);
-	dsi.dsi_gi.nv_pck_lbn = -1;
+	do_init_cell(vmstate, ns,/* Flush streams */1);
+	ns->dsi.dsi_gi.nv_pck_lbn = -1;
       }
       
     } else { // We got a data to read.
       unsigned char buffer[2048];
       int len;
       
-      len = get_q(msgq, &buffer[0]);
-      
+      len = get_q(msgq, &buffer[0], &packet_serial);
+#ifdef NAV_SEARCH_DEBUG
+      WARNING("nav: pending_serial %x ,packet_serial: %x",
+	      get_pending_serial(ns), packet_serial);
+#endif
       if(buffer[0] == PS2_PCI_SUBSTREAM_ID) {
-	navRead_PCI(&pci, &buffer[1]);
+	navRead_PCI(&ns->pci, &buffer[1]);
 	/* Is this the packet we are waiting for? */
-	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
-	  //fprintf(stdout, "nav: Droped PCI packet\n");
-	  pci.pci_gi.nv_pck_lbn = -1;
+	//	if(pci.pci_gi.nv_pck_lbn != pending_lbn) {
+	if(get_pending_serial(ns) != packet_serial) {
+	  WARNING("nav: Dropped PCI packet, pending %x(%x), got %x(%x)\n",
+		  get_pending_lbn(ns), get_pending_serial(ns),
+		  ns->pci.pci_gi.nv_pck_lbn, packet_serial);
+	  ns->pci.pci_gi.nv_pck_lbn = -1;
 	  continue;
 	}
+	//navPrint_PCI(&ns->pci);
 	//fprintf(stdout, "nav: Got PCI packet\n");
 	/*
 	if(pci.hli.hl_gi.hli_ss & 0x03) {
@@ -1639,17 +2027,21 @@ static void do_run(void) {
 	}
 	*/
 	/* Evaluate and Instantiate the new pci packet */
-	process_pci(&pci, &state.HL_BTNN_REG);
+	process_pci(&ns->pci, &vmstate->HL_BTNN_REG);
         
       } else if(buffer[0] == PS2_DSI_SUBSTREAM_ID) {
-	navRead_DSI(&dsi, &buffer[1]);
-	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
+	navRead_DSI(&ns->dsi, &buffer[1]);
+	//	if(dsi.dsi_gi.nv_pck_lbn != pending_lbn) {
+	if(get_pending_serial(ns) != packet_serial) {
+	  WARNING("nav: Dropped DSI packet, pending %x(%x), got %x(%x)\n",
+		  get_pending_lbn(ns), get_pending_serial(ns),
+		  ns->dsi.dsi_gi.nv_pck_lbn, packet_serial);
 	  //fprintf(stdout, "nav: Droped DSI packet\n");
-	  dsi.dsi_gi.nv_pck_lbn = -1;
+	  ns->dsi.dsi_gi.nv_pck_lbn = -1;
 	  continue;
 	}
 	//fprintf(stdout, "nav: Got DSI packet\n");
-	//navPrint_DSI(&dsi);
+	//navPrint_DSI(&ns->dsi);
 
       } else {
 	int i;
@@ -1662,3 +2054,4 @@ static void do_run(void) {
   }
 }
 
+#endif

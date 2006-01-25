@@ -116,6 +116,7 @@ static char *MsgEventType_str[] = {
   "MsgEventQDestroyBuf",
   "MsgEventQDemuxStreamEnable",
   "MsgEventQStop",
+  "MsgEventQSetDecodeVideoState",
   NULL
 };
 
@@ -827,6 +828,9 @@ int MsgSendEvent(MsgEventQ_t *q, MsgEventClient_t client,
     break;
   case MsgEventQSPUState:
     size = sizeof(MsgQSPUStateEvent_t);
+    break;
+  case MsgEventQSetDecodeVideoState:
+    size = sizeof(MsgQDecodeVideoStateEvent_t);
     break;
   case MsgEventQSpeed:
     size = sizeof(MsgQSpeedEvent_t);

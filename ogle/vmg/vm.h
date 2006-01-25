@@ -55,7 +55,7 @@ typedef struct {
   int pgcN; // either this or *pgc is enough. Which to use?
   int pgN;  // is this needed? can allways fid pgN from cellN?
   int cellN; // current cell
-  int blockN; // block offset to the VOPBU within the current cell
+  int blockN; // block offset to the VOBU within the current cell
   
   player_mode_t mode;
   

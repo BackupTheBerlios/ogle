@@ -180,7 +180,8 @@ typedef enum {
   MsgEventQGntPicBuf,
   MsgEventQDestroyPicBuf,      /* 50 */
   MsgEventQDemuxStreamEnable,
-  MsgEventQStop
+  MsgEventQStop,
+  MsgEventQSetDecodeVideoState
 } MsgEventType_t;
 
 
@@ -280,6 +281,7 @@ typedef struct {
   int y_end;
   uint8_t color[4];
   uint8_t contrast[4];
+  int32_t nav_serial;
 } MsgQSPUHighlightEvent_t;
 
 typedef struct {
@@ -295,6 +297,13 @@ typedef struct {
   MsgEventClient_t client;
   uint32_t state;
 } MsgQSPUStateEvent_t;
+
+typedef struct {
+  MsgEventType_t type;
+  MsgEventQ_t *q;
+  MsgEventClient_t client;
+  uint32_t state;
+} MsgQDecodeVideoStateEvent_t;
 
 
 typedef struct {
@@ -448,6 +457,8 @@ typedef struct {
   int block_offset;    /* blocks of 2048 bytes from start of title/file */
   int block_count;     /* nr of blocks to demux */
   FlowCtrl_t flowcmd;
+  int32_t serial;
+  int nav_search;      /* find next nav block */
 } MsgQDemuxDVDEvent_t;
 
 typedef struct {
@@ -479,6 +490,7 @@ typedef struct {
   MsgEventQ_t *q;
   MsgEventClient_t client;
   int to_scrid;
+  int32_t to_navserial;
 } MsgQFlushDataEvent_t;
 
 typedef struct {
@@ -606,6 +618,7 @@ typedef union {
   MsgQSaveScreenshotEvent_t savescreenshot;
   MsgQSPUStateEvent_t spustate;
   MsgQStopEvent_t stop;
+  MsgQDecodeVideoStateEvent_t decodevideostate;
 } MsgEvent_t;
 
 #ifdef SOCKIPC
