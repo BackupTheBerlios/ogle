@@ -83,6 +83,10 @@ static int xv_id;
 #endif /* HAVE_XV */
 
 
+#define DEINTERLACE_TEST
+#ifdef DEINTERLACE_TEST
+static int deint;
+#endif
 //ugly hack
 extern data_q_t *cur_data_q;
 /*
@@ -1597,6 +1601,29 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.input_base = base_keysym;
 	m_ev.input.input_keycode = ev.xkey.keycode;
 
+#ifdef DEINTERLACE_TEST
+	if(use_xv) {
+	  if(keysym == XK_m) {
+	    if(deint != 1) {
+	      fprintf(stderr, "displaying only top field\n");
+	      deint = 1;
+	      xv_image = XvShmCreateImage(mydisplay, xv_port, xv_id, NULL,
+					  xv_image->width*2,
+					  xv_image->height/2, 
+					  &shm_info);
+	    }
+	  } else if(keysym == XK_M) {
+	    if(deint != 0) {
+	      fprintf(stderr, "displaying both fields\n");
+	      deint = 0;
+	      xv_image = XvShmCreateImage(mydisplay, xv_port, xv_id, NULL,
+					  xv_image->width/2,
+					  xv_image->height*2, 
+					  &shm_info);
+	    }
+	  }
+	}
+#endif       
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {
 	  case EAGAIN:
@@ -2367,6 +2394,12 @@ static void draw_win_xv(window_info *dwin)
   set_videoarea(&window, scale.image_width, scale.image_height);
 
   src_view_area = get_viewarea(draw_image);
+#ifdef DEINTERLACE_TEST
+  if(deint) {
+    src_view_area.y = src_view_area.y/2; 
+    src_view_area.height = src_view_area.height/2; 
+  }
+#endif
   if(use_xshm) {
     XvShmPutImage(mydisplay, xv_port, dwin->win, mygc, xv_image, 
 		  src_view_area.x, src_view_area.y, 
