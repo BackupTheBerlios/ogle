@@ -401,6 +401,9 @@ static char *sun_block2char( const char *path )
    NetBSD  /dev/rcd0[d|c|..] d for x86, c (for non x86), perhaps others
    Darwin  /dev/rdisk0,  it needs to be the raw device
    BSD/OS  /dev/sr0c (if not mounted) or /dev/rsr0c ('c' any letter will do) */
+#ifdef __FreeBSD__
+#define bsd_block2char(path) path
+#else
 static char *bsd_block2char( const char *path )
 {
   char *new_path;
@@ -416,6 +419,7 @@ static char *bsd_block2char( const char *path )
 
   return new_path;
 }
+#endif /* FreeBSD */
 #endif
 
 
