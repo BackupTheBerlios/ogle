@@ -33,7 +33,7 @@
 #include <limits.h>
 #include <dirent.h>
  
-#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__bsdi__) || defined(__DARWIN__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__bsdi__) || defined(__DARWIN__) || defined(__DragonFly__)
 #define SYS_BSD 1
 #endif
 
@@ -397,15 +397,21 @@ static char *sun_block2char( const char *path )
 
 #if defined(SYS_BSD)
 /* FreeBSD /dev/(r)(a)cd0c (a is for atapi), recomended to _not_ use r
+   update: FreeBSD and DragonFly no longer uses the prefix so don't add it.
+
    OpenBSD /dev/rcd0c, it needs to be the raw device
    NetBSD  /dev/rcd0[d|c|..] d for x86, c (for non x86), perhaps others
    Darwin  /dev/rdisk0,  it needs to be the raw device
-   BSD/OS  /dev/sr0c (if not mounted) or /dev/rsr0c ('c' any letter will do) */
-#ifdef __FreeBSD__
-#define bsd_block2char(path) path
-#else
+   BSD/OS  /dev/sr0c (if not mounted) or /dev/rsr0c ('c' any letter will do)
+   
+   returns a string allocated with strdup which should be free()'d when
+   no longer used.
+*/
 static char *bsd_block2char( const char *path )
 {
+#if defined(__FreeBSD__) || defined(__DragonFly__)
+  return (char *) strdup( path );
+#else
   char *new_path;
 
   /* If it doesn't start with "/dev/" or does start with "/dev/r" exit */ 
@@ -418,8 +424,8 @@ static char *bsd_block2char( const char *path )
   strcat( new_path, path + strlen( "/dev/" ) );
 
   return new_path;
+#endif /* __FreeBSD__ || __DragonFly__ */
 }
-#endif /* FreeBSD */
 #endif
 
 
@@ -468,18 +474,21 @@ dvd_reader_t *DVDOpen( const char *path )
   if( S_ISBLK( fileinfo.st_mode ) || 
       S_ISCHR( fileinfo.st_mode ) || 
       S_ISREG( fileinfo.st_mode ) ) {
-
     /**
      * Block devices and regular files are assumed to be DVD-Video images.
      */
+    dvd_reader_t *dvd = NULL;
 #if defined(__sun)
-    return DVDOpenImageFile( sun_block2char( path ), have_css );
+    dev_name = sun_block2char( path );
 #elif defined(SYS_BSD)
-    return DVDOpenImageFile( bsd_block2char( path ), have_css );
+    dev_name = bsd_block2char( path );
 #else
-    return DVDOpenImageFile( path, have_css );
+    dev_name = strdup( path );
 #endif
-
+    dvd = DVDOpenImageFile( dev_name, have_css );
+    free( dev_name );
+    
+    return dvd;
   } else if( S_ISDIR( fileinfo.st_mode ) ) {
     dvd_reader_t *auth_drive = 0;
     char *path_copy;
