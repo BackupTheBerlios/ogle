@@ -50,11 +50,11 @@ void usage(void)
 void print_stat(dvd_stat_t *buf)
 {
   
-  printf("size: %lu", buf->size);
+  printf("size: %lld", buf->size);
   if(buf->nr_parts > 1) {
     int n;
     for(n = 0; n < buf->nr_parts; n++) {
-      printf(", [%u]", buf->parts_size[n]);
+      printf(", [%lld]", buf->parts_size[n]);
     }
   }
 }
