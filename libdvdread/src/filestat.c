@@ -30,7 +30,11 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#if defined(HAVE_INTTYPES_H)
+#include <inttypes.h>
+#elif defined(HAVE_STDINT_H)
 #include <stdint.h>
+#endif
 
 #include <dvdread/dvd_reader.h>
 #include <dvdread/ifo_read.h>
