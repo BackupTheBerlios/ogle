@@ -13,6 +13,9 @@
 
 5.	Update libdvdread version in dvdread/dvd_reader.h
 
+5.5	make a new dist (tar.gz) with the new version information and test
+	on all platforms.
+
 (note: version for 3,4,5 should be moved to configure.in in future versions)
 
 6.	Make rpms
