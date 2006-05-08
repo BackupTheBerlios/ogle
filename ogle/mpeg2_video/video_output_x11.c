@@ -1915,7 +1915,19 @@ static void clear_window(void)
 void display(yuv_image_t *current_image)
 {
   static int sar_frac_n, sar_frac_d; 
-  
+  static int p_width = -1, p_height = -1;
+
+  if(p_width != current_image->info->picture.horizontal_size ||
+     p_height != current_image->info->picture.vertical_size) {
+
+    p_width = current_image->info->picture.horizontal_size;
+    p_height = current_image->info->picture.vertical_size;
+
+    display_adjust_size(current_image, -1, -1);
+    //TODO move this
+    clear_borders();
+  }
+
   if(aspect_mode == AspectModeSrcMPEG) {
     /* New source aspect ratio? */
     if(current_image->info->picture.sar_frac_n != sar_frac_n ||
