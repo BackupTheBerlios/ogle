@@ -109,7 +109,7 @@ unsigned int debug = 0;
 
 
 
-data_q_t *data_q_head;
+data_q_t *data_q_head = NULL;
 static data_q_t *cur_data_q;
 
 int shm_ready = 0;
@@ -826,8 +826,9 @@ data_q_t *new_data_q(data_q_t **data_q_list,
   data_q_t **data_q_p;
 
   for(data_q_p = data_q_list; *data_q_p != NULL; data_q_p =&(*data_q_p)->next);
-    
+
   *data_q_p = malloc(sizeof(data_q_t));
+  (*data_q_p)->next = NULL;
   
   if(get_output_buffer(*data_q_p,
 		       padded_width, padded_height,
@@ -933,9 +934,11 @@ int get_output_buffer(data_q_t *data_q,
     data_head->write_nr = 0;
     
     
-
+#ifdef HAVE_XV
+    image_bufs = malloc((nr_of_bufs+1)*sizeof(yuv_image_t));
+#else
     image_bufs = malloc(nr_of_bufs*sizeof(yuv_image_t));
-    
+#endif
     data_elems =(picture_data_elem_t *)(data_shmaddr + 
 					sizeof(data_buf_head_t));
 
