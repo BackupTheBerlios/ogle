@@ -1822,9 +1822,15 @@ static void do_run(dvd_state_t *vmstate, nav_state_t *ns) {
     int got_data;
     uint32_t blk;
     static int last_pending = -1;
+    static int last_serial = -1;
+
     // For now.. later use the time instead..
     /* Have we read the last dsi packet we asked for? Then request the next. */
     blk = get_current_block(ns);
+    if(last_serial != packet_serial) {
+      last_serial = packet_serial;
+      last_pending = -1;
+    }
     if((nav_lbn(ns) != -1) && (nav_lbn(ns) != last_pending)
        && (get_pending_serial(ns) == packet_serial)
        && nav_within_cell(ns->cell, blk)) {
