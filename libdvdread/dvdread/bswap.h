@@ -76,13 +76,29 @@
 #define B2N_32(x) x = be32toh(x)
 #define B2N_64(x) x = be64toh(x)
 
+
+#elif defined(__APPLE__) || defined(__DARWIN__)
+#include <libkern/OSByteOrder.h>
+#define B2N_16(x) x = OSSwapBigToHostConstInt16(x)
+#define B2N_32(x) x = OSSwapBigToHostConstInt32(x)
+#define B2N_64(x) x = OSSwapBigToHostConstInt64(x)
+
+#else
+#if defined(__FreeBSD__) || defined(__sun) || defined(__bsdi__) || defined(WIN32) || defined(__BEOS__) || defined(__INTERIX)
+/* These systems don't have swap macros */
+#else
+/* If there isn't a header provided with your system with this functionality
+ * add the relevant || define( ) to the list above.
+ */
+#warning "You should add endian swap macros for your system"
+#endif
+
 /* This is a slow but portable implementation, it has multiple evaluation 
  * problems so beware.
  * Old FreeBSD's and Solaris don't have <byteswap.h> or any other such 
  * functionality! 
  */
 
-#elif defined(__FreeBSD__) || defined(__sun) || defined(__bsdi__) || defined(WIN32) || defined(__BEOS__) || defined(__INTERIX)
 #define B2N_16(x)                               \
   x = ((((x) & 0xff00) >> 8) |                  \
        (((x) & 0x00ff) << 8))
@@ -101,12 +117,7 @@
        (((x) & 0x000000000000ff00) << 40) |     \
        (((x) & 0x00000000000000ff) << 56))
 
-#else
 
-/* If there isn't a header provided with your system with this functionality
- * add the relevant || define( ) to the portable implementation above.
- */
-#error "You need to add endian swap macros for you're system"
 
 #endif
 
