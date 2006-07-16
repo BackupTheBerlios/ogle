@@ -309,7 +309,7 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
     
     switch(blocks_read) {
     case -1:
-      FATAL("%s", "dvdreadblocks failed\n");
+      FATAL("dvdreadblocks failed at block offset %d\n", boffset);
       exit(1);
     case 0:
       WARNING("%s", "dvdreadblocks returned 0\n");
@@ -334,8 +334,8 @@ int dvd_read_block(char *buf, int boffset, int nblocks)
       break;
     }
     if(blocks_read != nblocks) {
-      WARNING("dvdreadblocks only got %d, wanted %d\n",
-	      blocks_read, nblocks);
+      WARNING("dvdreadblocks only got %d, wanted %d (block offset: %d)\n",
+	      blocks_read, nblocks, boffset);
     }
     buf += blocks_read * 2048;
     nblocks -= blocks_read;
