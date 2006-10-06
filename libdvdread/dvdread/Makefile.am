@@ -6,7 +6,7 @@ libdvdread_la_SOURCES = dvd_input.c dvd_reader.c dvd_udf.c ifo_read.c \
 	dvdread_internal.h cmd_print.c \
 	md5.c md5.h
 libdvdread_la_LIBADD = @DL_LIBS@ @CSS_LIBS@
-libdvdread_la_LDFLAGS = -version-info 5:0:2 -export-symbols-regex "(DVD.*|ifo.*|nav.*|cmd.*)"
+libdvdread_la_LDFLAGS = -version-info 5:1:2 -export-symbols-regex "(DVD.*|ifo.*|nav.*|cmd.*)"
 
 pkgincludedir = $(includedir)/dvdread
 
