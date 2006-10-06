@@ -1,6 +1,6 @@
 Summary: A library for reading DVD-Video images.
 Name: libdvdread
-Version: 0.9.6
+Version: 0.9.7
 Release: ogle1
 Vendor: Ogle
 Packager: Ogle developer team
@@ -52,6 +52,8 @@ make
 %{_libdir}/*.la
 
 %changelog
+* Fri Oct 6 2006 Björn Englund <d4bjorn@dtek.chalmers.se>
+- Updated to version 0.9.7
 * Wed May 3 2006 Björn Englund <d4bjorn@dtek.chalmers.se>
 - Updated to version 0.9.6
 * Sun Jan 22 2006 Björn Englund <d4bjorn@dtek.chalmers.se>
