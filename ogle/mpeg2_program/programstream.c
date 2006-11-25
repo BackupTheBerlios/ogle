@@ -61,7 +61,7 @@ typedef struct {
 buf_data_t id_reg[256];
 buf_data_t id_reg_ps1[256];
 
-int register_id(uint8_t id, int subtype);
+int register_id(uint8_t id, uint8_t subtype);
 int id_registered(uint8_t id, uint8_t subtype);
 int init_id_reg(stream_state_t default_state);
 //int wait_for_msg(mq_cmdtype_t cmdtype);
@@ -87,7 +87,7 @@ int switch_to_stream(uint8_t id, uint8_t subtype);
 int switch_from_to_stream(uint8_t oldid, uint8_t oldsubtype,
 			  uint8_t newid, uint8_t newsubtype);
 int id_has_output(uint8_t stream_id, uint8_t subtype);
-int id_get_output(uint8_t id, int subtype);
+int id_get_output(uint8_t id, uint8_t subtype);
 static int enable_stream(uint8_t id, uint8_t subtype, int state);
 
 typedef struct {
@@ -2240,7 +2240,7 @@ static void handle_events(MsgEvent_t *ev)
   }
 }
 
-int register_id(uint8_t id, int subtype)
+int register_id(uint8_t id, uint8_t subtype)
 {
   MsgEvent_t ev;
   
@@ -2310,7 +2310,7 @@ int register_id(uint8_t id, int subtype)
   return 0;
 }
 
-int id_get_output(uint8_t id, int subtype)
+int id_get_output(uint8_t id, uint8_t subtype)
 {
   MsgEvent_t ev;
   
@@ -2465,7 +2465,8 @@ uint8_t type_registered(uint8_t id, uint8_t subtype)
     }
     
     for(n = idtype; n < (idtype+idrange); n++) {
-      if(id_stat(n, 0) == STREAM_DECODE) {
+      if((id_stat(n, 0) != STREAM_DISCARD) &&
+	 (id_stat(n, 0) != STREAM_NOT_REGISTERED)) {
 	return n;
       }
     }
@@ -2492,7 +2493,8 @@ uint8_t type_registered(uint8_t id, uint8_t subtype)
     }
     
     for(n = idtype; n < (idtype+idrange); n++) {
-      if(id_stat(id, n) == STREAM_DECODE) {
+      if((id_stat(id, n) != STREAM_DISCARD) &&
+	 (id_stat(id, n) != STREAM_NOT_REGISTERED)) {
 	return n;
       }
     }
@@ -2510,7 +2512,7 @@ int switch_to_stream(uint8_t id, uint8_t subtype)
     if(id != MPEG2_PRIVATE_STREAM_1) {
       id_reg[id].state = STREAM_DECODE;
     } else {
-      id_reg_ps1[subtype].state = STREAM_DISCARD;
+      id_reg_ps1[subtype].state = STREAM_DECODE;
     }
     return 1;
   }
