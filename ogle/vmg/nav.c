@@ -1045,6 +1045,10 @@ int process_user_data(MsgEvent_t ev, dvd_state_t *vmstate, nav_state_t *ns)
       /* Returns true if a button is activated */
       if(process_button(&ev.dvdctrl.cmd, &ns->pci, &vmstate->HL_BTNN_REG)) {
 	int button_nr = vmstate->HL_BTNN_REG >> 10;
+	//if a button is activated in a cell still, end still?
+	if(ns->still_time > 0) {
+	  ns->still_time = 0;
+	}
 	res = vm_eval_cmd(&ns->pci.hli.btnit[button_nr - 1].cmd);
       }
     }
