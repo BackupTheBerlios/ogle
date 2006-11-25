@@ -1378,7 +1378,10 @@ int mix_subpicture_yuv(yuv_image_t *img, yuv_image_t *reserv)
     mix_function = display_mix_function_yuv;
     
     //ugly hack
-    if(img->info->is_reference || (ctrl_data->speed < 1.0)) {
+    //If picture is used as reference (mpeg reference picture) we can't
+    // mix into it.
+    //We can't rely on that there is a new picture for every spu.
+    if(1 || img->info->is_reference || (ctrl_data->speed < 1.0)) {
       int size;
       size = width * height;
       memcpy(reserv->y, img->y, size);
