@@ -1339,7 +1339,7 @@ int vm_time_play(dvd_time_t *time, unsigned int offset)
   if(seconds < 0)
     seconds = 0;
   
-  fprintf(stderr, "Time Play/Skip to offset %d seconds\n", seconds);
+  DNOTE("Time Play/Skip to offset %d seconds\n", seconds);
   
   pgcN = get_PGCN();
   // Is there an entry for this pgc?
@@ -1785,21 +1785,22 @@ static int get_cellN_for_vobu(uint32_t vobu_addr)
     //nr_of_vobs = c_adt->nr_of_vobs;
   entries = (c_adt->last_byte + 1 - C_ADT_SIZE)/sizeof(cell_adr_t);
   
-  fprintf(stderr, "VOBU addr: 0x%x\n", vobu_addr);
+  
+  DNOTE("VOBU addr: 0x%x\n", vobu_addr);
   for(i = 0; i < entries; i++) {
     if(c_adt->cell_adr_table[i].start_sector <= vobu_addr && 
        vobu_addr <= c_adt->cell_adr_table[i].last_sector) {
       uint16_t vob_id = c_adt->cell_adr_table[i].vob_id;
       uint8_t cell_id = c_adt->cell_adr_table[i].cell_id;
-      fprintf(stderr, "start_sector: 0x%x\n",
+      DNOTE("start_sector: 0x%x\n",
 	      c_adt->cell_adr_table[i].start_sector);
-      fprintf(stderr, "last_sector: 0x%x\n",
+      DNOTE("last_sector: 0x%x\n",
 	      c_adt->cell_adr_table[i].last_sector);
-      fprintf(stderr, "VOBID: %d CELLID: %d\n", vob_id, cell_id);
+      DNOTE("VOBID: %d CELLID: %d\n", vob_id, cell_id);
       for(j = 0; j < state.pgc->nr_of_cells; j++) {
 	if(state.pgc->cell_position[j].vob_id_nr == vob_id &&
 	   state.pgc->cell_position[j].cell_nr == cell_id) {
-	  fprintf(stderr, "VOBID: %d CELLID: %d, CellN: %d\n",
+	  DNOTE("VOBID: %d CELLID: %d, CellN: %d\n",
 		  vob_id, cell_id, j + 1);
 	  return j + 1; // cellN is 1 based
 	}
