@@ -69,7 +69,7 @@ extern void screenshot_mode(int mode);
 int register_event_handler(int(*eh)(MsgEventQ_t *, MsgEvent_t *));
 int event_handler(MsgEventQ_t *q, MsgEvent_t *ev);
 
-
+static int print_fps = 1;
 char *program_name;
 int dlevel;
 
@@ -1040,13 +1040,14 @@ static void display_process()
       oavg_time = avg_time;
       clocktime_get(&avg_time);
       
-      fprintf(stderr, "display: frame rate: %.3f fps\n",
-	      200.0/(((double)TIME_S(avg_time)+
-		      (double)TIME_SS(avg_time)/CT_FRACTION)-
-		     ((double)TIME_S(oavg_time)+
-		      (double)TIME_SS(oavg_time)/CT_FRACTION))
-	      );
-
+      if(print_fps) {
+	fprintf(stderr, "display: frame rate: %.3f fps\n",
+		200.0/(((double)TIME_S(avg_time)+
+			(double)TIME_SS(avg_time)/CT_FRACTION)-
+		       ((double)TIME_S(oavg_time)+
+			(double)TIME_SS(oavg_time)/CT_FRACTION))
+		);
+      }
     }
     /*
     clocktime_get(&real_time2);
@@ -1124,7 +1125,11 @@ int main(int argc, char **argv)
 #endif
   program_name = argv[0];
   GET_DLEVEL();
-
+  char *ep;
+  if((ep = getenv("OGLE_PRINT_FPS")) && !strcmp(ep, "0")) {
+    print_fps = 0;
+  }
+  
   /* Parse command line options */
   while ((c = getopt(argc, argv, "m:h?")) != EOF) {
     switch (c) {
