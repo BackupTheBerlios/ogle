@@ -1175,11 +1175,12 @@ static int next_spu_cmd_pending(spu_handle_t *spu_info)
 	  // FIXME: assumes order of src_nr
 	  if(ctrl_time[spu_info->scr_nr].scr_id < flush_to_scrid) {
 	    /* Reset state  */
+#if 0 //todo
 	    DNOTE("not getdata scr %d < flushto %d (%d),  hili: %d spu: %d\n",
 		  ctrl_time[spu_info->scr_nr].scr_id, flush_to_scrid,
 		  flush_to_navserial,
 		  highlight.nav_serial, spu_info->nav_serial); 
-
+#endif
 	    spu_info->display_start = 0;
 	    
 	    if(highlight.nav_serial < flush_to_navserial) {
