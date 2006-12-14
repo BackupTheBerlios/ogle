@@ -1602,6 +1602,7 @@ void check_x_events(yuv_image_t *current_image)
 	m_ev.input.input_keycode = ev.xkey.keycode;
 
 #ifdef DEINTERLACE_TEST
+#ifdef HAVE_XV
 	if(use_xv) {
 	  if(keysym == XK_m) {
 	    if(deint != 1) {
@@ -1623,6 +1624,7 @@ void check_x_events(yuv_image_t *current_image)
 	    }
 	  }
 	}
+#endif
 #endif       
 	if(MsgSendEvent(msgq, input_client, &m_ev, IPC_NOWAIT) == -1) {
 	  switch(errno) {
